@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,13 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function isDuplicateEmailError(code: string | undefined, message: string) {
   return code === "23505" || message.toLowerCase().includes("duplicate");
+}
+
+function isPermissionDeniedError(code: string | undefined, message: string) {
+  return (
+    code === "42501" ||
+    message.toLowerCase().includes("permission denied")
+  );
 }
 
 function LockIcon() {
@@ -36,6 +44,23 @@ export default function WaitlistForm() {
   );
   const [errorMessage, setErrorMessage] = useState("");
 
+  const supabase = useMemo<SupabaseClient | null>(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    console.log("[WaitlistForm] NEXT_PUBLIC_SUPABASE_URL:", url);
+    console.log("[WaitlistForm] NEXT_PUBLIC_SUPABASE_ANON_KEY:", key);
+
+    if (!url || !key) {
+      console.error(
+        "[WaitlistForm] Missing Supabase env vars. Redeploy after setting NEXT_PUBLIC_* in Vercel.",
+      );
+      return null;
+    }
+
+    return createClient();
+  }, []);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setStatus("loading");
@@ -48,12 +73,32 @@ export default function WaitlistForm() {
       return;
     }
 
-    const supabase = createClient();
+    if (!supabase) {
+      setStatus("error");
+      setErrorMessage("Waitlist is temporarily unavailable. Please try again later.");
+      return;
+    }
+
     const { error } = await supabase
       .from("waitlist")
-      .insert({ email: trimmedEmail });
+      .insert([{ email: trimmedEmail }]);
 
     if (error) {
+      console.error("[WaitlistForm] Supabase insert failed:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+
+      if (isPermissionDeniedError(error.code, error.message)) {
+        console.error(
+          "[WaitlistForm] Table-level GRANT missing for anon. Run in Supabase SQL editor:",
+          "GRANT USAGE ON SCHEMA public TO anon;",
+          "GRANT INSERT ON public.waitlist TO anon;",
+        );
+      }
+
       setStatus("error");
       setErrorMessage(
         isDuplicateEmailError(error.code, error.message)
