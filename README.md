@@ -1,36 +1,74 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LeadReacher
 
-## Getting Started
+pnpm + Turborepo monorepo for the LeadReacher product.
 
-First, run the development server:
+## Structure
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```
+leadreacher/
+├── apps/
+│   ├── web/          # Next.js marketing site (@leadreacher/web)
+│   └── api/          # Fastify API server (@leadreacher/api)
+├── packages/
+│   └── shared/       # Shared TypeScript types (@leadreacher/shared)
+├── .env.local        # Local environment variables (root)
+├── package.json      # Workspace root
+├── pnpm-workspace.yaml
+└── turbo.json
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Prerequisites
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [Node.js](https://nodejs.org/) 20+
+- [pnpm](https://pnpm.io/) 9+
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Getting started
 
-## Learn More
+Install dependencies from the repository root:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm install
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Run all apps in development:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+```
 
-## Deploy on Vercel
+Run a single app:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+pnpm dev:web   # Next.js on http://localhost:3000
+pnpm dev:api   # Fastify on http://localhost:3001
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Scripts
+
+| Command       | Description                          |
+|---------------|--------------------------------------|
+| `pnpm dev`    | Start all apps in dev mode (Turbo)   |
+| `pnpm build`  | Build all packages and apps          |
+| `pnpm lint`   | Lint all packages and apps           |
+| `pnpm dev:web`| Dev server for the Next.js app only  |
+| `pnpm dev:api`| Dev server for the Fastify API only  |
+
+## Environment variables
+
+Local secrets live in `.env.local` at the **repository root**. The Next.js app loads this file automatically via `apps/web/next.config.ts`.
+
+Do not commit `.env.local` — it is gitignored.
+
+## Packages
+
+### `@leadreacher/web`
+
+Next.js 16 app with the landing page, waitlist form, and Supabase client integration.
+
+### `@leadreacher/api`
+
+Fastify + TypeScript API scaffold. Default route: `GET /` → `{ "message": "Hello World" }` on port **3001**.
+
+### `@leadreacher/shared`
+
+Shared TypeScript types consumed by `web` and `api`. Add exports in `packages/shared/src/index.ts`.
