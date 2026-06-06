@@ -1,8 +1,6 @@
-import Image from "next/image";
-import HeroAnimation from "@/components/landing/HeroAnimation";
+import HeroVideo from "@/components/landing/HeroVideo";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Logo } from "@/components/ui/Logo";
-import { ASSETS } from "@/lib/constants/brand";
 
 const heroHeadlineShadow =
   "drop-shadow-[0_2px_20px_rgba(255,255,255,0.75)]";
@@ -12,15 +10,7 @@ const heroTrustShadow = "drop-shadow-[0_1px_8px_rgba(0,0,0,0.25)]";
 export default function HeroSection() {
   return (
     <section className="relative isolate flex min-h-screen w-full flex-col overflow-hidden pb-0">
-      <Image
-        src={ASSETS.heroBackground}
-        alt=""
-        fill
-        priority
-        className="object-cover object-center"
-        sizes="100vw"
-      />
-      <HeroAnimation />
+      <HeroVideo />
       <div
         className="hero-bottom-fade pointer-events-none absolute inset-x-0 bottom-0 z-5 h-[50%] min-h-80"
         aria-hidden
