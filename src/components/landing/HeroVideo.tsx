@@ -13,7 +13,8 @@ export default function HeroVideo() {
       muted
       playsInline
       preload="auto"
-      className="absolute inset-0 z-1 h-full w-full object-cover"
+      poster="/BG.png"
+      className="absolute inset-0 z-1 h-full w-full object-cover object-center"
       src={ANIMATION_VIDEO_SRC}
       aria-hidden
     />

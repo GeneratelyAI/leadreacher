@@ -1,7 +1,7 @@
 import FeatureSection from "@/components/landing/FeatureSection";
 import HeroSection from "@/components/landing/HeroSection";
-import HeroTransition from "@/components/landing/HeroTransition";
 import LandingFooter from "@/components/landing/LandingFooter";
+import WaitlistForm from "@/components/landing/WaitlistForm";
 
 export default function Home() {
   return (
@@ -9,7 +9,9 @@ export default function Home() {
       <div className="flex flex-1 flex-col">
         <div className="relative overflow-x-hidden bg-brand-bg text-neutral-900">
           <HeroSection />
-          <HeroTransition />
+          <div className="relative bg-brand-bg">
+            <WaitlistForm />
+          </div>
           <FeatureSection />
         </div>
       </div>
