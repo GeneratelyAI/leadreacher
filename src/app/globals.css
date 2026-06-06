@@ -1,0 +1,80 @@
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+:root {
+  --brand-purple: #5326b7;
+  --brand-bg: #0d0854;
+  --brand-purple-light: #7a58c4;
+  --brand-purple-dark: #24106e;
+}
+
+@theme inline {
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-bg: var(--brand-bg);
+  --color-brand-purple-light: var(--brand-purple-light);
+  --color-brand-purple-dark: var(--brand-purple-dark);
+  --font-sans: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: white;
+}
+
+.hero-bottom-fade {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    #0d085459 38%,
+    #0d0854b3 62%,
+    #0d0854 100%
+  );
+}
+
+.hero-transition-base {
+  background: linear-gradient(180deg, transparent 0%, #0d0854cc 42%, #0d0854 100%);
+}
+
+.hero-transition-blur {
+  background: linear-gradient(
+    180deg,
+    #0d08541a 0%,
+    #0d085466 50%,
+    #0d0854e6 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    black 28%,
+    black 72%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    black 28%,
+    black 72%,
+    transparent 100%
+  );
+}
+
+.feature-section-gradient {
+  background: linear-gradient(
+    180deg,
+    #0d0854 0%,
+    #0d0854 10%,
+    #150d5e 18%,
+    #24106e 28%,
+    #3a2088 40%,
+    #5326b7 52%,
+    #7a58c4 66%,
+    #b39ae0 80%,
+    #e8dff5 92%,
+    #ffffff 100%
+  );
+}
+
+.feature-top-fade {
+  background: linear-gradient(180deg, #0d085440 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+}
