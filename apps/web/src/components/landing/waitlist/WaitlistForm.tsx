@@ -115,7 +115,7 @@ export default function WaitlistForm() {
   return (
     <section
       id="waitlist"
-      className="relative z-10 w-full px-4 pb-20 pt-2 sm:px-6 sm:pb-24 sm:pt-4"
+      className="relative z-10 -mt-8 w-full px-4 pb-20 pt-0 sm:-mt-10 sm:px-6 sm:pb-24"
     >
       <div className="mx-auto w-full max-w-3xl text-center">
         <h2 className="text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.1] lg:text-5xl">
@@ -137,7 +137,7 @@ export default function WaitlistForm() {
 
         <form
           onSubmit={handleSubmit}
-          className="mx-auto mt-5 flex w-full max-w-2xl items-stretch rounded-full border border-white/12 bg-white/3 p-1.5 sm:mt-6 sm:max-w-3xl sm:p-2"
+          className="liquid-glass-pill mx-auto mt-5 flex w-full max-w-2xl items-stretch p-1.5 sm:mt-6 sm:max-w-3xl sm:p-2"
         >
           <input
             type="email"
@@ -154,7 +154,7 @@ export default function WaitlistForm() {
             type="submit"
             disabled={status === "loading"}
             className={cn(
-              "shrink-0 rounded-full bg-linear-to-b from-brand-purple-light to-brand-purple px-6 py-3 text-sm font-semibold whitespace-nowrap text-white shadow-[0_10px_32px_-10px_rgba(83,38,183,0.8)] transition-colors hover:from-brand-purple-light/95 hover:to-brand-purple-light sm:px-10 sm:py-3.5 sm:text-base",
+              "liquid-glass-button liquid-glass-button--accent shrink-0 rounded-full px-6 py-3 text-sm font-semibold whitespace-nowrap sm:px-10 sm:py-3.5 sm:text-base",
               status === "loading" && "cursor-not-allowed opacity-60",
             )}
           >

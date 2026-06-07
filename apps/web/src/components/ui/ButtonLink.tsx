@@ -15,10 +15,8 @@ type ButtonLinkProps = {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    "border-transparent bg-brand-purple text-white shadow-[0_8px_30px_-8px_rgba(83,38,183,0.55)] hover:scale-[1.02] active:scale-[0.98] sm:shadow-[0_10px_36px_-10px_rgba(83,38,183,0.55)]",
-  outline:
-    "border-2 border-brand-purple bg-white text-brand-purple hover:bg-neutral-50",
+  primary: "liquid-glass-button liquid-glass-button--accent hover:scale-[1.02]",
+  outline: "liquid-glass-button liquid-glass-button--outline",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

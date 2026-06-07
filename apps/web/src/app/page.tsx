@@ -1,7 +1,8 @@
-import FeatureSection from "@/components/landing/FeatureSection";
-import HeroSection from "@/components/landing/HeroSection";
-import LandingFooter from "@/components/landing/LandingFooter";
-import WaitlistForm from "@/components/landing/WaitlistForm";
+import FeatureSection from "@/components/landing/features/FeatureSection";
+import HeroSection from "@/components/landing/hero/HeroSection";
+import LandingFooter from "@/components/landing/footer/LandingFooter";
+import StatsBar from "@/components/landing/stats/StatsBar";
+import WaitlistForm from "@/components/landing/waitlist/WaitlistForm";
 
 export default function Home() {
   return (
@@ -11,6 +12,9 @@ export default function Home() {
           <HeroSection />
           <div className="relative bg-brand-bg">
             <WaitlistForm />
+            <div className="mx-auto w-full max-w-360 px-5 pb-8 sm:px-8 lg:px-12">
+              <StatsBar />
+            </div>
           </div>
           <FeatureSection />
         </div>

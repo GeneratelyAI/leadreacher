@@ -8,14 +8,11 @@ export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses = {
-  primary:
-    "border-transparent bg-brand-purple text-white shadow-[0_8px_30px_-8px_rgba(83,38,183,0.55)] hover:bg-brand-purple-light active:bg-brand-purple-dark",
-  secondary:
-    "border-transparent bg-brand-purple-light text-white hover:bg-brand-purple active:bg-brand-purple-dark",
-  outline:
-    "border-2 border-brand-purple bg-transparent text-brand-purple hover:bg-brand-purple/8 active:bg-brand-purple/12",
+  primary: "liquid-glass-button liquid-glass-button--accent",
+  secondary: "liquid-glass-button liquid-glass-button--accent",
+  outline: "liquid-glass-button liquid-glass-button--outline text-brand-purple",
   ghost:
-    "border-transparent bg-transparent text-brand-purple hover:bg-brand-purple/8 active:bg-brand-purple/12",
+    "liquid-glass-button border-transparent bg-transparent text-brand-purple shadow-none backdrop-blur-none hover:bg-white/10",
 } as const;
 
 const sizeClasses = {
@@ -42,7 +39,7 @@ export default function Button({
       disabled={isDisabled}
       aria-busy={loading || undefined}
       className={cn(
-        "inline-flex items-center justify-center rounded-full font-semibold transition-colors",
+        "inline-flex items-center justify-center rounded-full font-semibold",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple focus-visible:ring-offset-2",
         "disabled:cursor-not-allowed disabled:opacity-60",
         variantClasses[variant],

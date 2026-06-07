@@ -3,6 +3,7 @@ import { ASSETS } from "@/lib/constants/brand";
 
 type LogoProps = {
   size?: "xs" | "sm" | "md" | "lg";
+  variant?: "colored" | "white";
   className?: string;
   align?: "left" | "center" | "right";
 };
@@ -20,11 +21,16 @@ const alignClasses = {
   right: "object-right",
 } as const;
 
-export function Logo({ size = "md", className, align = "center" }: LogoProps) {
+export function Logo({
+  size = "md",
+  variant = "colored",
+  className,
+  align = "center",
+}: LogoProps) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={ASSETS.logoColored}
+      src={variant === "white" ? ASSETS.logoWhite : ASSETS.logoColored}
       alt="leadreacher"
       className={cn(
         "w-auto object-contain",

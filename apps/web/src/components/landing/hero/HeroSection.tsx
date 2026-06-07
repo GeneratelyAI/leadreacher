@@ -1,4 +1,4 @@
-import HeroVideo from "@/components/landing/HeroVideo";
+import HeroVideo from "./HeroVideo";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Logo } from "@/components/ui/Logo";
 

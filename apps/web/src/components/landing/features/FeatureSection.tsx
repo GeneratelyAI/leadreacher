@@ -4,7 +4,6 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { CircleCheckIcon } from "@/components/ui/CircleCheckIcon";
 import { Logo } from "@/components/ui/Logo";
 import { StarBadgeIcon } from "@/components/ui/StarBadgeIcon";
-import { TRUSTED_COMPANIES } from "@/data/trusted-companies";
 import { ASSETS, FEATURE_BENEFITS } from "@/lib/constants/brand";
 
 function FeatureDecorativePath() {
@@ -73,31 +72,6 @@ function BenefitList() {
   );
 }
 
-function TrustedCompanies() {
-  return (
-    <div className="mt-10 sm:mt-12">
-      <p className="text-sm font-medium text-white/90">
-        Trusted by founders and growth teams
-      </p>
-      <div className="mt-5 flex flex-wrap items-end justify-start gap-8 sm:gap-10">
-        {TRUSTED_COMPANIES.map((company) => (
-          <div
-            key={company.label}
-            className="flex flex-col items-center gap-2"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-white">
-              {company.icon}
-            </div>
-            <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-white/90">
-              {company.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function DashboardPreview() {
   return (
     <div className="relative flex justify-center lg:justify-end">
@@ -106,7 +80,7 @@ function DashboardPreview() {
         aria-hidden
       />
       <div className="relative w-full max-w-[640px] lg:max-w-none">
-        <div className="overflow-hidden rounded-2xl border border-white/60 bg-white shadow-[0_24px_80px_-20px_rgba(15,23,42,0.18),0_0_1px_rgba(15,23,42,0.08)] ring-1 ring-black/4 sm:rounded-3xl">
+        <div className="liquid-glass-frame overflow-hidden rounded-2xl sm:rounded-3xl">
           <Image
             src={ASSETS.dashboard}
             alt="leadreacher dashboard showing campaign stats, recent activity, and performance overview"
@@ -124,18 +98,19 @@ function DashboardPreview() {
 
 export default function FeatureSection() {
   return (
-    <section className="feature-section-gradient relative -mt-px overflow-hidden pb-28 pt-2 text-neutral-900 sm:pt-4">
+    <section className="feature-section-gradient relative -mt-px overflow-hidden pb-20 pt-2 text-neutral-900 sm:pb-24 sm:pt-4 lg:pb-28">
       <div
         className="feature-top-fade pointer-events-none absolute inset-x-0 top-0 z-1 h-24 backdrop-blur-md sm:h-28"
         aria-hidden
       />
+      <div className="feature-bottom-blend" aria-hidden />
       <FeatureGlowOrbs />
       <FeatureDecorativePath />
 
       <div className="relative z-10 mx-auto w-full max-w-7xl px-5 sm:px-8 lg:px-10">
         <div className="grid items-center gap-12 pb-8 pt-6 sm:pt-8 lg:grid-cols-2 lg:gap-16 lg:pb-16 lg:pt-12">
           <div className="max-w-xl lg:justify-self-start">
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/35 bg-white/10 px-3 py-1.5 text-white sm:mb-6">
+            <div className="liquid-glass-pill mb-5 inline-flex items-center gap-2 px-3 py-1.5 text-white sm:mb-6">
               <StarBadgeIcon />
               <span className="text-[0.65rem] font-semibold uppercase tracking-[0.12em] sm:text-xs">
                 AI OUTREACH + VIDEO MESSAGING
@@ -160,7 +135,6 @@ export default function FeatureSection() {
             </div>
 
             <BenefitList />
-            <TrustedCompanies />
           </div>
 
           <DashboardPreview />

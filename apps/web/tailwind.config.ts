@@ -14,6 +14,8 @@ const config: Config = {
         "brand-bg": "#0D0854",
         "brand-purple-light": "#7A58C4",
         "brand-purple-dark": "#24106E",
+        "footer-heading": "#5c3a9c",
+        "footer-text": "#2d1659",
       },
       maxWidth: {
         "88": "22rem",
