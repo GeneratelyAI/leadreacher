@@ -80,7 +80,7 @@ export default function WaitlistForm() {
     }
 
     const { error } = await supabase
-      .from("waitlist")
+      .from("Waitlist")
       .insert([{ email: trimmedEmail }]);
 
     if (error) {

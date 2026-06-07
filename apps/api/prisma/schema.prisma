@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Organization {
+  id             String          @id @default(cuid())
+  name           String
+  supabaseOrgId  String          @unique
+  plan           String          @default("starter")
+  onboardingData Json?
+  onboardedAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  users          User[]
+  integrations   Integration[]
+  campaigns      Campaign[]
+  leads          Lead[]
+  strategies     Strategy[]
+  socialAccounts SocialAccount[]
+  videoAssets    VideoAsset[]
+}
+
+model User {
+  id         String        @id @default(cuid())
+  supabaseId String        @unique
+  email      String        @unique
+  name       String?
+  orgId      String?
+  org        Organization? @relation(fields: [orgId], references: [id])
+  role       String        @default("owner") // 'owner' | 'member'
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model Integration {
+  id                   String       @id @default(cuid())
+  orgId                String
+  org                  Organization @relation(fields: [orgId], references: [id])
+  provider             String // 'unipile' | 'smartlead' | 'stripe'
+  encryptedCredentials String // AES-256-GCM encrypted
+  status               String       @default("pending") // 'pending' | 'active' | 'expired' | 'error'
+  lastVerifiedAt       DateTime?
+  metadata             Json?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  @@unique([orgId, provider])
+}
+
+model Strategy {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id])
+  icpDefinition   Json
+  positioning     Json
+  channels        Json
+  messagingAngles Json
+  creativeAssets  Json
+  executionPlan   Json         @default("[]")
+  completedSteps  Int[]
+  version         Int          @default(1)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([orgId])
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  orgId       String
+  org         Organization   @relation(fields: [orgId], references: [id])
+  strategyId  String?
+  name        String
+  status      String         @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
+  channels    String[]
+  sequence    Json // SequenceStep[]
+  aiConfig    Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  leads       CampaignLead[]
+  messages    Message[]
+  videoAssets VideoAsset[]
+
+  @@index([orgId, status])
+}
+
+model Lead {
+  id             String         @id @default(cuid())
+  orgId          String
+  org            Organization   @relation(fields: [orgId], references: [id])
+  source         String // 'csv' | 'manual' | 'apify' | 'sales_navigator'
+  email          String?
+  linkedinUrl    String?
+  phone          String?
+  firstName      String
+  lastName       String
+  company        String
+  title          String
+  industry       String?
+  companySize    String?
+  location       String?
+  enrichmentData Json?
+  status         String         @default("new") // 'new' | 'contacted' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  pipelineStage  String?
+  tags           String[]
+  notes          Json[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  campaigns      CampaignLead[]
+  messages       Message[]
+
+  @@index([orgId, status])
+  @@index([orgId, email])
+}
+
+model CampaignLead {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  currentStep Int      @default(0)
+  status      String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
+  createdAt   DateTime @default(now())
+
+  @@unique([campaignId, leadId])
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  leadId     String
+  lead       Lead      @relation(fields: [leadId], references: [id])
+  orgId      String
+  channel    String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
+  content    Json // { type, subject?, body?, message?, text? }
+  status     String    @default("draft") // 'draft' | 'queued' | 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'skipped'
+  externalId String?
+  stepIndex  Int
+  sentAt     DateTime?
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([orgId, campaignId])
+  @@index([externalId])
+  @@index([status])
+}
+
+model AnalyticsEvent {
+  id             String   @id @default(cuid())
+  orgId          String
+  campaignId     String?
+  messageId      String?
+  leadId         String?
+  eventType      String // 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'converted' | 'skipped'
+  channel        String
+  metadata       Json?
+  webhookEventId String?  @unique
+  timestamp      DateTime @default(now())
+
+  @@index([orgId, campaignId])
+  @@index([orgId, timestamp])
+}
+
+model SocialAccount {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  platform       String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook'
+  platformUserId String
+  unipileId      String? // Unipile's internal account ID
+  accountName    String
+  avatarUrl      String?
+  status         String       @default("active") // 'active' | 'disconnected' | 'error' | 'reconnecting'
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([orgId, platform, platformUserId])
+  @@index([orgId])
+}
+
+model VideoAsset {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Organization @relation(fields: [orgId], references: [id])
+  campaignId      String?
+  campaign        Campaign?    @relation(fields: [campaignId], references: [id])
+  status          String       @default("pending") // 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'failed'
+  seedImageUrl    String?
+  videoUrl        String? // Cloudflare R2 URL
+  thumbnailUrl    String?
+  generation      Int          @default(1) // 1, 2, or 3 (parallel variants)
+  selectedTone    String?
+  criticScore     Int?
+  needsReview     Boolean      @default(false)
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([orgId, status])
+  @@index([campaignId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  userId     String?
+  action     String // 'credential.access' | 'campaign.launch' | 'video.generate'
+  resource   String // 'Integration' | 'Campaign' | 'VideoAsset'
+  resourceId String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([orgId, action])
+  @@index([orgId, createdAt])
+}
+
+model PipelineRun {
+  id        String   @id @default(cuid())
+  orgId     String
+  agentName String // 'video-prompt' | 'strategy' | 'messaging'
+  input     Json
+  output    Json?
+  status    String   @default("running") // 'running' | 'completed' | 'failed'
+  attempts  Int      @default(1)
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, agentName])
+  @@index([orgId, status])
+}
+
+model Waitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
