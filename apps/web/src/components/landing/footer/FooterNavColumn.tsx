@@ -6,11 +6,11 @@ type FooterNavColumnProps = {
 export default function FooterNavColumn({ title, links }: FooterNavColumnProps) {
   return (
     <div>
-      <h3 className="text-base font-semibold text-footer-heading">{title}</h3>
-      <ul className="mt-4 space-y-3">
+      <h3 className="text-lg font-semibold text-footer-heading">{title}</h3>
+      <ul className="mt-5 space-y-3.5">
         {links.map((link) => (
           <li key={link}>
-            <a href="#" className="text-sm text-footer-text hover:opacity-80">
+            <a href="#" className="text-base text-footer-text hover:opacity-80">
               {link}
             </a>
           </li>

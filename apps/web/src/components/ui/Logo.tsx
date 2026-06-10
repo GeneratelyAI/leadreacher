@@ -6,6 +6,7 @@ type LogoProps = {
   variant?: "colored" | "white";
   className?: string;
   align?: "left" | "center" | "right";
+  crossfade?: boolean;
 };
 
 const sizeClasses = {
@@ -21,23 +22,60 @@ const alignClasses = {
   right: "object-right",
 } as const;
 
+const crossfadeTransition = "transition-opacity duration-500 ease-in-out";
+
 export function Logo({
   size = "md",
   variant = "colored",
   className,
   align = "center",
+  crossfade = false,
 }: LogoProps) {
+  const imageClassName = cn(
+    "w-auto object-contain",
+    sizeClasses[size],
+    alignClasses[align],
+    className,
+  );
+
+  if (!crossfade) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={variant === "white" ? ASSETS.logoWhite : ASSETS.logoColored}
+        alt="leadreacher"
+        className={imageClassName}
+      />
+    );
+  }
+
+  const showColored = variant === "colored";
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={variant === "white" ? ASSETS.logoWhite : ASSETS.logoColored}
-      alt="leadreacher"
-      className={cn(
-        "w-auto object-contain",
-        sizeClasses[size],
-        alignClasses[align],
-        className,
-      )}
-    />
+    <span className="relative inline-block shrink-0 leading-none">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ASSETS.logoColored}
+        alt={showColored ? "leadreacher" : undefined}
+        aria-hidden={!showColored}
+        className={cn(
+          imageClassName,
+          crossfadeTransition,
+          showColored ? "opacity-100" : "opacity-0",
+        )}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={ASSETS.logoWhite}
+        alt={showColored ? undefined : "leadreacher"}
+        aria-hidden={showColored}
+        className={cn(
+          imageClassName,
+          "absolute top-0 left-0",
+          crossfadeTransition,
+          showColored ? "opacity-0" : "opacity-100",
+        )}
+      />
+    </span>
   );
 }

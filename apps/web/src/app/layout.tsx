@@ -28,6 +28,12 @@ export default function RootLayout({
           as="video"
           type="video/webm"
         />
+        <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
+        />
       </head>
       <body className="flex min-h-full flex-col font-sans">{children}</body>
     </html>

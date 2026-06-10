@@ -115,7 +115,7 @@ export default function WaitlistForm() {
   return (
     <section
       id="waitlist"
-      className="relative z-10 -mt-8 w-full px-4 pb-20 pt-0 sm:-mt-10 sm:px-6 sm:pb-24"
+      className="relative z-10 w-full px-4 pb-20 pt-12 sm:px-6 sm:pb-24 sm:pt-16"
     >
       <div className="mx-auto w-full max-w-3xl text-center">
         <h2 className="text-3xl font-bold leading-[1.12] tracking-tight text-white sm:text-4xl md:text-[2.75rem] md:leading-[1.1] lg:text-5xl">
