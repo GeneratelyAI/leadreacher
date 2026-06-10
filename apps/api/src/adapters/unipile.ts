@@ -9,6 +9,16 @@ type UnipileAccountStatus = {
   status: string;
 };
 
+type UnipileAccount = {
+  id: string;
+  type: string;
+  name?: string;
+};
+
+type UnipileAccountList = {
+  items: UnipileAccount[];
+};
+
 export type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 export class UnipileAdapter {
@@ -105,4 +115,10 @@ export class UnipileAdapter {
   async getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
     return this.request<UnipileAccountStatus>("GET", `/accounts/${accountId}`);
   }
+
+  async listAccounts(): Promise<UnipileAccountList> {
+    return this.request<UnipileAccountList>("GET", "/accounts");
+  }
 }
+
+export type { UnipileAccount, UnipileAccountList, UnipileAccountStatus };
