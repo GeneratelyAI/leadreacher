@@ -43,3 +43,7 @@ next-env.d.ts
 
 # turbo
 .turbo
+
+# claude code (keep tracked: CLAUDE.md, AGENTS.md)
+.claude/
+CLAUDE.local.md
