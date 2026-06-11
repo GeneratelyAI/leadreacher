@@ -17,7 +17,7 @@
  */
 import path from "node:path";
 import { config } from "dotenv";
-import { UnipileAdapter } from "../adapters/unipile.js";
+import { UnipileAdapter, isAccountHealthy } from "../adapters/unipile.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
 
@@ -88,14 +88,18 @@ async function main(): Promise<void> {
   }
   console.log(`\n  Using account_id: ${accountId}\n`);
 
-  // T2 — specific account health
-  const t2 = await runTest(
-    `T2  getAccountStatus(${accountId})`,
-    () => adapter.getAccountStatus(accountId),
-  );
-  if (t2.ok && t2.result) {
-    console.log(`        status: ${t2.result.status} (type: ${t2.result.type})`);
-  }
+  // T2 — specific account health (every source must report OK)
+  const t2 = await runTest(`T2  getAccountStatus(${accountId})`, async () => {
+    const account = await adapter.getAccountStatus(accountId);
+    const sources = account.sources
+      .map((s) => `${s.id}=${s.status}`)
+      .join(", ");
+    console.log(`        type: ${account.type}; sources: ${sources || "none"}`);
+    if (!isAccountHealthy(account)) {
+      throw new Error("account is not healthy (a source is not OK)");
+    }
+    return account;
+  });
 
   // T3 — authenticated LinkedIn call
   const t3 = await runTest(
