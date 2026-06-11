@@ -3,10 +3,18 @@ import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const API_VERSION = "/api/v1";
 
+// A LinkedIn account can expose multiple sources (e.g. MESSAGING, RECRUITER),
+// each with its own status. There is no top-level `status` field.
+type UnipileAccountSource = {
+  id: string;
+  status: string;
+};
+
 type UnipileAccountStatus = {
   id: string;
   type: string;
-  status: string;
+  name: string;
+  sources: UnipileAccountSource[];
 };
 
 type UnipileAccount = {
@@ -121,4 +129,17 @@ export class UnipileAdapter {
   }
 }
 
-export type { UnipileAccount, UnipileAccountList, UnipileAccountStatus };
+// An account is healthy when it has at least one source and every source is OK.
+export function isAccountHealthy(account: UnipileAccountStatus): boolean {
+  return (
+    account.sources.length > 0 &&
+    account.sources.every((source) => source.status === "OK")
+  );
+}
+
+export type {
+  UnipileAccount,
+  UnipileAccountList,
+  UnipileAccountSource,
+  UnipileAccountStatus,
+};
