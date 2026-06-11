@@ -10,3 +10,5 @@ export type UnipileProfile = {
   last_name: string;
   headline: string;
 };
+
+export type { ApifyCredentials, ICPFilters, ScrapedProfile } from "./apify.js";
