@@ -10,6 +10,8 @@ const envSchema = z.object({
   DIRECT_URL: z.string().min(1),
   UNIPILE_DSN: z.string().min(1),
   UNIPILE_API_KEY: z.string().min(1),
+  UPSTASH_REDIS_URL: z.string().min(1),
+  UPSTASH_REDIS_TOKEN: z.string().min(1),
 });
 
 const parsed = envSchema.safeParse(process.env);
