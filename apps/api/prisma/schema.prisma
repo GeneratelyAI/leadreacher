@@ -103,8 +103,9 @@ model Lead {
   industry       String?
   companySize    String?
   location       String?
-  enrichmentData Json?
-  status         String         @default("new") // 'new' | 'contacted' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  enrichmentData     Json?
+  providerLinkedinId String?
+  status             String         @default("new") // 'new' | 'contacted' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
   pipelineStage  String?
   tags           String[]
   notes          Json[]
@@ -123,9 +124,10 @@ model CampaignLead {
   campaign    Campaign @relation(fields: [campaignId], references: [id])
   leadId      String
   lead        Lead     @relation(fields: [leadId], references: [id])
-  currentStep Int      @default(0)
-  status      String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
-  createdAt   DateTime @default(now())
+  currentStep     Int      @default(0)
+  linkedinChatId  String?
+  status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
+  createdAt       DateTime @default(now())
 
   @@unique([campaignId, leadId])
 }
