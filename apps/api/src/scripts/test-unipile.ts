@@ -12,8 +12,8 @@
  *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts <accountId> <publicId>
  *
  * Args (optional):
- *   accountId  override the account used for T2/T3 (defaults to first listed)
- *   publicId   public LinkedIn slug to fetch in T3 (defaults to "williamhgates")
+ *   accountId  override the account used for T2/T3/T4 (defaults to first listed)
+ *   publicId   public LinkedIn slug to fetch in T3/T4 (defaults to "james-hartley-632b55415")
  */
 import path from "node:path";
 import { config } from "dotenv";
@@ -21,7 +21,7 @@ import { UnipileAdapter, isAccountHealthy } from "../adapters/unipile.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
 
-const DEFAULT_PUBLIC_ID = "williamhgates";
+const DEFAULT_PUBLIC_ID = "james-hartley-632b55415";
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -101,7 +101,12 @@ async function main(): Promise<void> {
     return account;
   });
 
-  // T3 — authenticated LinkedIn call
+  if (!t2.ok) {
+    console.error("\nT2 failed — account unhealthy, skipping T3/T4/T5.");
+    process.exit(1);
+  }
+
+  // T3 — authenticated LinkedIn call + capture provider_id for T4
   const t3 = await runTest(
     `T3  getProfile(account, "${publicId}")`,
     () => adapter.getProfile(accountId, publicId),
@@ -109,11 +114,51 @@ async function main(): Promise<void> {
   if (t3.ok && t3.result) {
     const p = t3.result;
     console.log(`        ${p.first_name} ${p.last_name} — ${p.headline}`);
+    console.log(`        provider_id: ${p.provider_id}`);
   }
 
-  const passed = [t1.ok, t2.ok, t3.ok].filter(Boolean).length;
-  console.log(`\nResult: ${passed}/3 passed.`);
-  process.exit(passed === 3 ? 0 : 1);
+  if (!t3.ok || !t3.result) {
+    console.error("\nT3 failed — cannot get provider_id, skipping T4/T5.");
+    process.exit(1);
+  }
+
+  const providerId = t3.result.provider_id;
+
+  // T4 — send connection invite
+  const t4 = await runTest(
+    `T4  sendConnectionInvite(account, "${publicId}", message)`,
+    () =>
+      adapter.sendConnectionInvite(
+        accountId,
+        providerId,
+        "Hey, connecting to test our outreach platform. Feel free to ignore this!",
+      ),
+  );
+  if (t4.ok) {
+    console.log(`        invite sent to provider_id: ${providerId}`);
+  }
+
+  // T5 — open a chat (startChat sends the opening message directly)
+  // Only runs if T4 passed — connection invite must be accepted before
+  // startChat works on LinkedIn. This will likely fail immediately on a
+  // fresh invite; it confirms the API call reaches Unipile correctly.
+  const t5 = await runTest(
+    `T5  startChat(account, "${publicId}", message)`,
+    () =>
+      adapter.startChat(
+        accountId,
+        providerId,
+        "Follow-up test message from LeadReacher.",
+      ),
+  );
+  if (t5.ok && t5.result) {
+    console.log(`        chat_id: ${t5.result.chat_id}`);
+  }
+
+  const results = [t1.ok, t2.ok, t3.ok, t4.ok, t5.ok];
+  const passed = results.filter(Boolean).length;
+  console.log(`\nResult: ${passed}/5 passed.`);
+  process.exit(passed === 5 ? 0 : 1);
 }
 
 void main();
