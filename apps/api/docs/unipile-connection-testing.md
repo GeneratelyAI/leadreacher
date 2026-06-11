@@ -10,9 +10,8 @@ The test proves three things, in order:
 3. **Authenticated call** — we can perform a real LinkedIn action on that
    account's behalf.
 
-> Scope: read-only verification. We deliberately stop before any action that
-> touches the LinkedIn account (invites, messages). See
-> [Out of scope](#out-of-scope).
+> Scope: read-only verification — the test only calls read endpoints and never
+> takes an action on the LinkedIn account (no invites or messages).
 
 ---
 
@@ -138,18 +137,6 @@ const profile = await adapter.getProfile(accountId, "williamhgates");
 
 ---
 
-## Out of scope
-
-Do **not** run these during a connection test — they take real actions on the
-LinkedIn account and/or hit known bugs:
-
-- `sendConnectionInvite` — sends a real connection request, **and** crashes on
-  Unipile's empty `200/204` response because `request()` unconditionally calls
-  `res.json()` ([`unipile.ts:52`](../src/adapters/unipile.ts)).
-- `startChat` / `sendMessageToChat` — send real messages.
-
----
-
 ## Troubleshooting
 
 | Symptom | Likely cause |
@@ -159,7 +146,7 @@ LinkedIn account and/or hit known bugs:
 | Empty account list | LinkedIn account not connected, or connected under a different Unipile workspace. |
 | Account status `CREDENTIALS` / checkpoint | LinkedIn requires re-auth / 2FA — reconnect in the dashboard. |
 | `Invalid environment variables` thrown at startup | You imported `config/env.ts`, which requires DB vars. Use a standalone script (see Step 2). |
-| `Unexpected end of JSON input` | An endpoint returned an empty body; only expected if you call a void endpoint like `sendConnectionInvite` (out of scope). |
+| `Unexpected end of JSON input` | An endpoint returned an empty body. The three read calls (T1–T3) always return JSON, so this should not occur during this test. |
 
 ---
 
