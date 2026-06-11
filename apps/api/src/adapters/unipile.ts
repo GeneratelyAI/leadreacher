@@ -3,10 +3,34 @@ import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const API_VERSION = "/api/v1";
 
+// Shape of GET /accounts/{id}, confirmed empirically against a live LinkedIn
+// account (the docs page does not render the response schema):
+//   { object, id, name, type, sources: [{ id, status }], connection_params, ... }
+// There is NO top-level `status` field — status lives per-source in `sources[]`.
+// A LinkedIn account can expose multiple sources (e.g. MESSAGING, RECRUITER),
+// each with its own status; observed value: "OK". `isAccountHealthy()` treats
+// only "OK" as healthy.
+// Docs: https://developer.unipile.com/reference/accountscontroller_getaccountbyid
+type UnipileAccountSource = {
+  id: string;
+  status: string;
+};
+
 type UnipileAccountStatus = {
   id: string;
   type: string;
-  status: string;
+  name: string;
+  sources: UnipileAccountSource[];
+};
+
+type UnipileAccount = {
+  id: string;
+  type: string;
+  name?: string;
+};
+
+type UnipileAccountList = {
+  items: UnipileAccount[];
 };
 
 export type { UnipileCredentials, UnipileProfile } from "./types.js";
@@ -105,4 +129,23 @@ export class UnipileAdapter {
   async getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
     return this.request<UnipileAccountStatus>("GET", `/accounts/${accountId}`);
   }
+
+  async listAccounts(): Promise<UnipileAccountList> {
+    return this.request<UnipileAccountList>("GET", "/accounts");
+  }
 }
+
+// An account is healthy when it has at least one source and every source is OK.
+export function isAccountHealthy(account: UnipileAccountStatus): boolean {
+  return (
+    account.sources.length > 0 &&
+    account.sources.every((source) => source.status === "OK")
+  );
+}
+
+export type {
+  UnipileAccount,
+  UnipileAccountList,
+  UnipileAccountSource,
+  UnipileAccountStatus,
+};
