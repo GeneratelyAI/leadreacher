@@ -123,17 +123,36 @@ const profile = await adapter.getProfile(accountId, "williamhgates");
 ## Last verified run
 
 - **Date:** 2026-06-10
-- **DSN:** `api34.unipile.com:16425`
+- **DSN:** `api**.unipile.com:*****` (redacted)
 - **Account:** 1 LinkedIn account connected (proxy region: CA), source
   `..._MESSAGING` = `OK`.
-- **Result:** **3/3 passed** — T3 fetched a real profile (`williamhgates` →
-  "Bill Gates") through the connected account.
+- **Result:** **3/3 passed** — T3 fetched a real public profile
+  (`williamhgates` → "Bill Gates") through the connected account.
+
+Output (account id, account name, and DSN redacted):
+
+```text
+Unipile smoke test → api**.unipile.com:*****
+
+✓ PASS  T1  GET /accounts (credentials + account list)
+        1 account(s) connected:
+          - <account-id> (LINKEDIN) — <account-name>
+
+  Using account_id: <account-id>
+
+        type: LINKEDIN; sources: <account-id>_MESSAGING=OK
+✓ PASS  T2  getAccountStatus(<account-id>)
+✓ PASS  T3  getProfile(account, "williamhgates")
+        Bill Gates — Chair, Gates Foundation and Founder, Breakthrough Energy
+
+Result: 3/3 passed.
+```
 
 > Note on the account used: no shared test account exists yet, so the test was
 > run against a **personal LinkedIn account**. Unipile connections are **not**
 > sandboxed/read-only — the stored session can read *and* write. Safety here came
-> from only invoking read methods (see [Out of scope](#out-of-scope)), not from a
-> permission scope. A **dedicated test account is still needed** for ongoing QA.
+> from only invoking read methods, not from a permission scope. A **dedicated
+> test account is still needed** for ongoing QA.
 
 ---
 
