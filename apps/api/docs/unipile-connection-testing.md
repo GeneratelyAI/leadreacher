@@ -61,28 +61,45 @@ UNIPILE_API_KEY=your_api_key_here
 
 ## Step 3 — Run the smoke test
 
-Escalate from cheapest/safest to most meaningful:
+The test is automated in [`src/scripts/test-unipile.ts`](../src/scripts/test-unipile.ts).
+It reads `UNIPILE_DSN` / `UNIPILE_API_KEY` from `.env` directly (no DB required)
+and runs all three checks in one command:
 
-### 3a. List connected accounts — `GET /accounts`
+```bash
+# from apps/api
+pnpm exec tsx src/scripts/test-unipile.ts
 
-The best first call: it validates the API key + DSN **and** returns the
-`account_id` + live status in one shot.
+# or from the repo root
+pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts
 
-- **Pass:** HTTP 200, response lists your LinkedIn account with a healthy status.
-- **Note:** the adapter does not expose a `listAccounts()` method yet (it only
-  has `getAccountStatus(accountId)`, [`unipile.ts:105`](../src/adapters/unipile.ts)).
-  Add a small `listAccounts()` or hit the endpoint directly in the script.
-
-### 3b. Check a specific account — `getAccountStatus(accountId)`
-
-```ts
-const adapter = new UnipileAdapter({ dsn, apiKey });
-const status = await adapter.getAccountStatus(accountId);
+# optionally target a specific account / public profile slug
+pnpm exec tsx src/scripts/test-unipile.ts <accountId> <publicId>
 ```
 
-- **Pass:** returns `{ id, type, status }` with a healthy `status`.
+By default it uses the **first connected account** and the slug **`williamhgates`**.
+The checks escalate from cheapest/safest to most meaningful:
 
-### 3c. Fetch a real profile — `getProfile(accountId, publicId)`
+### T1. List connected accounts — `adapter.listAccounts()` → `GET /accounts`
+
+Validates the API key + DSN **and** returns the connected accounts (with
+`account_id` + `type`) in one shot.
+
+- **Pass:** HTTP 200 and at least one LinkedIn account is listed.
+
+### T2. Check a specific account — `adapter.getAccountStatus(accountId)`
+
+```ts
+const account = await adapter.getAccountStatus(accountId);
+// { id, type, name, sources: [{ id, status }] }
+```
+
+A LinkedIn account exposes one or more **sources** (e.g. `MESSAGING`), each with
+its own `status` — there is **no** top-level `status` field. The script uses the
+exported `isAccountHealthy()` helper.
+
+- **Pass:** every source reports `status === "OK"`.
+
+### T3. Fetch a real profile — `adapter.getProfile(accountId, publicId)`
 
 ```ts
 const profile = await adapter.getProfile(accountId, "williamhgates");
@@ -96,12 +113,28 @@ const profile = await adapter.getProfile(accountId, "williamhgates");
 
 ## Pass criteria
 
-- [ ] **3a** — `GET /accounts` returns 200 and lists the LinkedIn account.
-- [ ] Account status is `OK` / `CONNECTED`.
-- [ ] **3b** — `getAccountStatus` returns a healthy status for the `account_id`.
-- [ ] **3c** — `getProfile` returns a populated profile for a known public slug.
+- [ ] **T1** — `listAccounts()` returns 200 and lists the LinkedIn account.
+- [ ] **T2** — every source on the account reports `OK` (`isAccountHealthy` true).
+- [ ] **T3** — `getProfile` returns a populated profile for a known public slug.
 
-All four green ⇒ the Unipile ↔ LinkedIn connection works.
+`Result: 3/3 passed` ⇒ the Unipile ↔ LinkedIn connection works.
+
+---
+
+## Last verified run
+
+- **Date:** 2026-06-10
+- **DSN:** `api34.unipile.com:16425`
+- **Account:** 1 LinkedIn account connected (proxy region: CA), source
+  `..._MESSAGING` = `OK`.
+- **Result:** **3/3 passed** — T3 fetched a real profile (`williamhgates` →
+  "Bill Gates") through the connected account.
+
+> Note on the account used: no shared test account exists yet, so the test was
+> run against a **personal LinkedIn account**. Unipile connections are **not**
+> sandboxed/read-only — the stored session can read *and* write. Safety here came
+> from only invoking read methods (see [Out of scope](#out-of-scope)), not from a
+> permission scope. A **dedicated test account is still needed** for ongoing QA.
 
 ---
 
@@ -138,5 +171,11 @@ LinkedIn account and/or hit known bugs:
   env credentials.
 - Responses are **unchecked `as T` casts** — no Zod validation at the boundary.
 - No **timeout / retry** on `fetch`.
+- `sendConnectionInvite` **crashes on empty `200/204` bodies** — `request()`
+  always calls `res.json()` ([`unipile.ts:52`](../src/adapters/unipile.ts)).
+
+**Fixed during this work:** `getAccountStatus` now reads status from `sources[]`
+instead of a non-existent top-level `status` field, and `listAccounts()` was
+added.
 
 See the adapter review notes for detail.
