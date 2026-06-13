@@ -21,6 +21,13 @@ export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
   connection: redis,
 });
 
+export function campaignSequenceJobId(
+  campaignLeadId: string,
+  step: number,
+): string {
+  return `${campaignLeadId}-step-${step}`;
+}
+
 export const videoGenerationQueue = new Queue(QUEUE_VIDEO_GENERATION, {
   connection: redis,
 });

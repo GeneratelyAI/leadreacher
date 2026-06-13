@@ -1,14 +1,18 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { UnipileAdapter } from "../adapters/unipile.js";
+import { env } from "../config/env.js";
+import { ExternalServiceError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import {
+  campaignSequenceJobId,
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
+import { parseSequence } from "../lib/sequence.js";
 
 const STATUS_REPLIED = "replied";
-const STATUS_CONNECTED = "connected";
+const STATUS_CONTACTED = "contacted";
 
 const UnipileMessageReceivedSchema = z.object({
   event: z.literal("message_received"),
@@ -47,119 +51,214 @@ async function isDuplicate(externalId: string): Promise<boolean> {
 
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/unipile", async (request, reply) => {
-    try {
-      const parsed = UnipileWebhookSchema.safeParse(request.body);
+    const parsed = UnipileWebhookSchema.safeParse(request.body);
 
-      if (!parsed.success) {
-        return reply.status(400).send({ error: "Invalid payload" });
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Invalid payload" });
+    }
+
+    const data = parsed.data;
+
+    if (data.event === "message_received") {
+      if (await isDuplicate(data.message_id)) {
+        return reply.send({ received: true, duplicate: true });
       }
 
-      const data = parsed.data;
+      const socialAccount = await prisma.socialAccount.findFirst({
+        where: { unipileId: data.account_id, status: "active" },
+      });
 
-      if (data.event === "message_received") {
-        if (await isDuplicate(data.message_id)) {
-          return reply.send({ received: true, duplicate: true });
-        }
-
-        const message = await prisma.message.findFirst({
-          where: { externalId: data.chat_id },
-        });
-
-        if (message) {
-          await prisma.message.update({
-            where: { id: message.id },
-            data: { status: STATUS_REPLIED },
-          });
-
-          await prisma.lead.update({
-            where: { id: message.leadId },
-            data: { status: STATUS_REPLIED },
-          });
-
-          await prisma.campaignLead.updateMany({
-            where: {
-              campaignId: message.campaignId,
-              leadId: message.leadId,
-            },
-            data: { status: STATUS_REPLIED },
-          });
-        }
-
+      if (!socialAccount) {
         app.log.info({
           event: data.event,
           account_id: data.account_id,
-          message_id: data.message_id,
-          chat_id: data.chat_id,
+          reason: "no matching SocialAccount",
         });
-      } else if (data.event === "new_relation") {
-        const lead = await prisma.lead.findFirst({
-          where: {
-            linkedinUrl: { contains: data.provider_id },
+        return reply.send({ received: true, handled: false });
+      }
+
+      const campaignLead = await prisma.campaignLead.findFirst({
+        where: {
+          linkedinChatId: data.chat_id,
+          campaign: { orgId: socialAccount.orgId },
+        },
+      });
+
+      if (!campaignLead) {
+        app.log.info({
+          event: data.event,
+          chat_id: data.chat_id,
+          reason: "no matching CampaignLead",
+        });
+        return reply.send({ received: true, handled: false });
+      }
+
+      await prisma.message.updateMany({
+        where: {
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+        },
+        data: { status: STATUS_REPLIED },
+      });
+
+      await prisma.lead.update({
+        where: { id: campaignLead.leadId },
+        data: { status: STATUS_REPLIED },
+      });
+
+      await prisma.campaignLead.update({
+        where: { id: campaignLead.id },
+        data: { status: STATUS_REPLIED },
+      });
+
+      app.log.info({
+        event: data.event,
+        account_id: data.account_id,
+        message_id: data.message_id,
+        chat_id: data.chat_id,
+      });
+    } else if (data.event === "new_relation") {
+      const socialAccount = await prisma.socialAccount.findFirst({
+        where: { unipileId: data.account_id, status: "active" },
+      });
+
+      if (!socialAccount) {
+        app.log.info({
+          event: data.event,
+          account_id: data.account_id,
+          reason: "no matching SocialAccount",
+        });
+        return reply.send({ received: true, handled: false });
+      }
+
+      // CSV-imported leads have no providerLinkedinId and cannot match here until enrichment exists.
+      const lead = await prisma.lead.findFirst({
+        where: {
+          orgId: socialAccount.orgId,
+          providerLinkedinId: data.provider_id,
+        },
+      });
+
+      if (!lead) {
+        app.log.info({
+          event: data.event,
+          provider_id: data.provider_id,
+          reason: "no matching Lead",
+        });
+        return reply.send({ received: true, handled: false });
+      }
+
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { status: STATUS_CONTACTED },
+      });
+
+      const campaignLead = await prisma.campaignLead.findFirst({
+        where: { leadId: lead.id, status: "active" },
+        include: { campaign: true },
+      });
+
+      if (!campaignLead) {
+        app.log.info({
+          event: data.event,
+          leadId: lead.id,
+          reason: "no active CampaignLead",
+        });
+        return reply.send({ received: true, handled: false });
+      }
+
+      if (campaignLead.linkedinChatId) {
+        return reply.send({ received: true, duplicate: true });
+      }
+
+      if (!socialAccount.unipileId || !data.provider_id) {
+        return reply.send({ received: true, handled: false });
+      }
+
+      let sequence: ReturnType<typeof parseSequence>;
+      try {
+        sequence = parseSequence(campaignLead.campaign.sequence);
+      } catch (error) {
+        app.log.error(error);
+        return reply.send({ received: true, handled: false });
+      }
+
+      const step1 = sequence[1];
+      if (!step1) {
+        app.log.info({
+          event: data.event,
+          campaignLeadId: campaignLead.id,
+          reason: "no sequence step 1",
+        });
+        return reply.send({ received: true, handled: false });
+      }
+
+      try {
+        const adapter = new UnipileAdapter({
+          dsn: env.UNIPILE_DSN,
+          apiKey: env.UNIPILE_API_KEY,
+        });
+
+        const chat = await adapter.startChat(
+          socialAccount.unipileId,
+          data.provider_id,
+          step1.message,
+        );
+
+        await prisma.campaignLead.update({
+          where: { id: campaignLead.id },
+          data: {
+            linkedinChatId: chat.chat_id,
+            currentStep: 2,
           },
         });
 
-        if (lead) {
-          await prisma.lead.update({
-            where: { id: lead.id },
-            data: { status: STATUS_CONNECTED },
-          });
-
-          const campaignLead = await prisma.campaignLead.findFirst({
-            where: { leadId: lead.id, status: "active" },
-            include: { campaign: true },
-          });
-
-          if (campaignLead) {
-            const socialAccount = await prisma.socialAccount.findFirst({
-              where: {
-                orgId: lead.orgId,
-                platform: "linkedin",
-                status: "active",
-              },
-            });
-
-            if (socialAccount?.unipileId && data.provider_id) {
-              const adapter = new UnipileAdapter({
-                dsn: process.env["UNIPILE_DSN"] ?? "",
-                apiKey: process.env["UNIPILE_API_KEY"] ?? "",
-              });
-
-              const chat = await adapter.startChat(
-                socialAccount.unipileId,
-                data.provider_id,
-                (campaignLead.campaign.sequence as Array<{ message: string }>)[1]
-                  ?.message ?? "",
-              );
-
-              await prisma.campaignLead.update({
-                where: { id: campaignLead.id },
-                data: { linkedinChatId: chat.chat_id },
-              });
-
-              await campaignSequenceQueue.add(
-                QUEUE_CAMPAIGN_SEQUENCE,
-                {
-                  campaignLeadId: campaignLead.id,
-                  orgId: lead.orgId,
-                  step: 1,
-                },
-                { delay: 0 },
-              );
-            }
-          }
-        }
-
-        app.log.info({
-          event: data.event,
-          account_id: data.account_id,
-          provider_id: data.provider_id,
+        await prisma.message.create({
+          data: {
+            campaignId: campaignLead.campaignId,
+            leadId: campaignLead.leadId,
+            orgId: socialAccount.orgId,
+            channel: "linkedin",
+            content: { type: "text", message: step1.message },
+            status: "sent",
+            stepIndex: 1,
+            sentAt: new Date(),
+            externalId: chat.chat_id,
+          },
         });
+
+        const step2 = sequence[2];
+        if (step2) {
+          const delayMs = step2.delayHours * 60 * 60 * 1000;
+          await campaignSequenceQueue.add(
+            QUEUE_CAMPAIGN_SEQUENCE,
+            {
+              campaignLeadId: campaignLead.id,
+              orgId: socialAccount.orgId,
+              step: 2,
+            },
+            {
+              delay: delayMs,
+              jobId: campaignSequenceJobId(campaignLead.id, 2),
+            },
+          );
+        }
+      } catch (error) {
+        // Return 200 on vendor failures to avoid Unipile retry storms; ops must monitor logs.
+        if (error instanceof ExternalServiceError) {
+          app.log.error(error);
+          return reply.send({ received: true, error: true });
+        }
+        throw error;
       }
 
-      return reply.send({ received: true });
-    } catch (error) {
-      app.log.error(error);
-      return reply.status(500).send({ error: "Internal error" });
+      app.log.info({
+        event: data.event,
+        account_id: data.account_id,
+        provider_id: data.provider_id,
+      });
     }
+
+    return reply.send({ received: true });
   });
 }

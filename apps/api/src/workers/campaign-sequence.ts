@@ -5,9 +5,11 @@ import { prisma } from "../lib/prisma.js";
 import { redisSubscriber } from "../lib/redis.js";
 import {
   type CampaignSequenceJob,
+  campaignSequenceJobId,
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
+import { parseSequence } from "../lib/sequence.js";
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
@@ -31,11 +33,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         return { skipped: true, reason: campaignLead.status };
       }
 
-      const sequence = campaignLead.campaign.sequence as Array<{
-        type: string;
-        message: string;
-        delayHours: number;
-      }>;
+      const sequence = parseSequence(campaignLead.campaign.sequence);
       const currentStep = sequence[step];
 
       if (!currentStep) {
@@ -66,9 +64,6 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           currentStep.message,
         );
 
-        // After invite accepted (new_relation webhook), startChat is called separately.
-        // Store providerLinkedinId as externalId on the message for webhook matching.
-
         await prisma.message.create({
           data: {
             campaignId: campaignLead.campaignId,
@@ -82,32 +77,38 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             externalId: campaignLead.lead.providerLinkedinId ?? undefined,
           },
         });
-      } else {
-        const chatId = campaignLead.linkedinChatId;
-        if (!chatId) {
-          throw new Error(
-            `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
-          );
-        }
-        const result = await adapter.sendMessageToChat(
-          chatId,
-          currentStep.message,
-        );
 
-        await prisma.message.create({
-          data: {
-            campaignId: campaignLead.campaignId,
-            leadId: campaignLead.leadId,
-            orgId,
-            channel: "linkedin",
-            content: { type: "text", message: currentStep.message },
-            status: "sent",
-            stepIndex: step,
-            sentAt: new Date(),
-            externalId: result.message_id,
-          },
+        // Step 1 is triggered by the new_relation webhook after the invite is accepted.
+        await prisma.campaignLead.update({
+          where: { id: campaignLeadId },
+          data: { currentStep: 1 },
         });
+
+        return { sent: true, step };
       }
+
+      const chatId = campaignLead.linkedinChatId;
+      if (!chatId) {
+        throw new Error(
+          `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
+        );
+      }
+
+      const result = await adapter.sendMessageToChat(chatId, currentStep.message);
+
+      await prisma.message.create({
+        data: {
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+          orgId,
+          channel: "linkedin",
+          content: { type: "text", message: currentStep.message },
+          status: "sent",
+          stepIndex: step,
+          sentAt: new Date(),
+          externalId: result.message_id,
+        },
+      });
 
       await prisma.campaignLead.update({
         where: { id: campaignLeadId },
@@ -116,11 +117,14 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       const nextStep = sequence[step + 1];
       if (nextStep) {
-        const delayMs = (nextStep.delayHours ?? 24) * 60 * 60 * 1000;
+        const delayMs = nextStep.delayHours * 60 * 60 * 1000;
         await campaignSequenceQueue.add(
           QUEUE_CAMPAIGN_SEQUENCE,
           { campaignLeadId, orgId, step: step + 1 },
-          { delay: delayMs },
+          {
+            delay: delayMs,
+            jobId: campaignSequenceJobId(campaignLeadId, step + 1),
+          },
         );
       }
 
