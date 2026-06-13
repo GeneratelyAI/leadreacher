@@ -1,7 +1,7 @@
 import { ExternalServiceError } from "../lib/errors.js";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
-const LINKEDIN_SEARCH_ACTOR_ID = "harvestapi/linkedin-profile-search";
+const LINKEDIN_SEARCH_ACTOR_ID = "harvestapi~linkedin-profile-search";
 const POLL_INTERVAL_MS = 3000;
 const POLL_TIMEOUT_MS = 120_000;
 
@@ -18,19 +18,23 @@ export type ICPFilters = {
 };
 
 type RawLinkedInProfile = {
-  profileUrl?: string;
+  linkedinUrl?: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
   headline?: string;
-  location?: string;
-  company?: string;
-  companySize?: string;
-  industry?: string;
-  email?: string;
+  location?: {
+    linkedinText?: string;
+    parsed?: { city?: string; country?: string; state?: string };
+  };
+  currentPosition?: Array<{ companyName?: string; position?: string }>;
+  emails?: string[];
   phone?: string;
   publicIdentifier?: string;
-  providerId?: string;
+  id?: string;
+  /** Legacy / forward-compat — actor does not return these today */
+  industry?: string;
+  companySize?: string;
 };
 
 export type ScrapedProfile = {
@@ -49,14 +53,21 @@ export type ScrapedProfile = {
   enrichmentData: Record<string, unknown>;
 };
 
+type ActorRunInput = {
+  maxItems: number;
+  currentJobTitles?: string[];
+  locations?: string[];
+  searchQuery?: string;
+  proxy: { useApifyProxy: boolean };
+};
+
 export class ApifyAdapter {
   constructor(private readonly credentials: ApifyCredentials) {}
 
-  private get headers(): Record<string, string> {
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${this.credentials.apiKey}`,
-    };
+  private buildUrl(path: string): string {
+    const url = new URL(`${APIFY_BASE_URL}${path}`);
+    url.searchParams.set("token", this.credentials.apiKey);
+    return url.toString();
   }
 
   private async request<T>(
@@ -64,10 +75,9 @@ export class ApifyAdapter {
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
-    const url = `${APIFY_BASE_URL}${path}`;
-    const res = await fetch(url, {
+    const res = await fetch(this.buildUrl(path), {
       method,
-      headers: this.headers,
+      headers: { "Content-Type": "application/json" },
       ...(body && { body: JSON.stringify(body) }),
     });
     if (!res.ok) {
@@ -77,23 +87,35 @@ export class ApifyAdapter {
     return (await res.json()) as T;
   }
 
-  buildSearchUrl(filters: ICPFilters): string {
-    const params = new URLSearchParams();
+  /**
+   * Maps ICPFilters to harvestapi/linkedin-profile-search input schema.
+   * industries: actor expects industryIds (LinkedIn numeric codes), not names — intentionally unused.
+   * companySizes: actor expects companyHeadcount codes (A–I), not free-form strings — intentionally unused.
+   */
+  private buildActorInput(filters: ICPFilters, maxResults: number): ActorRunInput {
+    const input: ActorRunInput = {
+      maxItems: maxResults,
+      proxy: { useApifyProxy: true },
+    };
+
     if (filters.jobTitles.length > 0) {
-      params.set("keywords", filters.jobTitles.join(" OR "));
+      input.currentJobTitles = filters.jobTitles;
     }
     if (filters.locations.length > 0) {
-      params.set("location", filters.locations.join(","));
+      input.locations = filters.locations;
     }
-    const base = "https://www.linkedin.com/search/results/people/";
-    return `${base}?${params.toString()}`;
+    if (filters.keywords && filters.keywords.length > 0) {
+      input.searchQuery = filters.keywords.join(" OR ");
+    }
+
+    return input;
   }
 
-  private async startRun(searchUrl: string, maxResults: number): Promise<string> {
+  private async startRun(input: ActorRunInput): Promise<string> {
     const response = await this.request<{ data: { id: string } }>(
       "POST",
       `/acts/${LINKEDIN_SEARCH_ACTOR_ID}/runs`,
-      { searchUrl, maxResults, proxy: { useApifyProxy: true } },
+      input,
     );
     return response.data.id;
   }
@@ -115,39 +137,56 @@ export class ApifyAdapter {
     throw new ExternalServiceError("Apify", `Actor run timed out after ${POLL_TIMEOUT_MS}ms`);
   }
 
+  /** Dataset items live under /actor-runs/{runId}, not under /acts/{actorId}/runs/{runId}. */
   private async fetchResults(runId: string): Promise<RawLinkedInProfile[]> {
-    const response = await this.request<{ items: RawLinkedInProfile[] }>(
+    const response = await this.request<RawLinkedInProfile[]>(
       "GET",
-      `/acts/${LINKEDIN_SEARCH_ACTOR_ID}/runs/${runId}/dataset/items`,
+      `/actor-runs/${runId}/dataset/items`,
     );
-    return response.items ?? [];
+    return Array.isArray(response) ? response : [];
   }
 
   private normalize(raw: RawLinkedInProfile): ScrapedProfile | null {
-    const linkedinUrl = raw.profileUrl;
-    const firstName = raw.firstName ?? raw.fullName?.split(" ")[0];
-    const lastName = raw.lastName ?? raw.fullName?.split(" ").slice(1).join(" ");
+    const linkedinUrl = raw.linkedinUrl;
+
+    let firstName = raw.firstName;
+    let lastName = raw.lastName;
+    if (!firstName && !lastName && raw.fullName) {
+      const parts = raw.fullName.trim().split(/\s+/);
+      firstName = parts[0];
+      lastName = parts.slice(1).join(" ");
+    }
+
     if (!linkedinUrl || !firstName || !lastName) return null;
+
+    const location = raw.location?.parsed
+      ? [
+          raw.location.parsed.city,
+          raw.location.parsed.state,
+          raw.location.parsed.country,
+        ]
+          .filter(Boolean)
+          .join(", ")
+      : raw.location?.linkedinText;
+
     return {
       linkedinUrl,
       firstName,
       lastName,
-      title: raw.headline ?? "",
-      company: raw.company ?? "",
-      location: raw.location,
-      industry: raw.industry,
-      companySize: raw.companySize,
-      email: raw.email,
+      title: raw.headline ?? raw.currentPosition?.[0]?.position ?? "",
+      company: raw.currentPosition?.[0]?.companyName ?? "",
+      location,
+      email: raw.emails?.[0],
       phone: raw.phone,
       publicIdentifier: raw.publicIdentifier,
-      providerLinkedinId: raw.providerId,
+      providerLinkedinId: raw.id,
       enrichmentData: raw as Record<string, unknown>,
     };
   }
 
   async scrapeLeads(filters: ICPFilters, maxResults = 100): Promise<ScrapedProfile[]> {
-    const searchUrl = this.buildSearchUrl(filters);
-    const runId = await this.startRun(searchUrl, maxResults);
+    const input = this.buildActorInput(filters, maxResults);
+    const runId = await this.startRun(input);
     await this.waitForRun(runId);
     const raw = await this.fetchResults(runId);
     return raw.flatMap((item) => {
