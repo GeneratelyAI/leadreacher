@@ -131,7 +131,6 @@ async function main(): Promise<void> {
       adapter.sendConnectionInvite(
         accountId,
         providerId,
-        "Hey, connecting to test our outreach platform. Feel free to ignore this!",
       ),
   );
   if (t4.ok) {

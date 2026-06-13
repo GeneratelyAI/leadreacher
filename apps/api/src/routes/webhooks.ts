@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import crypto from "node:crypto";
 import { z } from "zod";
 import { UnipileAdapter } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
@@ -33,8 +34,13 @@ const UnipileMessageReceivedSchema = z.object({
 const UnipileNewRelationSchema = z.object({
   event: z.literal("new_relation"),
   account_id: z.string(),
-  provider_id: z.string(),
-  timestamp: z.string(),
+  account_type: z.string(),
+  webhook_name: z.string(),
+  user_full_name: z.string(),
+  user_provider_id: z.string(),
+  user_public_identifier: z.string(),
+  user_profile_url: z.string(),
+  user_picture_url: z.string().optional(),
 });
 
 const UnipileWebhookSchema = z.discriminatedUnion("event", [
@@ -49,8 +55,34 @@ async function isDuplicate(externalId: string): Promise<boolean> {
   return existing !== null;
 }
 
+function verifyUnipileAuthHeader(
+  provided: string | undefined,
+  secret: string,
+): boolean {
+  if (!provided) {
+    return false;
+  }
+
+  const providedBuf = Buffer.from(provided, "utf8");
+  const secretBuf = Buffer.from(secret, "utf8");
+
+  if (providedBuf.length !== secretBuf.length) {
+    return false;
+  }
+
+  return crypto.timingSafeEqual(providedBuf, secretBuf);
+}
+
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/unipile", async (request, reply) => {
+    const authHeader = request.headers["unipile-auth"];
+    const providedAuth =
+      typeof authHeader === "string" ? authHeader : authHeader?.[0];
+
+    if (!verifyUnipileAuthHeader(providedAuth, env.UNIPILE_WEBHOOK_SECRET)) {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+
     const parsed = UnipileWebhookSchema.safeParse(request.body);
 
     if (!parsed.success) {
@@ -135,14 +167,14 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       const lead = await prisma.lead.findFirst({
         where: {
           orgId: socialAccount.orgId,
-          providerLinkedinId: data.provider_id,
+          providerLinkedinId: data.user_provider_id,
         },
       });
 
       if (!lead) {
         app.log.info({
           event: data.event,
-          provider_id: data.provider_id,
+          user_provider_id: data.user_provider_id,
           reason: "no matching Lead",
         });
         return reply.send({ received: true, handled: false });
@@ -171,7 +203,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         return reply.send({ received: true, duplicate: true });
       }
 
-      if (!socialAccount.unipileId || !data.provider_id) {
+      if (!socialAccount.unipileId || !data.user_provider_id) {
         return reply.send({ received: true, handled: false });
       }
 
@@ -201,7 +233,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
         const chat = await adapter.startChat(
           socialAccount.unipileId,
-          data.provider_id,
+          data.user_provider_id,
           step1.message,
         );
 
@@ -255,7 +287,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       app.log.info({
         event: data.event,
         account_id: data.account_id,
-        provider_id: data.provider_id,
+        user_provider_id: data.user_provider_id,
       });
     }
 
