@@ -3,12 +3,20 @@ export type UnipileCredentials = {
   apiKey: string;
 };
 
+export type UnipileNetworkDistance =
+  | "FIRST_DEGREE"
+  | "SECOND_DEGREE"
+  | "THIRD_DEGREE"
+  | "OUT_OF_NETWORK";
+
 export type UnipileProfile = {
   provider_id: string;
   public_identifier: string;
   first_name: string;
   last_name: string;
   headline: string;
+  network_distance: UnipileNetworkDistance | string;
+  is_relationship: boolean;
 };
 
 export type { ApifyCredentials, ICPFilters, ScrapedProfile } from "./apify.js";

@@ -9,7 +9,26 @@ import {
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
+import {
+  LEAD_STATUS_CONNECTED,
+  LEAD_STATUS_CONTACTED,
+} from "../lib/lead-status.js";
 import { parseSequence } from "../lib/sequence.js";
+import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
+
+function leadLinkedinIdentifier(lead: {
+  providerLinkedinId: string | null;
+  linkedinUrl: string | null;
+}): string | null {
+  if (lead.providerLinkedinId) {
+    return lead.providerLinkedinId;
+  }
+  if (!lead.linkedinUrl) {
+    return null;
+  }
+  const match = lead.linkedinUrl.match(/linkedin\.com\/in\/([^/?#]+)/i);
+  return match?.[1] ?? null;
+}
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
@@ -58,6 +77,91 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       });
 
       if (step === 0) {
+        const identifier = leadLinkedinIdentifier(campaignLead.lead);
+        if (!identifier) {
+          console.error(
+            JSON.stringify({
+              event: "campaign-sequence-step0",
+              path: "getProfile-failed-retrying",
+              campaignLeadId,
+              reason: "no linkedin identifier",
+            }),
+          );
+          throw new Error(
+            `No LinkedIn identifier for CampaignLead ${campaignLeadId}`,
+          );
+        }
+
+        let networkDistance: string | undefined;
+        let isRelationship: boolean | undefined;
+        let profileProviderId: string | undefined;
+
+        try {
+          const profile = await adapter.getProfile(
+            socialAccount.unipileId,
+            identifier,
+          );
+          networkDistance = profile.network_distance;
+          isRelationship = profile.is_relationship;
+          profileProviderId = profile.provider_id;
+        } catch (error) {
+          console.error(
+            JSON.stringify({
+              event: "campaign-sequence-step0",
+              path: "getProfile-failed-retrying",
+              campaignLeadId,
+              identifier,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          );
+          throw error;
+        }
+
+        if (networkDistance === "FIRST_DEGREE") {
+          const attendeeProviderId =
+            campaignLead.lead.providerLinkedinId ?? profileProviderId;
+          if (!attendeeProviderId) {
+            throw new Error(
+              `No provider id for already-connected lead on CampaignLead ${campaignLeadId}`,
+            );
+          }
+
+          await prisma.lead.update({
+            where: { id: campaignLead.leadId },
+            data: { status: LEAD_STATUS_CONNECTED },
+          });
+
+          const step1Result = await deliverSequenceStep1ViaChat({
+            adapter,
+            campaignLeadId,
+            orgId,
+            campaignId: campaignLead.campaignId,
+            leadId: campaignLead.leadId,
+            attendeeProviderId,
+            unipileAccountId: socialAccount.unipileId,
+            sequence,
+            existingChatId: campaignLead.linkedinChatId,
+          });
+
+          console.log(
+            JSON.stringify({
+              event: "campaign-sequence-step0",
+              path: "already-connected",
+              campaignLeadId,
+              network_distance: networkDistance,
+              is_relationship: isRelationship,
+              step1: step1Result,
+            }),
+          );
+
+          return {
+            sent: true,
+            step,
+            path: "already-connected",
+            step1: step1Result,
+          };
+        }
+
         await adapter.sendConnectionInvite(
           socialAccount.unipileId,
           campaignLead.lead.providerLinkedinId ?? "",
@@ -78,13 +182,28 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           },
         });
 
+        await prisma.lead.update({
+          where: { id: campaignLead.leadId },
+          data: { status: LEAD_STATUS_CONTACTED },
+        });
+
         // Step 1 is triggered by the new_relation webhook after the invite is accepted.
         await prisma.campaignLead.update({
           where: { id: campaignLeadId },
           data: { currentStep: 1 },
         });
 
-        return { sent: true, step };
+        console.log(
+          JSON.stringify({
+            event: "campaign-sequence-step0",
+            path: "invite-sent",
+            campaignLeadId,
+            network_distance: networkDistance,
+            is_relationship: isRelationship,
+          }),
+        );
+
+        return { sent: true, step, path: "invite-sent" };
       }
 
       const chatId = campaignLead.linkedinChatId;

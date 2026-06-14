@@ -11,9 +11,10 @@ import {
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
 import { parseSequence } from "../lib/sequence.js";
+import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
+import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 
 const STATUS_REPLIED = "replied";
-const STATUS_CONTACTED = "contacted";
 
 const UnipileMessageReceivedSchema = z.object({
   event: z.literal("message_received"),
@@ -22,6 +23,11 @@ const UnipileMessageReceivedSchema = z.object({
   message_id: z.string(),
   chat_id: z.string(),
   message: z.string(),
+  account_info: z.object({
+    user_id: z.string(),
+    type: z.string().optional(),
+    feature: z.string().optional(),
+  }),
   sender: z.object({
     attendee_id: z.string(),
     attendee_name: z.string(),
@@ -53,6 +59,27 @@ async function isDuplicate(externalId: string): Promise<boolean> {
     where: { externalId },
   });
   return existing !== null;
+}
+
+async function cancelPendingSequenceJobs(
+  app: FastifyInstance,
+  campaignLeadId: string,
+  sequence: ReturnType<typeof parseSequence>,
+): Promise<void> {
+  for (let step = 2; step < sequence.length; step++) {
+    try {
+      await campaignSequenceQueue.remove(
+        campaignSequenceJobId(campaignLeadId, step),
+      );
+    } catch (error) {
+      app.log.info({
+        reason: "failed to remove queued sequence job",
+        campaignLeadId,
+        step,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
 }
 
 function verifyUnipileAuthHeader(
@@ -96,6 +123,19 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         return reply.send({ received: true, duplicate: true });
       }
 
+      const isOutbound =
+        data.sender.attendee_provider_id === data.account_info.user_id;
+      if (isOutbound) {
+        app.log.info({
+          event: data.event,
+          chat_id: data.chat_id,
+          reason: "outbound message_received",
+          sender_provider_id: data.sender.attendee_provider_id,
+          account_user_id: data.account_info.user_id,
+        });
+        return reply.send({ received: true });
+      }
+
       const socialAccount = await prisma.socialAccount.findFirst({
         where: { unipileId: data.account_id, status: "active" },
       });
@@ -114,6 +154,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
           linkedinChatId: data.chat_id,
           campaign: { orgId: socialAccount.orgId },
         },
+        include: { lead: true, campaign: true },
       });
 
       if (!campaignLead) {
@@ -143,11 +184,34 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         data: { status: STATUS_REPLIED },
       });
 
+      try {
+        const sequence = parseSequence(campaignLead.campaign.sequence);
+        await cancelPendingSequenceJobs(app, campaignLead.id, sequence);
+      } catch (error) {
+        app.log.error(error);
+      }
+
+      await prisma.message.create({
+        data: {
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+          orgId: socialAccount.orgId,
+          channel: "linkedin",
+          content: { type: "text", message: data.message },
+          direction: "inbound",
+          status: STATUS_REPLIED,
+          externalId: data.message_id,
+          stepIndex: campaignLead.currentStep,
+          sentAt: new Date(data.timestamp),
+        },
+      });
+
       app.log.info({
         event: data.event,
         account_id: data.account_id,
         message_id: data.message_id,
         chat_id: data.chat_id,
+        inbound: true,
       });
     } else if (data.event === "new_relation") {
       const socialAccount = await prisma.socialAccount.findFirst({
@@ -182,7 +246,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       await prisma.lead.update({
         where: { id: lead.id },
-        data: { status: STATUS_CONTACTED },
+        data: { status: LEAD_STATUS_CONNECTED },
       });
 
       const campaignLead = await prisma.campaignLead.findFirst({
@@ -231,49 +295,24 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
           apiKey: env.UNIPILE_API_KEY,
         });
 
-        const chat = await adapter.startChat(
-          socialAccount.unipileId,
-          data.user_provider_id,
-          step1.message,
-        );
-
-        await prisma.campaignLead.update({
-          where: { id: campaignLead.id },
-          data: {
-            linkedinChatId: chat.chat_id,
-            currentStep: 2,
-          },
+        const result = await deliverSequenceStep1ViaChat({
+          adapter,
+          campaignLeadId: campaignLead.id,
+          orgId: socialAccount.orgId,
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+          attendeeProviderId: data.user_provider_id,
+          unipileAccountId: socialAccount.unipileId,
+          sequence,
+          existingChatId: campaignLead.linkedinChatId,
         });
 
-        await prisma.message.create({
-          data: {
-            campaignId: campaignLead.campaignId,
-            leadId: campaignLead.leadId,
-            orgId: socialAccount.orgId,
-            channel: "linkedin",
-            content: { type: "text", message: step1.message },
-            status: "sent",
-            stepIndex: 1,
-            sentAt: new Date(),
-            externalId: chat.chat_id,
-          },
-        });
-
-        const step2 = sequence[2];
-        if (step2) {
-          const delayMs = step2.delayHours * 60 * 60 * 1000;
-          await campaignSequenceQueue.add(
-            QUEUE_CAMPAIGN_SEQUENCE,
-            {
-              campaignLeadId: campaignLead.id,
-              orgId: socialAccount.orgId,
-              step: 2,
-            },
-            {
-              delay: delayMs,
-              jobId: campaignSequenceJobId(campaignLead.id, 2),
-            },
-          );
+        if ("skipped" in result) {
+          app.log.info({
+            event: data.event,
+            campaignLeadId: campaignLead.id,
+            reason: result.reason,
+          });
         }
       } catch (error) {
         // Return 200 on vendor failures to avoid Unipile retry storms; ops must monitor logs.

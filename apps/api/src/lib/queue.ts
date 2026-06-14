@@ -19,6 +19,13 @@ export type VideoGenerationJob = {
 
 export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
   connection: redis,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: "exponential",
+      delay: 5000,
+    },
+  },
 });
 
 export function campaignSequenceJobId(

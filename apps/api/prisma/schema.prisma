@@ -105,7 +105,7 @@ model Lead {
   location       String?
   enrichmentData     Json?
   providerLinkedinId String?
-  status             String         @default("new") // 'new' | 'contacted' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  status             String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
   pipelineStage  String?
   tags           String[]
   notes          Json[]
@@ -125,7 +125,7 @@ model CampaignLead {
   leadId      String
   lead        Lead     @relation(fields: [leadId], references: [id])
   currentStep     Int      @default(0)
-  linkedinChatId  String?
+  linkedinChatId  String?  @unique
   status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
   createdAt       DateTime @default(now())
 
@@ -141,6 +141,7 @@ model Message {
   orgId      String
   channel    String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
   content    Json // { type, subject?, body?, message?, text? }
+  direction  String    @default("outbound") // 'inbound' | 'outbound'
   status     String    @default("draft") // 'draft' | 'queued' | 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'skipped'
   externalId String?
   stepIndex  Int
