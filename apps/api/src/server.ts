@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { ZodError } from "zod";
 import "./config/env.js";
 import { AppError } from "./lib/errors.js";
 import { prismaPlugin } from "./plugins/prisma.js";
@@ -17,6 +18,13 @@ export async function buildServer() {
       return reply
         .status(error.statusCode)
         .send({ code: error.code, message: error.message });
+    }
+
+    if (error instanceof ZodError) {
+      return reply.status(400).send({
+        code: "VALIDATION_ERROR",
+        message: error.message,
+      });
     }
 
     request.log.error(error);

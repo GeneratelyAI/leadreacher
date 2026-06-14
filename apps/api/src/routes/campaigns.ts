@@ -199,4 +199,59 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({ launched: true, jobCount: jobs.length });
   });
+
+  app.get("/campaigns/:campaignId/leads", async (request, reply) => {
+    const { campaignId } = request.params as { campaignId: string };
+    const { orgId, status } = request.query as {
+      orgId: string;
+      status?: string;
+    };
+
+    if (!orgId) throw new ValidationError("orgId is required");
+
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+    });
+
+    if (!campaign) throw new NotFoundError("Campaign");
+    if (campaign.orgId !== orgId) throw new ValidationError("Forbidden");
+
+    const campaignLeads = await prisma.campaignLead.findMany({
+      where: {
+        campaignId,
+        ...(status && { status }),
+      },
+      include: {
+        lead: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            title: true,
+            status: true,
+            linkedinUrl: true,
+            company: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return reply.send({
+      campaignId,
+      leads: campaignLeads.map((campaignLead) => ({
+        id: campaignLead.id,
+        campaignLeadStatus: campaignLead.status,
+        currentStep: campaignLead.currentStep,
+        linkedinChatId: campaignLead.linkedinChatId,
+        leadId: campaignLead.leadId,
+        name: `${campaignLead.lead.firstName} ${campaignLead.lead.lastName}`.trim(),
+        headline: campaignLead.lead.title,
+        leadStatus: campaignLead.lead.status,
+        linkedinUrl: campaignLead.lead.linkedinUrl,
+        company: campaignLead.lead.company,
+      })),
+      total: campaignLeads.length,
+    });
+  });
 }

@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
-import { ApifyAdapter, type ICPFilters } from "../adapters/apify.js";
+import { z } from "zod";
+import { ApifyAdapter } from "../adapters/apify.js";
 import { env } from "../config/env.js";
-import { ValidationError } from "../lib/errors.js";
+import { ConflictError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { LeadStatusSchema } from "../lib/lead-status.js";
 import { prisma } from "../lib/prisma.js";
 import {
   type CSVRow,
@@ -11,6 +13,28 @@ import {
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+
+const ScrapeLeadsFiltersSchema = z.object({
+  jobTitles: z.array(z.string()),
+  industries: z.array(z.string()),
+  companySizes: z.array(z.string()),
+  locations: z.array(z.string()),
+  keywords: z.array(z.string()).optional(),
+});
+
+const ScrapeLeadsBodySchema = z.object({
+  orgId: z.string().min(1),
+  filters: ScrapeLeadsFiltersSchema,
+  maxResults: z.number().int().positive().optional(),
+});
+
+const PatchLeadBodySchema = z
+  .object({
+    status: LeadStatusSchema.optional(),
+  })
+  .refine((body) => body.status !== undefined, {
+    message: "At least one updatable field is required",
+  });
 
 function parseLimit(value: unknown): number {
   const parsed = Number(value ?? DEFAULT_LIMIT);
@@ -30,14 +54,9 @@ function parseOffset(value: unknown): number {
 
 export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   app.post("/leads/scrape", async (request, reply) => {
-    const { orgId, filters, maxResults } = request.body as {
-      orgId: string;
-      filters: ICPFilters;
-      maxResults?: number;
-    };
-
-    if (!orgId) throw new ValidationError("orgId is required");
-    if (!filters) throw new ValidationError("filters is required");
+    const { orgId, filters, maxResults } = ScrapeLeadsBodySchema.parse(
+      request.body,
+    );
 
     const adapter = new ApifyAdapter({ apiKey: env.APIFY_API_KEY });
     const profiles = await adapter.scrapeLeads(filters, maxResults ?? 100);
@@ -106,5 +125,55 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
       limit: parsedLimit,
       offset: parsedOffset,
     });
+  });
+
+  app.patch("/leads/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { orgId } = request.query as { orgId: string };
+    const body = PatchLeadBodySchema.parse(request.body);
+
+    if (!orgId) throw new ValidationError("orgId is required");
+
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundError("Lead");
+    if (lead.orgId !== orgId) throw new ValidationError("Forbidden");
+
+    const updated = await prisma.lead.update({
+      where: { id },
+      data: body,
+    });
+
+    return reply.send(updated);
+  });
+
+  app.delete("/leads/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { orgId } = request.query as { orgId: string };
+
+    if (!orgId) throw new ValidationError("orgId is required");
+
+    const lead = await prisma.lead.findUnique({ where: { id } });
+    if (!lead) throw new NotFoundError("Lead");
+    if (lead.orgId !== orgId) throw new ValidationError("Forbidden");
+
+    const campaignEnrollments = await prisma.campaignLead.count({
+      where: { leadId: id },
+    });
+    if (campaignEnrollments > 0) {
+      throw new ConflictError(
+        `Lead is enrolled in ${campaignEnrollments} campaign(s). Remove enrollments before deleting.`,
+      );
+    }
+
+    const messageCount = await prisma.message.count({ where: { leadId: id } });
+    if (messageCount > 0) {
+      throw new ConflictError(
+        `Lead has ${messageCount} message record(s). Cannot delete leads with campaign message history.`,
+      );
+    }
+
+    await prisma.lead.delete({ where: { id } });
+
+    return reply.send({ deleted: true, id });
   });
 }

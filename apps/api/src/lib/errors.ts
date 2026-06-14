@@ -32,6 +32,12 @@ export class ValidationError extends AppError {
   }
 }
 
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(message, 409, "CONFLICT");
+  }
+}
+
 export class ExternalServiceError extends AppError {
   constructor(service: string, message: string) {
     super(`${service}: ${message}`, 502, "EXTERNAL_SERVICE_ERROR");
