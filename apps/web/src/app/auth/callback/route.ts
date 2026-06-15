@@ -22,8 +22,9 @@ export async function GET(request: Request) {
   }
 
   const {
-    data: { session, user },
+    data: { session },
   } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (session?.access_token && user?.email) {
     try {

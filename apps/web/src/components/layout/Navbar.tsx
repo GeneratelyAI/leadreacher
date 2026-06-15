@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "@/components/ui/Logo";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
+import { buttonVariants } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { useNavbarTheme } from "@/hooks/useNavbarTheme";
 import { cn } from "@/lib/utils";
 
@@ -107,10 +108,11 @@ export default function Navbar() {
           <Link
             href="#waitlist"
             className={cn(
-              "liquid-glass-button group inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold [transition:background-color_0.5s_ease-in-out,border-color_0.5s_ease-in-out,color_0.5s_ease-in-out,transform_0.2s] hover:scale-[1.02]",
+              buttonVariants({ variant: "glass-outline", size: "glass-nav" }),
+              "group [transition:background-color_0.5s_ease-in-out,border-color_0.5s_ease-in-out,color_0.5s_ease-in-out,transform_0.2s]",
               isDark
-                ? "liquid-glass-button--outline border-white/20! bg-white/8! shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]! hover:bg-white/14!"
-                : "liquid-glass-button--outline liquid-glass-on-light border-brand-purple/12! bg-white/25! shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]! hover:bg-white/38!",
+                ? "border-white/20! bg-white/8! shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]! hover:bg-white/14!"
+                : "liquid-glass-on-light border-brand-purple/12! bg-white/25! shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]! hover:bg-white/38!",
             )}
           >
             Get Started

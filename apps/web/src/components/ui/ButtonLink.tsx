@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
+import { buttonVariants } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 type ButtonVariant = "primary" | "outline";
 type ButtonSize = "sm" | "md" | "lg";
@@ -14,16 +15,16 @@ type ButtonLinkProps = {
   showArrow?: boolean;
 };
 
-const variantClasses: Record<ButtonVariant, string> = {
-  primary: "liquid-glass-button liquid-glass-button--accent hover:scale-[1.02]",
-  outline: "liquid-glass-button liquid-glass-button--outline",
-};
+const variantMap = {
+  primary: "glass-accent",
+  outline: "glass-outline",
+} as const;
 
-const sizeClasses: Record<ButtonSize, string> = {
-  sm: "px-5 py-2 text-sm",
-  md: "px-7 py-3.5 text-sm sm:px-8 sm:text-base",
-  lg: "px-8 py-3.5 text-[0.95rem] sm:px-10 sm:py-4 sm:text-base",
-};
+const sizeMap = {
+  sm: "glass-sm",
+  md: "glass-md",
+  lg: "glass-lg",
+} as const;
 
 export function ButtonLink({
   href,
@@ -37,9 +38,11 @@ export function ButtonLink({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-full font-medium transition-transform",
-        variantClasses[variant],
-        sizeClasses[size],
+        buttonVariants({
+          variant: variantMap[variant],
+          size: sizeMap[size],
+        }),
+        "inline-flex items-center justify-center",
         className,
       )}
     >

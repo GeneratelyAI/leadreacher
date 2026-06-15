@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 import HeroVideo from "./HeroVideo";
 
 const heroHeadlineShadow =
@@ -48,7 +50,10 @@ export default function HeroSection() {
           <div className="relative mt-4 sm:mt-5">
             <Link
               href="#waitlist"
-              className="inline-flex items-center justify-center rounded-full bg-white px-8 py-3.5 text-[0.95rem] font-semibold text-brand-purple shadow-[0_4px_20px_rgba(83,38,183,0.15)] transition-transform hover:scale-[1.02] sm:px-10 sm:py-4 sm:text-base"
+              className={cn(
+                buttonVariants({ variant: "hero", size: "hero" }),
+                "inline-flex items-center justify-center",
+              )}
             >
               Get Started →
             </Link>

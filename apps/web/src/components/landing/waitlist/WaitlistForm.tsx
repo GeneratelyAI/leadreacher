@@ -2,6 +2,8 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -47,9 +49,6 @@ export default function WaitlistForm() {
   const supabase = useMemo<SupabaseClient | null>(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    console.log("[WaitlistForm] NEXT_PUBLIC_SUPABASE_URL:", url);
-    console.log("[WaitlistForm] NEXT_PUBLIC_SUPABASE_ANON_KEY:", key);
 
     if (!url || !key) {
       console.error(
@@ -139,27 +138,26 @@ export default function WaitlistForm() {
           onSubmit={handleSubmit}
           className="liquid-glass-pill mx-auto mt-5 flex w-full max-w-2xl items-stretch p-1.5 sm:mt-6 sm:max-w-3xl sm:p-2"
         >
-          <input
+          <Input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
             disabled={status === "loading"}
             className={cn(
-              "min-w-0 flex-1 rounded-full bg-transparent px-5 py-3 text-left text-sm text-white placeholder:text-white/38 outline-none sm:px-6 sm:py-3.5 sm:text-base",
+              "h-auto min-w-0 flex-1 rounded-full border-0 bg-transparent px-5 py-3 text-left text-sm text-white shadow-none placeholder:text-white/38 focus-visible:border-transparent focus-visible:ring-0 sm:px-6 sm:py-3.5 sm:text-base",
               status === "loading" && "opacity-60",
             )}
           />
-          <button
+          <Button
             type="submit"
+            variant="glass-accent"
+            size="glass-waitlist"
             disabled={status === "loading"}
-            className={cn(
-              "liquid-glass-button liquid-glass-button--accent shrink-0 rounded-full px-6 py-3 text-sm font-semibold whitespace-nowrap sm:px-10 sm:py-3.5 sm:text-base",
-              status === "loading" && "cursor-not-allowed opacity-60",
-            )}
+            className="whitespace-nowrap"
           >
             {status === "loading" ? "Joining..." : "Join the Waitlist"}
-          </button>
+          </Button>
         </form>
 
         {status === "error" && errorMessage && (
