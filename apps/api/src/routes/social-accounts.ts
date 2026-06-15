@@ -1,7 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { isAccountHealthy, UnipileAdapter } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
-import { ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 
 async function resolveAccountStatus(
@@ -16,11 +15,16 @@ async function resolveAccountStatus(
   }
 }
 
+function requireOrgId(request: { orgId?: string }): string {
+  if (!request.orgId) {
+    throw new Error("orgId missing after auth middleware");
+  }
+  return request.orgId;
+}
+
 export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   app.post("/social-accounts/sync", async (request, reply) => {
-    const { orgId } = request.body as { orgId: string };
-
-    if (!orgId) throw new ValidationError("orgId is required");
+    const orgId = requireOrgId(request);
 
     const adapter = new UnipileAdapter({
       dsn: env.UNIPILE_DSN,

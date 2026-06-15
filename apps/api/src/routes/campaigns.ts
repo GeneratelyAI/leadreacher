@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { Prisma } from "@prisma/client";
-import { NotFoundError, ValidationError } from "../lib/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import {
   campaignSequenceJobId,
@@ -44,16 +44,22 @@ function parseSequenceOrThrow(sequence: unknown): Prisma.InputJsonValue {
   }
 }
 
+function requireOrgId(request: { orgId?: string }): string {
+  if (!request.orgId) {
+    throw new Error("orgId missing after auth middleware");
+  }
+  return request.orgId;
+}
+
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.post("/campaigns", async (request, reply) => {
-    const { orgId, name, channels, sequence } = request.body as {
-      orgId: string;
+    const orgId = requireOrgId(request);
+    const { name, channels, sequence } = request.body as {
       name: string;
       channels: string[];
       sequence: unknown;
     };
 
-    if (!orgId) throw new ValidationError("orgId is required");
     if (!name) throw new ValidationError("name is required");
     if (!isNonEmptyArray<string>(channels)) {
       throw new ValidationError("channels must be a non-empty array");
@@ -76,12 +82,10 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns", async (request, reply) => {
-    const { orgId, status } = request.query as {
-      orgId: string;
+    const orgId = requireOrgId(request);
+    const { status } = request.query as {
       status?: string;
     };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const campaigns = await prisma.campaign.findMany({
       where: {
@@ -95,10 +99,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns/:campaignId", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { campaignId } = request.params as { campaignId: string };
-    const { orgId } = request.query as { orgId: string };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -106,19 +108,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (!campaign) throw new NotFoundError("Campaign");
-    if (campaign.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (campaign.orgId !== orgId) throw new ForbiddenError();
 
     return reply.send(campaign);
   });
 
   app.post("/campaigns/:campaignId/leads", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { campaignId } = request.params as { campaignId: string };
-    const { orgId, leadIds } = request.body as {
-      orgId: string;
+    const { leadIds } = request.body as {
       leadIds: string[];
     };
 
-    if (!orgId) throw new ValidationError("orgId is required");
     if (!isNonEmptyArray<string>(leadIds)) {
       throw new ValidationError("leadIds must be a non-empty array");
     }
@@ -128,7 +129,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (!campaign) throw new NotFoundError("Campaign");
-    if (campaign.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (campaign.orgId !== orgId) throw new ForbiddenError();
 
     const leadsInOrg = await prisma.lead.findMany({
       where: { id: { in: leadIds }, orgId },
@@ -151,10 +152,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/campaigns/:campaignId/launch", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { campaignId } = request.params as { campaignId: string };
-    const { orgId } = request.body as { orgId: string };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -162,7 +161,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
 
     if (!campaign) throw new NotFoundError("Campaign");
-    if (campaign.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (campaign.orgId !== orgId) throw new ForbiddenError();
 
     if (
       !LAUNCHABLE_STATUSES.includes(
@@ -201,20 +200,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/campaigns/:campaignId/leads", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { campaignId } = request.params as { campaignId: string };
-    const { orgId, status } = request.query as {
-      orgId: string;
+    const { status } = request.query as {
       status?: string;
     };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
     });
 
     if (!campaign) throw new NotFoundError("Campaign");
-    if (campaign.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (campaign.orgId !== orgId) throw new ForbiddenError();
 
     const campaignLeads = await prisma.campaignLead.findMany({
       where: {

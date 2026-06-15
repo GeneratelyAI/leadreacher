@@ -1,17 +1,24 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import { ZodError } from "zod";
 import "./config/env.js";
+import { env } from "./config/env.js";
 import { AppError } from "./lib/errors.js";
 import { prismaPlugin } from "./plugins/prisma.js";
-import { campaignRoutes } from "./routes/campaigns.js";
+import { protectedRoutes } from "./plugins/protected-routes.js";
+import { authRoutes } from "./routes/auth.js";
 import { healthRoutes } from "./routes/health.js";
-import { leadsRoutes } from "./routes/leads.js";
-import { socialAccountRoutes } from "./routes/social-accounts.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
+
+  await app.register(cors, {
+    origin: env.CORS_ORIGIN,
+    credentials: true,
+    allowedHeaders: ["Authorization", "Content-Type"],
+  });
 
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
@@ -34,9 +41,8 @@ export async function buildServer() {
   await app.register(prismaPlugin);
   await app.register(healthRoutes);
   await app.register(webhookRoutes);
-  await app.register(campaignRoutes);
-  await app.register(leadsRoutes);
-  await app.register(socialAccountRoutes);
+  await app.register(authRoutes);
+  await app.register(protectedRoutes);
 
   startCampaignSequenceWorker();
 

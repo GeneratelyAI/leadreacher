@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { ApifyAdapter } from "../adapters/apify.js";
 import { env } from "../config/env.js";
-import { ConflictError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import { LeadStatusSchema } from "../lib/lead-status.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -23,7 +23,6 @@ const ScrapeLeadsFiltersSchema = z.object({
 });
 
 const ScrapeLeadsBodySchema = z.object({
-  orgId: z.string().min(1),
   filters: ScrapeLeadsFiltersSchema,
   maxResults: z.number().int().positive().optional(),
 });
@@ -52,11 +51,17 @@ function parseOffset(value: unknown): number {
   return Math.floor(parsed);
 }
 
+function requireOrgId(request: { orgId?: string }): string {
+  if (!request.orgId) {
+    throw new Error("orgId missing after auth middleware");
+  }
+  return request.orgId;
+}
+
 export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   app.post("/leads/scrape", async (request, reply) => {
-    const { orgId, filters, maxResults } = ScrapeLeadsBodySchema.parse(
-      request.body,
-    );
+    const orgId = requireOrgId(request);
+    const { filters, maxResults } = ScrapeLeadsBodySchema.parse(request.body);
 
     const adapter = new ApifyAdapter({ apiKey: env.APIFY_API_KEY });
     const profiles = await adapter.scrapeLeads(filters, maxResults ?? 100);
@@ -70,12 +75,11 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/leads/import/csv", async (request, reply) => {
-    const { orgId, rows } = request.body as {
-      orgId: string;
+    const orgId = requireOrgId(request);
+    const { rows } = request.body as {
       rows: CSVRow[];
     };
 
-    if (!orgId) throw new ValidationError("orgId is required");
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
       throw new ValidationError("rows must be a non-empty array");
     }
@@ -90,15 +94,13 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get("/leads", async (request, reply) => {
-    const { orgId, status, source, limit, offset } = request.query as {
-      orgId: string;
+    const orgId = requireOrgId(request);
+    const { status, source, limit, offset } = request.query as {
       status?: string;
       source?: string;
       limit?: number;
       offset?: number;
     };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const parsedLimit = parseLimit(limit);
     const parsedOffset = parseOffset(offset);
@@ -128,15 +130,13 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/leads/:id", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { id } = request.params as { id: string };
-    const { orgId } = request.query as { orgId: string };
     const body = PatchLeadBodySchema.parse(request.body);
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const lead = await prisma.lead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundError("Lead");
-    if (lead.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (lead.orgId !== orgId) throw new ForbiddenError();
 
     const updated = await prisma.lead.update({
       where: { id },
@@ -147,14 +147,12 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/leads/:id", async (request, reply) => {
+    const orgId = requireOrgId(request);
     const { id } = request.params as { id: string };
-    const { orgId } = request.query as { orgId: string };
-
-    if (!orgId) throw new ValidationError("orgId is required");
 
     const lead = await prisma.lead.findUnique({ where: { id } });
     if (!lead) throw new NotFoundError("Lead");
-    if (lead.orgId !== orgId) throw new ValidationError("Forbidden");
+    if (lead.orgId !== orgId) throw new ForbiddenError();
 
     const campaignEnrollments = await prisma.campaignLead.count({
       where: { leadId: id },

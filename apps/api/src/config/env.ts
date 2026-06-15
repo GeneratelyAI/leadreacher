@@ -14,6 +14,8 @@ const envSchema = z.object({
   APIFY_API_KEY: z.string().min(1),
   UPSTASH_REDIS_URL: z.string().min(1),
   UPSTASH_REDIS_TOKEN: z.string().min(1),
+  SUPABASE_URL: z.string().url(),
+  CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
 });
 
 const parsed = envSchema.safeParse(process.env);
