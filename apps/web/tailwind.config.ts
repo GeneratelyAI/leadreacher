@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 const config: Config = {
   darkMode: "class",
@@ -9,6 +10,12 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: {
+        ...defaultTheme.screens,
+        "h-compact": { raw: "(max-height: 820px)" },
+        "h-comfortable": { raw: "(min-height: 1000px)" },
+        "h-spacious": { raw: "(min-height: 1200px)" },
+      },
       colors: {
         "brand-purple": "#5326B7",
         "brand-bg": "#0D0854",

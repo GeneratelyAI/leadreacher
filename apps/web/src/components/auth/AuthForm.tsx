@@ -2,20 +2,29 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  Send,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
+import { Fragment, useState } from "react";
 import { GoogleIcon, MicrosoftIcon } from "@/components/auth/OAuthIcons";
 import { Button } from "@/components/ui/Button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui/Card";
+import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { bootstrapOrganization } from "@/lib/api";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
+import { BRAND_COLORS } from "@/lib/constants/brand";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -25,11 +34,25 @@ type AuthFormProps = {
   mode: AuthMode;
 };
 
-const inputClassName =
-  "h-auto min-h-11 rounded-xl border-neutral-200 bg-white py-3 text-sm text-neutral-900 shadow-none placeholder:text-neutral-400 focus-visible:border-indigo-400 focus-visible:ring-2 focus-visible:ring-indigo-500/20";
+const inputClassName = cn(
+  "rounded-lg border-neutral-200 bg-white text-neutral-900 shadow-none placeholder:text-neutral-400",
+  "h-9 text-xs h-compact:h-8",
+  "lg:h-10 lg:text-sm xl:h-11 xl:text-base",
+  "focus-visible:border-[#5842e3]/45 focus-visible:ring-2 focus-visible:ring-[#5842e3]/12",
+);
 
-const oauthButtonClassName =
-  "relative h-auto min-h-11 w-full rounded-xl border-neutral-200 bg-white px-4 py-3 text-sm font-medium text-neutral-800 hover:bg-neutral-50";
+const oauthButtonClassName = cn(
+  "relative w-full rounded-lg border border-neutral-200 bg-white font-medium text-neutral-800",
+  "h-9 px-3 text-xs h-compact:h-8",
+  "lg:h-10 lg:px-4 lg:text-sm xl:h-11 xl:text-base",
+  "shadow-[0_2px_10px_rgba(15,23,42,0.05)] hover:bg-neutral-50",
+);
+
+const processSteps = [
+  { icon: Sparkles, label: "Generate" },
+  { icon: CheckCircle2, label: "Approve" },
+  { icon: Send, label: "Launch" },
+] as const;
 
 export default function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
@@ -40,10 +63,6 @@ export default function AuthForm({ mode }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
 
   const isSignup = mode === "signup";
-  const title = isSignup ? "Create your account" : "Welcome back";
-  const subtitle = isSignup
-    ? "Sign up for your Leadreacher account"
-    : "Log in to your Leadreacher account";
   const alternateHref = isSignup ? "/login" : "/signup";
   const alternatePrompt = isSignup
     ? "Already have an account?"
@@ -57,6 +76,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   async function handleEmailSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
     setLoading(true);
 
     const supabase = createClient();
@@ -117,29 +137,141 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <Card
       className={cn(
-        "mx-auto w-full max-w-[500px] gap-0 rounded-2xl border-0 bg-white py-0",
-        "shadow-[0_4px_24px_rgba(15,23,42,0.08)] ring-0 [--card-spacing:0]",
+        "mx-auto w-full gap-0 rounded-3xl border border-neutral-200/70 bg-white py-0 antialiased",
+        "shadow-[0_10px_48px_rgba(15,23,42,0.07)] ring-0 [--card-spacing:0]",
       )}
     >
-      <CardContent className="p-8 sm:p-10">
-        <div className="mb-8 space-y-2 text-center">
-          <CardTitle className="text-[1.75rem] font-bold tracking-tight text-[#0f172a]">
-            {title}
-          </CardTitle>
-          <CardDescription className="text-sm text-neutral-500">
-            {subtitle}
-          </CardDescription>
+      <CardContent
+        className={cn(
+          "px-6 py-6 h-compact:px-5 h-compact:py-4",
+          "lg:px-10 lg:py-9",
+          "h-comfortable:px-11 h-comfortable:py-10",
+          "h-spacious:px-12 h-spacious:py-12",
+        )}
+      >
+        <header
+          className={cn(
+            "mb-5 text-center h-compact:mb-4",
+            "lg:mb-7 xl:mb-8 h-spacious:mb-10",
+          )}
+        >
+          <h1
+            className={cn(
+              "text-xl leading-tight font-bold tracking-tight text-[#111827]",
+              "h-compact:text-lg",
+              "lg:text-2xl xl:text-3xl h-spacious:text-4xl",
+            )}
+          >
+            {isSignup ? (
+              <>
+                <span className="block">Let&apos;s get your first</span>
+                <span className="block" style={{ color: BRAND_COLORS.purple }}>
+                  qualified conversation.
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="block">Welcome back to your</span>
+                <span className="block" style={{ color: BRAND_COLORS.purple }}>
+                  qualified conversations.
+                </span>
+              </>
+            )}
+          </h1>
+          <p
+            className={cn(
+              "mx-auto mt-2 max-w-xs text-xs leading-snug text-neutral-500",
+              "h-compact:mt-1.5",
+              "lg:mt-3 lg:max-w-sm lg:text-sm lg:leading-relaxed",
+              "xl:mt-4 xl:text-base",
+            )}
+          >
+            {isSignup
+              ? "Create your account and we'll guide you through the setup in just a few minutes."
+              : "Sign in and we'll pick up right where you left off in just a few minutes."}
+          </p>
+        </header>
+
+        <div
+          className={cn(
+            "mb-5 space-y-5 h-compact:mb-4 h-compact:space-y-4",
+            "lg:mb-7 lg:space-y-7 xl:mb-8",
+          )}
+        >
+          <div className="flex items-center gap-3 h-compact:gap-2 lg:gap-4">
+            <div className="h-px flex-1 bg-neutral-200" />
+            <div
+              className={cn(
+                "flex shrink-0 items-center gap-2 text-xs leading-none font-normal text-[#5e5870]",
+                "lg:gap-2.5 lg:text-sm xl:text-base",
+              )}
+            >
+              <ShieldCheck
+                className={cn(
+                  "size-4 shrink-0 h-compact:size-3.5 lg:size-5 xl:size-6",
+                )}
+                style={{ color: BRAND_COLORS.purple }}
+                strokeWidth={2}
+                aria-hidden
+              />
+              <span className="whitespace-nowrap">
+                You stay in control. We handle the rest.
+              </span>
+            </div>
+            <div className="h-px flex-1 bg-neutral-200" />
+          </div>
+
+          <div
+            className={cn(
+              "flex items-center justify-center gap-4 text-xs leading-none font-normal text-[#8f84a8]",
+              "h-compact:gap-3 lg:gap-6 lg:text-sm xl:gap-8 xl:text-base",
+            )}
+          >
+            {processSteps.map((step, index) => (
+              <Fragment key={step.label}>
+                {index > 0 ? (
+                  <ArrowRight
+                    className={cn(
+                      "size-3.5 shrink-0 text-[#d8d2e3] lg:size-4 xl:size-5",
+                    )}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                ) : null}
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap lg:gap-2">
+                  <step.icon
+                    className={cn("size-4 lg:size-5 xl:size-6")}
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                  {step.label}
+                </span>
+              </Fragment>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-3">
+        <div
+          className={cn(
+            "space-y-2.5 h-compact:space-y-2 lg:space-y-3",
+          )}
+        >
           <Button
             type="button"
             variant="outline"
             className={oauthButtonClassName}
             onClick={() => handleOAuth("google")}
           >
-            <GoogleIcon className="absolute left-4 size-5" />
-            Continue with Google
+            <GoogleIcon
+              className={cn(
+                "absolute left-3 size-4 lg:left-4 lg:size-5",
+              )}
+            />
+            <span className="flex-1 text-center">Continue with Google</span>
+            <ChevronRight
+              className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4"
+              aria-hidden
+            />
           </Button>
           <Button
             type="button"
@@ -147,28 +279,45 @@ export default function AuthForm({ mode }: AuthFormProps) {
             className={oauthButtonClassName}
             onClick={() => handleOAuth("azure")}
           >
-            <MicrosoftIcon className="absolute left-4 size-5" />
-            Continue with Microsoft
+            <MicrosoftIcon
+              className={cn(
+                "absolute left-3 size-4 lg:left-4 lg:size-5",
+              )}
+            />
+            <span className="flex-1 text-center">Continue with Microsoft</span>
+            <ChevronRight
+              className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4"
+              aria-hidden
+            />
           </Button>
         </div>
 
-        <div className="my-6 flex items-center gap-3">
+        <div
+          className={cn(
+            "my-4 flex items-center gap-3 h-compact:my-3 lg:my-6 xl:my-7",
+          )}
+        >
           <div className="h-px flex-1 bg-neutral-200" />
           <span className="text-xs text-neutral-400">or</span>
           <div className="h-px flex-1 bg-neutral-200" />
         </div>
 
-        <form className="space-y-5" onSubmit={handleEmailSubmit}>
-          <div className="space-y-2">
-            <Label
-              htmlFor="auth-email"
-              className="block text-sm font-semibold text-[#0f172a]"
-            >
+        <form
+          className={cn(
+            "space-y-3 h-compact:space-y-2.5 lg:space-y-4",
+          )}
+          onSubmit={handleEmailSubmit}
+        >
+          <div>
+            <Label htmlFor="auth-email" className="sr-only">
               Work email
             </Label>
             <div className="relative">
               <Mail
-                className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-neutral-400"
+                className={cn(
+                  "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
+                  "lg:left-4 lg:size-5",
+                )}
                 aria-hidden
               />
               <Input
@@ -176,34 +325,35 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 type="email"
                 autoComplete="email"
                 required
-                placeholder="name@company.com"
+                placeholder="Enter your work email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className={cn(inputClassName, "pl-11 pr-4")}
+                className={cn(inputClassName, "pl-9 pr-3 lg:pl-11 lg:pr-4")}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label
-                htmlFor="auth-password"
-                className="text-sm font-semibold text-[#0f172a]"
-              >
-                Password
-              </Label>
-              {!isSignup ? (
+          <div>
+            {!isSignup ? (
+              <div className="mb-1.5 flex items-center justify-end h-compact:mb-1 lg:mb-2">
                 <Link
                   href="#"
-                  className="text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-700"
+                  className="text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ color: BRAND_COLORS.purple }}
                 >
                   Forgot password?
                 </Link>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
+            <Label htmlFor="auth-password" className="sr-only">
+              Password
+            </Label>
             <div className="relative">
               <Lock
-                className="pointer-events-none absolute top-1/2 left-3.5 size-[18px] -translate-y-1/2 text-neutral-400"
+                className={cn(
+                  "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
+                  "lg:left-4 lg:size-5",
+                )}
                 aria-hidden
               />
               <Input
@@ -212,28 +362,30 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 autoComplete={isSignup ? "new-password" : "current-password"}
                 required
                 minLength={6}
-                placeholder="Enter your password"
+                placeholder={
+                  isSignup ? "Create a password" : "Enter your password"
+                }
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className={cn(inputClassName, "pl-11 pr-11")}
+                className={cn(inputClassName, "pl-9 pr-9 lg:pl-11 lg:pr-11")}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((current) => !current)}
-                className="absolute top-1/2 right-3.5 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+                className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4"
                 aria-label={showPassword ? "Hide password" : "Show password"}
               >
                 {showPassword ? (
-                  <EyeOff className="size-[18px]" aria-hidden />
+                  <EyeOff className="size-4 lg:size-5" aria-hidden />
                 ) : (
-                  <Eye className="size-[18px]" aria-hidden />
+                  <Eye className="size-4 lg:size-5" aria-hidden />
                 )}
               </button>
             </div>
           </div>
 
           {error ? (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 ring-1 ring-red-100">
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-100 h-compact:py-1.5 lg:px-4 lg:py-3 lg:text-sm">
               {error}
             </p>
           ) : null}
@@ -242,27 +394,59 @@ export default function AuthForm({ mode }: AuthFormProps) {
             type="submit"
             disabled={loading}
             aria-busy={loading || undefined}
-            className="flex h-auto min-h-11 w-full items-center justify-center gap-2 rounded-xl border-0 bg-linear-to-r from-indigo-500 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:from-indigo-600 hover:to-violet-700 focus-visible:ring-indigo-500/40 disabled:opacity-70"
+            className={cn(
+              "mt-1 flex w-full items-center justify-center gap-2 rounded-lg border-0 bg-linear-to-r from-[#5842e3] to-[#4f46e5] font-semibold text-white",
+              "h-9 px-3 text-xs h-compact:mt-0.5 h-compact:h-8",
+              "lg:mt-2 lg:h-10 lg:px-4 lg:text-sm xl:h-11 xl:text-base",
+              "shadow-[0_10px_28px_rgba(88,66,227,0.32)] hover:from-[#4c38d4] hover:to-[#4338ca] focus-visible:ring-[#5842e3]/40 disabled:opacity-70",
+            )}
           >
             {loading ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : null}
-            <span>{isSignup ? "Sign up" : "Log in"}</span>
+            <span>{isSignup ? "Continue" : "Log in"}</span>
             {!loading ? (
               <ArrowRight className="size-4 shrink-0" aria-hidden />
             ) : null}
           </Button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-neutral-500">
+        <p
+          className={cn(
+            "mt-5 text-center text-xs text-neutral-500",
+            "h-compact:mt-4 lg:mt-6 xl:mt-7",
+          )}
+        >
           {alternatePrompt}{" "}
           <Link
             href={alternateHref}
-            className="font-semibold text-indigo-600 transition-colors hover:text-indigo-700"
+            className="font-semibold transition-colors hover:opacity-80"
+            style={{ color: BRAND_COLORS.purple }}
           >
             {alternateLinkLabel}
           </Link>
         </p>
+
+        {isSignup ? (
+          <footer
+            className={cn(
+              "mt-5 flex items-center justify-center gap-3 text-xs text-neutral-400",
+              "h-compact:mt-4 h-compact:gap-2",
+              "lg:mt-7 lg:gap-4",
+              "xl:mt-9",
+            )}
+          >
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <Clock className="size-3.5 lg:size-4" aria-hidden />
+              Setup in minutes
+            </span>
+            <span className="h-3 w-px bg-neutral-200" aria-hidden />
+            <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+              <CheckCircle2 className="size-3.5 lg:size-4" aria-hidden />
+              You approve every campaign
+            </span>
+          </footer>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -8,7 +8,7 @@ export const BRAND_COLORS = {
 export const ASSETS = {
   logoColored: "/logo/leadreacher_logo_colored_transparent.svg",
   logoWhite: "/logo/leadreacher_logo_white_transparent.svg",
-  authBackground: "/auth/auth-bg.jpg",
+  authBackground: "/auth/auth-bg.png",
   dashboard: "/Image-asset.png",
   footerGrid: "/footer-grid.png",
 } as const;
