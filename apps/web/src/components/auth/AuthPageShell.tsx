@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ASSETS } from "@/lib/constants/brand";
-import { satoshi } from "@/lib/fonts/satoshi";
 import { cn } from "@/lib/utils";
 
 type AuthPageShellProps = {
@@ -11,8 +10,7 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
   return (
     <main
       className={cn(
-        satoshi.className,
-        "relative flex h-dvh max-h-dvh w-full items-center justify-center overflow-hidden",
+        "relative flex h-dvh max-h-dvh w-full items-center justify-center overflow-hidden font-sans",
         "bg-[#ece8f3] bg-position-[center_40%] bg-cover bg-no-repeat font-normal",
         "px-4 py-4 h-compact:px-3 h-compact:py-2 lg:px-6 lg:py-6 xl:px-8 xl:py-8",
       )}

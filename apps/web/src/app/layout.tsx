@@ -1,14 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { ANIMATION_VIDEO_SRC } from "@/lib/constants/animation";
+import { satoshi } from "@/lib/fonts/satoshi";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "leadreacher — Lead Generation, Reimagined",
@@ -22,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${satoshi.variable} h-full antialiased`}>
       <head>
         <link
           rel="preload"
