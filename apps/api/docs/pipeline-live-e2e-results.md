@@ -7,9 +7,9 @@
 
 ## Summary
 
-Tasks 1–3 (the buildable tooling + runbook) are **complete, reviewed, and committed**. Task 4 (the live outreach run) is **gated** and intentionally not executed — it sends real LinkedIn invites/messages and needs explicit go-ahead plus the recipient account ready.
+All four tasks are complete. Tasks 1–3 (tooling + runbook) were built via subagent-driven development, reviewed, and committed — the final whole-branch review (opus) returned **READY TO MERGE, no blockers**. **Task 4 (the live run) was then executed against live Apify + Unipile + LinkedIn and PASSED** — both Track A (ingestion, no outreach) and Track B (full invite → accept → step-1 DM → reply loop). Details and findings below.
 
-Final whole-branch review (opus): **READY TO MERGE, no blockers.**
+**Bottom line:** the pipeline works end to end. Three follow-up fixes are recommended (none applied here): `new_relation` reliance (HIGH), `Message.externalId` idempotency (MEDIUM), and the `providerLinkedinId` persistence bug. The post-run environment was torn down (API + tunnel stopped, webhooks deleted, duplicate test row removed).
 
 ## Task results
 
@@ -19,7 +19,7 @@ Final whole-branch review (opus): **READY TO MERGE, no blockers.**
 | 2 | `buildSeedLead` + test; `seed-test-lead.ts` CLI | `2fd3782` | 2/2 pass | Spec ✅, quality approved (3 ⚠️ resolved) |
 | 3 | `pipeline-live-e2e-runbook.md` | `bcdeced` | n/a (doc) | Verified: all sections + commands present |
 | fix | `test`/`test:watch` scripts (final-review minor) | `202e56f` | 6/6 pass | — |
-| 4 | Live run | — | — | **GATED — not executed** |
+| 4 | Live run (Track A + Track B) | n/a (live) | — | **EXECUTED — PASSED** (see Track A / Track B below) |
 
 Full suite: **6/6 passing** via `pnpm --filter @leadreacher/api test`.
 
