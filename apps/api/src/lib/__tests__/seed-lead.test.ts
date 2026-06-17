@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSeedLead } from "./seed-lead.js";
+import { buildSeedLead } from "../seed-lead.js";
 
 describe("buildSeedLead", () => {
   it("sets provider id and import defaults", () => {

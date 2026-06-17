@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveWebhookUrl } from "./webhook-url.js";
+import { resolveWebhookUrl } from "../webhook-url.js";
 
 describe("resolveWebhookUrl", () => {
   it("returns the explicit UNIPILE_WEBHOOK_URL when set", () => {
