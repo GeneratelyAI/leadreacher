@@ -10,11 +10,9 @@
  */
 import path from "node:path";
 import { config } from "dotenv";
+import { resolveWebhookUrl } from "../lib/webhook-url.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
-
-const WEBHOOK_URL =
-  "https://antler-concert-unluckily.ngrok-free.dev/webhooks/unipile";
 
 type WebhookHeader = { key: string; value: string };
 
@@ -95,6 +93,7 @@ async function main(): Promise<void> {
   const dsn = requireEnv("UNIPILE_DSN");
   const apiKey = requireEnv("UNIPILE_API_KEY");
   const webhookSecret = requireEnv("UNIPILE_WEBHOOK_SECRET");
+  const WEBHOOK_URL = resolveWebhookUrl(process.env);
 
   const authHeaders: WebhookHeader[] = [
     { key: "Unipile-Auth", value: webhookSecret },
