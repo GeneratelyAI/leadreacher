@@ -3,5 +3,7 @@ export default function SignupLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return <div className="h-dvh max-h-dvh overflow-hidden">{children}</div>;
+  return (
+    <div className="min-h-dvh w-full overflow-x-hidden">{children}</div>
+  );
 }

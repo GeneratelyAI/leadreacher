@@ -10,18 +10,24 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
   return (
     <main
       className={cn(
-        "relative flex h-dvh max-h-dvh w-full items-center justify-center overflow-hidden font-sans",
-        "bg-[#ece8f3] bg-position-[center_40%] bg-cover bg-no-repeat font-normal",
-        "px-4 py-4 h-compact:px-3 h-compact:py-2 lg:px-6 lg:py-6 xl:px-8 xl:py-8",
+        "relative w-full font-sans font-normal",
+        "min-h-dvh lg:h-dvh lg:max-h-dvh lg:overflow-hidden",
+        "overflow-x-hidden overflow-y-auto",
+        "bg-[#EEEEF8] lg:bg-[#ece8f3] lg:bg-position-[center_40%] lg:bg-cover lg:bg-no-repeat",
+        "px-0 py-0 lg:flex lg:items-center lg:justify-center lg:px-6 lg:py-6 xl:px-8 xl:py-8",
       )}
-      style={{ backgroundImage: `url(${ASSETS.authBackground})` }}
     >
+      <div
+        className="pointer-events-none absolute inset-0 hidden bg-position-[center_40%] bg-cover bg-no-repeat lg:block"
+        style={{ backgroundImage: `url(${ASSETS.authBackground})` }}
+        aria-hidden
+      />
+
       <Link
         href="/"
         className={cn(
-          "absolute z-10 shrink-0",
-          "top-4 left-4 h-compact:top-3 h-compact:left-3",
-          "lg:top-6 lg:left-6 xl:top-8 xl:left-8",
+          "absolute z-10 hidden shrink-0 lg:block",
+          "top-6 left-6 xl:top-8 xl:left-8",
         )}
         aria-label="leadreacher home"
       >
@@ -29,10 +35,18 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
         <img
           src={ASSETS.logoColored}
           alt="leadreacher"
-          className="h-6 w-auto h-compact:h-5 lg:h-7 xl:h-8"
+          className="h-7 w-auto xl:h-8"
         />
       </Link>
-      <div className="w-full max-w-sm lg:max-w-md xl:max-w-lg">{children}</div>
+
+      <div
+        className={cn(
+          "relative z-1 w-full",
+          "lg:max-w-6xl lg:px-8 xl:max-w-7xl xl:px-12",
+        )}
+      >
+        {children}
+      </div>
     </main>
   );
 }
