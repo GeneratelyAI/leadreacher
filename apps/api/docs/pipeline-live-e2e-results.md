@@ -29,6 +29,7 @@ Full suite: **6/6 passing** via `pnpm --filter @leadreacher/api test`.
 - **Final review minor (fixed):** `apps/api/package.json` had no `test` script, so the runbook's `pnpm … test` command would have failed. Added `test` / `test:watch` (commit `202e56f`).
 - **Minor (accepted, cosmetic):** `webhook-url.ts` local `WEBHOOK_URL` could be camelCase; `seed-lead.ts` `enrichmentData: Record<string, never>` is a narrow type. Left as-is.
 - **Security:** no secrets committed; `.env.example` keys are empty; the runbook uses placeholders; the old ngrok host was removed from the script.
+- **`test-unipile.ts` mislabel (FIXED, Step 0 of Task 4 prep):** the script's header claimed "read-only … no invites or messages," but it unconditionally ran T4 `sendConnectionInvite` + T5 `startChat` — i.e. a real invite + DM to the target slug on every run. Now **read-only by default**; T4/T5 are gated behind an explicit `--send` flag, and the docstring is corrected. This removes an accidental-outreach footgun before the live run.
 
 ## Known issues found (not fixed here — by design)
 

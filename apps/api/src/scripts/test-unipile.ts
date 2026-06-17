@@ -1,19 +1,24 @@
 /**
  * Unipile ↔ LinkedIn connection smoke test.
  *
- * Read-only verification that a LinkedIn account connected through Unipile is
- * reachable from our API. See docs/unipile-connection-testing.md.
+ * By DEFAULT this is READ-ONLY (T1–T3): it lists accounts, checks account
+ * health, and fetches a public profile. It does NOT send anything.
+ *
+ * With --send it ALSO runs T4 (sendConnectionInvite) and T5 (startChat), which
+ * perform REAL LinkedIn actions against <publicId> — a live invite and DM.
+ * Only pass --send when you intend to send those.
  *
  * Reads UNIPILE_DSN / UNIPILE_API_KEY directly from process.env (via .env) so a
  * database is NOT required — it does not import config/env.ts.
  *
  * Usage:
- *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts
- *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts <accountId> <publicId>
+ *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts [accountId] [publicId]
+ *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts --send [accountId] [publicId]
  *
  * Args (optional):
- *   accountId  override the account used for T2/T3/T4 (defaults to first listed)
- *   publicId   public LinkedIn slug to fetch in T3/T4 (defaults to "james-hartley-632b55415")
+ *   --send     also run T4/T5 (sends a real invite + chat message); off by default
+ *   accountId  override the account used for T2/T3 (defaults to first listed)
+ *   publicId   public LinkedIn slug to fetch in T3 (defaults to "james-hartley-632b55415")
  */
 import path from "node:path";
 import { config } from "dotenv";
@@ -55,7 +60,9 @@ async function runTest<T>(
 async function main(): Promise<void> {
   const dsn = requireEnv("UNIPILE_DSN");
   const apiKey = requireEnv("UNIPILE_API_KEY");
-  const [accountIdArg, publicIdArg] = process.argv.slice(2);
+  const rawArgs = process.argv.slice(2);
+  const send = rawArgs.includes("--send");
+  const [accountIdArg, publicIdArg] = rawArgs.filter((a) => !a.startsWith("--"));
   const publicId = publicIdArg ?? DEFAULT_PUBLIC_ID;
 
   const adapter = new UnipileAdapter({ dsn, apiKey });
@@ -124,7 +131,18 @@ async function main(): Promise<void> {
 
   const providerId = t3.result.provider_id;
 
-  // T4 — send connection invite
+  if (!send) {
+    console.log(
+      `\nRead-only checks passed (T1–T3). Skipping T4/T5 (live invite + chat).`,
+    );
+    console.log(
+      `Re-run with --send to perform live actions against "${publicId}".`,
+    );
+    console.log(`\nResult: 3/3 read-only checks passed.`);
+    process.exit(0);
+  }
+
+  // T4 — send connection invite (LIVE action; only with --send)
   const t4 = await runTest(
     `T4  sendConnectionInvite(account, "${publicId}", message)`,
     () =>

@@ -2,7 +2,7 @@
 
 ## 0. Prerequisites
 1. `cd apps/api && pnpm dev` (or `pnpm dev:api` from root) — API + in-process worker up on :3001.
-2. Sender health: `pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts` → T1–T3 PASS. Record the sender `account_id`.
+2. Sender health: `pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts` → T1–T3 PASS (read-only by default). Record the sender `account_id`. ⚠️ Do NOT add `--send` here — that flag fires a real connection invite + DM (T4/T5) at the target slug. The plain run sends nothing.
 3. Tunnel: `ngrok http 3001` → copy the https URL. In `apps/api/.env` set `UNIPILE_WEBHOOK_URL=https://<tunnel>/webhooks/unipile`.
 4. Register webhooks: `pnpm --filter @leadreacher/api exec tsx src/scripts/recreate-unipile-webhooks.ts` → confirm 2 webhooks in the Unipile dashboard.
 5. Token: `TOKEN=$(pnpm -s --filter @leadreacher/api exec tsx src/scripts/get-test-token.ts <email> <password> 2>/dev/null)`
