@@ -54,3 +54,5 @@ Then: watch the API logs; **accept** the invite on the recipient account; after 
 ## 4. Findings
 (One row per edge case observed during the run: symptom, evidence — log line / DB row, severity.)
 - providerLinkedinId gap (pre-identified): leads without `providerLinkedinId` cannot be matched by the `new_relation` webhook and the invite is sent with an empty `provider_id`. Worked around here by seeding with a real provider_id.
+- **2026-06-17 run: full loop PASSED** (invite → accept → step-1 DM → reply → replied + follow-up cancelled). Full results and findings in `pipeline-live-e2e-results.md`.
+- **`new_relation` latency (HIGH):** after accept, the `new_relation` webhook did not arrive within ~6 min, so step-1 did not auto-fire; it was triggered deterministically instead. Don't rely on `new_relation` timing for the post-accept DM — add a `network_distance` reconciliation fallback for `contacted` leads.

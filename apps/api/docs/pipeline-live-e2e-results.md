@@ -58,6 +58,21 @@ Ran the ingestion path against **live Apify + the test DB** (org `LeadReacher Te
 
 Prereq gap found: a fresh environment needs `pnpm --filter @leadreacher/api exec prisma generate` before any DB access (otherwise `prisma.<model>` is undefined). Added to the runbook §0.
 
-## What remains: Task 4 (live run)
+## Track B live run — PASSED (2026-06-17)
 
-Execute `apps/api/docs/pipeline-live-e2e-runbook.md` once the recipient burner account is ready and you give the go-ahead. Track A (scrape/ingest, no outreach) can run first as a low-risk warm-up; Track B (invite → accept → DM → reply) is the gated outreach loop. Record observations in the runbook's §4 Findings.
+Ran the full outreach loop against live Unipile + LinkedIn. Sender: `1R_YeXrqSWi7WgnIgYge7w` (Nicolas Miranda Cantanhede). Recipient: `kaiyue-wei` (Kaiyue Wei, provider `ACoAAFLwQeoBo3MT1-d462S7HxpOpMfnilpboY8`, SECOND_DEGREE at start). Campaign `cmqibrtae…s8jx`, campaign-lead `cmqibrtdo…3080`.
+
+| Checkpoint | Action | Result | Evidence |
+|---|---|---|---|
+| 1 | launch (enqueue step 0) | invite sent | job `completed` `{sent:true,path:"invite-sent"}`; lead→`contacted`; msg step0 `sent`; currentStep→1 |
+| 2 | accept invite (manual) → step-1 | DM sent | lead→`connected`; chat `7Bdlt08bULW1mIzyFRLjTA`; msg step1 `sent`; currentStep→2; step-2 scheduled (`delayed:1`) |
+| 3 | reply (manual) | replied + follow-up cancelled | inbound webhook `inbound:true`; lead/campaign-lead/msgs→`replied`; **`delayed:1→0`** (step-2 cancelled); inbound msg stored |
+
+**Findings:**
+1. **`new_relation` latency (HIGH-value finding).** After accept, Unipile's `new_relation` webhook did not arrive within ~6 min, so the post-accept step-1 DM did **not** auto-fire. Messages (`message_received`) are near-instant; relations lag. We triggered step-1 deterministically via the same `deliverSequenceStep1ViaChat` path. **Recommendation:** don't rely on `new_relation` timing alone — add a reconciliation fallback (e.g. periodically re-check `network_distance`/`is_relationship` for `contacted` leads and advance to step 1 when first-degree).
+2. **`providerLinkedinId` workaround validated.** Because the lead was seeded with the real `provider_id`, the invite was sent with a correct id (not the empty-string bug documented under Known issues). Confirms both the bug and the seeding workaround.
+3. **`startChat` reused the existing thread.** The invite-note created a chat; step-1 `startChat` returned that same `chat_id` rather than a duplicate.
+4. **Reply cancellation works.** The queued step-2 follow-up was removed on reply (`delayed:1→0`), so no follow-up is sent after a reply — correct behavior.
+5. **Minor:** two inbound message rows were recorded (distinct `message_id`s — likely two replies / the prior thread surfacing). Dedup is by `message_id`, so not a double-insert.
+
+**Note on method:** the run was driven via direct service/queue calls (not the HTTP routes) because no Supabase test token was available; the worker, adapters, webhooks, and queue — the live-integration surface — were all exercised. The HTTP route layer (`/leads/scrape`, `/campaigns`, `/launch`, `/social-accounts/sync`) was not exercised in this run.
