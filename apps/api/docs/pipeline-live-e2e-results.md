@@ -44,7 +44,14 @@ Full suite: **6/6 passing** via `pnpm --filter @leadreacher/api test`.
 
 Ran the ingestion path against **live Apify + the test DB** (org `LeadReacher Test`), zero outreach, via a temporary direct-call script (removed after).
 
-- **Scrape:** Apify `harvestapi~linkedin-profile-search` returned 2 profiles in ~24s. Normalization correct — `firstName/lastName/title/company/linkedinUrl/providerLinkedinId` all populated (e.g. "Staff Software Engineer @ Apptronik", provider `ACoAAD…`).
+- **Scrape:** Apify `harvestapi~linkedin-profile-search` returned 2 profiles in ~24s with `{jobTitles:["Software Engineer"], locations:["United States"], maxResults:2}`. Normalization correct — `firstName/lastName/title/company/linkedinUrl/providerLinkedinId` all populated.
+
+  | firstName | lastName | title | company | linkedinUrl | providerLinkedinId |
+  |---|---|---|---|---|---|
+  | Aman | Mohamed | Deployment Engineer @ Rolls-Royce | Rolls-Royce | https://www.linkedin.com/in/amanmoha | `ACoAADxZPqQBjGrMu3f-dtL5mrv-dWhufm5RZoE` |
+  | Francis | Frenzel | Staff Software Engineer @ Apptronik | Apptronik | https://www.linkedin.com/in/francis-frenzel-6a7ab623b | `ACoAADvJD18BLJYG4Anir-1O7S0NBN539h4yWsA` |
+
+  (`title` carries the LinkedIn headline; `company` is parsed from `currentPosition[0]`. Both rows were deleted after the run — see Cleanup.)
 - **Import:** first run `{imported: 2, skipped: 0}`.
 - **Dedup:** re-import of the same profiles `{imported: 0, skipped: 2}` → dedup by `linkedinUrl` works.
 - **Cleanup:** the 2 test rows were deleted afterward; org restored to its prior 5 leads. No outreach sent.
