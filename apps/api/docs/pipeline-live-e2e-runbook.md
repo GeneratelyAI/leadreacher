@@ -1,6 +1,7 @@
 # Live E2E Pipeline Runbook
 
 ## 0. Prerequisites
+0. Generate the Prisma client (required after a fresh checkout/install, else `prisma.<model>` is undefined): `pnpm --filter @leadreacher/api exec prisma generate`.
 1. `cd apps/api && pnpm dev` (or `pnpm dev:api` from root) — API + in-process worker up on :3001.
 2. Sender health: `pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts` → T1–T3 PASS (read-only by default). Record the sender `account_id`. ⚠️ Do NOT add `--send` here — that flag fires a real connection invite + DM (T4/T5) at the target slug. The plain run sends nothing.
 3. Tunnel: `ngrok http 3001` → copy the https URL. In `apps/api/.env` set `UNIPILE_WEBHOOK_URL=https://<tunnel>/webhooks/unipile`.

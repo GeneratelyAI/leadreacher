@@ -40,6 +40,17 @@ Full suite: **6/6 passing** via `pnpm --filter @leadreacher/api test`.
 
 2. **Pre-existing TypeScript errors.** `pnpm --filter @leadreacher/api lint` (`tsc --noEmit`) reports errors in unrelated `routes/`, `workers/`, and `services/` files. These predate this branch and are not introduced by it, but they mean `lint` is currently red repo-wide. **Worth its own cleanup task.**
 
+## Track A live dry-run — PASSED (2026-06-17)
+
+Ran the ingestion path against **live Apify + the test DB** (org `LeadReacher Test`), zero outreach, via a temporary direct-call script (removed after).
+
+- **Scrape:** Apify `harvestapi~linkedin-profile-search` returned 2 profiles in ~24s. Normalization correct — `firstName/lastName/title/company/linkedinUrl/providerLinkedinId` all populated (e.g. "Staff Software Engineer @ Apptronik", provider `ACoAAD…`).
+- **Import:** first run `{imported: 2, skipped: 0}`.
+- **Dedup:** re-import of the same profiles `{imported: 0, skipped: 2}` → dedup by `linkedinUrl` works.
+- **Cleanup:** the 2 test rows were deleted afterward; org restored to its prior 5 leads. No outreach sent.
+
+Prereq gap found: a fresh environment needs `pnpm --filter @leadreacher/api exec prisma generate` before any DB access (otherwise `prisma.<model>` is undefined). Added to the runbook §0.
+
 ## What remains: Task 4 (live run)
 
 Execute `apps/api/docs/pipeline-live-e2e-runbook.md` once the recipient burner account is ready and you give the go-ahead. Track A (scrape/ingest, no outreach) can run first as a low-risk warm-up; Track B (invite → accept → DM → reply) is the gated outreach loop. Record observations in the runbook's §4 Findings.
