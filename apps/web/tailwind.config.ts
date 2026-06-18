@@ -12,9 +12,6 @@ const config: Config = {
     extend: {
       screens: {
         ...defaultTheme.screens,
-        "h-compact": { raw: "(max-height: 820px)" },
-        "h-comfortable": { raw: "(min-height: 1000px)" },
-        "h-spacious": { raw: "(min-height: 1200px)" },
       },
       colors: {
         "brand-purple": "#5326B7",

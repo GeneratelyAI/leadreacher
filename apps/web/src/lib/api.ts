@@ -21,8 +21,23 @@ function getApiBaseUrl(): string {
 
 export async function getAccessToken(): Promise<string | null> {
   const supabase = createClient();
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
+
+  // Validate with Supabase Auth (and refresh if needed). getSession() alone can
+  // return a stale or non-Supabase token from browser storage.
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return null;
+  }
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token ?? null;
 }
 
 export async function apiFetch<T>(
@@ -40,10 +55,22 @@ export async function apiFetch<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...options,
-    headers,
-  });
+  const url = `${getApiBaseUrl()}${path}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Network error";
+    throw new ApiError(
+      `Cannot reach API at ${url}. Is the backend running? (${reason})`,
+      0,
+      "NETWORK_ERROR",
+    );
+  }
 
   const payload = (await response.json().catch(() => null)) as
     | { message?: string; code?: string; error?: string }

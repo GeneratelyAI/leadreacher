@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { ANIMATION_VIDEO_SRC } from "@/lib/constants/animation";
 import { satoshi } from "@/lib/fonts/satoshi";
+import { themeInitScript } from "@/lib/theme-init-script";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,8 +17,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${satoshi.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${satoshi.variable} h-full antialiased`}
+      suppressHydrationWarning
+    >
       <head>
+        <Script
+          id="lr-theme-init"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: themeInitScript }}
+        />
         <link
           rel="preload"
           href={ANIMATION_VIDEO_SRC}

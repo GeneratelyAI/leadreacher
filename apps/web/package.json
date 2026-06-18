@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "discovery:clay": "bash scripts/discovery-clay.sh"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
