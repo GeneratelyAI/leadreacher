@@ -1,23 +1,36 @@
+import { createClient } from "@supabase/supabase-js";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { createRemoteJWKSet, jwtVerify } from "jose";
 import { env } from "../config/env.js";
-import { AuthError, ForbiddenError } from "../lib/errors.js";
+import { AuthError, ForbiddenError, UnauthorizedError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 
 const BOOTSTRAP_MESSAGE =
   "Organization not set up. Call POST /auth/bootstrap first.";
 
-const supabaseJwks = createRemoteJWKSet(
-  new URL(
-    `${env.SUPABASE_URL.replace(/\/$/, "")}/auth/v1/.well-known/jwks.json`,
-  ),
+// User JWTs must be verified with the anon key (apikey header). Service role is
+// for admin operations only; using it here can break getUser(jwt) in some SDK versions.
+const supabase = createClient(
+  env.SUPABASE_URL.replace(/\/$/, ""),
+  env.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  },
 );
 
 function extractBearerToken(authorization: string | undefined): string | null {
-  if (!authorization?.startsWith("Bearer ")) {
+  if (!authorization) {
     return null;
   }
-  const token = authorization.slice("Bearer ".length).trim();
+
+  const match = authorization.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  const token = match[1].trim();
   return token.length > 0 ? token : null;
 }
 
@@ -30,22 +43,17 @@ export async function verifySupabaseJwt(
     throw new AuthError("Missing or invalid Authorization header");
   }
 
-  try {
-    const { payload } = await jwtVerify(token, supabaseJwks);
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
 
-    if (typeof payload.sub !== "string" || payload.sub.length === 0) {
-      throw new AuthError("Invalid token: missing sub claim");
-    }
-
-    request.userId = payload.sub;
-    request.userEmail =
-      typeof payload.email === "string" ? payload.email : undefined;
-  } catch (error) {
-    if (error instanceof AuthError) {
-      throw error;
-    }
-    throw new AuthError("Invalid or expired token");
+  if (error || !user) {
+    throw new UnauthorizedError();
   }
+
+  request.userId = user.id;
+  request.userEmail = user.email ?? undefined;
 }
 
 export async function requireOrg(

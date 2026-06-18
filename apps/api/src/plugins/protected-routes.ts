@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { requireOrg, verifySupabaseJwt } from "../plugins/auth.js";
 import { campaignRoutes } from "../routes/campaigns.js";
+import { discoveryRoutes } from "../routes/discovery.js";
 import { leadsRoutes } from "../routes/leads.js";
 import { socialAccountRoutes } from "../routes/social-accounts.js";
 
@@ -10,5 +11,6 @@ export async function protectedRoutes(app: FastifyInstance): Promise<void> {
 
   await app.register(leadsRoutes);
   await app.register(campaignRoutes);
+  await app.register(discoveryRoutes);
   await app.register(socialAccountRoutes);
 }

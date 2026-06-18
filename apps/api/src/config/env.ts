@@ -15,6 +15,17 @@ const envSchema = z.object({
   UPSTASH_REDIS_URL: z.string().min(1),
   UPSTASH_REDIS_TOKEN: z.string().min(1),
   SUPABASE_URL: z.string().url(),
+  SUPABASE_ANON_KEY: z.string().min(1),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  GROQ_API_KEY: z.string().min(1),
+  FIRECRAWL_API_KEY: z
+    .preprocess(
+      (value) =>
+        typeof value === "string" && value.trim().length > 0
+          ? value.trim()
+          : undefined,
+      z.string().min(1).optional(),
+    ),
   CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
 });
 

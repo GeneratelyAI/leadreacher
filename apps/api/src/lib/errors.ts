@@ -20,6 +20,8 @@ export class AuthError extends AppError {
   }
 }
 
+export class UnauthorizedError extends AuthError {}
+
 export class NotFoundError extends AppError {
   constructor(resource: string) {
     super(`${resource} not found`, 404, "NOT_FOUND");
