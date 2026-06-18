@@ -60,7 +60,7 @@ export function useAuthForm(mode: AuthMode) {
         await ensureOrganizationBootstrapped(email);
       }
 
-      router.push("/");
+      router.push("/onboarding/discovery");
       router.refresh();
     } catch (caught) {
       setError(
@@ -74,7 +74,7 @@ export function useAuthForm(mode: AuthMode) {
   async function handleOAuth(provider: "google" | "azure") {
     setError(null);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding/discovery")}`;
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,

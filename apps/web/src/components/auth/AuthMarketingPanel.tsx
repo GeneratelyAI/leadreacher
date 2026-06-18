@@ -6,7 +6,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Fragment } from "react";
-import { BRAND_COLORS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "signup";
@@ -34,7 +33,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
     >
       <h1
         className={cn(
-          "text-2xl leading-tight font-bold tracking-tight text-[#111827]",
+          "text-2xl leading-tight font-bold tracking-tight text-[#111827] dark:text-white",
           "sm:text-3xl",
           "lg:text-4xl xl:text-[2.75rem] xl:leading-[1.15]",
         )}
@@ -42,14 +41,18 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
         {isSignup ? (
           <>
             <span className="block">Let&apos;s get your first</span>
-            <span className="block" style={{ color: BRAND_COLORS.purple }}>
+            <span
+              className="block text-[#5326b7] dark:text-[#c4b5f0]"
+            >
               qualified conversation.
             </span>
           </>
         ) : (
           <>
             <span className="block">Welcome back to your</span>
-            <span className="block" style={{ color: BRAND_COLORS.purple }}>
+            <span
+              className="block text-[#5326b7] dark:text-[#c4b5f0]"
+            >
               qualified conversations.
             </span>
           </>
@@ -58,7 +61,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
 
       <p
         className={cn(
-          "mt-3 max-w-md text-sm leading-relaxed text-neutral-500",
+          "mt-3 max-w-md text-sm leading-relaxed text-neutral-500 dark:text-white/60",
           "lg:mt-4 lg:text-base xl:mt-5 xl:max-w-lg xl:text-lg",
         )}
       >
@@ -73,16 +76,15 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
           "lg:mt-10 lg:gap-4 xl:mt-12",
         )}
       >
-        <div className="h-px max-w-16 flex-1 bg-neutral-300/80" />
+        <div className="h-px max-w-16 flex-1 bg-neutral-300/80 dark:bg-white/15" />
         <div
           className={cn(
-            "flex shrink-0 items-center gap-2 text-sm leading-none font-normal text-[#5e5870]",
+            "flex shrink-0 items-center gap-2 text-sm leading-none font-normal text-[#5e5870] dark:text-white/70",
             "lg:gap-2.5 lg:text-base",
           )}
         >
           <ShieldCheck
-            className="size-5 shrink-0 lg:size-6"
-            style={{ color: BRAND_COLORS.purple }}
+            className="size-5 shrink-0 text-[#5326b7] lg:size-6 dark:text-[#c4b5f0]"
             strokeWidth={2}
             aria-hidden
           />
@@ -90,12 +92,12 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
             You stay in control. We handle the rest.
           </span>
         </div>
-        <div className="h-px max-w-16 flex-1 bg-neutral-300/80" />
+        <div className="h-px max-w-16 flex-1 bg-neutral-300/80 dark:bg-white/15" />
       </div>
 
       <div
         className={cn(
-          "mt-8 flex items-center gap-3 text-sm leading-none font-normal text-[#5e5870]",
+          "mt-8 flex items-center gap-3 text-sm leading-none font-normal text-[#5e5870] dark:text-white/70",
           "sm:gap-4 lg:mt-10 lg:gap-5 lg:text-base xl:mt-12 xl:gap-6",
         )}
       >
@@ -103,7 +105,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
           <Fragment key={step.label}>
             {index > 0 ? (
               <ArrowRight
-                className="size-4 shrink-0 text-[#c4b8d8] lg:size-5"
+                className="size-4 shrink-0 text-[#c4b8d8] lg:size-5 dark:text-white/25"
                 strokeWidth={1.75}
                 aria-hidden
               />
@@ -112,12 +114,11 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
               <span
                 className={cn(
                   "inline-flex size-9 items-center justify-center rounded-lg",
-                  "bg-[#ede8f7] lg:size-10",
+                  "bg-[#ede8f7] lg:size-10 dark:bg-white/8",
                 )}
               >
                 <step.icon
-                  className="size-4 lg:size-4.5"
-                  style={{ color: BRAND_COLORS.purple }}
+                  className="size-4 text-[#5326b7] lg:size-4.5 dark:text-[#c4b5f0]"
                   strokeWidth={1.75}
                   aria-hidden
                 />
