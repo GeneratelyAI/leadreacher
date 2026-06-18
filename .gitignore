@@ -47,3 +47,6 @@ next-env.d.ts
 # claude code (keep tracked: CLAUDE.md, AGENTS.md)
 .claude/
 CLAUDE.local.md
+
+# local docs (root scratch only; apps/api/docs stays tracked)
+/docs
