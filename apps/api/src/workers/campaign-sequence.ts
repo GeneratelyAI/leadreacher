@@ -14,6 +14,7 @@ import {
   LEAD_STATUS_CONTACTED,
 } from "../lib/lead-status.js";
 import { parseSequence } from "../lib/sequence.js";
+import { resolveProviderId } from "../lib/provider-id.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 
 function leadLinkedinIdentifier(lead: {
@@ -118,8 +119,10 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         }
 
         if (networkDistance === "FIRST_DEGREE") {
-          const attendeeProviderId =
-            campaignLead.lead.providerLinkedinId ?? profileProviderId;
+          const attendeeProviderId = resolveProviderId(
+            campaignLead.lead.providerLinkedinId,
+            profileProviderId,
+          );
           if (!attendeeProviderId) {
             throw new Error(
               `No provider id for already-connected lead on CampaignLead ${campaignLeadId}`,
@@ -128,7 +131,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
           await prisma.lead.update({
             where: { id: campaignLead.leadId },
-            data: { status: LEAD_STATUS_CONNECTED },
+            data: {
+              status: LEAD_STATUS_CONNECTED,
+              // Persist the fetched provider_id so future webhook matching works.
+              ...(campaignLead.lead.providerLinkedinId
+                ? {}
+                : { providerLinkedinId: attendeeProviderId }),
+            },
           });
 
           const step1Result = await deliverSequenceStep1ViaChat({
@@ -162,9 +171,19 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           };
         }
 
+        const inviteProviderId = resolveProviderId(
+          campaignLead.lead.providerLinkedinId,
+          profileProviderId,
+        );
+        if (!inviteProviderId) {
+          throw new Error(
+            `No provider_id available to send invite for CampaignLead ${campaignLeadId}`,
+          );
+        }
+
         await adapter.sendConnectionInvite(
           socialAccount.unipileId,
-          campaignLead.lead.providerLinkedinId ?? "",
+          inviteProviderId,
           currentStep.message,
         );
 
@@ -178,13 +197,20 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             status: "sent",
             stepIndex: step,
             sentAt: new Date(),
-            externalId: campaignLead.lead.providerLinkedinId ?? undefined,
+            externalId: inviteProviderId,
           },
         });
 
         await prisma.lead.update({
           where: { id: campaignLead.leadId },
-          data: { status: LEAD_STATUS_CONTACTED },
+          data: {
+            status: LEAD_STATUS_CONTACTED,
+            // Persist the fetched provider_id so the new_relation webhook can
+            // match this lead after the invite is accepted.
+            ...(campaignLead.lead.providerLinkedinId
+              ? {}
+              : { providerLinkedinId: inviteProviderId }),
+          },
         });
 
         // Step 1 is triggered by the new_relation webhook after the invite is accepted.
