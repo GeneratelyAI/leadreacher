@@ -12,6 +12,7 @@ import {
 } from "../lib/queue.js";
 import { parseSequence } from "../lib/sequence.js";
 import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
+import { recordInboundMessage } from "../lib/inbound-message.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 
 const STATUS_REPLIED = "replied";
@@ -191,19 +192,20 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         app.log.error(error);
       }
 
-      await prisma.message.create({
-        data: {
-          campaignId: campaignLead.campaignId,
-          leadId: campaignLead.leadId,
-          orgId: socialAccount.orgId,
-          channel: "linkedin",
-          content: { type: "text", message: data.message },
-          direction: "inbound",
-          status: STATUS_REPLIED,
-          externalId: data.message_id,
-          stepIndex: campaignLead.currentStep,
-          sentAt: new Date(data.timestamp),
-        },
+      // Idempotent insert: a duplicate/concurrent webhook re-delivery of the
+      // same message_id maps to the same deterministic id and is a no-op,
+      // closing the read-then-write race in isDuplicate().
+      await recordInboundMessage({
+        campaignId: campaignLead.campaignId,
+        leadId: campaignLead.leadId,
+        orgId: socialAccount.orgId,
+        channel: "linkedin",
+        content: { type: "text", message: data.message },
+        direction: "inbound",
+        status: STATUS_REPLIED,
+        externalId: data.message_id,
+        stepIndex: campaignLead.currentStep,
+        sentAt: new Date(data.timestamp),
       });
 
       app.log.info({
