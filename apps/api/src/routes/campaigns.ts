@@ -44,6 +44,24 @@ function parseSequenceOrThrow(sequence: unknown): Prisma.InputJsonValue {
   }
 }
 
+type CampaignLeadRecord = Prisma.CampaignLeadGetPayload<Record<string, never>>;
+
+type CampaignLeadWithLead = Prisma.CampaignLeadGetPayload<{
+  include: {
+    lead: {
+      select: {
+        id: true;
+        firstName: true;
+        lastName: true;
+        title: true;
+        status: true;
+        linkedinUrl: true;
+        company: true;
+      };
+    };
+  };
+}>;
+
 function requireOrgId(request: { orgId?: string }): string {
   if (!request.orgId) {
     throw new Error("orgId missing after auth middleware");
@@ -182,7 +200,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       data: { status: "active" },
     });
 
-    const jobs = campaign.leads.map((campaignLead) => ({
+    const jobs = campaign.leads.map((campaignLead: CampaignLeadRecord) => ({
       name: QUEUE_CAMPAIGN_SEQUENCE,
       data: {
         campaignLeadId: campaignLead.id,
@@ -236,7 +254,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.send({
       campaignId,
-      leads: campaignLeads.map((campaignLead) => ({
+      leads: campaignLeads.map((campaignLead: CampaignLeadWithLead) => ({
         id: campaignLead.id,
         campaignLeadStatus: campaignLead.status,
         currentStep: campaignLead.currentStep,

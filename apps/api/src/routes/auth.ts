@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { AuthError, ValidationError } from "../lib/errors.js";
@@ -35,7 +36,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const org = await tx.organization.create({
           data: {
             name,
