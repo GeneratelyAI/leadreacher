@@ -10,6 +10,7 @@ import { authRoutes } from "./routes/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
+import { startReconcileRelationsWorker } from "./workers/reconcile-relations.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -45,6 +46,7 @@ export async function buildServer() {
   await app.register(protectedRoutes);
 
   startCampaignSequenceWorker();
+  startReconcileRelationsWorker();
 
   return app;
 }

@@ -15,21 +15,8 @@ import {
 } from "../lib/lead-status.js";
 import { parseSequence } from "../lib/sequence.js";
 import { resolveProviderId } from "../lib/provider-id.js";
+import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
-
-function leadLinkedinIdentifier(lead: {
-  providerLinkedinId: string | null;
-  linkedinUrl: string | null;
-}): string | null {
-  if (lead.providerLinkedinId) {
-    return lead.providerLinkedinId;
-  }
-  if (!lead.linkedinUrl) {
-    return null;
-  }
-  const match = lead.linkedinUrl.match(/linkedin\.com\/in\/([^/?#]+)/i);
-  return match?.[1] ?? null;
-}
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
