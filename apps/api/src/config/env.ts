@@ -26,7 +26,22 @@ const envSchema = z.object({
           : undefined,
       z.string().min(1).optional(),
     ),
-  CORS_ORIGIN: z.string().min(1).default("http://localhost:3000"),
+  CORS_ORIGIN: z
+    .string()
+    .min(1)
+    .default("http://localhost:3000")
+    .superRefine((value, ctx) => {
+      const origins = value
+        .split(",")
+        .map((origin) => origin.trim())
+        .filter(Boolean);
+      if (origins.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: "CORS_ORIGIN must contain at least one origin",
+        });
+      }
+    }),
 });
 
 const parsed = envSchema.safeParse(process.env);

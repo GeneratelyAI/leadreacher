@@ -14,8 +14,10 @@ import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 export async function buildServer() {
   const app = Fastify({ logger: true });
 
+  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: allowedOrigins,
     credentials: true,
     allowedHeaders: ["Authorization", "Content-Type"],
   });
