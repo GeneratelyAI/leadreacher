@@ -9,6 +9,11 @@
 @config "../../tailwind.config.ts";
 
 :root {
+  --page-bg: #ffffff;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
   --brand-purple: #5326b7;
   --brand-bg: #0d0854;
   --brand-purple-light: #7a58c4;
@@ -118,8 +123,44 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+html,
 body {
-  background-color: white;
+  height: 100%;
+  min-height: 100%;
+  background-color: var(--page-bg);
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+html[data-page="auth"] {
+  --page-bg: #ece8f3;
+  --background: #ece8f3;
+}
+
+html[data-page="auth"],
+html[data-page="auth"] body {
+  background-color: #ece8f3;
+}
+
+html[data-page="auth"].dark {
+  --page-bg: #0a0a1a;
+  --background: #0a0a1a;
+}
+
+html[data-page="auth"].dark,
+html[data-page="auth"].dark body {
+  background-color: #0a0a1a;
+}
+
+html[data-page="discovery"] {
+  --page-bg: #fafaf9;
+}
+
+html[data-page="discovery"].dark {
+  --page-bg: #0a0a1a;
 }
 
 .hero-bottom-fade {
@@ -624,7 +665,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding:
+    max(1.5rem, var(--safe-area-top))
+    max(1.5rem, var(--safe-area-right))
+    max(1.5rem, var(--safe-area-bottom))
+    max(1.5rem, var(--safe-area-left));
+  background-color: #fafaf9;
   pointer-events: none;
 }
 
@@ -1154,7 +1200,8 @@ body {
   inset-inline: 0;
   top: 0;
   z-index: 25;
-  height: 6.5rem;
+  height: calc(6.5rem + var(--safe-area-top));
+  padding-top: var(--safe-area-top);
   background: linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.78) 0%,
@@ -2065,7 +2112,8 @@ body {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
+    background-color: var(--page-bg);
   }
   html {
     @apply font-sans;
@@ -2082,6 +2130,7 @@ body {
 }
 
 .discovery-page {
+  background-color: #fafaf9;
   transition:
     background-color 200ms ease,
     color 200ms ease;

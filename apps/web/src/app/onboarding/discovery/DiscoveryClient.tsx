@@ -1062,7 +1062,7 @@ function DiscoveryMobileTopBar({
         aria-hidden
       />
       <header
-        className={`fixed inset-x-0 top-0 z-40 bg-transparent px-4 py-3 lg:hidden ${chromeClassName}`}
+      className={`fixed inset-x-0 top-0 z-40 bg-transparent px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden ${chromeClassName}`}
       >
         <div className="mx-auto flex w-full max-w-3xl items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -1174,7 +1174,7 @@ function DiscoveryMobileCampaignSheet({
         onClick={onClose}
       />
       <div
-        className={`discovery-mobile-sheet absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-[1.75rem] bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.12)] ${
+        className={`discovery-mobile-sheet absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-[1.75rem] bg-[#FAFAF9] shadow-[0_-8px_40px_rgba(15,23,42,0.12)] dark:bg-[#0a0a1a] ${
           isExiting ? "discovery-mobile-sheet--exiting" : ""
         }`}
         role="dialog"
@@ -1214,7 +1214,7 @@ function DiscoveryMobileCampaignSheet({
           <DiscoveryCampaignSummaryRows summary={summary} />
         </div>
 
-        <div className="discovery-mobile-sheet__footer shrink-0 border-t border-neutral-100 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="discovery-mobile-sheet__footer shrink-0 border-t border-neutral-100 px-5 pt-4 pb-[max(1rem,var(--safe-area-bottom))]">
           <p className="discovery-footer-note flex items-center justify-center gap-1.5 text-xs text-neutral-400">
             <Lock className="size-3.5" aria-hidden />
             Your information is secure and private
@@ -1472,7 +1472,7 @@ export default function DiscoveryClient({
 
   return (
     <div
-      className="discovery-page relative h-dvh w-full bg-white"
+      className="discovery-page relative h-dvh min-h-dvh w-full bg-[#FAFAF9] dark:bg-[#0a0a1a]"
       style={
         {
           "--discovery-intro-transition": `${DISCOVERY_INTRO_TRANSITION_MS}ms`,
@@ -1601,7 +1601,7 @@ export default function DiscoveryClient({
         </div>
 
         <div
-          className={`shrink-0 px-5 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] lg:pb-6 ${
+          className={`shrink-0 px-5 pt-4 pb-[max(1.25rem,var(--safe-area-bottom))] lg:pb-6 ${
             !showChatUi ? "pointer-events-none opacity-0" : ""
           }`}
         >

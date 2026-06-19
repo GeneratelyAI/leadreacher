@@ -64,8 +64,8 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
   } = useAuthForm(mode);
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-[430px] pb-8 lg:hidden">
-      <div className="flex flex-col items-center px-4 pt-14">
+    <div className="relative mx-auto w-full max-w-[430px] pb-[max(2rem,env(safe-area-inset-bottom))] lg:hidden">
+      <div className="flex flex-col items-center px-4 pt-[max(3.5rem,env(safe-area-inset-top))]">
         <Link
           href="/"
           className={cn(mode === "login" ? "mb-16" : "mb-10")}
