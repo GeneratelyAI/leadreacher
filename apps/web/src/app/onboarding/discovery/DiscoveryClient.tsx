@@ -106,7 +106,7 @@ function getDiscoverySidebarConnectorState(
 function DiscoverySidebarStepIcon({ state }: { state: DiscoverySidebarStepState }) {
   if (state === "completed") {
     return (
-      <span className="discovery-sidebar__step-icon discovery-sidebar__step-icon--completed inline-flex size-[1.375rem] items-center justify-center rounded-full">
+      <span className="discovery-sidebar__step-icon discovery-sidebar__step-icon--completed inline-flex size-5.5 items-center justify-center rounded-full">
         <Check className="size-3 stroke-[2.5]" aria-hidden />
       </span>
     );
@@ -114,7 +114,7 @@ function DiscoverySidebarStepIcon({ state }: { state: DiscoverySidebarStepState 
 
   if (state === "active") {
     return (
-      <span className="discovery-sidebar__step-icon discovery-sidebar__step-icon--active inline-flex size-[1.375rem] items-center justify-center rounded-full">
+      <span className="discovery-sidebar__step-icon discovery-sidebar__step-icon--active inline-flex size-5.5 items-center justify-center rounded-full">
         <span className="discovery-sidebar__step-icon-dot size-2 rounded-full" aria-hidden />
       </span>
     );
@@ -122,7 +122,7 @@ function DiscoverySidebarStepIcon({ state }: { state: DiscoverySidebarStepState 
 
   return (
     <span
-      className="discovery-sidebar__step-icon discovery-sidebar__step-icon--pending inline-flex size-[1.375rem] rounded-full"
+      className="discovery-sidebar__step-icon discovery-sidebar__step-icon--pending inline-flex size-5.5 rounded-full"
       aria-hidden
     />
   );
@@ -181,7 +181,7 @@ function DiscoveryProgressSidebar({
 }) {
   return (
     <aside
-      className={`discovery-sidebar fixed top-[5.5rem] bottom-28 left-6 z-30 hidden w-[min(280px,26vw)] flex-col lg:flex ${chromeClassName}`}
+      className={`discovery-sidebar fixed top-22 bottom-28 left-6 z-30 hidden w-[min(280px,26vw)] flex-col lg:flex ${chromeClassName}`}
       style={style}
       aria-label="Outreach blueprint progress"
     >
@@ -1557,7 +1557,7 @@ export default function DiscoveryClient({
               : "discovery-chat-shell--entering"
         }`}
       >
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain scroll-pb-8 pt-[4.75rem] lg:pt-16">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain scroll-pb-8 pt-19 lg:pt-16">
           <div
             ref={messagesContainerRef}
             className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-5 pt-6 pb-12"

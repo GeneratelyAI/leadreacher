@@ -31,8 +31,8 @@ async function fetchExistingLinkedinUrls(
 
   return new Set(
     existing
-      .map((lead) => lead.linkedinUrl)
-      .filter((url): url is string => url != null),
+      .map((lead: { linkedinUrl: string | null }) => lead.linkedinUrl)
+      .filter((url: string | null): url is string => url != null),
   );
 }
 

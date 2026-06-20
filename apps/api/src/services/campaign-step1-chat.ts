@@ -58,7 +58,7 @@ export async function deliverSequenceStep1ViaChat(
         currentStep: 2,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

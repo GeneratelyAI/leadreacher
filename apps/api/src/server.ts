@@ -10,12 +10,15 @@ import { authRoutes } from "./routes/auth.js";
 import { healthRoutes } from "./routes/health.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
+import { startReconcileRelationsWorker } from "./workers/reconcile-relations.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
 
+  const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
+
   await app.register(cors, {
-    origin: env.CORS_ORIGIN,
+    origin: allowedOrigins,
     credentials: true,
     allowedHeaders: ["Authorization", "Content-Type"],
   });
@@ -45,6 +48,7 @@ export async function buildServer() {
   await app.register(protectedRoutes);
 
   startCampaignSequenceWorker();
+  startReconcileRelationsWorker();
 
   return app;
 }

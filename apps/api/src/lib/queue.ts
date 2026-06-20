@@ -3,6 +3,11 @@ import { redis } from "./redis.js";
 
 export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";
+export const QUEUE_RECONCILE_RELATIONS = "reconcile-relations";
+
+// Fallback poll cadence for the new_relation webhook (which can lag/no-show).
+export const RECONCILE_RELATIONS_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+const RECONCILE_SCHEDULER_ID = "reconcile-relations-scheduler";
 
 export type CampaignSequenceJob = {
   campaignLeadId: string;
@@ -38,3 +43,19 @@ export function campaignSequenceJobId(
 export const videoGenerationQueue = new Queue(QUEUE_VIDEO_GENERATION, {
   connection: redis,
 });
+
+export const reconcileRelationsQueue = new Queue(QUEUE_RECONCILE_RELATIONS, {
+  connection: redis,
+});
+
+/**
+ * Idempotently register the repeatable relation-reconciliation job. Safe to
+ * call on every startup — upsert replaces any existing schedule.
+ */
+export async function scheduleReconcileRelations(): Promise<void> {
+  await reconcileRelationsQueue.upsertJobScheduler(
+    RECONCILE_SCHEDULER_ID,
+    { every: RECONCILE_RELATIONS_INTERVAL_MS },
+    { name: QUEUE_RECONCILE_RELATIONS },
+  );
+}
