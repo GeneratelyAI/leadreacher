@@ -10,18 +10,6 @@ const listeners = new Set<() => void>();
 
 export { THEME_STORAGE_KEY };
 
-export function readStoredIsDark(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const stored =
-    window.localStorage.getItem(THEME_STORAGE_KEY) ??
-    window.localStorage.getItem(LEGACY_THEME_STORAGE_KEY);
-
-  return stored === "dark";
-}
-
 export function applyStoredTheme(): void {
   if (typeof window === "undefined") {
     return;

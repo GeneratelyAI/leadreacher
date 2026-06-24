@@ -2087,6 +2087,33 @@ body {
     color 200ms ease;
 }
 
+.discovery-page__gradient--lower-left {
+  background: radial-gradient(
+    ellipse at 10% 130%,
+    rgba(83, 38, 183, 0.15) 0%,
+    rgba(45, 10, 140, 0.08) 35%,
+    transparent 70%
+  );
+}
+
+.discovery-page__gradient--upper-right {
+  background: radial-gradient(
+    ellipse at 90% 10%,
+    rgba(63, 38, 183, 0.15) 0%,
+    rgba(45, 10, 140, 0.08) 15%,
+    transparent 70%
+  );
+}
+
+.discovery-page__gradient--mid-right {
+  background: radial-gradient(
+    ellipse at 90% 20%,
+    rgba(43, 38, 183, 0.2) 0%,
+    rgba(45, 10, 140, 0.08) 15%,
+    transparent 70%
+  );
+}
+
 .discovery-page :where(
   .discovery-message-bubble,
   .apple-glass-panel,

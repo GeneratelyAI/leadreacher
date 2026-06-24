@@ -1,7 +1,5 @@
 type AuthMode = "login" | "signup";
 
-export const AUTH_MOBILE_BG = "#EEEEF8";
-
 export const AUTH_MOBILE_PROCESS_STEPS = [
   { key: "generate", label: "Generate" },
   { key: "approve", label: "Approve" },

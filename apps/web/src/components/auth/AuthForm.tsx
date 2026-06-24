@@ -106,7 +106,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
             >
               <h2
                 className={cn(
-                  "mb-5 text-center text-xs font-bold tracking-[0.14em] uppercase text-[#5326b7]",
+                  "mb-5 text-center text-xs font-bold tracking-[0.14em] uppercase text-brand-purple",
                   "dark:text-[#c4b5f0]",
                   "h-compact:mb-4 lg:mb-6 lg:text-sm xl:text-[0.9375rem]",
                 )}
@@ -269,7 +269,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <div className="mt-1.5 flex items-center justify-end h-compact:mt-1 lg:mt-2">
                       <Link
                         href="#"
-                        className="text-xs font-medium text-[#5326b7] transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
+                        className="text-xs font-medium text-brand-purple transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
                       >
                         Forgot password?
                       </Link>
@@ -313,7 +313,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 {alternatePrompt}{" "}
                 <Link
                   href={alternateHref}
-                  className="font-semibold text-[#5326b7] transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
+                  className="font-semibold text-brand-purple transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
                 >
                   {alternateLinkLabel}
                 </Link>

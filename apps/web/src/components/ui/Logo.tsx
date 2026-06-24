@@ -56,7 +56,7 @@ export function Logo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ASSETS.logoColored}
-        alt={showColored ? "leadreacher" : undefined}
+        alt={showColored ? "leadreacher" : ""}
         aria-hidden={!showColored}
         className={cn(
           imageClassName,
@@ -67,7 +67,7 @@ export function Logo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ASSETS.logoWhite}
-        alt={showColored ? undefined : "leadreacher"}
+        alt={showColored ? "" : "leadreacher"}
         aria-hidden={showColored}
         className={cn(
           imageClassName,

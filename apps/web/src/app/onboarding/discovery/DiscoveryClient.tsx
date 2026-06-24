@@ -5,61 +5,22 @@ import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   ArrowUp,
-  Briefcase,
-  Building2,
   ChevronRight,
-  Compass,
   Lock,
-  LogOut,
-  Moon,
   Sparkles,
-  Sun,
   Check,
-  TrendingUp,
-  User,
   Globe,
-  X,
 } from "lucide-react";
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AccountMenu, ThemeToggleButton } from "@/components/onboarding/OnboardingAccountControls";
+import { CampaignSummaryPanel, countPopulatedSummaryFields } from "@/components/onboarding/CampaignSummaryPanel";
+import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
+import { OnboardingMobileSheet } from "@/components/onboarding/OnboardingMobileSheet";
 import { Button } from "@/components/ui/Button";
 import { QUESTIONS, DISCOVERY_INTRO_HOLD_MS, DISCOVERY_INTRO_TRANSITION_MS, useDiscovery, WEBSITE_COMPLETE_MESSAGE, type DiscoverySummary, type WebsiteAnalysisPhase } from "@/hooks/useDiscovery";
-import { applyStoredTheme, useThemeMode } from "@/hooks/useThemeMode";
-import { useCampaignReveal, getCampaignFieldText, type CampaignFieldKey } from "@/hooks/useCampaignReveal";
-import { useAnimatedHeight, useTypewriterText } from "@/hooks/useTypewriterText";
+import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { getWebsiteFaviconUrl, parseWebsiteLink, type WebsiteLinkInfo } from "@/lib/discovery-website";
-import { ASSETS, BRAND_COLORS } from "@/lib/constants/brand";
-import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
-
-const SUMMARY_ITEMS = [
-  {
-    key: "businessModel" as const,
-    title: "Business model",
-    icon: Briefcase,
-  },
-  {
-    key: "industry" as const,
-    title: "Industry",
-    icon: Building2,
-  },
-  {
-    key: "strengths" as const,
-    title: "Strengths",
-    icon: TrendingUp,
-  },
-  {
-    key: "idealCustomer" as const,
-    title: "Ideal customer",
-    icon: User,
-  },
-  {
-    key: "nextStep" as const,
-    title: "Next step",
-    icon: Compass,
-  },
-] as const;
-
-type SummaryFieldKey = (typeof SUMMARY_ITEMS)[number]["key"];
 
 const DISCOVERY_SIDEBAR_STEPS = [
   { id: "industry", label: "Industry identified" },
@@ -154,7 +115,7 @@ function DiscoveryEtaCard({
       aria-live="polite"
     >
       <span className="discovery-sidebar__eta-icon inline-flex size-9 shrink-0 items-center justify-center rounded-xl">
-        <Sparkles className="size-4 text-[#5326b7]" aria-hidden />
+        <Sparkles className="size-4 text-brand-purple" aria-hidden />
       </span>
       <div className="min-w-0">
         <p className="discovery-sidebar__eta-label text-xs text-neutral-500">
@@ -269,7 +230,7 @@ function WebsiteLinkChip({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="discovery-website-link inline-flex max-w-full items-center gap-2.5 rounded-2xl border border-[#5326b7]/18 bg-white px-3.5 py-2.5 shadow-[0_2px_12px_rgba(83,38,183,0.08)] transition-colors hover:border-[#5326b7]/30 hover:bg-[#faf8ff]"
+      className="discovery-website-link inline-flex max-w-full items-center gap-2.5 rounded-2xl border border-brand-purple/18 bg-white px-3.5 py-2.5 shadow-[0_2px_12px_rgba(83,38,183,0.08)] transition-colors hover:border-brand-purple/30 hover:bg-[#faf8ff]"
     >
       <span className="inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f4f4f4]">
         {!iconError ? (
@@ -289,39 +250,10 @@ function WebsiteLinkChip({
           />
         )}
       </span>
-      <span className="truncate text-[15px] font-medium text-[#5326b7]">
+      <span className="truncate text-[15px] font-medium text-brand-purple">
         {label}
       </span>
     </a>
-  );
-}
-
-function DiscoveryLogo({ className = "h-6 w-auto" }: { className?: string }) {
-  const { isDark } = useThemeMode();
-  const transitionClass = "transition-opacity duration-200 ease-in-out";
-
-  return (
-    <span className="discovery-logo relative inline-block shrink-0 leading-none">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={ASSETS.logoColored}
-        alt={isDark ? undefined : "leadreacher"}
-        aria-hidden={isDark}
-        className={cn(className, transitionClass, isDark ? "opacity-0" : "opacity-100")}
-      />
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={ASSETS.logoWhite}
-        alt={isDark ? "leadreacher" : undefined}
-        aria-hidden={!isDark}
-        className={cn(
-          className,
-          "absolute top-0 left-0",
-          transitionClass,
-          isDark ? "opacity-100" : "opacity-0",
-        )}
-      />
-    </span>
   );
 }
 
@@ -375,7 +307,7 @@ function formatMessageTime(date: Date): string {
 function AssistantAvatar() {
   return (
     <span
-      className="discovery-assistant-avatar inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f3effa] shadow-sm ring-1 ring-[#5326b7]/10"
+      className="discovery-assistant-avatar inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[#f3effa] shadow-sm ring-1 ring-brand-purple/10"
       aria-hidden
     >
       <span className="discovery-assistant-avatar__plane size-9 shrink-0" />
@@ -386,8 +318,7 @@ function AssistantAvatar() {
 function UserAvatar({ initials }: { initials: string }) {
   return (
     <span
-      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm"
-      style={{ backgroundColor: BRAND_COLORS.purple }}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-purple text-xs font-semibold text-white shadow-sm"
       aria-hidden
     >
       {initials}
@@ -461,196 +392,6 @@ function DiscoveryIntroSplash({ phase }: { phase: IntroPhase }) {
   );
 }
 
-function hasSummaryContent(
-  summary: DiscoverySummary,
-  key: SummaryFieldKey,
-): boolean {
-  return summary[key].trim().length > 0;
-}
-
-function countPopulatedSummaryFields(summary: DiscoverySummary): number {
-  return SUMMARY_ITEMS.filter((item) => hasSummaryContent(summary, item.key))
-    .length;
-}
-
-function CampaignCardSkeleton({ exiting = false }: { exiting?: boolean }) {
-  return (
-    <div
-      className={`discovery-campaign-skeleton ${
-        exiting ? "discovery-campaign-skeleton--exit" : ""
-      }`}
-      aria-hidden
-    >
-      <div className="discovery-campaign-skeleton__line" />
-    </div>
-  );
-}
-
-function CampaignAnimatedBody({
-  phase,
-  watchKey,
-  children,
-}: {
-  phase: "skeleton" | "revealing" | "done";
-  watchKey?: unknown;
-  children: ReactNode;
-}) {
-  const { innerRef, height } = useAnimatedHeight<HTMLDivElement>(watchKey);
-
-  return (
-    <div
-      className="discovery-campaign-card__expand overflow-hidden"
-      style={{
-        height: height > 0 ? `${height}px` : undefined,
-      }}
-    >
-      <div ref={innerRef}>{children}</div>
-    </div>
-  );
-}
-
-function DiscoveryCampaignTextField({
-  targetText,
-  speedMs,
-  phase,
-  textVariant,
-  onComplete,
-}: {
-  targetText: string;
-  speedMs: number;
-  phase: "skeleton" | "revealing" | "done";
-  textVariant: "default" | "idealCustomer" | "nextStep";
-  onComplete: () => void;
-}) {
-  const isDone = phase === "done";
-  const isRevealing = phase === "revealing";
-  const [contentVisible, setContentVisible] = useState(isDone);
-
-  useEffect(() => {
-    if (isDone) {
-      setContentVisible(true);
-      return;
-    }
-
-    if (!isRevealing) {
-      setContentVisible(false);
-      return;
-    }
-
-    const timer = window.setTimeout(() => setContentVisible(true), 280);
-    return () => window.clearTimeout(timer);
-  }, [isDone, isRevealing]);
-
-  const { text } = useTypewriterText(targetText, speedMs, {
-    enabled: isRevealing && contentVisible,
-    showImmediately: isDone,
-    onComplete,
-  });
-
-  return (
-    <CampaignAnimatedBody phase={phase} watchKey={`${phase}-${text}`}>
-      {phase === "skeleton" || (isRevealing && !contentVisible) ? (
-        <CampaignCardSkeleton exiting={isRevealing} />
-      ) : (
-        <p
-          className={`discovery-campaign-card__value discovery-campaign-value apple-glass-panel__value text-neutral-700 ${
-            textVariant === "nextStep"
-              ? "text-[11px] leading-4"
-              : "text-xs leading-relaxed"
-          }`}
-        >
-          {text || "\u00a0"}
-        </p>
-      )}
-    </CampaignAnimatedBody>
-  );
-}
-
-function DiscoveryCampaignCard({
-  item,
-  summary,
-  phase,
-  onComplete,
-  websiteEnriched,
-}: {
-  item: (typeof SUMMARY_ITEMS)[number];
-  summary: DiscoverySummary;
-  phase: "skeleton" | "revealing" | "done";
-  onComplete: () => void;
-  websiteEnriched: boolean;
-}) {
-  const Icon = item.icon;
-  const showAnalyzedBadge =
-    item.key === "nextStep" &&
-    websiteEnriched &&
-    (phase === "revealing" || phase === "done");
-  const showAnalyzingLabel = phase === "skeleton";
-
-  return (
-    <div className="discovery-campaign-card apple-glass-panel__row flex items-start gap-3 border-b border-white/20 px-4 py-3.5 last:border-b-0">
-      <span className="apple-glass-panel__chip inline-flex size-8 shrink-0 items-center justify-center rounded-xl">
-        <Icon
-          className="discovery-campaign-card__icon size-4"
-          aria-hidden
-        />
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="discovery-campaign-title flex items-center gap-2 text-sm font-semibold tracking-tight text-neutral-900">
-          <span>{item.title}</span>
-          {showAnalyzedBadge ? (
-            <span className="text-[10px] font-medium text-emerald-600">
-              Analyzed ✓
-            </span>
-          ) : null}
-        </p>
-        {showAnalyzingLabel ? (
-          <p className="discovery-campaign-status discovery-campaign-card__status mt-0.5 text-[11px] font-medium text-neutral-400">
-            Analyzing...
-          </p>
-        ) : null}
-        <div className={showAnalyzingLabel ? "mt-2" : "mt-1.5"}>
-          <DiscoveryCampaignTextField
-            targetText={getCampaignFieldText(summary, item.key)}
-            speedMs={item.key === "nextStep" ? 45 : 30}
-            phase={phase}
-            textVariant={
-              item.key === "nextStep"
-                ? "nextStep"
-                : item.key === "idealCustomer"
-                  ? "idealCustomer"
-                  : "default"
-            }
-            onComplete={onComplete}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DiscoveryCampaignSummaryRows({
-  summary,
-}: {
-  summary: DiscoverySummary;
-}) {
-  const { getPhase, completeField, websiteEnriched } = useCampaignReveal(summary);
-
-  return (
-    <div className="discovery-campaign-panel__rows">
-      {SUMMARY_ITEMS.map((item) => (
-        <DiscoveryCampaignCard
-          key={item.key}
-          item={item}
-          summary={summary}
-          phase={getPhase(item.key as CampaignFieldKey)}
-          onComplete={() => completeField(item.key as CampaignFieldKey)}
-          websiteEnriched={websiteEnriched}
-        />
-      ))}
-    </div>
-  );
-}
-
 function capitalizeFirstWord(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -689,14 +430,25 @@ function AssistantMessage({
   );
 
   useEffect(() => {
+    let resetTimer: number | undefined;
+
     if (!animate || isCompletion) {
-      setTitleVisible(true);
-      setVisibleBulletCount(bullets.length);
-      return;
+      resetTimer = window.setTimeout(() => {
+        setTitleVisible(true);
+        setVisibleBulletCount(bullets.length);
+      }, 0);
+
+      return () => {
+        if (resetTimer !== undefined) {
+          window.clearTimeout(resetTimer);
+        }
+      };
     }
 
-    setTitleVisible(false);
-    setVisibleBulletCount(0);
+    resetTimer = window.setTimeout(() => {
+      setTitleVisible(false);
+      setVisibleBulletCount(0);
+    }, 0);
 
     const titleTimer = window.setTimeout(() => setTitleVisible(true), 180);
     const bulletTimers = bullets.map((_, index) =>
@@ -704,10 +456,13 @@ function AssistantMessage({
     );
 
     return () => {
+      if (resetTimer !== undefined) {
+        window.clearTimeout(resetTimer);
+      }
       window.clearTimeout(titleTimer);
       bulletTimers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [animate, isCompletion, messageKey, bullets.length]);
+  }, [animate, isCompletion, messageKey, bullets]);
 
   return (
     <div className="flex w-full items-start gap-3">
@@ -864,151 +619,6 @@ function TypingIndicator() {
   );
 }
 
-function DiscoveryThemeToggleButton() {
-  const { isDark, toggle } = useThemeMode();
-
-  return (
-    <button
-      type="button"
-      onClick={(event) => toggle(event.currentTarget)}
-      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="discovery-top-chrome__toggle inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-neutral-200/80 bg-white/85 text-neutral-600 shadow-sm backdrop-blur-md transition-colors hover:bg-white"
-    >
-      {isDark ? (
-        <Sun className="size-4" aria-hidden />
-      ) : (
-        <Moon className="size-4" aria-hidden />
-      )}
-    </button>
-  );
-}
-
-function DiscoveryAccountMenu({
-  userInitials,
-  menuPlacement,
-}: {
-  userInitials: string;
-  menuPlacement: "push" | "overlay";
-}) {
-  const router = useRouter();
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (menuRef.current?.contains(event.target as Node)) {
-        return;
-      }
-      setMenuOpen(false);
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [menuOpen]);
-
-  async function handleLogout() {
-    setLoggingOut(true);
-    try {
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      setMenuOpen(false);
-      router.push("/login");
-      router.refresh();
-    } finally {
-      setLoggingOut(false);
-    }
-  }
-
-  const userButton = (
-    <button
-      type="button"
-      onClick={() => setMenuOpen((open) => !open)}
-      aria-expanded={menuOpen}
-      aria-haspopup="menu"
-      aria-label="Account menu"
-      className={cn(
-        "inline-flex size-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white shadow-sm ring-2 transition-colors",
-        menuOpen
-          ? "ring-[#5326b7]/35 dark:ring-[#c4b5f0]/35"
-          : "ring-transparent",
-      )}
-      style={{ backgroundColor: BRAND_COLORS.purple }}
-    >
-      {userInitials}
-    </button>
-  );
-
-  const menuPanel = (
-    <div
-      role="menu"
-      aria-label="Account"
-      className={cn(
-        "discovery-mobile-campaign-pill discovery-account-menu rounded-full px-3 py-2",
-        menuOpen ? "discovery-account-menu--open" : "discovery-account-menu--closed",
-      )}
-    >
-      <button
-        type="button"
-        role="menuitem"
-        disabled={loggingOut}
-        onClick={() => void handleLogout()}
-        className="discovery-account-menu__item discovery-campaign-title flex w-full items-center gap-2.5 text-sm font-semibold text-neutral-900"
-      >
-        <LogOut className="size-4 shrink-0" aria-hidden />
-        <span>{loggingOut ? "Logging out..." : "Log out"}</span>
-      </button>
-    </div>
-  );
-
-  if (menuPlacement === "overlay") {
-    return (
-      <div ref={menuRef} className="relative shrink-0">
-        {userButton}
-        <div
-          className={cn(
-            "absolute top-[calc(100%+0.5rem)] right-0 z-50 w-[min(220px,70vw)]",
-            !menuOpen && "pointer-events-none",
-          )}
-        >
-          {menuPanel}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={menuRef} className="flex w-full flex-col items-end gap-3">
-      <div className="discovery-top-chrome flex shrink-0 items-center gap-2 self-end">
-        <DiscoveryThemeToggleButton />
-        {userButton}
-      </div>
-      <div
-        className={cn(
-          "grid w-[min(220px,70vw)] transition-[grid-template-rows] duration-200 ease-out",
-          menuOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">{menuPanel}</div>
-      </div>
-    </div>
-  );
-}
-
 function DiscoveryRightRail({
   userInitials,
   summary,
@@ -1030,7 +640,7 @@ function DiscoveryRightRail({
       )}
       style={style}
     >
-      <DiscoveryAccountMenu
+      <AccountMenu
         userInitials={userInitials}
         menuPlacement="push"
       />
@@ -1073,8 +683,8 @@ function DiscoveryMobileTopBar({
               className="w-full"
             />
           </div>
-          <DiscoveryThemeToggleButton />
-          <DiscoveryAccountMenu
+          <ThemeToggleButton />
+          <AccountMenu
             userInitials={userInitials}
             menuPlacement="overlay"
           />
@@ -1103,8 +713,7 @@ function DiscoveryMobileCampaignPill({
       aria-label="Open your campaign"
     >
       <span
-        className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm"
-        style={{ backgroundColor: BRAND_COLORS.purple }}
+        className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-purple text-white shadow-sm"
       >
         <Sparkles className="size-4" aria-hidden />
         {populatedCount > 0 ? (
@@ -1125,8 +734,6 @@ function DiscoveryMobileCampaignPill({
   );
 }
 
-const MOBILE_SHEET_ANIMATION_MS = 300;
-
 function DiscoveryMobileCampaignSheet({
   isOpen,
   onClose,
@@ -1136,92 +743,30 @@ function DiscoveryMobileCampaignSheet({
   onClose: () => void;
   summary: DiscoverySummary;
 }) {
-  const [isMounted, setIsMounted] = useState(isOpen);
-  const [isExiting, setIsExiting] = useState(false);
-
-  useEffect(() => {
-    if (isOpen) {
-      setIsMounted(true);
-      setIsExiting(false);
-      return;
-    }
-
-    if (!isMounted) {
-      return;
-    }
-
-    setIsExiting(true);
-    const timer = window.setTimeout(() => {
-      setIsMounted(false);
-      setIsExiting(false);
-    }, MOBILE_SHEET_ANIMATION_MS);
-
-    return () => window.clearTimeout(timer);
-  }, [isOpen, isMounted]);
-
-  if (!isMounted) {
-    return null;
-  }
-
   return (
-    <div className="fixed inset-0 z-50 lg:hidden" role="presentation">
-      <button
-        type="button"
-        className={`discovery-mobile-sheet-backdrop absolute inset-0 bg-black/40 ${
-          isExiting ? "discovery-mobile-sheet-backdrop--exiting" : ""
-        }`}
-        aria-label="Close campaign panel"
-        onClick={onClose}
-      />
-      <div
-        className={`discovery-mobile-sheet absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-[1.75rem] bg-white shadow-[0_-8px_40px_rgba(15,23,42,0.12)] ${
-          isExiting ? "discovery-mobile-sheet--exiting" : ""
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Your Campaign"
-      >
-        <div className="flex shrink-0 justify-center pt-3 pb-1">
-          <span className="discovery-mobile-sheet__handle h-1 w-10 rounded-full bg-neutral-200" aria-hidden />
-        </div>
-
-        <div className="discovery-mobile-sheet__header flex shrink-0 items-start gap-2.5 border-b border-neutral-100 px-5 pb-4">
-          <span
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
-            style={{ backgroundColor: BRAND_COLORS.purple }}
-          >
-            <Sparkles className="size-4" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="discovery-campaign-title text-sm font-bold leading-5 tracking-tight text-neutral-900">
-              Your Campaign
-            </p>
-            <p className="discovery-campaign-subtitle text-xs leading-4 text-neutral-500">
-              Built from the information you&apos;ve shared.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="discovery-mobile-sheet__close inline-flex size-8 shrink-0 items-center justify-center rounded-full text-neutral-500 transition-colors hover:bg-neutral-100"
-            aria-label="Close"
-          >
-            <X className="size-4" aria-hidden />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          <DiscoveryCampaignSummaryRows summary={summary} />
-        </div>
-
-        <div className="discovery-mobile-sheet__footer shrink-0 border-t border-neutral-100 px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <OnboardingMobileSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Your Campaign"
+      subtitle="Built from the information you've shared."
+      ariaLabel="Your Campaign"
+      closeAriaLabel="Close campaign panel"
+      icon={
+        <span
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-purple text-white shadow-sm"
+        >
+          <Sparkles className="size-4" aria-hidden />
+        </span>
+      }
+      footer={
           <p className="discovery-footer-note flex items-center justify-center gap-1.5 text-xs text-neutral-400">
             <Lock className="size-3.5" aria-hidden />
             Your information is secure and private
           </p>
-        </div>
-      </div>
-    </div>
+      }
+    >
+      <CampaignSummaryPanel summary={summary} />
+    </OnboardingMobileSheet>
   );
 }
 
@@ -1241,8 +786,7 @@ function DiscoveryCampaignPanel({
     >
       <div className="flex items-start gap-2.5 border-b border-white/25 px-4 py-3.5">
         <span
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm"
-          style={{ backgroundColor: BRAND_COLORS.purple }}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-xl bg-brand-purple text-white shadow-sm"
         >
           <Sparkles className="size-4" aria-hidden />
         </span>
@@ -1256,7 +800,7 @@ function DiscoveryCampaignPanel({
         </div>
       </div>
 
-      <DiscoveryCampaignSummaryRows summary={summary} />
+      <CampaignSummaryPanel summary={summary} />
     </div>
   );
 }
@@ -1323,6 +867,7 @@ export default function DiscoveryClient({
   const showChatUi = introPhase !== "visible";
   const [input, setInput] = useState("");
   const [isCompleting, setIsCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
   const {
     messages,
     summary,
@@ -1447,6 +992,7 @@ export default function DiscoveryClient({
     event.preventDefault();
     const value = input.trim();
     setInput("");
+    setCompletionError(null);
 
     if (isOnLastQuestion && !value) {
       await skipAndComplete();
@@ -1462,9 +1008,19 @@ export default function DiscoveryClient({
 
   async function handleFooterContinue() {
     setIsCompleting(true);
+    setCompletionError(null);
     try {
       await complete();
       router.push("/onboarding/campaign-type");
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("[discovery] completion failed", error);
+      }
+      setCompletionError(
+        error instanceof Error
+          ? error.message
+          : "Unable to save your discovery responses. Please try again.",
+      );
     } finally {
       setIsCompleting(false);
     }
@@ -1481,24 +1037,15 @@ export default function DiscoveryClient({
     >
       <DiscoveryIntroSplash phase={introPhase} />
       <div
-        className="discovery-page__gradient pointer-events-none absolute inset-0 z-0"
-        style={{
-          background: "radial-gradient(ellipse at 10% 130%, rgba(83, 38, 183, 0.15) 0%, rgba(45, 10, 140, 0.08) 35%, transparent 70%)",
-        }}
+        className="discovery-page__gradient discovery-page__gradient--lower-left pointer-events-none absolute inset-0 z-0"
         aria-hidden
       />
       <div
-        className="discovery-page__gradient pointer-events-none absolute inset-0 z-0"
-        style={{
-          background: "radial-gradient(ellipse at 90% 10%, rgba(63, 38, 183, 0.15) 0%, rgba(45, 10, 140, 0.08) 15%, transparent 70%)",
-        }}
+        className="discovery-page__gradient discovery-page__gradient--upper-right pointer-events-none absolute inset-0 z-0"
         aria-hidden
       />
       <div
-        className="discovery-page__gradient pointer-events-none absolute inset-0 z-0"
-        style={{
-          background: "radial-gradient(ellipse at 90% 20%, rgba(43, 38, 183, 0.20) 0%, rgba(45, 10, 140, 0.08) 15%, transparent 70%)",
-        }}
+        className="discovery-page__gradient discovery-page__gradient--mid-right pointer-events-none absolute inset-0 z-0"
         aria-hidden
       />
       <Link
@@ -1507,8 +1054,7 @@ export default function DiscoveryClient({
         className={`fixed top-5 left-5 z-30 hidden lg:block ${chromeClassName}`}
         style={{ animationDelay: "80ms" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <DiscoveryLogo />
+        <OnboardingLogo />
       </Link>
 
       <DiscoveryProgressSidebar
@@ -1645,8 +1191,7 @@ export default function DiscoveryClient({
                         showContinueBar ||
                         (!isOnLastQuestion && !input.trim())
                       }
-                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full p-0 text-white hover:opacity-90 disabled:opacity-40"
-                      style={{ backgroundColor: BRAND_COLORS.purple }}
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-purple p-0 text-white hover:opacity-90 disabled:opacity-40"
                       aria-label={
                         isOnLastQuestion && !input.trim()
                           ? "Skip website"
@@ -1665,12 +1210,16 @@ export default function DiscoveryClient({
                 }`}
                 aria-hidden={!showContinueBar}
               >
+                {completionError ? (
+                  <p className="mb-3 text-center text-xs font-medium text-red-500" role="alert">
+                    {completionError}
+                  </p>
+                ) : null}
                 <Button
                   type="button"
                   disabled={isCompleting || !showContinueBar}
                   onClick={handleFooterContinue}
-                  className="discovery-continue-btn flex h-12 w-full items-center justify-center gap-2 rounded-[1.75rem] text-[15px] font-semibold text-white"
-                  style={{ backgroundColor: BRAND_COLORS.purple }}
+                  className="discovery-continue-btn flex h-12 w-full items-center justify-center gap-2 rounded-[1.75rem] bg-brand-purple text-[15px] font-semibold text-white"
                   tabIndex={showContinueBar ? 0 : -1}
                 >
                   <span className="discovery-continue-btn__label">Continue</span>
