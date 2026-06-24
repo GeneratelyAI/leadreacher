@@ -64,9 +64,6 @@ export function useCampaignReveal(summary: DiscoverySummary) {
   const summaryRef = useRef(summary);
   const phasesRef = useRef(phases);
 
-  summaryRef.current = summary;
-  phasesRef.current = phases;
-
   const advanceQueue = useCallback(() => {
     const currentSummary = summaryRef.current;
     const currentPhases = phasesRef.current;
@@ -94,6 +91,10 @@ export function useCampaignReveal(summary: DiscoverySummary) {
       [nextKey]: "revealing",
     }));
   }, []);
+
+  useEffect(() => {
+    summaryRef.current = summary;
+  }, [summary]);
 
   useEffect(() => {
     advanceQueue();

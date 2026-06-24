@@ -20,6 +20,14 @@ export type VideoGenerationJob = {
   campaignId: string;
   leadId: string;
   prompt: string;
+  jobType?: "orchestrate" | "veo";
+  videoAssetId?: string;
+  seedImageUrl?: string;
+  videoPrompt?: string;
+  tone?: string;
+  avatar?: string;
+  setting?: string;
+  referenceUrls?: string[];
 };
 
 export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
@@ -58,4 +66,12 @@ export async function scheduleReconcileRelations(): Promise<void> {
     { every: RECONCILE_RELATIONS_INTERVAL_MS },
     { name: QUEUE_RECONCILE_RELATIONS },
   );
+}
+
+export async function closeQueues(): Promise<void> {
+  await Promise.all([
+    campaignSequenceQueue.close(),
+    videoGenerationQueue.close(),
+    reconcileRelationsQueue.close(),
+  ]);
 }

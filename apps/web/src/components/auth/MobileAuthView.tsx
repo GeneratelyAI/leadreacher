@@ -37,7 +37,7 @@ const stepIcons = {
 
 const inputClassName = cn(
   "auth-mobile-glass-input w-full rounded-xl px-4 py-3.5 text-[15px] text-neutral-900 shadow-sm",
-  "placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5326b7]/12",
+  "placeholder:text-neutral-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/12",
   "dark:focus-visible:ring-[#c4b5f0]/15",
 );
 
@@ -87,7 +87,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
 
         <h1 className="text-center text-[28px] leading-tight font-bold tracking-tight text-[#111827] dark:text-white">
           <span className="block">{copy.heroLine1}</span>
-          <span className="block text-[#5326b7] dark:text-[#c4b5f0]">
+          <span className="block text-brand-purple dark:text-[#c4b5f0]">
             {copy.heroLine2}
           </span>
         </h1>
@@ -100,7 +100,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
           <div className="h-px flex-1 bg-neutral-300/80 dark:bg-white/15" />
           <div className="flex shrink-0 items-center gap-2 text-[13px] text-[#5e5870] dark:text-white/70">
             <ShieldCheck
-              className="size-4 shrink-0 text-[#5326b7] dark:text-[#c4b5f0]"
+              className="size-4 shrink-0 text-brand-purple dark:text-[#c4b5f0]"
               strokeWidth={2}
               aria-hidden
             />
@@ -132,7 +132,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                     const Icon = stepIcons[step.key];
                     return (
                       <Icon
-                        className="size-5 text-[#5326b7] dark:text-[#c4b5f0]"
+                        className="size-5 text-brand-purple dark:text-[#c4b5f0]"
                         strokeWidth={1.75}
                       />
                     );
@@ -228,7 +228,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5326b7]/30 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
+                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -251,7 +251,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
               disabled={loading}
               aria-busy={loading || undefined}
               className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-xl bg-[#5326b7] py-4",
+                "flex w-full items-center justify-center gap-2 rounded-xl bg-brand-purple py-4",
                 "text-sm font-bold text-white transition-opacity disabled:opacity-70",
               )}
             >
@@ -266,7 +266,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                 By registering you agree to our{" "}
                 <Link
                   href="#"
-                  className="font-semibold text-[#5326b7] underline dark:text-[#c4b5f0]"
+                  className="font-semibold text-brand-purple underline dark:text-[#c4b5f0]"
                 >
                   terms of use.
                 </Link>
@@ -279,7 +279,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
           {copy.alternatePrompt}{" "}
           <Link
             href={copy.alternateHref}
-            className="text-[#5326b7] dark:text-[#c4b5f0]"
+            className="text-brand-purple dark:text-[#c4b5f0]"
           >
             {copy.alternateLink}
           </Link>

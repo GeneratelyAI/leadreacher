@@ -15,3 +15,22 @@ export const redisSubscriber = new IORedis(env.UPSTASH_REDIS_URL, {
   ...UPSTASH_OPTIONS,
   password: env.UPSTASH_REDIS_TOKEN,
 });
+
+async function closeRedisClient(client: IORedis): Promise<void> {
+  if (client.status === "end") {
+    return;
+  }
+
+  try {
+    await client.quit();
+  } catch {
+    client.disconnect();
+  }
+}
+
+export async function closeRedisConnections(): Promise<void> {
+  await Promise.all([
+    closeRedisClient(redis),
+    closeRedisClient(redisSubscriber),
+  ]);
+}

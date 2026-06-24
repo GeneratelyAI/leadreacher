@@ -12,13 +12,5 @@
   "devDependencies": {
     "turbo": "^2.5.4"
   },
-  "packageManager": "pnpm@9.15.9",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/engines",
-      "prisma",
-      "esbuild",
-      "msgpackr-extract"
-    ]
-  }
+  "packageManager": "pnpm@9.15.9"
 }

@@ -7,6 +7,7 @@ import {
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
+import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
 
 const ALLOWED_CHANNELS = [
@@ -61,13 +62,6 @@ type CampaignLeadWithLead = Prisma.CampaignLeadGetPayload<{
     };
   };
 }>;
-
-function requireOrgId(request: { orgId?: string }): string {
-  if (!request.orgId) {
-    throw new Error("orgId missing after auth middleware");
-  }
-  return request.orgId;
-}
 
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.post("/campaigns", async (request, reply) => {
