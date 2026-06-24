@@ -5,8 +5,8 @@ import { env } from "../config/env.js";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import { LeadStatusSchema } from "../lib/lead-status.js";
 import { prisma } from "../lib/prisma.js";
+import { requireOrgId } from "../lib/request-org.js";
 import {
-  type CSVRow,
   importFromCSV,
   importScrapedProfiles,
 } from "../services/lead-import.js";
@@ -35,6 +35,24 @@ const PatchLeadBodySchema = z
     message: "At least one updatable field is required",
   });
 
+const CsvRowSchema = z
+  .object({
+    firstName: z.string().trim().min(1, "firstName is required"),
+    lastName: z.string().trim().min(1, "lastName is required"),
+    linkedinUrl: z.string().optional(),
+    email: z.string().optional(),
+    company: z.string().optional(),
+    title: z.string().optional(),
+    location: z.string().optional(),
+  })
+  .strict();
+
+const ImportCsvBodySchema = z.object({
+  rows: z
+    .array(CsvRowSchema)
+    .min(1, "rows must be a non-empty array"),
+});
+
 function parseLimit(value: unknown): number {
   const parsed = Number(value ?? DEFAULT_LIMIT);
   if (!Number.isFinite(parsed) || parsed < 1) {
@@ -49,13 +67,6 @@ function parseOffset(value: unknown): number {
     return 0;
   }
   return Math.floor(parsed);
-}
-
-function requireOrgId(request: { orgId?: string }): string {
-  if (!request.orgId) {
-    throw new Error("orgId missing after auth middleware");
-  }
-  return request.orgId;
 }
 
 export async function leadsRoutes(app: FastifyInstance): Promise<void> {
@@ -76,13 +87,7 @@ export async function leadsRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/leads/import/csv", async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { rows } = request.body as {
-      rows: CSVRow[];
-    };
-
-    if (!rows || !Array.isArray(rows) || rows.length === 0) {
-      throw new ValidationError("rows must be a non-empty array");
-    }
+    const { rows } = ImportCsvBodySchema.parse(request.body);
 
     const { imported, skipped } = await importFromCSV(orgId, rows);
 
