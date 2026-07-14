@@ -266,6 +266,34 @@ function serializeError(error: unknown): Record<string, unknown> {
   return { message: String(error) };
 }
 
+export function isTransientVeoPollError(error: unknown): boolean {
+  const candidate = error as {
+    status?: unknown;
+    code?: unknown;
+    name?: unknown;
+    message?: unknown;
+  };
+  const status =
+    typeof candidate.status === "number"
+      ? candidate.status
+      : typeof candidate.code === "number"
+        ? candidate.code
+        : null;
+  if (status === 408 || status === 429 || (status !== null && status >= 500)) {
+    return true;
+  }
+
+  const message = String(candidate.message ?? "").toLowerCase();
+  return (
+    candidate.name === "AbortError" ||
+    message.includes("timed out") ||
+    message.includes("timeout") ||
+    message.includes("network") ||
+    message.includes("fetch failed") ||
+    message.includes("econn")
+  );
+}
+
 export async function submitVideoJob(
   seedImageUrl: string,
   videoPrompt: string,
@@ -371,6 +399,9 @@ export async function pollJobStatus(
     if (updated.done) return { status: "complete" };
     return { status: "pending" };
   } catch (error) {
+    if (isTransientVeoPollError(error)) {
+      return { status: "pending" };
+    }
     return { status: "failed", error: serializeError(error) };
   }
 }

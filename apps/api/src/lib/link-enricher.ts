@@ -473,6 +473,10 @@ export async function enrichFromUrl(url: string): Promise<string> {
     markdown = "";
   }
 
-  enrichmentCache.set(normalized, markdown);
+  // Empty enrichment after a runtime failure is not a stable answer. Keeping
+  // it uncached lets a later request retry the provider.
+  if (markdown) {
+    enrichmentCache.set(normalized, markdown);
+  }
   return markdown;
 }

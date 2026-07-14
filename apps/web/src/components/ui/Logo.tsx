@@ -22,7 +22,7 @@ const alignClasses = {
   right: "object-right",
 } as const;
 
-const crossfadeTransition = "transition-opacity duration-500 ease-in-out";
+const crossfadeTransition = "transition-opacity duration-slow ease-brand";
 
 export function Logo({
   size = "md",

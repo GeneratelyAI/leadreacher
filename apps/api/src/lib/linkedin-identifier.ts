@@ -7,8 +7,9 @@ export function leadLinkedinIdentifier(lead: {
   providerLinkedinId: string | null;
   linkedinUrl: string | null;
 }): string | null {
-  if (lead.providerLinkedinId) {
-    return lead.providerLinkedinId;
+  const providerLinkedinId = lead.providerLinkedinId?.trim();
+  if (providerLinkedinId) {
+    return providerLinkedinId;
   }
   if (!lead.linkedinUrl) {
     return null;

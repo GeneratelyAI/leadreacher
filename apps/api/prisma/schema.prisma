@@ -7,21 +7,33 @@ datasource db {
 }
 
 model Organization {
-  id             String          @id @default(cuid())
-  name           String
-  supabaseOrgId  String          @unique
-  plan           String          @default("starter")
-  onboardingData Json?
-  onboardedAt    DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  users          User[]
-  integrations   Integration[]
-  campaigns      Campaign[]
-  leads          Lead[]
-  strategies     Strategy[]
-  socialAccounts SocialAccount[]
-  videoAssets    VideoAsset[]
+  id                   String               @id @default(cuid())
+  name                 String
+  supabaseOrgId        String               @unique
+  plan                 String               @default("starter")
+  onboardingData       Json?
+  onboardedAt          DateTime?
+  stripeCustomerId     String?              @unique
+  stripeSubscriptionId String?
+  subscriptionStatus   String?
+  planPriceId          String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  users                User[]
+  integrations         Integration[]
+  campaigns            Campaign[]
+  leads                Lead[]
+  strategies           Strategy[]
+  socialAccounts       SocialAccount[]
+  videoAssets          VideoAsset[]
+}
+
+model StripeWebhookEvent {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  type        String
+  processedAt DateTime @default(now())
 }
 
 model User {
@@ -62,6 +74,16 @@ model Strategy {
   creativeAssets  Json
   executionPlan   Json         @default("[]")
   completedSteps  Int[]
+  audienceSegments Json?
+  channelPlan      Json?
+  contentApproach  Json?
+  expectedOutcome  Json?
+  reachSequence    Json?
+  statHighlights   Json?
+  approvedAt       DateTime?
+  logoUrl          String?
+  campaignType    String?
+  videoConfig     Json?
   version         Int          @default(1)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -128,8 +150,28 @@ model CampaignLead {
   linkedinChatId  String?  @unique
   status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
   createdAt       DateTime @default(now())
+  deliveryAttempts DeliveryAttempt[]
 
   @@unique([campaignId, leadId])
+}
+
+model DeliveryAttempt {
+  id             String       @id @default(cuid())
+  campaignLeadId String
+  campaignLead   CampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  stepIndex      Int
+  state          String       @default("reserved") // 'reserved' | 'recovering' | 'sent' | 'unknown' | 'failed'
+  // Reserved for provider idempotency. Unipile currently documents no idempotency
+  // parameter for invite/chat/message sends, so a post-send crash remains unknown
+  // until provider-positive recovery succeeds or an operator reviews it.
+  idempotencyKey String?      @unique
+  providerRef    String?
+  reservedAt     DateTime     @default(now())
+  sentAt         DateTime?
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([campaignLeadId, stepIndex])
+  @@index([state, reservedAt])
 }
 
 model Message {
@@ -204,6 +246,9 @@ model VideoAsset {
   selectedTone    String?
   criticScore     Int?
   needsReview     Boolean      @default(false)
+  veoOperationId  String?      @unique
+  veoOperationState String?    // 'submitting' | 'active' | 'recovering' | 'completed' | 'failed' | 'unknown'
+  veoSubmitLeaseAt DateTime?  // Submission, active-poll, or recovery lease.
   approvedBy      String?
   approvedAt      DateTime?
   createdAt       DateTime     @default(now())
@@ -211,6 +256,7 @@ model VideoAsset {
 
   @@index([orgId, status])
   @@index([campaignId])
+  @@index([veoOperationState, veoSubmitLeaseAt])
 }
 
 model AuditLog {

@@ -1,7 +1,19 @@
 const FEATURES = [
-  { icon: "fa-star", label: "Automated content generation." },
-  { icon: "fa-paper-plane", label: "Automated campaign execution." },
-  { icon: "fa-comment", label: "Qualified conversations." },
+  {
+    icon: "fa-star",
+    label: "Automated content generation.",
+    description: "We create content that attracts your ideal customers.",
+  },
+  {
+    icon: "fa-paper-plane",
+    label: "Automated campaign execution.",
+    description: "We run and optimize campaigns across the right channels.",
+  },
+  {
+    icon: "fa-comment",
+    label: "Qualified conversations.",
+    description: "We deliver qualified conversations ready for you to close.",
+  },
 ] as const;
 
 const SOCIAL_PLATFORMS = [
@@ -20,65 +32,71 @@ const SOCIAL_PLATFORMS = [
 export default function HeroValueProp() {
   return (
     <section className="bg-brand-bg text-white">
-      <div className="mx-auto max-w-7xl px-6 pb-12 pt-6 sm:pb-14 sm:pt-8">
-        <div className="grid gap-10 md:grid-cols-2 md:gap-12 lg:gap-16">
-          <div className="flex flex-col justify-center gap-4 border-white/10 md:border-r md:pr-12 lg:pr-16">
-            <p className="text-lg leading-relaxed text-white/90 sm:text-xl">
-              Most businesses spend time chasing customers.
-            </p>
-            <p className="text-lg leading-relaxed sm:text-xl">
-              <span className="text-brand-purple">Leadreacher</span> helps
-              customers find them.
-            </p>
-          </div>
-
-          <div className="flex flex-col justify-center gap-6 md:pl-4 lg:pl-8">
-            <div>
-              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                New customers on autopilot.
-              </h2>
-              <p className="mt-2 text-base text-white/60 sm:text-lg">
-                Works while you sleep.
-              </p>
-            </div>
-
-            <ul className="grid gap-6 sm:grid-cols-3 sm:gap-4">
-              {FEATURES.map((feature) => (
-                <li
-                  key={feature.label}
-                  className="flex flex-col items-center gap-3 text-center sm:items-start sm:text-left"
-                >
-                  <span className="flex size-12 items-center justify-center rounded-full border border-brand-purple/40 bg-brand-purple/10">
-                    <i
-                      className={`fas ${feature.icon} text-lg text-brand-purple`}
-                      aria-hidden
-                    />
-                  </span>
-                  <span className="text-sm leading-snug text-white/85">
-                    {feature.label}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+      <div className="mx-auto max-w-7xl px-6 pb-14 pt-10 sm:pb-16 sm:pt-12 lg:pb-20">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            New customers on autopilot.
+          </h2>
+          <p className="mt-3 text-base text-white/55 sm:text-lg">
+            Works while you sleep.
+          </p>
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-4 sm:mt-10">
-          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-6">
+        <ul className="mt-12 grid gap-10 text-center md:grid-cols-3 md:gap-0">
+          {FEATURES.map((feature, index) => (
+            <li
+              key={feature.label}
+              className="relative flex flex-col items-center px-4 md:px-10 lg:px-14"
+            >
+              {index > 0 ? (
+                <span
+                  className="absolute left-0 top-6 hidden h-48 w-px bg-white/10 md:block"
+                  aria-hidden
+                />
+              ) : null}
+              <span className="flex size-20 items-center justify-center rounded-full border border-brand-purple/55 bg-brand-purple/8 shadow-[0_0_34px_rgba(83,38,183,0.18)]">
+                <i
+                  className={`fas ${feature.icon} text-3xl text-brand-purple`}
+                  aria-hidden
+                />
+              </span>
+              <h3 className="mt-6 max-w-56 text-xl font-bold leading-tight text-white">
+                {feature.label}
+              </h3>
+              <p className="mt-5 max-w-64 text-sm leading-relaxed text-white/55 sm:text-base">
+                {feature.description}
+              </p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-14 border-t border-white/10 pt-12 text-center sm:mt-16 sm:pt-14">
+          <p className="text-xl leading-relaxed text-white/85 sm:text-2xl">
+            Most businesses spend time chasing customers.
+          </p>
+          <p className="mt-2 text-xl leading-relaxed text-white/85 sm:text-2xl">
+            <span className="font-semibold text-brand-purple">Leadreacher</span>{" "}
+            helps customers find them.
+          </p>
+
+          <ul className="mt-10 flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             {SOCIAL_PLATFORMS.map((platform) => (
               <li key={platform.label}>
                 <span className="sr-only">{platform.label}</span>
-                <i
-                  className={`${platform.brand ? "fab" : "fas"} ${platform.icon} text-xl text-white/80`}
-                  aria-hidden
-                />
+                <span className="flex size-11 items-center justify-center rounded-xl border border-brand-purple/25 bg-brand-purple/5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                  <i
+                    className={`${platform.brand ? "fab" : "fas"} ${platform.icon} text-xl`}
+                    aria-hidden
+                  />
+                </span>
               </li>
             ))}
           </ul>
-          <p className="max-w-2xl text-center text-sm leading-relaxed text-white/70 sm:text-base">
+
+          <p className="mx-auto mt-10 max-w-3xl text-center text-base leading-relaxed text-white/60 sm:text-lg">
             Customers are everywhere.{" "}
-            <span className="text-brand-purple">Leadreacher</span> finds them
-            and brings them to you.
+            <span className="text-brand-purple">Leadreacher</span> finds them and
+            brings them to you.
           </p>
         </div>
       </div>

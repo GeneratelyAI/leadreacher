@@ -1,9 +1,9 @@
 /**
- * Clay demo script for /onboarding/discovery.
+ * Clay demo script for /onboarding?step=discovery.
  *
  * Usage:
  *   pnpm --filter @leadreacher/web discovery:clay
- *   → opens http://localhost:3000/onboarding/discovery?test=clay
+ *   → opens http://localhost:3000/onboarding?step=discovery&test=clay
  *
  * Or visit manually with ?test=clay while logged in.
  * Answers auto-submit after the intro transition finishes.
@@ -31,7 +31,7 @@ export function isClayDiscoveryTestMode(search: string): boolean {
 }
 
 export function getClayDiscoveryTestPath(): string {
-  return `/onboarding/discovery?${CLAY_DISCOVERY_TEST_QUERY}`;
+  return `/onboarding?step=discovery&${CLAY_DISCOVERY_TEST_QUERY}`;
 }
 
 export function getClayDiscoveryTestUrl(

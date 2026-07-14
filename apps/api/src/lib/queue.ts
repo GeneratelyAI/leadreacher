@@ -3,11 +3,20 @@ import { redis } from "./redis.js";
 
 export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";
+export const QUEUE_RECONCILE_VEO_OPERATIONS = "reconcile-veo-operations";
 export const QUEUE_RECONCILE_RELATIONS = "reconcile-relations";
+export const QUEUE_RECONCILE_DELIVERY_ATTEMPTS = "reconcile-delivery-attempts";
+export const QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS = "reconcile-campaign-enrollments";
 
 // Fallback poll cadence for the new_relation webhook (which can lag/no-show).
 export const RECONCILE_RELATIONS_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const RECONCILE_SCHEDULER_ID = "reconcile-relations-scheduler";
+const DELIVERY_ATTEMPT_RECONCILE_SCHEDULER_ID =
+  "reconcile-delivery-attempts-scheduler";
+const CAMPAIGN_ENROLLMENT_RECONCILE_SCHEDULER_ID =
+  "reconcile-campaign-enrollments-scheduler";
+const VEO_OPERATION_RECONCILE_SCHEDULER_ID =
+  "reconcile-veo-operations-scheduler";
 
 export type CampaignSequenceJob = {
   campaignLeadId: string;
@@ -52,9 +61,24 @@ export const videoGenerationQueue = new Queue(QUEUE_VIDEO_GENERATION, {
   connection: redis,
 });
 
+export const reconcileVeoOperationsQueue = new Queue(
+  QUEUE_RECONCILE_VEO_OPERATIONS,
+  { connection: redis },
+);
+
 export const reconcileRelationsQueue = new Queue(QUEUE_RECONCILE_RELATIONS, {
   connection: redis,
 });
+
+export const reconcileDeliveryAttemptsQueue = new Queue(
+  QUEUE_RECONCILE_DELIVERY_ATTEMPTS,
+  { connection: redis },
+);
+
+export const reconcileCampaignEnrollmentsQueue = new Queue(
+  QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS,
+  { connection: redis },
+);
 
 /**
  * Idempotently register the repeatable relation-reconciliation job. Safe to
@@ -68,10 +92,37 @@ export async function scheduleReconcileRelations(): Promise<void> {
   );
 }
 
+export async function scheduleDeliveryAttemptReconciliation(): Promise<void> {
+  await reconcileDeliveryAttemptsQueue.upsertJobScheduler(
+    DELIVERY_ATTEMPT_RECONCILE_SCHEDULER_ID,
+    { every: 5 * 60 * 1000 },
+    { name: QUEUE_RECONCILE_DELIVERY_ATTEMPTS },
+  );
+}
+
+export async function scheduleVeoOperationReconciliation(): Promise<void> {
+  await reconcileVeoOperationsQueue.upsertJobScheduler(
+    VEO_OPERATION_RECONCILE_SCHEDULER_ID,
+    { every: 5 * 60 * 1000 },
+    { name: QUEUE_RECONCILE_VEO_OPERATIONS },
+  );
+}
+
+export async function scheduleCampaignEnrollmentReconciliation(): Promise<void> {
+  await reconcileCampaignEnrollmentsQueue.upsertJobScheduler(
+    CAMPAIGN_ENROLLMENT_RECONCILE_SCHEDULER_ID,
+    { every: 2 * 60 * 1000 },
+    { name: QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS },
+  );
+}
+
 export async function closeQueues(): Promise<void> {
   await Promise.all([
     campaignSequenceQueue.close(),
     videoGenerationQueue.close(),
+    reconcileVeoOperationsQueue.close(),
     reconcileRelationsQueue.close(),
+    reconcileDeliveryAttemptsQueue.close(),
+    reconcileCampaignEnrollmentsQueue.close(),
   ]);
 }

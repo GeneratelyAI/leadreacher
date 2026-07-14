@@ -51,7 +51,9 @@ export async function apiFetch<T>(
 
   const headers = new Headers(options.headers);
   headers.set("Authorization", `Bearer ${token}`);
-  if (options.body && !headers.has("Content-Type")) {
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (options.body && !isFormData && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -98,12 +100,28 @@ export async function apiFetch<T>(
   return payload as T;
 }
 
-export async function bootstrapOrganization(name: string): Promise<{
+export async function bootstrapOrganization(
+  name: string,
+  anonScrapeId?: string,
+): Promise<{
   orgId: string;
   userId: string;
+  scrapeStatus?: {
+    status: "idle" | "running" | "completed" | "failed";
+    url: string | null;
+    market: string;
+    offer: string;
+    audience: string;
+    value: string;
+    strategyStatus: string;
+    error: string | null;
+  } | null;
 }> {
   return apiFetch("/auth/bootstrap", {
     method: "POST",
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({
+      name,
+      ...(anonScrapeId ? { anonScrapeId } : {}),
+    }),
   });
 }

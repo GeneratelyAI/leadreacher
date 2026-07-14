@@ -51,3 +51,9 @@ CLAUDE.local.md
 
 # local docs (root scratch only; apps/api/docs stays tracked)
 /docs
+
+# root-level scratch screenshots from manual/agent verification passes
+/*.png
+
+# playwright mcp artifacts
+.playwright-mcp/

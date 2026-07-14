@@ -19,4 +19,9 @@ export type UnipileProfile = {
   is_relationship: boolean;
 };
 
-export type { ApifyCredentials, ICPFilters, ScrapedProfile } from "./apify.js";
+export type {
+  ApifyCredentials,
+  ICPFilters,
+  ScrapedCompany,
+  ScrapedProfile,
+} from "./apify.js";

@@ -6,5 +6,6 @@ declare module "fastify" {
     userEmail?: string;
     dbUserId?: string;
     orgId?: string;
+    rawBody?: Buffer;
   }
 }

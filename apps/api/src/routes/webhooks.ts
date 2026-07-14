@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import crypto from "node:crypto";
 import { z } from "zod";
-import { UnipileAdapter } from "../adapters/unipile.js";
+import {
+  decodeHostedAuthName,
+  isAccountHealthy,
+  UnipileAdapter,
+} from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { ExternalServiceError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
@@ -55,6 +59,12 @@ const UnipileWebhookSchema = z.discriminatedUnion("event", [
   UnipileNewRelationSchema,
 ]);
 
+const UnipileHostedAuthCallbackSchema = z.object({
+  status: z.enum(["CREATION_SUCCESS", "RECONNECTED"]),
+  account_id: z.string().min(1),
+  name: z.string().min(1),
+});
+
 async function isDuplicate(externalId: string): Promise<boolean> {
   const existing = await prisma.message.findFirst({
     where: { externalId },
@@ -103,6 +113,51 @@ function verifyUnipileAuthHeader(
 
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   app.post("/webhooks/unipile", async (request, reply) => {
+    const hostedAuthCallback = UnipileHostedAuthCallbackSchema.safeParse(
+      request.body,
+    );
+    if (hostedAuthCallback.success) {
+      const orgId = decodeHostedAuthName(hostedAuthCallback.data.name);
+      if (!orgId) {
+        return reply.status(401).send({ error: "Unauthorized" });
+      }
+
+      const adapter = new UnipileAdapter({
+        dsn: env.UNIPILE_DSN,
+        apiKey: env.UNIPILE_API_KEY,
+      });
+      const account = await adapter.getAccountStatus(
+        hostedAuthCallback.data.account_id,
+      );
+      const status = isAccountHealthy(account) ? "active" : "reconnecting";
+      const platform = account.type.toLowerCase();
+
+      await prisma.socialAccount.upsert({
+        where: {
+          orgId_platform_platformUserId: {
+            orgId,
+            platform,
+            platformUserId: account.id,
+          },
+        },
+        create: {
+          orgId,
+          platform,
+          platformUserId: account.id,
+          unipileId: account.id,
+          accountName: account.name,
+          status,
+        },
+        update: {
+          unipileId: account.id,
+          accountName: account.name,
+          status,
+        },
+      });
+
+      return reply.send({ received: true, handled: true });
+    }
+
     const authHeader = request.headers["unipile-auth"];
     const providedAuth =
       typeof authHeader === "string" ? authHeader : authHeader?.[0];
@@ -166,14 +221,6 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         });
         return reply.send({ received: true, handled: false });
       }
-
-      await prisma.message.updateMany({
-        where: {
-          campaignId: campaignLead.campaignId,
-          leadId: campaignLead.leadId,
-        },
-        data: { status: STATUS_REPLIED },
-      });
 
       await prisma.lead.update({
         where: { id: campaignLead.leadId },

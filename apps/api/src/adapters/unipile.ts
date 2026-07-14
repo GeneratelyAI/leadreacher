@@ -1,4 +1,6 @@
+import crypto from "node:crypto";
 import { ExternalServiceError } from "../lib/errors.js";
+import { env } from "../config/env.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const API_VERSION = "/api/v1";
@@ -31,6 +33,54 @@ type UnipileAccount = {
 
 type UnipileAccountList = {
   items: UnipileAccount[];
+};
+
+type HostedAuthLink = {
+  url: string;
+};
+
+export type CreateHostedAuthLinkInput = {
+  providers: string[];
+  name: string;
+  notifyUrl: string;
+  successRedirectUrl: string;
+  failureRedirectUrl: string;
+  expiresOn: string;
+};
+
+const HOSTED_AUTH_NAME_PREFIX = "lr";
+
+export function encodeHostedAuthName(orgId: string): string {
+  const signature = crypto
+    .createHmac("sha256", env.UNIPILE_WEBHOOK_SECRET)
+    .update(orgId)
+    .digest("hex");
+  return `${HOSTED_AUTH_NAME_PREFIX}:${orgId}:${signature}`;
+}
+
+export function decodeHostedAuthName(name: string): string | null {
+  const [prefix, orgId, signature] = name.split(":");
+  if (!prefix || !orgId || !signature || prefix !== HOSTED_AUTH_NAME_PREFIX) {
+    return null;
+  }
+
+  const expected = encodeHostedAuthName(orgId);
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  const actualBuffer = Buffer.from(name, "utf8");
+  if (expectedBuffer.length !== actualBuffer.length) {
+    return null;
+  }
+
+  return crypto.timingSafeEqual(expectedBuffer, actualBuffer) ? orgId : null;
+}
+
+export type UnipileChat = {
+  id?: string;
+};
+
+export type UnipileMessage = {
+  id?: string;
+  message_id?: string;
 };
 
 export type { UnipileCredentials, UnipileProfile } from "./types.js";
@@ -92,6 +142,9 @@ export class UnipileAdapter {
     providerId: string,
     message?: string,
   ): Promise<void> {
+    // Unipile's documented v1 invite endpoint has no provider idempotency
+    // header/body field. A successful send followed by a process crash is kept
+    // as an unknown reservation for provider-positive recovery or review.
     await this.request<void>("POST", "/users/invite", {
       account_id: accountId,
       provider_id: providerId,
@@ -104,6 +157,8 @@ export class UnipileAdapter {
     attendeeProviderId: string,
     text: string,
   ): Promise<{ chat_id: string }> {
+    // Unipile's documented v1 start-chat endpoint has no provider idempotency
+    // header/body field; callers rely on durable reservations around this call.
     const formData = new FormData();
     formData.append("account_id", accountId);
     formData.append("text", text);
@@ -116,6 +171,8 @@ export class UnipileAdapter {
     chatId: string,
     text: string,
   ): Promise<{ message_id: string }> {
+    // Unipile's documented v1 send-message endpoint has no provider idempotency
+    // header/body field; callers preserve unknown state instead of blind retries.
     const formData = new FormData();
     formData.append("text", text);
 
@@ -133,6 +190,29 @@ export class UnipileAdapter {
   async listAccounts(): Promise<UnipileAccountList> {
     return this.request<UnipileAccountList>("GET", "/accounts");
   }
+
+  async createHostedAuthLink(
+    input: CreateHostedAuthLinkInput,
+  ): Promise<HostedAuthLink> {
+    return this.request<HostedAuthLink>("POST", "/hosted/accounts/link", {
+      type: "create",
+      providers: input.providers,
+      api_url: `https://${this.credentials.dsn}`,
+      expiresOn: input.expiresOn,
+      name: input.name,
+      notify_url: input.notifyUrl,
+      success_redirect_url: input.successRedirectUrl,
+      failure_redirect_url: input.failureRedirectUrl,
+    });
+  }
+
+  async getChat(chatId: string): Promise<UnipileChat> {
+    return this.request<UnipileChat>("GET", `/chats/${chatId}`);
+  }
+
+  async getMessage(messageId: string): Promise<UnipileMessage> {
+    return this.request<UnipileMessage>("GET", `/messages/${messageId}`);
+  }
 }
 
 // An account is healthy when it has at least one source and every source is OK.
@@ -148,4 +228,5 @@ export type {
   UnipileAccountList,
   UnipileAccountSource,
   UnipileAccountStatus,
+  HostedAuthLink,
 };

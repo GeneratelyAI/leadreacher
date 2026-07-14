@@ -17,6 +17,10 @@ import { parseSequence } from "../lib/sequence.js";
 import { resolveProviderId } from "../lib/provider-id.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
+import {
+  acquireDeliveryReservation,
+  markDeliveryReservationUnknown,
+} from "../services/delivery-attempt.js";
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
@@ -168,43 +172,68 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           );
         }
 
-        await adapter.sendConnectionInvite(
-          socialAccount.unipileId,
-          inviteProviderId,
-          currentStep.message,
-        );
+        const reservation = await acquireDeliveryReservation(campaignLeadId, step);
+        if (!reservation.acquired) {
+          return {
+            skipped: true,
+            reason: `delivery reservation already ${reservation.state}`,
+          };
+        }
 
-        await prisma.message.create({
-          data: {
-            campaignId: campaignLead.campaignId,
-            leadId: campaignLead.leadId,
-            orgId,
-            channel: "linkedin",
-            content: { type: "text", message: currentStep.message },
-            status: "sent",
-            stepIndex: step,
-            sentAt: new Date(),
-            externalId: inviteProviderId,
-          },
-        });
+        try {
+          await adapter.sendConnectionInvite(
+            socialAccount.unipileId,
+            inviteProviderId,
+            currentStep.message,
+          );
 
-        await prisma.lead.update({
-          where: { id: campaignLead.leadId },
-          data: {
-            status: LEAD_STATUS_CONTACTED,
-            // Persist the fetched provider_id so the new_relation webhook can
-            // match this lead after the invite is accepted.
-            ...(campaignLead.lead.providerLinkedinId
-              ? {}
-              : { providerLinkedinId: inviteProviderId }),
-          },
-        });
-
-        // Step 1 is triggered by the new_relation webhook after the invite is accepted.
-        await prisma.campaignLead.update({
-          where: { id: campaignLeadId },
-          data: { currentStep: 1 },
-        });
+          await prisma.$transaction([
+            prisma.message.create({
+              data: {
+                campaignId: campaignLead.campaignId,
+                leadId: campaignLead.leadId,
+                orgId,
+                channel: "linkedin",
+                content: { type: "text", message: currentStep.message },
+                status: "sent",
+                stepIndex: step,
+                sentAt: new Date(),
+                externalId: inviteProviderId,
+              },
+            }),
+            prisma.lead.update({
+              where: { id: campaignLead.leadId },
+              data: {
+                status: LEAD_STATUS_CONTACTED,
+                ...(campaignLead.lead.providerLinkedinId
+                  ? {}
+                  : { providerLinkedinId: inviteProviderId }),
+              },
+            }),
+            // Step 1 is triggered by new_relation after the invite is accepted.
+            prisma.campaignLead.update({
+              where: { id: campaignLeadId },
+              data: { currentStep: 1 },
+            }),
+            prisma.deliveryAttempt.update({
+              where: { id: reservation.attemptId },
+              data: {
+                state: "sent",
+                providerRef: inviteProviderId,
+                sentAt: new Date(),
+              },
+            }),
+          ]);
+        } catch (error) {
+          // Unipile does not return an invitation operation ID. Retain the
+          // recipient provider ID for audit correlation, but never treat it as
+          // provider-positive delivery confirmation.
+          await markDeliveryReservationUnknown(
+            reservation.attemptId,
+            inviteProviderId,
+          );
+          throw error;
+        }
 
         console.log(
           JSON.stringify({
@@ -226,26 +255,49 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         );
       }
 
-      const result = await adapter.sendMessageToChat(chatId, currentStep.message);
+      const reservation = await acquireDeliveryReservation(campaignLeadId, step);
+      if (!reservation.acquired) {
+        return {
+          skipped: true,
+          reason: `delivery reservation already ${reservation.state}`,
+        };
+      }
 
-      await prisma.message.create({
-        data: {
-          campaignId: campaignLead.campaignId,
-          leadId: campaignLead.leadId,
-          orgId,
-          channel: "linkedin",
-          content: { type: "text", message: currentStep.message },
-          status: "sent",
-          stepIndex: step,
-          sentAt: new Date(),
-          externalId: result.message_id,
-        },
-      });
-
-      await prisma.campaignLead.update({
-        where: { id: campaignLeadId },
-        data: { currentStep: step + 1 },
-      });
+      let providerRef: string | undefined;
+      try {
+        const result = await adapter.sendMessageToChat(chatId, currentStep.message);
+        providerRef = result.message_id;
+        await prisma.$transaction([
+          prisma.message.create({
+            data: {
+              campaignId: campaignLead.campaignId,
+              leadId: campaignLead.leadId,
+              orgId,
+              channel: "linkedin",
+              content: { type: "text", message: currentStep.message },
+              status: "sent",
+              stepIndex: step,
+              sentAt: new Date(),
+              externalId: result.message_id,
+            },
+          }),
+          prisma.campaignLead.update({
+            where: { id: campaignLeadId },
+            data: { currentStep: step + 1 },
+          }),
+          prisma.deliveryAttempt.update({
+            where: { id: reservation.attemptId },
+            data: {
+              state: "sent",
+              providerRef: result.message_id,
+              sentAt: new Date(),
+            },
+          }),
+        ]);
+      } catch (error) {
+        await markDeliveryReservationUnknown(reservation.attemptId, providerRef);
+        throw error;
+      }
 
       const nextStep = sequence[step + 1];
       if (nextStep) {

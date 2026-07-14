@@ -15,67 +15,122 @@ const VideoPromptInput = z.object({
   feedbackHints: z.array(z.string()).optional(),
 });
 
-const VideoPromptOutput = z.object({
-  imagePrompt: z.string().min(50),
-  videoPrompt: z.string().min(50),
-  motionDescription: z.string().min(20),
+const STORYBOARD_BEATS = ["hook", "problem", "solution", "payoff"] as const;
+
+export const StoryboardSceneSchema = z.object({
+  sceneNumber: z.number().int().min(1).max(4),
+  timeRange: z.string(),
+  beat: z.enum(STORYBOARD_BEATS),
+  imagePrompt: z.string().min(40),
+  motionNote: z.string().min(10),
+});
+
+export const VideoPromptOutputSchema = z.object({
+  storyboard: z
+    .array(StoryboardSceneSchema)
+    .length(4)
+    .superRefine((scenes, ctx) => {
+      scenes.forEach((scene, index) => {
+        const expectedSceneNumber = index + 1;
+        const expectedBeat = STORYBOARD_BEATS[index];
+
+        if (scene.sceneNumber !== expectedSceneNumber) {
+          ctx.addIssue({
+            code: "custom",
+            path: [index, "sceneNumber"],
+            message: `Scene ${expectedSceneNumber} must appear in position ${expectedSceneNumber}`,
+          });
+        }
+        if (scene.beat !== expectedBeat) {
+          ctx.addIssue({
+            code: "custom",
+            path: [index, "beat"],
+            message: `Scene ${expectedSceneNumber} must use the ${expectedBeat} beat`,
+          });
+        }
+      });
+    }),
+  videoPrompt: z.string().min(80),
   hookDescription: z.string().min(10),
   ctaDescription: z.string().min(10),
 });
 
+export type StoryboardScene = z.infer<typeof StoryboardSceneSchema>;
+export type VideoPromptOutput = z.infer<typeof VideoPromptOutputSchema>;
+
 type VideoPromptInputType = z.infer<typeof VideoPromptInput>;
-type VideoPromptOutputType = z.infer<typeof VideoPromptOutput>;
+
+/**
+ * `imagePrompt` is a temporary worker compatibility bridge. The canonical LLM
+ * output remains the storyboard; the existing one-image Veo path receives only
+ * scene 1 until multi-image orchestration is implemented separately.
+ */
+export type VideoPromptAgentResult = VideoPromptOutput & {
+  imagePrompt: string;
+};
 
 const MAX_VALIDATION_RETRIES = 2;
 
-const SYSTEM_PROMPT = `You are a world-class video ad director specialising in 8-second social video ads.
+const SYSTEM_PROMPT = `You are a world-class video ad director specialising in premium 8-second social video ads.
 
-Given campaign context and an initial creative direction, your task is to write:
-1. A precise IMAGE PROMPT for Imagen that creates the seed frame - describing subject, lighting, camera angle, environment, and atmosphere.
-2. A precise VIDEO PROMPT for Veo 3.1 that animates from the seed frame - describing exactly how the scene moves, what action occurs, and how it evolves over 8 seconds.
-3. A MOTION DESCRIPTION - the specific camera movement and subject motion (e.g., "slow push-in on subject, subtle hand gesture at 2s, text reveal at 5s").
-4. A HOOK DESCRIPTION - what happens in the first 2 seconds to stop the scroll.
-5. A CTA DESCRIPTION - how the video ends and what action it drives.
+Create a four-scene storyboard using this exact commercial structure. The full sequence is exactly 8 seconds:
+1. hook (0-2s): a scroll-stopping opening visual or moment that grabs attention before selling.
+2. problem (2-4s): establish a pain point or context the audience immediately recognises.
+3. solution (4-6s): show the product or service resolving that pain point; this is the demo beat.
+4. payoff (6-8s): show the result and a clear call-to-action, ending on the brand.
+
+For every storyboard scene:
+- imagePrompt is a cinematic still-frame prompt with a subject, action or moment, setting, lighting, camera angle, composition, and premium-social-ad visual detail.
+- Each imagePrompt must be visibly distinct from every other scene: use different framing, action, or moment. Do not restate one image with small wording changes.
+- motionNote explains how that scene animates and transitions into the next scene through a camera move, cut, morph, or purposeful motion. For the payoff, describe the final branded hold or exit.
+- Keep the requested tone, avatar, and setting faithful across all scenes unless a deliberate transition explains a change.
+
+videoPrompt is the connective narrative across all four scenes for a text-to-video tool. It must describe the complete 8-second sequence, not a disconnected standalone paragraph.
 
 Rules:
-- The video must feel like a premium social ad (not a demo or tutorial)
-- Every second of the 8s must be purposeful - no dead frames
-- Camera motion should be smooth, intentional (handheld is fine if it matches tone)
-- Match the exact tone and avatar style from context
+- The ad must feel premium and social-first, never like a tutorial or a loose concept paragraph.
+- Every second must be purposeful; no dead frames.
+- Camera motion must be smooth and intentional.
+- Keep the requested tone, avatar style, and setting faithful.
 
-You MUST return valid JSON with exactly these fields, no omissions:
+You MUST return valid JSON with exactly these fields and no omissions:
 {
-  "imagePrompt": "<detailed Imagen seed-frame prompt including subject, setting, camera, lighting, and composition>",
-  "videoPrompt": "<detailed Veo 3.1 animation prompt covering the full 8 seconds>",
-  "motionDescription": "<camera and subject motion breakdown>",
-  "hookDescription": "<what happens in the first 2 seconds>",
-  "ctaDescription": "<how the video ends and what action it drives>"
+  "storyboard": [
+    {
+      "sceneNumber": 1,
+      "timeRange": "0-2s",
+      "beat": "hook",
+      "imagePrompt": "<visually distinct cinematic still-frame prompt>",
+      "motionNote": "<motion and transition to scene 2>"
+    },
+    {
+      "sceneNumber": 2,
+      "timeRange": "2-4s",
+      "beat": "problem",
+      "imagePrompt": "<visually distinct cinematic still-frame prompt>",
+      "motionNote": "<motion and transition to scene 3>"
+    },
+    {
+      "sceneNumber": 3,
+      "timeRange": "4-6s",
+      "beat": "solution",
+      "imagePrompt": "<visually distinct cinematic still-frame prompt>",
+      "motionNote": "<motion and transition to scene 4>"
+    },
+    {
+      "sceneNumber": 4,
+      "timeRange": "6-8s",
+      "beat": "payoff",
+      "imagePrompt": "<visually distinct cinematic still-frame prompt>",
+      "motionNote": "<final branded hold or exit>"
+    }
+  ],
+  "videoPrompt": "<connective 8-second narrative across all four scenes>",
+  "hookDescription": "<scroll-stopping first two seconds>",
+  "ctaDescription": "<clear final action and brand ending>"
 }
 
-Output ONLY a JSON object - no markdown, no explanation:
-{
-  "imagePrompt": "<full Imagen prompt for the seed frame>",
-  "videoPrompt": "<full Veo 3.1 prompt describing all 8 seconds>",
-  "motionDescription": "<camera + subject motion breakdown>",
-  "hookDescription": "<what happens in first 2 seconds>",
-  "ctaDescription": "<how the video ends and what action it drives>"
-}`;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function stringField(
-  record: Record<string, unknown> | null,
-  key: string,
-): string | undefined {
-  const value = record?.[key];
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : undefined;
-}
+Output ONLY a JSON object with no markdown or explanation.`;
 
 function validationErrorText(error: unknown): string {
   if (error instanceof z.ZodError) {
@@ -85,41 +140,9 @@ function validationErrorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function buildFallbackImagePrompt(
-  input: VideoPromptInputType,
-  videoPrompt: string,
-): string {
-  return [
-    "Professional vertical 9:16 seed frame for an 8-second B2B social video ad.",
-    `Show ${input.avatar} in ${input.setting}, composed as a premium brand advertisement for ${input.product}.`,
-    `The audience is ${input.audience}, and the tone should feel ${input.tone}.`,
-    `Use the initial creative direction as visual context: ${input.seedPrompt}.`,
-    `Anchor the first frame to this motion plan: ${videoPrompt.slice(0, 500)}.`,
-    "Use clean composition, sharp subject focus, natural professional lighting, modern office or SaaS dashboard visual cues, and no text-heavy clutter.",
-  ].join(" ");
-}
-
-async function logImagePromptFallback(
-  input: VideoPromptInputType,
-  validationError: string,
-): Promise<void> {
-  await prisma.auditLog.create({
-    data: {
-      orgId: input.orgId,
-      action: "video.prompt.fallback",
-      resource: "VideoAsset",
-      resourceId: input.videoAssetId,
-      metadata: {
-        path: "video-prompt-agent-image-prompt-fallback",
-        error: validationError,
-      },
-    },
-  });
-}
-
 export async function runVideoPromptAgent(
   input: VideoPromptInputType,
-): Promise<VideoPromptOutputType> {
+): Promise<VideoPromptAgentResult> {
   const validated = VideoPromptInput.parse(input);
 
   const feedbackSection = validated.feedbackHints?.length
@@ -128,7 +151,7 @@ export async function runVideoPromptAgent(
         .join("\n")}\n`
     : "";
 
-  const userMessage = `Generate image and video prompts for this 8-second ad:
+  const userMessage = `Generate a four-scene storyboard for this 8-second ad:
 
 INITIAL CREATIVE DIRECTION: ${validated.seedPrompt}
 
@@ -138,7 +161,7 @@ TONE: ${validated.tone}
 AVATAR: ${validated.avatar}
 SETTING: ${validated.setting}
 ${feedbackSection}
-The video starts exactly from the seed frame described by the image prompt. Animate it into a compelling 8-second ad.
+Make the four scene stills a coherent visual sequence and use the exact commercial beat order from the system prompt.
 
 Output the JSON object only.`;
 
@@ -152,8 +175,7 @@ Output the JSON object only.`;
   });
 
   try {
-    let parsedResponse: unknown;
-    let lastValidationError: unknown;
+    let lastValidationError: unknown = new Error("No response generated");
 
     for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
       const repairSection =
@@ -161,49 +183,36 @@ Output the JSON object only.`;
           ? `\n\nYour previous JSON failed validation. Fix the JSON and return every required field. Validation error:\n${validationErrorText(lastValidationError)}`
           : "";
 
-      const raw = await callGroq(
-        SYSTEM_PROMPT,
-        [{ role: "user", content: userMessage + repairSection }],
-        2048,
-        { jsonObject: true },
-      );
+      try {
+        const raw = await callGroq(
+          SYSTEM_PROMPT,
+          [{ role: "user", content: userMessage + repairSection }],
+          2048,
+          { jsonObject: true },
+        );
+        const parsedResponse = JSON.parse(extractJsonObject(raw));
+        const validatedOutput = VideoPromptOutputSchema.safeParse(parsedResponse);
+        if (!validatedOutput.success) {
+          lastValidationError = validatedOutput.error;
+          continue;
+        }
 
-      parsedResponse = JSON.parse(extractJsonObject(raw));
-      const validatedOutput = VideoPromptOutput.safeParse(parsedResponse);
-      if (validatedOutput.success) {
+        const output = validatedOutput.data;
         await prisma.pipelineRun.update({
           where: { id: pipelineRun.id },
-          data: { output: validatedOutput.data, status: "completed" },
+          data: { output, status: "completed" },
         });
 
-        return validatedOutput.data;
+        return {
+          ...output,
+          imagePrompt: output.storyboard[0].imagePrompt,
+        };
+      } catch (error) {
+        lastValidationError = error;
       }
-
-      lastValidationError = validatedOutput.error;
     }
 
-    const responseRecord = asRecord(parsedResponse);
-    const imagePrompt = stringField(responseRecord, "imagePrompt");
-    const videoPrompt = stringField(responseRecord, "videoPrompt");
-    const shouldFallbackImagePrompt = !imagePrompt && videoPrompt;
-
-    if (!shouldFallbackImagePrompt) {
-      throw lastValidationError;
-    }
-
-    const output = VideoPromptOutput.parse({
-      ...responseRecord,
-      imagePrompt: buildFallbackImagePrompt(validated, videoPrompt),
-    });
-
-    await logImagePromptFallback(validated, validationErrorText(lastValidationError));
-
-    await prisma.pipelineRun.update({
-      where: { id: pipelineRun.id },
-      data: { output, status: "completed" },
-    });
-
-    return output;
+    throw lastValidationError;
   } catch (error) {
     await prisma.pipelineRun.update({
       where: { id: pipelineRun.id },

@@ -1,0 +1,102 @@
+import type { Strategy } from "@prisma/client";
+import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { ValidationError } from "../lib/errors.js";
+import {
+  buildPricingCatalog,
+  parseVideoConfig,
+  type CampaignType,
+  type CatalogLineItem,
+} from "../lib/billing/pricing.js";
+import { prisma } from "../lib/prisma.js";
+import { requireOrgId } from "../lib/request-org.js";
+import {
+  createSubscriptionCheckoutSession,
+  getStripePrice,
+  type StripePriceDisplay,
+} from "../lib/stripe.js";
+
+type BillingLineItem = CatalogLineItem & StripePriceDisplay;
+
+function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "videoConfig">): {
+  campaignType: CampaignType;
+  videoConfig: ReturnType<typeof parseVideoConfig>;
+} {
+  const parsedCampaignType = z
+    .enum(["personalized_outreach", "ai_video_ad", "uploaded_video"])
+    .safeParse(strategy.campaignType);
+  if (!parsedCampaignType.success) {
+    throw new ValidationError("Select a campaign type before viewing billing");
+  }
+
+  const videoConfig = parseVideoConfig(
+    strategy.videoConfig ?? { enabled: false, mode: null, source: null },
+  );
+  return { campaignType: parsedCampaignType.data, videoConfig };
+}
+
+async function buildLineItems(strategy: Pick<Strategy, "campaignType" | "videoConfig">): Promise<{
+  campaignType: CampaignType;
+  videoEnabled: boolean;
+  lineItems: BillingLineItem[];
+}> {
+  const pricingInput = pricingInputForStrategy(strategy);
+  const catalog = buildPricingCatalog(pricingInput);
+  const lineItems = await Promise.all(
+    catalog.lineItems.map(async (item) => ({
+      ...item,
+      ...(await getStripePrice(item.priceId)),
+    })),
+  );
+
+  return {
+    campaignType: pricingInput.campaignType,
+    videoEnabled: pricingInput.videoConfig.enabled,
+    lineItems,
+  };
+}
+
+async function getLatestStrategy(orgId: string): Promise<Strategy> {
+  const strategy = await prisma.strategy.findFirst({
+    where: { orgId },
+    orderBy: { updatedAt: "desc" },
+  });
+  if (!strategy) {
+    throw new ValidationError("Complete Strategy before checkout");
+  }
+
+  return strategy;
+}
+
+export async function billingRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/billing/pricing", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const strategy = await getLatestStrategy(orgId);
+    const { lineItems } = await buildLineItems(strategy);
+    return reply.send({ lineItems });
+  });
+
+  app.post("/billing/checkout-session", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const strategy = await getLatestStrategy(orgId);
+    const { campaignType, videoEnabled, lineItems } = await buildLineItems(strategy);
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { stripeCustomerId: true },
+    });
+    if (!organization) {
+      throw new ValidationError("Organization not found");
+    }
+
+    const session = await createSubscriptionCheckoutSession({
+      orgId,
+      strategyId: strategy.id,
+      campaignType,
+      videoEnabled,
+      priceIds: lineItems.map((lineItem) => lineItem.priceId),
+      customerId: organization.stripeCustomerId,
+    });
+
+    return reply.send({ url: session.url });
+  });
+}

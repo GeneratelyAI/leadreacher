@@ -107,9 +107,9 @@ export async function scrapeWebsiteContent(
     });
 
     const previewImageUrl = await fetchWebsitePreviewImage(normalized);
-    const result = { markdown: "", previewImageUrl };
-    scrapedContentByUrl.set(normalized, result);
-    return result;
+    // Network, timeout, and 429 failures are retryable. Do not turn them into
+    // a process-lifetime empty cache entry.
+    return { markdown: "", previewImageUrl };
   }
 }
 

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
-import { ANIMATION_VIDEO_SRC } from "@/lib/constants/animation";
+import { geist } from "@/lib/fonts/geist";
 import { satoshi } from "@/lib/fonts/satoshi";
 import { themeInitScript } from "@/lib/theme-init-script";
 import "./globals.css";
@@ -25,20 +24,13 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${satoshi.variable} h-full antialiased`}
+      className={`${satoshi.variable} ${geist.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        <Script
+        <script
           id="lr-theme-init"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
-        />
-        <link
-          rel="preload"
-          href={ANIMATION_VIDEO_SRC}
-          as="video"
-          type="video/webm"
         />
         <link
           rel="stylesheet"

@@ -62,6 +62,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     handleOAuth,
   } = useAuthForm(mode);
 
+  const showMarketingPanel = isSignup;
   const alternateHref = isSignup ? "/login" : "/signup";
   const alternatePrompt = isSignup
     ? "Already have an account?"
@@ -77,22 +78,30 @@ export default function AuthForm({ mode }: AuthFormProps) {
       <div
         className={cn(
           "hidden w-full flex-col items-stretch justify-center gap-8 lg:flex",
-          "lg:flex-row lg:items-center lg:gap-10 xl:gap-14",
+          showMarketingPanel
+            ? "lg:flex-row lg:items-stretch lg:gap-10 xl:gap-14"
+            : "lg:items-center",
         )}
       >
+        {showMarketingPanel ? (
+          <div
+            className={cn(
+              "w-full lg:order-2 lg:flex lg:w-[62%] lg:shrink-0",
+            )}
+          >
+            <AuthMarketingPanel mode={mode} />
+          </div>
+        ) : null}
+
         <div
           className={cn(
-            "w-full lg:w-[55%] lg:shrink-0",
-            "lg:ml-5 lg:-translate-y-3 xl:ml-8 xl:-translate-y-4",
+            "w-full lg:order-1 lg:flex lg:shrink-0",
+            showMarketingPanel ? "lg:w-[38%]" : "lg:max-w-md xl:max-w-lg",
           )}
         >
-          <AuthMarketingPanel mode={mode} />
-        </div>
-
-        <div className="w-full lg:w-[45%] lg:shrink-0">
           <Card
             className={cn(
-              "auth-glass-card w-full gap-0 rounded-3xl py-0 antialiased",
+              "h-full w-full antialiased",
               "ring-0 [--card-spacing:0]",
             )}
           >
@@ -255,7 +264,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <button
                       type="button"
                       onClick={() => setShowPassword((current) => !current)}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
+                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
@@ -269,7 +278,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <div className="mt-1.5 flex items-center justify-end h-compact:mt-1 lg:mt-2">
                       <Link
                         href="#"
-                        className="text-xs font-medium text-brand-purple transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
+                        className="text-xs font-medium text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
                       >
                         Forgot password?
                       </Link>
@@ -313,7 +322,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 {alternatePrompt}{" "}
                 <Link
                   href={alternateHref}
-                  className="font-semibold text-brand-purple transition-colors hover:opacity-80 dark:text-[#c4b5f0]"
+                  className="font-semibold text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
                 >
                   {alternateLinkLabel}
                 </Link>

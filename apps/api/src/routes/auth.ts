@@ -1,20 +1,114 @@
 import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import {
+  anonScrapeClaimKey,
+  anonScrapeStatusKey,
+  ANON_SCRAPE_STATUS_TTL_SECONDS,
+  getScrapeStatus,
+  orgScrapeStatusKey,
+  SCRAPE_STATUS_TTL_SECONDS,
+  setScrapeStatus,
+  type DiscoveryScrapeStatus,
+} from "./discovery.js";
 import { AuthError, ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
+import { redis } from "../lib/redis.js";
 import { verifySupabaseJwt } from "../plugins/auth.js";
 
 const BootstrapBodySchema = z.object({
   name: z.string().trim().min(1),
+  anonScrapeId: z.string().uuid().optional(),
 });
+
+type ScrapeStatusStorage = {
+  getStatus: (statusKey: string) => Promise<DiscoveryScrapeStatus | null>;
+  setStatus: (
+    statusKey: string,
+    status: DiscoveryScrapeStatus,
+    ttlSeconds: number,
+  ) => Promise<void>;
+  deleteStatus: (statusKey: string) => Promise<unknown>;
+  setClaim?: (anonScrapeId: string, orgId: string) => Promise<void>;
+  deleteClaim?: (anonScrapeId: string) => Promise<unknown>;
+};
+
+const redisScrapeStatusStorage: ScrapeStatusStorage = {
+  getStatus: getScrapeStatus,
+  setStatus: setScrapeStatus,
+  deleteStatus: (statusKey) => redis.del(statusKey),
+  setClaim: async (anonScrapeId, orgId) => {
+    await redis.set(
+      anonScrapeClaimKey(anonScrapeId),
+      orgId,
+      "EX",
+      ANON_SCRAPE_STATUS_TTL_SECONDS,
+    );
+  },
+  deleteClaim: (anonScrapeId) => redis.del(anonScrapeClaimKey(anonScrapeId)),
+};
+
+async function getOrganizationOnboardingProgress(orgId: string): Promise<{
+  subscriptionStatus: string | null;
+  onboardedAt: Date | null;
+  activeChannelCount: number;
+}> {
+  const [organization, activeChannelCount] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { subscriptionStatus: true, onboardedAt: true },
+    }),
+    prisma.socialAccount.count({
+      where: { orgId, status: "active" },
+    }),
+  ]);
+
+  return {
+    subscriptionStatus: organization?.subscriptionStatus ?? null,
+    onboardedAt: organization?.onboardedAt ?? null,
+    activeChannelCount,
+  };
+}
+
+export async function claimCompletedAnonymousScrape(
+  input: { orgId: string; anonScrapeId?: string },
+  storage: ScrapeStatusStorage = redisScrapeStatusStorage,
+): Promise<DiscoveryScrapeStatus | null> {
+  if (!input.anonScrapeId) {
+    return null;
+  }
+
+  try {
+    const anonymousKey = anonScrapeStatusKey(input.anonScrapeId);
+    const anonymousStatus = await storage.getStatus(anonymousKey);
+    if (!anonymousStatus) {
+      return null;
+    }
+
+    await storage.setStatus(
+      orgScrapeStatusKey(input.orgId),
+      anonymousStatus,
+      SCRAPE_STATUS_TTL_SECONDS,
+    );
+    if (anonymousStatus.status === "running") {
+      await storage.setClaim?.(input.anonScrapeId, input.orgId);
+    } else {
+      await storage.deleteStatus(anonymousKey);
+      await storage.deleteClaim?.(input.anonScrapeId);
+    }
+    return anonymousStatus;
+  } catch {
+    // Anonymous pre-signup data is optional and must never prevent bootstrap.
+    return null;
+  }
+}
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post(
     "/auth/bootstrap",
     { preHandler: [verifySupabaseJwt] },
     async (request, reply) => {
-      const { name } = BootstrapBodySchema.parse(request.body);
+      const { name, anonScrapeId } = BootstrapBodySchema.parse(request.body);
       const supabaseId = request.userId;
       if (!supabaseId) {
         throw new AuthError();
@@ -26,7 +120,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (existing?.orgId) {
-        return reply.send({ orgId: existing.orgId, userId: existing.id });
+        const [scrapeStatus, onboardingProgress] = await Promise.all([
+          claimCompletedAnonymousScrape({
+            orgId: existing.orgId,
+            anonScrapeId,
+          }),
+          getOrganizationOnboardingProgress(existing.orgId),
+        ]);
+        return reply.send({
+          orgId: existing.orgId,
+          userId: existing.id,
+          scrapeStatus,
+          ...onboardingProgress,
+        });
       }
 
       const email = request.userEmail;
@@ -61,7 +167,15 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         return { orgId: org.id, userId: user.id };
       });
 
-      return reply.send(result);
+      const [scrapeStatus, onboardingProgress] = await Promise.all([
+        claimCompletedAnonymousScrape({
+          orgId: result.orgId,
+          anonScrapeId,
+        }),
+        getOrganizationOnboardingProgress(result.orgId),
+      ]);
+
+      return reply.send({ ...result, scrapeStatus, ...onboardingProgress });
     },
   );
 }
