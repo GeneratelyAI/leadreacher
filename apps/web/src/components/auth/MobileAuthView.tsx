@@ -64,8 +64,8 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
   } = useAuthForm(mode);
 
   return (
-    <div className="relative mx-auto min-h-dvh w-full max-w-[430px] pb-8 lg:hidden">
-      <div className="flex flex-col items-center px-4 pt-14">
+    <div className="relative mx-auto w-full max-w-[430px] pb-[max(2rem,env(safe-area-inset-bottom))] lg:hidden">
+      <div className="flex flex-col items-center px-4 pt-[max(3.5rem,env(safe-area-inset-top))]">
         <Link
           href="/"
           className={cn(mode === "login" ? "mb-16" : "mb-10")}
@@ -175,7 +175,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
           </div>
 
           <form className="space-y-4" onSubmit={handleEmailSubmit}>
-            <div className="auth-mobile-glass-card space-y-2 rounded-2xl p-2">
+            <div className="app-card space-y-2 p-2">
               {copy.showFullName ? (
                 <div className="relative">
                   <input
@@ -228,7 +228,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
+                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -252,7 +252,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
               aria-busy={loading || undefined}
               className={cn(
                 "flex w-full items-center justify-center gap-2 rounded-xl bg-brand-purple py-4",
-                "text-sm font-bold text-white transition-opacity disabled:opacity-70",
+                "text-sm font-bold text-white transition-all duration-fast ease-brand hover:bg-brand-purple-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 disabled:opacity-70",
               )}
             >
               {loading ? (

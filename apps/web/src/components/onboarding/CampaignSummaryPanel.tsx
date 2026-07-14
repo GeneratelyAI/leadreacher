@@ -135,7 +135,7 @@ function CampaignSummaryTextField({
         <p
           className={`discovery-campaign-card__value discovery-campaign-value apple-glass-panel__value text-neutral-700 ${
             textVariant === "nextStep"
-              ? "text-[11px] leading-4"
+              ? "text-xs leading-4"
               : "text-xs leading-relaxed"
           }`}
         >
@@ -178,13 +178,13 @@ function CampaignSummaryCard({
         <p className="discovery-campaign-title flex items-center gap-2 text-sm font-semibold tracking-tight text-neutral-900">
           <span>{item.title}</span>
           {showAnalyzedBadge ? (
-            <span className="text-[10px] font-medium text-emerald-600">
+            <span className="text-xs font-medium text-emerald-600">
               Analyzed ✓
             </span>
           ) : null}
         </p>
         {showAnalyzingLabel ? (
-          <p className="discovery-campaign-status discovery-campaign-card__status mt-0.5 text-[11px] font-medium text-neutral-400">
+          <p className="discovery-campaign-status discovery-campaign-card__status mt-0.5 text-xs font-medium text-neutral-400">
             Analyzing...
           </p>
         ) : null}

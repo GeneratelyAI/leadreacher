@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import type { UnipileAdapter } from "../adapters/unipile.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -7,6 +6,10 @@ import {
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
 import type { SequenceStep } from "../lib/sequence.js";
+import {
+  acquireDeliveryReservation,
+  markDeliveryReservationUnknown,
+} from "./delivery-attempt.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -44,43 +47,61 @@ export async function deliverSequenceStep1ViaChat(
     return { skipped: true, reason: "no sequence step 1" };
   }
 
-  const chat = await adapter.startChat(
-    unipileAccountId,
-    attendeeProviderId,
-    step1.message,
-  );
+  const reservation = await acquireDeliveryReservation(campaignLeadId, 1);
+  if (!reservation.acquired) {
+    return {
+      skipped: true,
+      reason: `delivery reservation already ${reservation.state}`,
+    };
+  }
 
+  let chat: { chat_id: string };
   try {
-    await prisma.campaignLead.update({
-      where: { id: campaignLeadId },
-      data: {
-        linkedinChatId: chat.chat_id,
-        currentStep: 2,
-      },
-    });
-  } catch (error: unknown) {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
-    ) {
-      return { skipped: true, reason: "concurrent delivery" };
-    }
+    chat = await adapter.startChat(
+      unipileAccountId,
+      attendeeProviderId,
+      step1.message,
+    );
+  } catch (error) {
+    await markDeliveryReservationUnknown(reservation.attemptId);
     throw error;
   }
 
-  await prisma.message.create({
-    data: {
-      campaignId,
-      leadId,
-      orgId,
-      channel: "linkedin",
-      content: { type: "text", message: step1.message },
-      status: "sent",
-      stepIndex: 1,
-      sentAt: new Date(),
-      externalId: chat.chat_id,
-    },
-  });
+  try {
+    await prisma.$transaction([
+      prisma.campaignLead.update({
+        where: { id: campaignLeadId },
+        data: {
+          linkedinChatId: chat.chat_id,
+          currentStep: 2,
+        },
+      }),
+      prisma.message.create({
+        data: {
+          campaignId,
+          leadId,
+          orgId,
+          channel: "linkedin",
+          content: { type: "text", message: step1.message },
+          status: "sent",
+          stepIndex: 1,
+          sentAt: new Date(),
+          externalId: chat.chat_id,
+        },
+      }),
+      prisma.deliveryAttempt.update({
+        where: { id: reservation.attemptId },
+        data: {
+          state: "sent",
+          providerRef: chat.chat_id,
+          sentAt: new Date(),
+        },
+      }),
+    ]);
+  } catch (error: unknown) {
+    await markDeliveryReservationUnknown(reservation.attemptId, chat.chat_id);
+    throw error;
+  }
 
   const step2 = sequence[2];
   if (step2) {

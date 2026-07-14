@@ -1,14 +1,10 @@
 import type { FastifyInstance } from "fastify";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
-import {
-  campaignSequenceJobId,
-  campaignSequenceQueue,
-  QUEUE_CAMPAIGN_SEQUENCE,
-} from "../lib/queue.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
+import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
 
 const ALLOWED_CHANNELS = [
   "linkedin",
@@ -152,15 +148,43 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw new ValidationError("One or more leadIds do not belong to this org");
     }
 
-    const { count } = await prisma.campaignLead.createMany({
-      data: leadIds.map((leadId) => ({
-        campaignId,
-        leadId,
-      })),
-      skipDuplicates: true,
+    const created = await prisma.$transaction(async (tx) => {
+      const enrollments: Array<{ id: string }> = [];
+      for (const leadId of new Set(leadIds)) {
+        try {
+          const enrollment = await tx.campaignLead.create({
+            data: { campaignId, leadId },
+            select: { id: true },
+          });
+          enrollments.push(enrollment);
+        } catch (error) {
+          if (
+            !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+            error.code !== "P2002"
+          ) {
+            throw error;
+          }
+        }
+      }
+      return enrollments;
     });
 
-    return reply.send({ enrolled: count });
+    let queued = 0;
+    if (campaign.status === "active") {
+      for (const enrollment of created) {
+        try {
+          const state = await ensureCampaignStepZeroQueued({
+            campaignLeadId: enrollment.id,
+            orgId,
+          });
+          if (state === "enqueued" || state === "pending") queued += 1;
+        } catch (error) {
+          request.log.error({ error, campaignLeadId: enrollment.id }, "step 0 queue unavailable; reconciler will retry");
+        }
+      }
+    }
+
+    return reply.send({ enrolled: created.length, queued });
   });
 
   app.post("/campaigns/:campaignId/launch", async (request, reply) => {
@@ -194,21 +218,20 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       data: { status: "active" },
     });
 
-    const jobs = campaign.leads.map((campaignLead: CampaignLeadRecord) => ({
-      name: QUEUE_CAMPAIGN_SEQUENCE,
-      data: {
-        campaignLeadId: campaignLead.id,
-        orgId,
-        step: 0,
-      },
-      opts: {
-        jobId: campaignSequenceJobId(campaignLead.id, 0),
-      },
-    }));
+    let jobCount = 0;
+    for (const campaignLead of campaign.leads) {
+      try {
+        const state = await ensureCampaignStepZeroQueued({
+          campaignLeadId: campaignLead.id,
+          orgId,
+        });
+        if (state === "enqueued" || state === "pending") jobCount += 1;
+      } catch (error) {
+        request.log.error({ error, campaignLeadId: campaignLead.id }, "step 0 queue unavailable; reconciler will retry");
+      }
+    }
 
-    await campaignSequenceQueue.addBulk(jobs);
-
-    return reply.send({ launched: true, jobCount: jobs.length });
+    return reply.send({ launched: true, jobCount });
   });
 
   app.get("/campaigns/:campaignId/leads", async (request, reply) => {

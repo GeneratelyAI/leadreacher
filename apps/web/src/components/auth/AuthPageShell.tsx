@@ -11,24 +11,13 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
   return (
     <main
       className={cn(
-        "auth-page relative w-full font-sans font-normal",
-        "min-h-dvh lg:h-dvh lg:max-h-dvh lg:overflow-hidden",
-        "overflow-x-hidden overflow-y-auto",
-        "bg-[#EEEEF8] lg:bg-[#ece8f3] dark:bg-[#0a0a1a] lg:dark:bg-[#050209]",
-        "px-0 py-0 lg:flex lg:items-center lg:justify-center lg:px-6 lg:py-6 xl:px-8 xl:py-8",
+        "auth-page relative flex w-full flex-1 flex-col font-sans font-normal",
+        "min-h-dvh",
+        "overflow-x-hidden lg:overflow-hidden",
+        "bg-slate-100 dark:bg-slate-950",
+        "px-0 py-0 lg:flex lg:h-dvh lg:max-h-dvh lg:items-center lg:justify-center lg:px-6 lg:py-6 xl:px-8 xl:py-8",
       )}
     >
-      <div
-        className="auth-page__bg auth-page__bg--light pointer-events-none absolute inset-0 hidden bg-position-[center_40%] bg-cover bg-no-repeat lg:block"
-        style={{ backgroundImage: `url(${ASSETS.authBackground})` }}
-        aria-hidden
-      />
-      <div
-        className="auth-page__bg auth-page__bg--dark pointer-events-none absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: `url(${ASSETS.authBackgroundDark})` }}
-        aria-hidden
-      />
-
       <Link
         href="/"
         className={cn(
@@ -54,7 +43,8 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
       <div
         className={cn(
           "fixed z-20",
-          "top-5 right-5 lg:top-6 lg:right-6 xl:top-8 xl:right-8",
+          "top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))]",
+          "lg:top-6 lg:right-6 xl:top-8 xl:right-8",
         )}
       >
         <AuthThemeToggle />

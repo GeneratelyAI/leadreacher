@@ -10,7 +10,7 @@ export function OnboardingLogo({
   className?: string;
 }) {
   const { isDark } = useThemeMode();
-  const transitionClass = "transition-opacity duration-200 ease-in-out";
+  const transitionClass = "transition-opacity duration-base ease-brand";
 
   return (
     <span className="discovery-logo relative inline-block shrink-0 leading-none">

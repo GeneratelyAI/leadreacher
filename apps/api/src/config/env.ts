@@ -38,6 +38,11 @@ const booleanString = z
   .default("false")
   .transform((value) => value === "true");
 
+const enabledByDefaultBooleanString = z
+  .enum(["true", "false"])
+  .default("true")
+  .transform((value) => value === "true");
+
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive(),
   DATABASE_URL: z.string().min(1),
@@ -59,6 +64,16 @@ const envSchema = z.object({
   R2_BUCKET_NAME: z.string().optional().default(""),
   R2_PUBLIC_URL: z.string().optional().default(""),
   VIDEO_MOCK_MODE: booleanString,
+  STRIPE_MOCK_MODE: enabledByDefaultBooleanString,
+  STRIPE_SECRET_KEY: z.string().optional().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().optional().default(""),
+  STRIPE_PRICE_PERSONALIZED_OUTREACH: z.string().optional().default(""),
+  STRIPE_PRICE_AI_VIDEO_AD: z.string().optional().default(""),
+  STRIPE_PRICE_UPLOADED_VIDEO: z.string().optional().default(""),
+  STRIPE_PRICE_VIDEO_ADDON: z.string().optional().default(""),
+  APP_URL: z.string().url().default("http://localhost:3000"),
+  UNIPILE_WEBHOOK_URL: z.string().url().optional(),
+  PUBLIC_BASE_URL: z.string().url().optional(),
   FIRECRAWL_API_KEY: z
     .preprocess(
       (value) =>
@@ -92,6 +107,20 @@ const envSchema = z.object({
     .min(1)
     .max(3)
     .default(DEFAULT_VEO_PARALLEL_VARIANTS),
+}).superRefine((value, ctx) => {
+  if (value.STRIPE_MOCK_MODE) {
+    return;
+  }
+
+  for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+    if (!value[key]) {
+      ctx.addIssue({
+        code: "custom",
+        path: [key],
+        message: `${key} is required when STRIPE_MOCK_MODE=false`,
+      });
+    }
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -106,6 +135,10 @@ export const env = parsed.data;
 
 if (env.VIDEO_MOCK_MODE && process.env.NODE_ENV === "production") {
   throw new Error("VIDEO_MOCK_MODE cannot be enabled in production");
+}
+
+if (env.STRIPE_MOCK_MODE && process.env.NODE_ENV === "production") {
+  throw new Error("STRIPE_MOCK_MODE cannot be enabled in production");
 }
 
 export type Env = z.infer<typeof envSchema>;

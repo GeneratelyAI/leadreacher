@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Job, Worker } from "bullmq";
+import { DelayedError, Job, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
 import { getVeoParallelVariants } from "../config/env.js";
 import {
@@ -15,7 +15,9 @@ import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import {
   type VideoGenerationJob,
+  QUEUE_RECONCILE_VEO_OPERATIONS,
   QUEUE_VIDEO_GENERATION,
+  scheduleVeoOperationReconciliation,
   videoGenerationQueue,
 } from "../lib/queue.js";
 import { extractRepresentativeFrames } from "../lib/video-frames.js";
@@ -24,9 +26,11 @@ import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js"
 import { runVideoPromptCritic } from "../modules/critics/video-prompt-critic.js";
 
 const POLL_INTERVAL_MS = 10_000;
-const MAX_POLL_DURATION_MS = 300_000;
 const MAX_PROMPT_ATTEMPTS = 3;
-const MAX_OUTPUT_ATTEMPTS = 3;
+const VEO_SUBMISSION_LEASE_MS = 2 * 60 * 1000;
+const VEO_ACTIVE_POLL_LEASE_MS = 2 * 60 * 1000;
+const VEO_RECOVERY_LEASE_MS = 5 * 60 * 1000;
+const VEO_RECOVERY_BATCH_SIZE = 20;
 
 type CampaignRecord = Prisma.CampaignGetPayload<Record<string, never>>;
 type LeadRecord = Prisma.LeadGetPayload<Record<string, never>>;
@@ -77,7 +81,12 @@ async function markVideoAssetFailed(
 
   await prisma.videoAsset.update({
     where: { id: videoAssetId },
-    data: { status: "failed", needsReview: true },
+    data: {
+      status: "failed",
+      needsReview: true,
+      veoOperationState: "failed",
+      veoSubmitLeaseAt: null,
+    },
   });
 
   await prisma.auditLog.create({
@@ -92,10 +101,6 @@ async function markVideoAssetFailed(
       },
     },
   });
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -251,42 +256,44 @@ async function generateApprovedPrompts(
   throw new Error(`Prompt critic failed after ${MAX_PROMPT_ATTEMPTS} attempts`);
 }
 
-async function generateApprovedVideo(
+async function reserveOrLoadVeoOperation(
   orgId: string,
   videoAssetId: string,
   seedImageUrl: string,
   videoPrompt: string,
-  context: Pick<VideoContext, "tone" | "setting" | "referenceUrls">,
-  r2: R2Adapter,
-): Promise<{ videoUrl: string; criticScore: number }> {
-  let lastScore = 0;
-  let lastVideoUrl: string | undefined;
+  referenceUrls: string[],
+): Promise<string | null> {
+  const existing = await prisma.videoAsset.findUnique({
+    where: { id: videoAssetId },
+    select: {
+      status: true,
+      veoOperationId: true,
+      veoOperationState: true,
+      veoSubmitLeaseAt: true,
+    },
+  });
 
-  for (let attempt = 1; attempt <= MAX_OUTPUT_ATTEMPTS; attempt++) {
-    const { jobId } = await submitVideoJob(
-      seedImageUrl,
-      videoPrompt,
-      context.referenceUrls,
-      "9:16",
-    );
+  if (!existing || existing.status === "ready" || existing.status === "failed") {
+    return null;
+  }
 
-    const pollStart = Date.now();
-    let jobStatus: VideoJobStatus = { status: "pending" };
+  if (existing.veoOperationId && existing.veoOperationState === "active") {
+    return existing.veoOperationId;
+  }
 
-    while (Date.now() - pollStart < MAX_POLL_DURATION_MS) {
-      await sleep(POLL_INTERVAL_MS);
-      jobStatus = await pollJobStatus(jobId);
-      if (jobStatus.status === "complete" || jobStatus.status === "failed") {
-        break;
-      }
-    }
-
-    if (jobStatus.status !== "complete") {
-      const pollError =
-        jobStatus.status === "failed"
-          ? (jobStatus.error ?? "Veo job failed without error details")
-          : "Veo job did not complete before the poll timeout";
-
+  if (existing.veoOperationState === "submitting") {
+    if (
+      existing.veoSubmitLeaseAt &&
+      existing.veoSubmitLeaseAt.getTime() <= Date.now()
+    ) {
+      await prisma.videoAsset.updateMany({
+        where: { id: videoAssetId, veoOperationState: "submitting" },
+        data: {
+          status: "failed",
+          needsReview: true,
+          veoOperationState: "unknown",
+        },
+      });
       await prisma.auditLog.create({
         data: {
           orgId,
@@ -294,70 +301,76 @@ async function generateApprovedVideo(
           resource: "VideoAsset",
           resourceId: videoAssetId,
           metadata: {
-            path: "veo-job-incomplete",
-            error: toAuditMetadataValue(pollError),
-            veoJobId: jobId,
-            attempt,
-            status: jobStatus.status,
+            path: "veo-submit-lease-expired",
+            error: "Veo submit may have reached Google but no operation ID was persisted.",
           },
         },
       });
-
-      logInfo({
-        path: "veo-job-incomplete",
-        videoAssetId,
-        veoJobId: jobId,
-        attempt,
-        status: jobStatus.status,
-        error: pollError,
-      });
-      continue;
     }
-
-    const { videoBuffer, durationMs } = await getJobResult(jobId);
-    const videoR2Key = `videos/${orgId}/${videoAssetId}/attempt-${attempt}-${randomUUID()}.mp4`;
-    const { url: videoUrl } = await r2.uploadBuffer(
-      videoR2Key,
-      videoBuffer,
-      "video/mp4",
-    );
-    lastVideoUrl = videoUrl;
-    const frames = await extractRepresentativeFrames(videoBuffer, durationMs);
-
-    const criticResult = await runVideoOutputCritic({
-      orgId,
-      videoAssetId,
-      videoUrl,
-      frames,
-      tone: context.tone,
-      setting: context.setting,
-      attempt,
-    });
-
-    lastScore = criticResult.score;
-
-    if (criticResult.passed) {
-      return { videoUrl, criticScore: criticResult.score };
-    }
-
-    logInfo({
-      path: "output-critic-failed",
-      videoAssetId,
-      attempt,
-      maxAttempts: MAX_OUTPUT_ATTEMPTS,
-      score: criticResult.score,
-      issues: criticResult.issues,
-    });
+    return null;
   }
 
-  throw Object.assign(
-    new Error(`Output critic failed after ${MAX_OUTPUT_ATTEMPTS} attempts`),
-    {
-      criticScore: lastScore,
-      needsReview: true,
-      videoUrl: lastVideoUrl,
+  if (existing.veoOperationState === "unknown") {
+    return null;
+  }
+
+  const reserved = await prisma.videoAsset.updateMany({
+    where: {
+      id: videoAssetId,
+      veoOperationId: null,
+      veoOperationState: null,
+      status: "generating",
     },
-  );
+    data: {
+      veoOperationState: "submitting",
+      veoSubmitLeaseAt: new Date(Date.now() + VEO_SUBMISSION_LEASE_MS),
+    },
+  });
+  if (reserved.count === 0) {
+    return null;
+  }
+
+  try {
+    const { jobId } = await submitVideoJob(
+      seedImageUrl,
+      videoPrompt,
+      referenceUrls,
+      "9:16",
+    );
+    await prisma.videoAsset.update({
+      where: { id: videoAssetId },
+      data: {
+        veoOperationId: jobId,
+        veoOperationState: "active",
+        // This lease makes a process crash between submission and the next
+        // poll recoverable without resubmitting the paid Google operation.
+        veoSubmitLeaseAt: new Date(Date.now() + VEO_ACTIVE_POLL_LEASE_MS),
+      },
+    });
+    return jobId;
+  } catch (error) {
+    await prisma.videoAsset.updateMany({
+      where: { id: videoAssetId, veoOperationState: "submitting" },
+      data: {
+        status: "failed",
+        needsReview: true,
+        veoOperationState: "unknown",
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        orgId,
+        action: "video.generate.failed",
+        resource: "VideoAsset",
+        resourceId: videoAssetId,
+        metadata: {
+          path: "veo-submit-unknown",
+          error: toAuditMetadataValue(error),
+        },
+      },
+    });
+    return null;
+  }
 }
 
 async function processOrchestrate(
@@ -503,7 +516,7 @@ async function processOrchestrate(
         videoGenerationQueue.add(
           "generate-veo",
           veoPayload(asset.id),
-          veoJobOptions,
+          { ...veoJobOptions, jobId: `generate-veo:${asset.id}` },
         ),
       ),
     );
@@ -544,23 +557,98 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
     throw new Error("Veo job missing videoAssetId, seedImageUrl, or videoPrompt");
   }
 
-  const r2 = new R2Adapter();
-
   try {
-    const { videoUrl, criticScore } = await generateApprovedVideo(
+    const jobId = await reserveOrLoadVeoOperation(
       orgId,
       videoAssetId,
       seedImageUrl,
       videoPrompt,
-      { tone, setting, referenceUrls },
-      r2,
+      referenceUrls,
     );
+    if (!jobId) return;
+
+    // Renew the active-poll lease before every provider read. A delayed
+    // BullMQ job normally polls again in 10 seconds; an expired lease means a
+    // worker was lost and the reconciliation worker may safely take over.
+    await prisma.videoAsset.updateMany({
+      where: {
+        id: videoAssetId,
+        veoOperationId: jobId,
+        veoOperationState: "active",
+      },
+      data: {
+        veoSubmitLeaseAt: new Date(Date.now() + VEO_ACTIVE_POLL_LEASE_MS),
+      },
+    });
+
+    // One poll per BullMQ execution keeps a slow Veo operation from occupying
+    // a worker slot. Pending work moves this exact job back to delayed.
+    const jobStatus: VideoJobStatus = await pollJobStatus(jobId);
+
+    if (jobStatus.status === "pending") {
+      await job.moveToDelayed(Date.now() + POLL_INTERVAL_MS, job.token);
+      throw new DelayedError();
+    }
+
+    if (jobStatus.status === "failed") {
+      await prisma.videoAsset.update({
+        where: { id: videoAssetId },
+        data: {
+          status: "failed",
+          needsReview: true,
+          veoOperationState: "failed",
+          veoSubmitLeaseAt: null,
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          orgId,
+          action: "video.generate.failed",
+          resource: "VideoAsset",
+          resourceId: videoAssetId,
+          metadata: {
+            path: "veo-terminal-failure",
+            veoJobId: jobId,
+            error: toAuditMetadataValue(jobStatus.error),
+          },
+        },
+      });
+      return;
+    }
+
+    const r2 = new R2Adapter();
+    const { videoBuffer, durationMs } = await getJobResult(jobId);
+    const videoR2Key = `videos/${orgId}/${videoAssetId}/${randomUUID()}.mp4`;
+    const { url: videoUrl } = await r2.uploadBuffer(videoR2Key, videoBuffer, "video/mp4");
+    const frames = await extractRepresentativeFrames(videoBuffer, durationMs);
+    const criticResult = await runVideoOutputCritic({
+      orgId,
+      videoAssetId,
+      videoUrl,
+      frames,
+      tone,
+      setting,
+      attempt: 1,
+    });
 
     await prisma.videoAsset.update({
       where: { id: videoAssetId },
-      data: { videoUrl, status: "ready", criticScore },
+      data: {
+        videoUrl,
+        status: "ready",
+        criticScore: criticResult.score,
+        needsReview: !criticResult.passed,
+        veoOperationState: "completed",
+        veoSubmitLeaseAt: null,
+      },
     });
   } catch (error: unknown) {
+    if (
+      error instanceof DelayedError ||
+      (error instanceof Error && error.name === "DelayedError")
+    ) {
+      throw error;
+    }
     const reviewError = error as ReviewError;
     if (reviewError.needsReview) {
       const videoUrl =
@@ -574,7 +662,9 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
           status: videoUrl ? "ready" : "failed",
           needsReview: true,
           criticScore: reviewError.criticScore ?? 0,
-          ...(videoUrl ? { videoUrl } : {}),
+          ...(videoUrl
+            ? { videoUrl, veoOperationState: "completed" }
+            : { veoOperationState: "failed" }),
         },
       });
       return;
@@ -600,6 +690,237 @@ async function processVideoGeneration(
   }
 
   return processOrchestrate(job);
+}
+
+export function shouldAttemptUnknownVeoRecovery(
+  veoOperationId: string | null,
+  veoOperationState: string | null,
+  veoSubmitLeaseAt: Date | null,
+  now: Date,
+): boolean {
+  if (!veoOperationId) {
+    return false;
+  }
+
+  const leaseExpired =
+    veoSubmitLeaseAt === null || veoSubmitLeaseAt.getTime() <= now.getTime();
+  return (
+    (veoOperationState === "active" && leaseExpired) ||
+    (veoOperationState === "unknown" && leaseExpired) ||
+    (veoOperationState === "recovering" && leaseExpired)
+  );
+}
+
+async function recoverUnknownVeoOperation(asset: {
+  id: string;
+  orgId: string;
+  selectedTone: string | null;
+  veoOperationId: string | null;
+  veoOperationState: string | null;
+  veoSubmitLeaseAt: Date | null;
+}): Promise<boolean> {
+  const now = new Date();
+  if (
+    !shouldAttemptUnknownVeoRecovery(
+      asset.veoOperationId,
+      asset.veoOperationState,
+      asset.veoSubmitLeaseAt,
+      now,
+    )
+  ) {
+    return false;
+  }
+
+  const operationId = asset.veoOperationId;
+  if (!operationId) {
+    return false;
+  }
+  const claimed = await prisma.videoAsset.updateMany({
+    where: {
+      id: asset.id,
+      veoOperationId: operationId,
+      OR: [
+        {
+          veoOperationState: "active",
+          veoSubmitLeaseAt: { lte: now },
+        },
+        {
+          veoOperationState: "unknown",
+          OR: [
+            { veoSubmitLeaseAt: null },
+            { veoSubmitLeaseAt: { lte: now } },
+          ],
+        },
+        {
+          veoOperationState: "recovering",
+          veoSubmitLeaseAt: { lte: now },
+        },
+      ],
+    },
+      data: {
+        veoOperationState: "recovering",
+      veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+    },
+  });
+  if (claimed.count === 0) {
+    return false;
+  }
+
+  try {
+    const jobStatus = await pollJobStatus(operationId);
+    if (jobStatus.status === "pending") {
+      await prisma.videoAsset.updateMany({
+        where: { id: asset.id, veoOperationState: "recovering" },
+        data: {
+          veoOperationState: "active",
+          veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+        },
+      });
+      return false;
+    }
+
+    if (jobStatus.status === "failed") {
+      await prisma.videoAsset.updateMany({
+        where: { id: asset.id, veoOperationState: "recovering" },
+        data: {
+          status: "failed",
+          needsReview: true,
+          veoOperationState: "failed",
+          veoSubmitLeaseAt: null,
+        },
+      });
+      await prisma.auditLog.create({
+        data: {
+          orgId: asset.orgId,
+          action: "video.generate.failed",
+          resource: "VideoAsset",
+          resourceId: asset.id,
+          metadata: {
+            path: "veo-unknown-recovery-terminal-failure",
+            veoJobId: operationId,
+            error: toAuditMetadataValue(jobStatus.error),
+          },
+        },
+      });
+      return false;
+    }
+
+    // A completed operation is positive provider evidence. Re-run the normal
+    // post-processing gate before exposing its output to the application.
+    const r2 = new R2Adapter();
+    const { videoBuffer, durationMs } = await getJobResult(operationId);
+    const videoR2Key = `videos/${asset.orgId}/${asset.id}/${randomUUID()}.mp4`;
+    const { url: videoUrl } = await r2.uploadBuffer(
+      videoR2Key,
+      videoBuffer,
+      "video/mp4",
+    );
+    const frames = await extractRepresentativeFrames(videoBuffer, durationMs);
+    const criticResult = await runVideoOutputCritic({
+      orgId: asset.orgId,
+      videoAssetId: asset.id,
+      videoUrl,
+      frames,
+      tone: asset.selectedTone ?? "professional",
+      setting: "clean professional workspace",
+      attempt: 1,
+    });
+
+    const recovered = await prisma.videoAsset.updateMany({
+      where: { id: asset.id, veoOperationState: "recovering" },
+      data: {
+        videoUrl,
+        status: "ready",
+        criticScore: criticResult.score,
+        needsReview: !criticResult.passed,
+        veoOperationState: "completed",
+        veoSubmitLeaseAt: null,
+      },
+    });
+    if (recovered.count === 0) {
+      return false;
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        orgId: asset.orgId,
+        action: "video.generate.recovered",
+        resource: "VideoAsset",
+        resourceId: asset.id,
+        metadata: {
+          path: "veo-unknown-recovery-completed",
+          veoJobId: operationId,
+          criticScore: criticResult.score,
+          needsReview: !criticResult.passed,
+        },
+      },
+    });
+    return true;
+  } catch (error) {
+    // An inconclusive read or post-processing failure does not prove that the
+    // Google operation failed. Keep the operation recoverable for a later run.
+    await prisma.videoAsset.updateMany({
+      where: { id: asset.id, veoOperationState: "recovering" },
+      data: {
+        veoOperationState: "unknown",
+        veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+      },
+    });
+    logError({
+      path: "veo-unknown-recovery-deferred",
+      videoAssetId: asset.id,
+      veoJobId: operationId,
+      error: errorMessage(error),
+    });
+    return false;
+  }
+}
+
+export async function reconcileUnknownVeoOperations(): Promise<{
+  checked: number;
+  recovered: number;
+}> {
+  const now = new Date();
+  const assets = await prisma.videoAsset.findMany({
+    where: {
+      veoOperationId: { not: null },
+      OR: [
+        {
+          veoOperationState: "active",
+          veoSubmitLeaseAt: { lte: now },
+        },
+        {
+          veoOperationState: "unknown",
+          OR: [
+            { veoSubmitLeaseAt: null },
+            { veoSubmitLeaseAt: { lte: now } },
+          ],
+        },
+        {
+          veoOperationState: "recovering",
+          veoSubmitLeaseAt: { lte: now },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      orgId: true,
+      selectedTone: true,
+      veoOperationId: true,
+      veoOperationState: true,
+      veoSubmitLeaseAt: true,
+    },
+    take: VEO_RECOVERY_BATCH_SIZE,
+  });
+
+  let recovered = 0;
+  for (const asset of assets) {
+    if (await recoverUnknownVeoOperation(asset)) {
+      recovered += 1;
+    }
+  }
+
+  return { checked: assets.length, recovered };
 }
 
 export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
@@ -634,10 +955,39 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
       const { videoAssetId } = job.data;
       if (videoAssetId) {
         try {
-          await prisma.videoAsset.update({
+          const asset = await prisma.videoAsset.findUnique({
             where: { id: videoAssetId },
-            data: { status: "failed", needsReview: true },
+            select: { veoOperationId: true, veoOperationState: true },
           });
+
+          if (
+            asset?.veoOperationId &&
+            asset.veoOperationState === "active"
+          ) {
+            // The job may have died after Google accepted the operation. Keep
+            // it recoverable rather than turning a paid generation into a
+            // terminal failure without polling Google first.
+            await prisma.videoAsset.updateMany({
+              where: {
+                id: videoAssetId,
+                veoOperationState: "active",
+              },
+              data: {
+                veoOperationState: "unknown",
+                veoSubmitLeaseAt: null,
+              },
+            });
+          } else {
+            await prisma.videoAsset.update({
+              where: { id: videoAssetId },
+              data: {
+                status: "failed",
+                needsReview: true,
+                veoOperationState: "failed",
+                veoSubmitLeaseAt: null,
+              },
+            });
+          }
         } catch (dbError) {
           logError({
             path: "mark-generation-failed-error",
@@ -649,5 +999,24 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
     }
   });
 
+  return worker;
+}
+
+export function startVeoOperationReconciliationWorker(): Worker {
+  const worker = new Worker(
+    QUEUE_RECONCILE_VEO_OPERATIONS,
+    async () => reconcileUnknownVeoOperations(),
+    { connection: redis },
+  );
+
+  worker.on("failed", (job, error) => {
+    logError({
+      path: "veo-reconciliation-job-failed",
+      jobId: job?.id,
+      error: error.message,
+    });
+  });
+
+  void scheduleVeoOperationReconciliation();
   return worker;
 }

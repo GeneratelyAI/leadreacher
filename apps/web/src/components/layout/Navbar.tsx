@@ -14,7 +14,7 @@ const NAV_LINKS = [
   { href: "#resources", label: "Resources", hasDropdown: true },
 ] as const;
 
-const themeTransition = "transition-[color,opacity,transform] duration-500 ease-in-out";
+const themeTransition = "transition-[color,opacity,transform] duration-slow ease-brand";
 
 function ChevronDownIcon({ className }: { className?: string }) {
   return (
@@ -41,7 +41,7 @@ export default function Navbar() {
   return (
     <header
       className={cn(
-        "fixed inset-x-0 top-0 z-50 transition-[padding] duration-500 ease-in-out",
+        "fixed inset-x-0 top-0 z-50 transition-[padding] duration-slow ease-brand",
         isDark ? "px-4 pt-3 sm:px-6 sm:pt-4" : "p-0",
       )}
     >
@@ -49,7 +49,7 @@ export default function Navbar() {
         <div
           aria-hidden
           className={cn(
-            "pointer-events-none absolute inset-0 rounded-full bg-brand-bg/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/15 backdrop-blur-xl backdrop-brightness-75 transition-opacity duration-500 ease-in-out",
+            "pointer-events-none absolute inset-0 rounded-full bg-brand-bg/75 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-white/15 backdrop-blur-xl backdrop-brightness-75 transition-opacity duration-slow ease-brand",
             isDark ? "opacity-100" : "opacity-0",
           )}
         />
@@ -109,7 +109,7 @@ export default function Navbar() {
             href="#waitlist"
             className={cn(
               buttonVariants({ variant: "glass-outline", size: "glass-nav" }),
-              "group [transition:background-color_0.5s_ease-in-out,border-color_0.5s_ease-in-out,color_0.5s_ease-in-out,transform_0.2s]",
+              "group transition-[background-color,border-color,color,transform] duration-base ease-brand",
               isDark
                 ? "border-white/20! bg-white/8! shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]! hover:bg-white/14!"
                 : "liquid-glass-on-light border-brand-purple/12! bg-white/25! shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]! hover:bg-white/38!",

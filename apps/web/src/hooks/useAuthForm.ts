@@ -1,15 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { bootstrapOrganization } from "@/lib/api";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { createClient } from "@/lib/supabase/client";
+import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
+import { promoteAnonymousDiscoveryCache } from "@/lib/discovery-scrape-cache";
 
 type AuthMode = "login" | "signup";
 
 export function useAuthForm(mode: AuthMode) {
   const router = useRouter();
+  const { waitForReadyToNavigate } = useWebsiteScrapeStatus({
+    autoStart: false,
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -20,10 +25,21 @@ export function useAuthForm(mode: AuthMode) {
   const isSignup = mode === "signup";
 
   async function ensureOrganizationBootstrapped(userEmail: string) {
-    await bootstrapOrganization(defaultOrgNameFromEmail(userEmail));
+    const anonScrapeId = window.localStorage.getItem("lr_anon_scrape_id")?.trim();
+    const bootstrap = await bootstrapOrganization(
+      defaultOrgNameFromEmail(userEmail),
+      anonScrapeId || undefined,
+    );
+    promoteAnonymousDiscoveryCache(
+      bootstrap.orgId,
+      anonScrapeId || null,
+      bootstrap.scrapeStatus,
+    );
+    window.localStorage.removeItem("lr_anon_scrape_id");
+    window.localStorage.removeItem("lr_website_url");
   }
 
-  async function handleEmailSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
     setLoading(true);
@@ -48,7 +64,6 @@ export function useAuthForm(mode: AuthMode) {
           );
           return;
         }
-        await ensureOrganizationBootstrapped(email);
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
@@ -57,10 +72,17 @@ export function useAuthForm(mode: AuthMode) {
         if (signInError) {
           throw signInError;
         }
-        await ensureOrganizationBootstrapped(email);
       }
 
-      router.push("/onboarding/discovery");
+      await waitForReadyToNavigate(5000).catch((caught) => {
+        if (process.env.NODE_ENV === "development") {
+          console.error("[auth] discovery scrape wait failed", caught);
+        }
+      });
+
+      await ensureOrganizationBootstrapped(email);
+
+      router.push("/onboarding?step=discovery");
       router.refresh();
     } catch (caught) {
       setError(
@@ -74,7 +96,7 @@ export function useAuthForm(mode: AuthMode) {
   async function handleOAuth(provider: "google" | "azure") {
     setError(null);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding/discovery")}`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding?step=discovery")}`;
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,

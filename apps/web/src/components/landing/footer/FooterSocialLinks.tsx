@@ -39,7 +39,7 @@ export default function FooterSocialLinks() {
           key={label}
           href={href}
           aria-label={label}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-purple shadow-[0_2px_14px_rgba(83,38,183,0.14)] transition-all hover:-translate-y-0.5 hover:shadow-[0_4px_18px_rgba(83,38,183,0.22)]"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-purple shadow-[0_2px_14px_rgba(83,38,183,0.14)] transition-all duration-fast ease-brand hover:-translate-y-0.5 hover:shadow-[0_4px_18px_rgba(83,38,183,0.22)] focus-visible:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 focus-visible:shadow-[0_4px_18px_rgba(83,38,183,0.22)]"
         >
           {SOCIAL_ICONS[label]}
         </a>

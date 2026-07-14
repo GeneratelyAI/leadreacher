@@ -1,6 +1,9 @@
-import Link from "next/link";
-import { buttonVariants } from "@/components/ui/Button";
-import { cn } from "@/lib/utils";
+"use client";
+
+import { FormEvent, useState } from "react";
+import { Globe } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { cleanWebsiteDomain } from "@/lib/website-url";
 import HeroVideo from "./HeroVideo";
 
 const heroHeadlineShadow =
@@ -15,6 +18,23 @@ const TRUST_BADGES = [
 ] as const;
 
 export default function HeroSection() {
+  const router = useRouter();
+  const [websiteUrl, setWebsiteUrl] = useState("");
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const domain = cleanWebsiteDomain(websiteUrl);
+    if (!domain) {
+      return;
+    }
+
+    window.localStorage.setItem("lr_website_url", domain);
+    if (!window.localStorage.getItem("lr_anon_scrape_id")) {
+      window.localStorage.setItem("lr_anon_scrape_id", window.crypto.randomUUID());
+    }
+    router.push("/signup");
+  }
+
   return (
     <section className="relative isolate flex w-full flex-col overflow-hidden pb-0">
       <HeroVideo />
@@ -35,28 +55,38 @@ export default function HeroSection() {
                 Reimagined.
               </span>
             </h1>
-            <p className="relative mt-8 max-w-2xl text-pretty text-base leading-relaxed text-neutral-500 sm:mt-10 sm:text-lg sm:leading-relaxed">
-              <span className={heroBodyShadow}>
-                The customer acquisition platform that generates qualified
-                conversations automatically.
-              </span>
-            </p>
-            <p className="relative mt-5 max-w-xl text-pretty text-base font-bold leading-relaxed text-neutral-950 sm:mt-6 sm:text-lg">
+            <p className="relative mt-12 max-w-1xl text-pretty text-base font-bold leading-relaxed text-neutral-950 sm:mt-14 sm:text-lg">
               <span className={heroBodyShadow}>
                 100% done-for-you. Focus on running your business.
               </span>
             </p>
           </div>
           <div className="relative mt-4 sm:mt-5">
-            <Link
-              href="#waitlist"
-              className={cn(
-                buttonVariants({ variant: "hero", size: "hero" }),
-                "inline-flex items-center justify-center",
-              )}
+            <form
+              onSubmit={handleSubmit}
+              className="flex w-[min(40rem,calc(100vw-2rem))] items-center gap-1 rounded-full border border-white/70 bg-white/90 p-1 shadow-[0_12px_34px_rgba(13,8,84,0.16)] ring-1 ring-brand-purple/10 backdrop-blur-sm"
             >
-              Get Started →
-            </Link>
+              <label className="sr-only" htmlFor="landing-website-url">
+                Company website
+              </label>
+              <Globe
+                className="ml-4 size-5 shrink-0 text-[#6B5FBF] sm:ml-5 sm:size-6"
+                aria-hidden
+              />
+              <input
+                id="landing-website-url"
+                value={websiteUrl}
+                onChange={(event) => setWebsiteUrl(event.target.value)}
+                placeholder="yourcompany.com"
+                className="min-w-0 flex-1 bg-transparent px-2 text-base font-medium text-neutral-900 outline-none placeholder:text-neutral-400 sm:text-lg"
+              />
+              <button
+                type="submit"
+                className="inline-flex h-12 shrink-0 items-center justify-center rounded-full bg-[#8B7FD4] px-5 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(83,38,183,0.18)] transition duration-fast ease-brand hover:bg-[#7A6ED0] sm:h-14 sm:px-7 sm:text-base"
+              >
+                Generate →
+              </button>
+            </form>
             <ul className="relative mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-white/80 sm:text-[0.8125rem]">
               {TRUST_BADGES.map((badge, index) => (
                 <li key={badge} className="flex items-center gap-4">

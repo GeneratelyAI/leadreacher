@@ -24,7 +24,7 @@ const ScrapeLeadsFiltersSchema = z.object({
 
 const ScrapeLeadsBodySchema = z.object({
   filters: ScrapeLeadsFiltersSchema,
-  maxResults: z.number().int().positive().optional(),
+  maxResults: z.number().int().positive().max(MAX_LIMIT).optional(),
 });
 
 const PatchLeadBodySchema = z

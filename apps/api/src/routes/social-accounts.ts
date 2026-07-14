@@ -1,8 +1,34 @@
 import type { FastifyInstance } from "fastify";
-import { isAccountHealthy, UnipileAdapter } from "../adapters/unipile.js";
+import { z } from "zod";
+import {
+  encodeHostedAuthName,
+  isAccountHealthy,
+  UnipileAdapter,
+} from "../adapters/unipile.js";
 import { env } from "../config/env.js";
+import { ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { resolveWebhookUrl } from "../lib/webhook-url.js";
+
+const ConnectSocialAccountBodySchema = z.object({
+  provider: z
+    .enum(["LINKEDIN", "WHATSAPP", "GOOGLE", "MICROSOFT", "IMAP"])
+    .default("LINKEDIN"),
+});
+
+function getHostedAuthNotifyUrl(): string {
+  try {
+    return resolveWebhookUrl({
+      UNIPILE_WEBHOOK_URL: env.UNIPILE_WEBHOOK_URL,
+      PUBLIC_BASE_URL: env.PUBLIC_BASE_URL,
+    });
+  } catch (error) {
+    throw new ValidationError(
+      error instanceof Error ? error.message : "Unipile webhook URL is not configured",
+    );
+  }
+}
 
 async function resolveAccountStatus(
   adapter: UnipileAdapter,
@@ -17,6 +43,41 @@ async function resolveAccountStatus(
 }
 
 export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/social-accounts", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const accounts = await prisma.socialAccount.findMany({
+      where: { orgId },
+      select: {
+        platform: true,
+        accountName: true,
+        avatarUrl: true,
+        status: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return reply.send({ accounts });
+  });
+
+  app.post("/social-accounts/connect", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { provider } = ConnectSocialAccountBodySchema.parse(request.body ?? {});
+    const adapter = new UnipileAdapter({
+      dsn: env.UNIPILE_DSN,
+      apiKey: env.UNIPILE_API_KEY,
+    });
+    const link = await adapter.createHostedAuthLink({
+      providers: [provider],
+      name: encodeHostedAuthName(orgId),
+      notifyUrl: getHostedAuthNotifyUrl(),
+      successRedirectUrl: `${env.APP_URL}/onboarding?step=channels&status=connected`,
+      failureRedirectUrl: `${env.APP_URL}/onboarding?step=channels&status=failed`,
+      expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    });
+
+    return reply.send({ url: link.url });
+  });
+
   app.post("/social-accounts/sync", async (request, reply) => {
     const orgId = requireOrgId(request);
 
