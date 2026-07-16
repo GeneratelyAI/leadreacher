@@ -54,14 +54,14 @@ type LegacyVideoPromptCriticInputType = z.infer<
 type VideoPromptCriticInputType = z.infer<typeof VideoPromptCriticInput>;
 type VideoPromptCriticOutputType = z.infer<typeof VideoPromptCriticOutput>;
 
-const STORYBOARD_SYSTEM_PROMPT = `You are a senior video ad creative director. Your job is to quality-gate a four-scene storyboard before it is used for an 8-second social video ad.
+const STORYBOARD_SYSTEM_PROMPT = `You are a senior video ad creative director. Your job is to quality-gate a four-scene storyboard before it is used for a 10-second social video ad. The four scenes cover the generated eight seconds and the final frame holds for seconds 8-10.
 
 Evaluate the storyboard and its connective video prompt on a 0-10 scale using this exact rubric:
 
 RUBRIC (each criterion is worth up to 2 points):
 1. SCENE DISTINCTNESS - Are all four image prompts visually distinct rather than near-duplicates?
 2. BEAT STRUCTURE - Does each scene deliver its assigned beat: hook grabs attention, problem shows a real pain point, solution clearly demos value, and payoff includes an explicit CTA?
-3. SEQUENCE COHERENCE - Do the motion notes and overall video prompt read as one continuous 8-second flow rather than four disconnected images?
+3. SEQUENCE COHERENCE - Do the motion notes and overall video prompt read as one continuous generated eight-second flow that resolves naturally into the final two-second hold, rather than four disconnected images?
 4. VISUAL SPECIFICITY - Is each image prompt cinematic and specific about subject, lighting, camera angle, and composition rather than generic?
 5. TONE/AVATAR/SETTING MATCH - Do all four scenes consistently match the requested tone, avatar, and setting unless a deliberate motion-noted transition explains a change?
 
@@ -78,7 +78,7 @@ Output ONLY valid JSON:
   "feedback": ["<specific issue 1>", "<specific issue 2>"]
 }`;
 
-const LEGACY_SYSTEM_PROMPT = `You are a senior video ad creative director. Evaluate a temporary single-seed-frame compatibility prompt for a premium 8-second social ad on a 0-10 scale. Check visual specificity, narrative motion, hook, CTA, and tone/avatar/setting match. Score 7 or higher passes. Output ONLY valid JSON with score, passed, and feedback.`;
+const LEGACY_SYSTEM_PROMPT = `You are a senior video ad creative director. Evaluate a temporary single-seed-frame compatibility prompt for a premium 10-second social ad on a 0-10 scale. The generated sequence lasts eight seconds and the final frame holds for two seconds. Check visual specificity, narrative motion, hook, CTA, and tone/avatar/setting match. Score 7 or higher passes. Output ONLY valid JSON with score, passed, and feedback.`;
 
 function isStoryboardInput(
   input: VideoPromptCriticInputType,

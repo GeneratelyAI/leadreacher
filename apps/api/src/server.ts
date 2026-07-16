@@ -6,8 +6,10 @@ import { ZodError } from "zod";
 import "./config/env.js";
 import { env, isWorkerEnabled } from "./config/env.js";
 import { AppError } from "./lib/errors.js";
+import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
+import { captureException } from "./lib/sentry.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { protectedRoutes } from "./plugins/protected-routes.js";
 import { authRoutes } from "./routes/auth.js";
@@ -27,6 +29,24 @@ import {
 export async function buildServer() {
   const app = Fastify({ logger: true });
   const workers: Array<{ close: () => Promise<void> }> = [];
+  const stopHeartbeats: Array<() => void> = [];
+
+  const registerWorker = <T extends {
+    close: () => Promise<void>;
+    on: (
+      event: "failed",
+      listener: (job: { id?: string } | undefined, error: Error) => void,
+    ) => unknown;
+  }>(worker: T, name: string) => {
+    worker.on("failed", (job, error) => {
+      captureException(error, {
+        operation: "queue-job-failed",
+        worker: name,
+        jobId: job?.id,
+      });
+    });
+    workers.push(worker);
+  };
 
   const allowedOrigins = env.CORS_ORIGIN.split(",").map((o) => o.trim());
 
@@ -66,6 +86,11 @@ export async function buildServer() {
     }
 
     request.log.error(error);
+    captureException(error, {
+      operation: "http-request-failed",
+      method: request.method,
+      route: request.routeOptions.url,
+    });
     return reply.status(500).send({ error: "Internal error" });
   });
 
@@ -84,21 +109,49 @@ export async function buildServer() {
   await app.register(protectedRoutes);
 
   if (isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER)) {
-    workers.push(startCampaignSequenceWorker());
+    registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
+    stopHeartbeats.push(
+      startBetterStackHeartbeat({
+        name: "campaign-worker",
+        url: env.BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL,
+      }),
+    );
   }
 
   if (isWorkerEnabled(env.ENABLE_RECONCILE_WORKER)) {
-    workers.push(startReconcileRelationsWorker());
-    workers.push(startDeliveryAttemptReconciliationWorker());
-    workers.push(startCampaignEnrollmentReconciliationWorker());
+    registerWorker(startReconcileRelationsWorker(), "reconcile-relations");
+    registerWorker(
+      startDeliveryAttemptReconciliationWorker(),
+      "reconcile-delivery-attempts",
+    );
+    registerWorker(
+      startCampaignEnrollmentReconciliationWorker(),
+      "reconcile-campaign-enrollments",
+    );
+    stopHeartbeats.push(
+      startBetterStackHeartbeat({
+        name: "reconcile-workers",
+        url: env.BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL,
+      }),
+    );
   }
 
   if (isWorkerEnabled(env.ENABLE_VIDEO_WORKER)) {
-    workers.push(startVideoGenerationWorker());
-    workers.push(startVeoOperationReconciliationWorker());
+    registerWorker(startVideoGenerationWorker(), "video-generation");
+    registerWorker(
+      startVeoOperationReconciliationWorker(),
+      "reconcile-veo-operations",
+    );
+    stopHeartbeats.push(
+      startBetterStackHeartbeat({
+        name: "video-workers",
+        url: env.BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL,
+      }),
+    );
   }
 
   app.addHook("onClose", async () => {
+    stopHeartbeats.forEach((stop) => stop());
     await Promise.all(workers.map((worker) => worker.close()));
     await closeQueues();
     await closeRedisConnections();

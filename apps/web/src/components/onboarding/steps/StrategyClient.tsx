@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatedStepPresence } from "@/components/onboarding/AnimatedStepPresence";
+import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
@@ -294,19 +295,6 @@ function PreviewAvatar({
   );
 }
 
-function WhatsAppLogo({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      className={className}
-      fill="currentColor"
-      aria-hidden
-    >
-      <path d="M16.05 4C9.42 4 4.02 9.32 4.02 15.86c0 2.1.56 4.15 1.63 5.95L4 28l6.37-1.6a12.19 12.19 0 0 0 5.68 1.42c6.64 0 12.04-5.32 12.04-11.86C28.09 9.32 22.69 4 16.05 4Zm0 21.78c-1.8 0-3.55-.48-5.08-1.39l-.37-.22-3.78.95.98-3.6-.24-.38a9.76 9.76 0 0 1-1.5-5.18c0-5.41 4.48-9.82 9.99-9.82s9.99 4.41 9.99 9.82-4.48 9.82-9.99 9.82Zm5.48-7.35c-.3-.15-1.78-.86-2.06-.96-.28-.1-.48-.15-.68.15-.2.29-.78.96-.95 1.15-.18.2-.35.22-.65.07-.3-.15-1.27-.46-2.42-1.48-.9-.78-1.5-1.75-1.67-2.04-.18-.29-.02-.45.13-.6.14-.13.3-.34.45-.51.15-.17.2-.29.3-.49.1-.19.05-.36-.03-.51-.07-.15-.68-1.61-.93-2.2-.25-.58-.5-.5-.68-.51h-.58c-.2 0-.52.07-.8.36-.27.29-1.05 1.01-1.05 2.47 0 1.45 1.08 2.86 1.23 3.05.15.2 2.13 3.2 5.16 4.49.72.31 1.28.49 1.72.63.72.23 1.38.2 1.9.12.58-.08 1.78-.72 2.03-1.41.25-.69.25-1.28.17-1.41-.07-.12-.27-.2-.57-.34Z" />
-    </svg>
-  );
-}
-
 function WorkCardPreview({ index }: { index: number }) {
   if (index === 0) {
     return (
@@ -352,11 +340,11 @@ function WorkCardPreview({ index }: { index: number }) {
   if (index === 2) {
     return (
       <div className="strategy-preview strategy-preview--channels">
-        <span className="strategy-preview__social-chip strategy-preview__social-chip--linkedin text-lg font-bold leading-none">
-          in
+        <span className="strategy-preview__social-chip strategy-preview__social-chip--linkedin">
+          <ChannelLogo name="linkedin" className="size-5" />
         </span>
         <span className="strategy-preview__social-chip strategy-preview__social-chip--whatsapp">
-          <WhatsAppLogo className="size-6" />
+          <ChannelLogo name="whatsapp" className="size-6" />
         </span>
         <span className="strategy-preview__social-chip strategy-preview__social-chip--email">
           <Mail className="size-5" aria-hidden />
@@ -636,10 +624,10 @@ function percentageWidth(value: number, max: number): number {
 
 function channelIcon(channel: ChannelKey): React.ReactNode {
   if (channel === "linkedin") {
-    return <i className="fa-brands fa-linkedin-in text-[2.15rem] leading-none" aria-hidden />;
+    return <ChannelLogo name="linkedin" className="size-9" />;
   }
   if (channel === "whatsapp") {
-    return <i className="fa-brands fa-whatsapp text-[2.2rem] leading-none" aria-hidden />;
+    return <ChannelLogo name="whatsapp" className="size-9" />;
   }
   return <i className="fa-solid fa-envelope text-[1.9rem] leading-none" aria-hidden />;
 }

@@ -43,6 +43,12 @@ const enabledByDefaultBooleanString = z
   .default("true")
   .transform((value) => value === "true");
 
+const optionalUrl = z.preprocess(
+  (value) =>
+    typeof value === "string" && value.trim().length === 0 ? undefined : value,
+  z.string().url().optional(),
+);
+
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive(),
   DATABASE_URL: z.string().min(1),
@@ -58,6 +64,13 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GROQ_API_KEY: z.string().min(1),
   GOOGLE_AI_API_KEY: z.string().optional().default(""),
+  GOOGLE_TTS_API_KEY: z.string().optional().default(""),
+  PERSONALIZED_VIDEO_TTS_VOICE: z.string().min(1).default("en-US-Neural2-J"),
+  SENTRY_DSN: z.string().optional().default(""),
+  SENTRY_ENVIRONMENT: z.string().min(1).default(process.env.NODE_ENV ?? "development"),
+  BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL: optionalUrl,
+  BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL: optionalUrl,
+  BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL: optionalUrl,
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),

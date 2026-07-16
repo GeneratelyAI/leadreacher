@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { VideoPromptOutputSchema } from "../agents/video-prompt-agent.js";
 import { normalizeVideoPromptCriticOutput } from "../critics/video-prompt-critic.js";
+import { buildPersonalizedVideoTemplatePromptMessage } from "../agents/personalized-video-prompt-agent.js";
+import { normalizePersonalizedVideoTemplateCriticOutput } from "../critics/personalized-video-prompt-critic.js";
 
 const storyboard = [
   {
@@ -29,7 +31,7 @@ const storyboard = [
   },
   {
     sceneNumber: 4,
-    timeRange: "6-8s",
+    timeRange: "6-8s, then branded hold 8-10s",
     beat: "payoff",
     imagePrompt:
       "Wide hero shot of the founder leaving a calm modern office while a minimal branded insight panel resolves behind them, golden evening light, polished aspirational composition.",
@@ -88,6 +90,35 @@ describe("Video storyboard critic scoring", () => {
         passed: false,
         feedback: [],
       }).passed,
+    ).toBe(true);
+  });
+});
+
+describe("Personalized video template prompt pipeline", () => {
+  it("reserves a silent greeting slot and excludes lead-specific data", () => {
+    const message = buildPersonalizedVideoTemplatePromptMessage({
+      orgId: "org-1",
+      templateId: "template-1",
+      seedPrompt: "A concise outreach video.",
+      product: "Stern Cohen Accountants",
+      audience: "Finance leaders",
+      tone: "professional",
+      avatar: "professional spokesperson",
+      setting: "a busy accounting firm",
+      hasLogoReference: true,
+    });
+
+    expect(message).toContain("first 1.5 seconds must contain no spoken dialogue");
+    expect(message).toContain("LOGO REFERENCE AVAILABLE: yes - preserve it exactly");
+    expect(message).not.toContain("LEAD COMPANY:");
+  });
+
+  it("derives the personalized template critic pass state from its score", () => {
+    expect(
+      normalizePersonalizedVideoTemplateCriticOutput({ score: 6, feedback: ["The greeting slot is missing."] }).passed,
+    ).toBe(false);
+    expect(
+      normalizePersonalizedVideoTemplateCriticOutput({ score: 8, feedback: [] }).passed,
     ).toBe(true);
   });
 });

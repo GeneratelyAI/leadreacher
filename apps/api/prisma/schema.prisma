@@ -27,6 +27,7 @@ model Organization {
   strategies           Strategy[]
   socialAccounts       SocialAccount[]
   videoAssets          VideoAsset[]
+  videoTemplates       CampaignVideoTemplate[]
 }
 
 model StripeWebhookEvent {
@@ -106,6 +107,7 @@ model Campaign {
   leads       CampaignLead[]
   messages    Message[]
   videoAssets VideoAsset[]
+  videoTemplates CampaignVideoTemplate[]
 
   @@index([orgId, status])
 }
@@ -123,6 +125,7 @@ model Lead {
   company        String
   title          String
   industry       String?
+  videoAssets    VideoAsset[]
   companySize    String?
   location       String?
   enrichmentData     Json?
@@ -238,6 +241,11 @@ model VideoAsset {
   org             Organization @relation(fields: [orgId], references: [id])
   campaignId      String?
   campaign        Campaign?    @relation(fields: [campaignId], references: [id])
+  leadId          String?
+  lead            Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  templateId      String?
+  template        CampaignVideoTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  pipeline        String       @default("standard") // 'standard' | 'personalized'
   status          String       @default("pending") // 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'failed'
   seedImageUrl    String?
   videoUrl        String? // Cloudflare R2 URL
@@ -256,6 +264,41 @@ model VideoAsset {
 
   @@index([orgId, status])
   @@index([campaignId])
+  @@index([leadId])
+  @@index([templateId])
+  @@index([campaignId, leadId])
+  @@unique([templateId, leadId])
+  @@index([veoOperationState, veoSubmitLeaseAt])
+}
+
+model CampaignVideoTemplate {
+  id                 String       @id @default(cuid())
+  orgId              String
+  org                Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  campaignId         String
+  campaign           Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  version            Int          @default(1)
+  status             String       @default("pending") // 'pending' | 'generating' | 'ready' | 'failed'
+  seedImageUrl       String?
+  masterVideoUrl     String?
+  sharedNarrationUrl String?
+  imagePrompt        String?
+  videoPrompt        String?
+  sharedNarration    String?
+  selectedTone       String?
+  voice              String
+  criticScore        Int?
+  needsReview        Boolean      @default(false)
+  veoOperationId     String?      @unique
+  veoOperationState  String?      // 'submitting' | 'active' | 'completed' | 'failed'
+  veoSubmitLeaseAt   DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  videoAssets        VideoAsset[]
+
+  @@unique([campaignId, version])
+  @@index([orgId, status])
+  @@index([campaignId, status])
   @@index([veoOperationState, veoSubmitLeaseAt])
 }
 

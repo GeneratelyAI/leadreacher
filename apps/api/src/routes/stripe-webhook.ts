@@ -73,17 +73,46 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
   const strategy = await prisma.strategy.findFirst({
     where: { orgId },
     orderBy: { updatedAt: "desc" },
-    select: { id: true, videoConfig: true },
+    select: { id: true, campaignType: true, videoConfig: true },
   });
-  if (!strategy || asRecord(strategy.videoConfig).enabled !== true) {
+  const videoConfig = asRecord(strategy?.videoConfig);
+  if (
+    !strategy ||
+    videoConfig.enabled !== true ||
+    videoConfig.source !== "generated"
+  ) {
     return;
   }
+
+  const pipeline =
+    strategy.campaignType === "personalized_outreach" &&
+    videoConfig.mode === "personalized"
+      ? "personalized"
+      : "standard";
 
   const campaign = await prisma.campaign.findFirst({
     where: { orgId, strategyId: strategy.id },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true },
   });
+  if (pipeline === "personalized") {
+    if (!campaign) return;
+    await videoGenerationQueue.add(
+      "personalized-template-orchestrate",
+      {
+        orgId,
+        campaignId: campaign.id,
+        prompt: `Generate the shared personalized B2B outreach video template for ${campaign.name}.`,
+        pipeline,
+        jobType: "template-orchestrate",
+      },
+      {
+        jobId: `personalized-template:${campaign.id}:1`,
+      },
+    );
+    return;
+  }
+
   const lead = await prisma.lead.findFirst({
     where: { orgId },
     orderBy: { createdAt: "asc" },
@@ -99,7 +128,8 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
       orgId,
       campaignId: campaign.id,
       leadId: lead.id,
-      prompt: `Generate a personalized B2B outreach video for ${campaign.name}.`,
+      prompt: `Generate a standardized B2B campaign video for ${campaign.name}.`,
+      pipeline,
       jobType: "orchestrate",
     },
     {

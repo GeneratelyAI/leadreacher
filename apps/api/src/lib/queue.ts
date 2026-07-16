@@ -27,10 +27,17 @@ export type CampaignSequenceJob = {
 export type VideoGenerationJob = {
   orgId: string;
   campaignId: string;
-  leadId: string;
-  prompt: string;
-  jobType?: "orchestrate" | "veo";
+  leadId?: string;
+  prompt?: string;
+  pipeline?: "standard" | "personalized";
+  jobType?:
+    | "orchestrate"
+    | "veo"
+    | "template-orchestrate"
+    | "template-veo"
+    | "personalized-compose";
   videoAssetId?: string;
+  templateId?: string;
   seedImageUrl?: string;
   videoPrompt?: string;
   tone?: string;

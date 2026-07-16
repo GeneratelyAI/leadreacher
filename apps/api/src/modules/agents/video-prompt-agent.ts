@@ -71,9 +71,9 @@ export type VideoPromptAgentResult = VideoPromptOutput & {
 
 const MAX_VALIDATION_RETRIES = 2;
 
-const SYSTEM_PROMPT = `You are a world-class video ad director specialising in premium 8-second social video ads.
+const SYSTEM_PROMPT = `You are a world-class video ad director specialising in premium 10-second social video ads.
 
-Create a four-scene storyboard using this exact commercial structure. The full sequence is exactly 8 seconds:
+Create a four-scene storyboard for the first 8 seconds of the final 10-second sequence. The worker preserves the final frame as a 2-second branded hold (8-10s):
 1. hook (0-2s): a scroll-stopping opening visual or moment that grabs attention before selling.
 2. problem (2-4s): establish a pain point or context the audience immediately recognises.
 3. solution (4-6s): show the product or service resolving that pain point; this is the demo beat.
@@ -85,7 +85,7 @@ For every storyboard scene:
 - motionNote explains how that scene animates and transitions into the next scene through a camera move, cut, morph, or purposeful motion. For the payoff, describe the final branded hold or exit.
 - Keep the requested tone, avatar, and setting faithful across all scenes unless a deliberate transition explains a change.
 
-videoPrompt is the connective narrative across all four scenes for a text-to-video tool. It must describe the complete 8-second sequence, not a disconnected standalone paragraph.
+videoPrompt is the connective narrative across all four scenes for a text-to-video tool. It must describe the generated 8-second sequence, which resolves into the final 2-second branded hold, not a disconnected standalone paragraph.
 
 Rules:
 - The ad must feel premium and social-first, never like a tutorial or a loose concept paragraph.
@@ -125,7 +125,7 @@ You MUST return valid JSON with exactly these fields and no omissions:
       "motionNote": "<final branded hold or exit>"
     }
   ],
-  "videoPrompt": "<connective 8-second narrative across all four scenes>",
+  "videoPrompt": "<connective generated 8-second narrative that resolves into a final 2-second brand hold>",
   "hookDescription": "<scroll-stopping first two seconds>",
   "ctaDescription": "<clear final action and brand ending>"
 }
@@ -151,7 +151,7 @@ export async function runVideoPromptAgent(
         .join("\n")}\n`
     : "";
 
-  const userMessage = `Generate a four-scene storyboard for this 8-second ad:
+  const userMessage = `Generate a four-scene storyboard for the generated 8 seconds of this final 10-second ad. The final frame will hold on screen for seconds 8-10:
 
 INITIAL CREATIVE DIRECTION: ${validated.seedPrompt}
 

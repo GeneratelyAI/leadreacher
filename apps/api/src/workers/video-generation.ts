@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { DelayedError, Job, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
-import { getVeoParallelVariants } from "../config/env.js";
+import { env, getVeoParallelVariants } from "../config/env.js";
 import {
   generateImageFromPrompt,
   generateImageWithAssets,
@@ -11,6 +11,7 @@ import {
   type VideoJobStatus,
 } from "../adapters/google-ai.js";
 import { R2Adapter } from "../adapters/r2.js";
+import { synthesizeSpeech } from "../adapters/google-tts.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import {
@@ -20,10 +21,16 @@ import {
   scheduleVeoOperationReconciliation,
   videoGenerationQueue,
 } from "../lib/queue.js";
-import { extractRepresentativeFrames } from "../lib/video-frames.js";
+import {
+  extractRepresentativeFrames,
+  normalizeVideoDuration,
+} from "../lib/video-frames.js";
 import { runVideoPromptAgent } from "../modules/agents/video-prompt-agent.js";
+import { runPersonalizedVideoTemplatePromptAgent } from "../modules/agents/personalized-video-prompt-agent.js";
 import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js";
+import { runPersonalizedVideoTemplateCritic } from "../modules/critics/personalized-video-prompt-critic.js";
 import { runVideoPromptCritic } from "../modules/critics/video-prompt-critic.js";
+import { composePersonalizedVideoAsset } from "../services/personalized-video.js";
 
 const POLL_INTERVAL_MS = 10_000;
 const MAX_PROMPT_ATTEMPTS = 3;
@@ -42,8 +49,19 @@ type VideoContext = {
   tone: string;
   avatar: string;
   setting: string;
+  leadFirstName: string;
+  leadCompany: string;
+  leadTitle: string;
+  hasLogoReference: boolean;
   referenceUrls: string[];
 };
+
+type TemplateVideoContext = Omit<
+  VideoContext,
+  "leadFirstName" | "leadCompany" | "leadTitle"
+>;
+
+export type VideoGenerationPipeline = "standard" | "personalized";
 
 type ReviewError = Error & {
   criticScore?: number;
@@ -163,6 +181,7 @@ function buildVideoContext(
   const positioning = asRecord(strategy?.positioning);
   const icpDefinition = asRecord(strategy?.icpDefinition);
   const creativeAssets = asRecord(strategy?.creativeAssets);
+  const logoUrl = firstString(strategy?.logoUrl, recordString(creativeAssets, "logoUrl"));
 
   return {
     product:
@@ -174,8 +193,8 @@ function buildVideoContext(
     audience:
       firstString(
         recordString(icpDefinition, "idealCustomer"),
-        `${lead.title} at ${lead.company}`,
-      ) ?? `${lead.title} at ${lead.company}`,
+        "the campaign's target audience",
+      ) ?? "the campaign's target audience",
     tone:
       firstString(
         job.tone,
@@ -197,14 +216,73 @@ function buildVideoContext(
         recordString(aiConfig, "setting"),
         "clean professional workspace",
       ) ?? "clean professional workspace",
+    leadFirstName: lead.firstName,
+    leadCompany: lead.company,
+    leadTitle: lead.title,
+    hasLogoReference: Boolean(logoUrl),
     referenceUrls: [
       ...new Set([
+        ...(logoUrl ? [logoUrl] : []),
         ...collectUrls(job.referenceUrls),
         ...collectUrls(videoConfig?.["referenceUrls"]),
         ...collectUrls(creativeAssets?.["referenceUrls"]),
       ]),
     ],
   };
+}
+
+function buildTemplateVideoContext(
+  job: VideoGenerationJob,
+  campaign: CampaignRecord,
+  strategy: StrategyRecord | null,
+): TemplateVideoContext {
+  const aiConfig = asRecord(campaign.aiConfig);
+  const videoConfig = asRecord(aiConfig?.["video"]);
+  const positioning = asRecord(strategy?.positioning);
+  const icpDefinition = asRecord(strategy?.icpDefinition);
+  const creativeAssets = asRecord(strategy?.creativeAssets);
+  const logoUrl = firstString(strategy?.logoUrl, recordString(creativeAssets, "logoUrl"));
+
+  return {
+    product:
+      firstString(
+        recordString(positioning, "businessModel"),
+        recordString(positioning, "strengths"),
+        campaign.name,
+      ) ?? campaign.name,
+    audience:
+      firstString(recordString(icpDefinition, "idealCustomer"), "the campaign's target audience") ??
+      "the campaign's target audience",
+    tone:
+      firstString(job.tone, recordString(videoConfig, "tone"), recordString(aiConfig, "tone"), "professional") ??
+      "professional",
+    avatar:
+      firstString(job.avatar, recordString(videoConfig, "avatar"), recordString(aiConfig, "avatar"), "professional spokesperson") ??
+      "professional spokesperson",
+    setting:
+      firstString(job.setting, recordString(videoConfig, "setting"), recordString(aiConfig, "setting"), "clean professional workspace") ??
+      "clean professional workspace",
+    hasLogoReference: Boolean(logoUrl),
+    referenceUrls: [
+      ...new Set([
+        ...(logoUrl ? [logoUrl] : []),
+        ...collectUrls(job.referenceUrls),
+        ...collectUrls(videoConfig?.["referenceUrls"]),
+        ...collectUrls(creativeAssets?.["referenceUrls"]),
+      ]),
+    ],
+  };
+}
+
+export function resolveVideoGenerationPipeline(
+  strategy: Pick<StrategyRecord, "campaignType" | "videoConfig"> | null,
+): VideoGenerationPipeline {
+  const videoConfig = asRecord(strategy?.videoConfig);
+  return strategy?.campaignType === "personalized_outreach" &&
+    videoConfig?.mode === "personalized" &&
+    videoConfig.source === "generated"
+    ? "personalized"
+    : "standard";
 }
 
 async function generateApprovedPrompts(
@@ -254,6 +332,62 @@ async function generateApprovedPrompts(
   }
 
   throw new Error(`Prompt critic failed after ${MAX_PROMPT_ATTEMPTS} attempts`);
+}
+
+async function generateApprovedPersonalizedTemplatePrompts(
+  orgId: string,
+  templateId: string,
+  seedPrompt: string,
+  context: TemplateVideoContext,
+): Promise<{ imagePrompt: string; videoPrompt: string; sharedNarration: string }> {
+  let feedbackHints: string[] = [];
+
+  for (let attempt = 1; attempt <= MAX_PROMPT_ATTEMPTS; attempt++) {
+    const promptResult = await runPersonalizedVideoTemplatePromptAgent({
+      orgId,
+      templateId,
+      seedPrompt,
+      product: context.product,
+      audience: context.audience,
+      tone: context.tone,
+      avatar: context.avatar,
+      setting: context.setting,
+      hasLogoReference: context.hasLogoReference,
+      feedbackHints: feedbackHints.length ? feedbackHints : undefined,
+    });
+
+    const criticResult = await runPersonalizedVideoTemplateCritic({
+      orgId,
+      templateId,
+      storyboard: promptResult.storyboard,
+      videoPrompt: promptResult.videoPrompt,
+      sharedNarration: promptResult.sharedNarration,
+      tone: context.tone,
+      avatar: context.avatar,
+      setting: context.setting,
+      hasLogoReference: context.hasLogoReference,
+    });
+
+    if (criticResult.passed) {
+      return {
+        imagePrompt: promptResult.imagePrompt,
+        videoPrompt: promptResult.videoPrompt,
+        sharedNarration: promptResult.sharedNarration,
+      };
+    }
+
+    feedbackHints = criticResult.feedback;
+    logInfo({
+      path: "personalized-template-prompt-critic-failed",
+      templateId,
+      attempt,
+      maxAttempts: MAX_PROMPT_ATTEMPTS,
+      score: criticResult.score,
+      feedback: feedbackHints,
+    });
+  }
+
+  throw new Error(`Personalized template prompt critic failed after ${MAX_PROMPT_ATTEMPTS} attempts`);
 }
 
 async function reserveOrLoadVeoOperation(
@@ -373,10 +507,271 @@ async function reserveOrLoadVeoOperation(
   }
 }
 
+async function markTemplateFailed(
+  orgId: string,
+  templateId: string,
+  path: string,
+  error: unknown,
+): Promise<void> {
+  await prisma.campaignVideoTemplate.update({
+    where: { id: templateId },
+    data: { status: "failed", needsReview: true, veoOperationState: "failed", veoSubmitLeaseAt: null },
+  });
+  await prisma.auditLog.create({
+    data: {
+      orgId,
+      action: "video.template.failed",
+      resource: "CampaignVideoTemplate",
+      resourceId: templateId,
+      metadata: { path, error: errorMessage(error) },
+    },
+  });
+}
+
+async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise<void> {
+  const { orgId, campaignId } = job.data;
+  const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, orgId } });
+  if (!campaign) throw new Error(`Campaign ${campaignId} not found for org ${orgId}`);
+  const strategy = campaign.strategyId
+    ? await prisma.strategy.findFirst({ where: { id: campaign.strategyId, orgId } })
+    : null;
+  if (resolveVideoGenerationPipeline(strategy) !== "personalized") return;
+
+  const template = await prisma.campaignVideoTemplate.upsert({
+    where: { campaignId_version: { campaignId, version: 1 } },
+    create: {
+      orgId,
+      campaignId,
+      version: 1,
+      voice: env.PERSONALIZED_VIDEO_TTS_VOICE,
+    },
+    update: {},
+  });
+  if (template.status === "ready" || template.status === "failed") return;
+
+  const claimed = await prisma.campaignVideoTemplate.updateMany({
+    where: { id: template.id, status: "pending" },
+    data: { status: "generating" },
+  });
+  if (claimed.count === 0) return;
+
+  const context = buildTemplateVideoContext(job.data, campaign, strategy);
+  const prompt = job.data.prompt ?? `Generate the shared personalized B2B outreach video template for ${campaign.name}.`;
+
+  try {
+    const approved = await generateApprovedPersonalizedTemplatePrompts(
+      orgId,
+      template.id,
+      prompt,
+      context,
+    );
+    const [narration, image] = await Promise.all([
+      synthesizeSpeech(approved.sharedNarration),
+      context.referenceUrls.length > 0
+        ? generateImageWithAssets(approved.imagePrompt, context.referenceUrls, "9:16")
+        : generateImageFromPrompt(approved.imagePrompt, "9:16"),
+    ]);
+    const r2 = new R2Adapter();
+    const imageExt = image.mimeType.split("/")[1] ?? "png";
+    const [{ url: sharedNarrationUrl }, { url: seedImageUrl }] = await Promise.all([
+      r2.uploadBuffer(
+        `video-templates/${orgId}/${template.id}/${randomUUID()}-narration.mp3`,
+        narration,
+        "audio/mpeg",
+      ),
+      r2.uploadBuffer(
+        `seed-images/${orgId}/${template.id}/${randomUUID()}.${imageExt}`,
+        image.buffer,
+        image.mimeType,
+      ),
+    ]);
+    await prisma.campaignVideoTemplate.update({
+      where: { id: template.id },
+      data: {
+        seedImageUrl,
+        sharedNarrationUrl,
+        imagePrompt: approved.imagePrompt,
+        videoPrompt: approved.videoPrompt,
+        sharedNarration: approved.sharedNarration,
+        selectedTone: context.tone,
+      },
+    });
+    await videoGenerationQueue.add(
+      "generate-personalized-template-veo",
+      {
+        orgId,
+        campaignId,
+        pipeline: "personalized",
+        jobType: "template-veo",
+        templateId: template.id,
+        seedImageUrl,
+        videoPrompt: approved.videoPrompt,
+        tone: context.tone,
+        avatar: context.avatar,
+        setting: context.setting,
+        referenceUrls: context.referenceUrls,
+      },
+      { jobId: `personalized-template-veo:${template.id}`, attempts: 1 },
+    );
+  } catch (error) {
+    await markTemplateFailed(orgId, template.id, "template-orchestration-failed", error);
+    throw error;
+  }
+}
+
+async function processTemplateVeo(job: Job<VideoGenerationJob>): Promise<void> {
+  const { orgId, templateId, seedImageUrl, videoPrompt, referenceUrls = [] } = job.data;
+  if (!templateId || !seedImageUrl || !videoPrompt) {
+    throw new Error("Template Veo job is missing templateId, seedImageUrl, or videoPrompt");
+  }
+  const template = await prisma.campaignVideoTemplate.findFirst({
+    where: { id: templateId, orgId },
+  });
+  if (!template || template.status === "failed" || template.status === "ready") return;
+
+  let operationId = template.veoOperationId;
+  if (!operationId) {
+    if (template.veoOperationState === "submitting") {
+      const leaseExpired = !template.veoSubmitLeaseAt ||
+        template.veoSubmitLeaseAt.getTime() <= Date.now();
+      if (leaseExpired) {
+        await markTemplateFailed(
+          orgId,
+          template.id,
+          "template-veo-submit-unknown",
+          new Error("Template Veo submission lease expired before an operation ID was persisted"),
+        );
+      }
+      return;
+    }
+    const claimed = await prisma.campaignVideoTemplate.updateMany({
+      where: {
+        id: template.id,
+        veoOperationId: null,
+        veoOperationState: null,
+      },
+      data: {
+        veoOperationState: "submitting",
+        veoSubmitLeaseAt: new Date(Date.now() + VEO_SUBMISSION_LEASE_MS),
+      },
+    });
+    if (claimed.count === 0) return;
+    try {
+      const submitted = await submitVideoJob(seedImageUrl, videoPrompt, referenceUrls, "9:16");
+      operationId = submitted.jobId;
+      await prisma.campaignVideoTemplate.update({
+        where: { id: template.id },
+        data: {
+          veoOperationId: operationId,
+          veoOperationState: "active",
+          veoSubmitLeaseAt: new Date(Date.now() + VEO_ACTIVE_POLL_LEASE_MS),
+        },
+      });
+    } catch (error) {
+      await markTemplateFailed(orgId, template.id, "template-veo-submit-failed", error);
+      throw error;
+    }
+  }
+
+  const status = await pollJobStatus(operationId);
+  if (status.status === "pending") {
+    await job.moveToDelayed(Date.now() + POLL_INTERVAL_MS, job.token);
+    throw new DelayedError();
+  }
+  if (status.status === "failed") {
+    await markTemplateFailed(orgId, template.id, "template-veo-terminal-failure", status.error);
+    return;
+  }
+
+  await finalizeTemplateVeoOperation({
+    template,
+    operationId,
+    setting: job.data.setting ?? "clean professional workspace",
+  });
+}
+
+async function finalizeTemplateVeoOperation(input: {
+  template: {
+    id: string;
+    orgId: string;
+    selectedTone: string | null;
+  };
+  operationId: string;
+  setting: string;
+  failureMode?: "fail" | "defer";
+}): Promise<boolean> {
+  const { template, operationId, setting } = input;
+  try {
+    const generated = await getJobResult(operationId);
+    const normalized = await normalizeVideoDuration(generated.videoBuffer, generated.durationMs);
+    const r2 = new R2Adapter();
+    const { url: masterVideoUrl } = await r2.uploadBuffer(
+      `video-templates/${template.orgId}/${template.id}/${randomUUID()}.mp4`,
+      normalized.videoBuffer,
+      "video/mp4",
+    );
+    const frames = await extractRepresentativeFrames(normalized.videoBuffer, normalized.durationMs);
+    const critic = await runVideoOutputCritic({
+      orgId: template.orgId,
+      videoAssetId: template.id,
+      videoUrl: masterVideoUrl,
+      frames,
+      tone: template.selectedTone ?? "professional",
+      setting,
+      attempt: 1,
+    });
+    await prisma.campaignVideoTemplate.update({
+      where: { id: template.id },
+      data: {
+        masterVideoUrl,
+        status: critic.passed ? "ready" : "failed",
+        criticScore: critic.score,
+        needsReview: !critic.passed,
+        veoOperationState: critic.passed ? "completed" : "failed",
+        veoSubmitLeaseAt: null,
+      },
+    });
+    if (!critic.passed) {
+      await prisma.auditLog.create({
+        data: {
+          orgId: template.orgId,
+          action: "video.template.failed",
+          resource: "CampaignVideoTemplate",
+          resourceId: template.id,
+          metadata: { path: "template-output-critic-failed", score: critic.score, issues: critic.issues },
+        },
+      });
+    }
+    return critic.passed;
+  } catch (error) {
+    if (input.failureMode !== "defer") {
+      await markTemplateFailed(
+        template.orgId,
+        template.id,
+        "template-veo-post-processing-failed",
+        error,
+      );
+    }
+    throw error;
+  }
+}
+
+async function processPersonalizedCompose(job: Job<VideoGenerationJob>): Promise<void> {
+  const { orgId, videoAssetId, templateId } = job.data;
+  if (!videoAssetId || !templateId) {
+    throw new Error("Personalized composition job is missing videoAssetId or templateId");
+  }
+  await composePersonalizedVideoAsset({ orgId, videoAssetId, templateId });
+}
+
 async function processOrchestrate(
   job: Job<VideoGenerationJob>,
 ): Promise<void> {
   const { orgId, campaignId, leadId, prompt } = job.data;
+
+  if (!leadId || !prompt) {
+    throw new Error("Standard video orchestration requires leadId and prompt");
+  }
 
   const [campaign, lead] = await Promise.all([
     prisma.campaign.findFirst({ where: { id: campaignId, orgId } }),
@@ -398,6 +793,7 @@ async function processOrchestrate(
     : null;
 
   const context = buildVideoContext(job.data, campaign, lead, strategy);
+  const pipeline: VideoGenerationPipeline = "standard";
 
   const existingVideoAsset = job.data.videoAssetId
     ? await prisma.videoAsset.findFirst({
@@ -417,6 +813,7 @@ async function processOrchestrate(
         data: {
           status: "generating",
           selectedTone: context.tone,
+          pipeline,
         },
       })
     : await prisma.videoAsset.create({
@@ -426,6 +823,8 @@ async function processOrchestrate(
           status: "generating",
           generation: 1,
           selectedTone: context.tone,
+          leadId: null,
+          pipeline,
         },
       });
 
@@ -481,6 +880,8 @@ async function processOrchestrate(
       status: "generating",
       selectedTone: context.tone,
       seedImageUrl,
+      leadId: null,
+      pipeline,
     };
 
     const parallelVariants = getVeoParallelVariants();
@@ -501,6 +902,7 @@ async function processOrchestrate(
       campaignId,
       leadId,
       prompt,
+      pipeline,
       jobType: "veo",
       videoAssetId,
       seedImageUrl,
@@ -525,6 +927,7 @@ async function processOrchestrate(
       path: "spawned-veo-jobs",
       videoAssetId: videoAsset.id,
       variants: parallelVariants,
+      pipeline,
     });
   } catch (error) {
     await markVideoAssetFailed(
@@ -617,7 +1020,11 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
     }
 
     const r2 = new R2Adapter();
-    const { videoBuffer, durationMs } = await getJobResult(jobId);
+    const generatedVideo = await getJobResult(jobId);
+    const { videoBuffer, durationMs } = await normalizeVideoDuration(
+      generatedVideo.videoBuffer,
+      generatedVideo.durationMs,
+    );
     const videoR2Key = `videos/${orgId}/${videoAssetId}/${randomUUID()}.mp4`;
     const { url: videoUrl } = await r2.uploadBuffer(videoR2Key, videoBuffer, "video/mp4");
     const frames = await extractRepresentativeFrames(videoBuffer, durationMs);
@@ -685,6 +1092,15 @@ async function processVideoGeneration(
 ): Promise<void> {
   const { jobType = "orchestrate" } = job.data;
 
+  if (jobType === "template-orchestrate") {
+    return processTemplateOrchestrate(job);
+  }
+  if (jobType === "template-veo") {
+    return processTemplateVeo(job);
+  }
+  if (jobType === "personalized-compose") {
+    return processPersonalizedCompose(job);
+  }
   if (jobType === "veo") {
     return processVeo(job);
   }
@@ -808,7 +1224,11 @@ async function recoverUnknownVeoOperation(asset: {
     // A completed operation is positive provider evidence. Re-run the normal
     // post-processing gate before exposing its output to the application.
     const r2 = new R2Adapter();
-    const { videoBuffer, durationMs } = await getJobResult(operationId);
+    const generatedVideo = await getJobResult(operationId);
+    const { videoBuffer, durationMs } = await normalizeVideoDuration(
+      generatedVideo.videoBuffer,
+      generatedVideo.durationMs,
+    );
     const videoR2Key = `videos/${asset.orgId}/${asset.id}/${randomUUID()}.mp4`;
     const { url: videoUrl } = await r2.uploadBuffer(
       videoR2Key,
@@ -923,6 +1343,150 @@ export async function reconcileUnknownVeoOperations(): Promise<{
   return { checked: assets.length, recovered };
 }
 
+async function recoverUnknownTemplateVeoOperation(template: {
+  id: string;
+  orgId: string;
+  selectedTone: string | null;
+  veoOperationId: string | null;
+  veoOperationState: string | null;
+  veoSubmitLeaseAt: Date | null;
+}): Promise<boolean> {
+  const now = new Date();
+  if (!shouldAttemptUnknownVeoRecovery(
+    template.veoOperationId,
+    template.veoOperationState,
+    template.veoSubmitLeaseAt,
+    now,
+  )) {
+    return false;
+  }
+
+  const operationId = template.veoOperationId;
+  if (!operationId) return false;
+
+  const claimed = await prisma.campaignVideoTemplate.updateMany({
+    where: {
+      id: template.id,
+      veoOperationId: operationId,
+      OR: [
+        { veoOperationState: "active", veoSubmitLeaseAt: { lte: now } },
+        {
+          veoOperationState: "unknown",
+          OR: [
+            { veoSubmitLeaseAt: null },
+            { veoSubmitLeaseAt: { lte: now } },
+          ],
+        },
+        { veoOperationState: "recovering", veoSubmitLeaseAt: { lte: now } },
+      ],
+    },
+    data: {
+      veoOperationState: "recovering",
+      veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+    },
+  });
+  if (claimed.count === 0) return false;
+
+  try {
+    const jobStatus = await pollJobStatus(operationId);
+    if (jobStatus.status === "pending") {
+      await prisma.campaignVideoTemplate.updateMany({
+        where: { id: template.id, veoOperationState: "recovering" },
+        data: {
+          veoOperationState: "active",
+          veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+        },
+      });
+      return false;
+    }
+
+    if (jobStatus.status === "failed") {
+      await markTemplateFailed(
+        template.orgId,
+        template.id,
+        "template-veo-recovery-terminal-failure",
+        jobStatus.error,
+      );
+      return false;
+    }
+
+    const recovered = await finalizeTemplateVeoOperation({
+      template,
+      operationId,
+      setting: "clean professional workspace",
+      failureMode: "defer",
+    });
+    if (recovered) {
+      await prisma.auditLog.create({
+        data: {
+          orgId: template.orgId,
+          action: "video.template.recovered",
+          resource: "CampaignVideoTemplate",
+          resourceId: template.id,
+          metadata: { path: "template-veo-recovery-completed", veoJobId: operationId },
+        },
+      });
+    }
+    return recovered;
+  } catch (error) {
+    // A provider read failure does not prove a paid operation failed. Keep the
+    // persisted operation recoverable; never submit another generation here.
+    await prisma.campaignVideoTemplate.updateMany({
+      where: { id: template.id, veoOperationState: "recovering" },
+      data: {
+        veoOperationState: "unknown",
+        veoSubmitLeaseAt: new Date(now.getTime() + VEO_RECOVERY_LEASE_MS),
+      },
+    });
+    logError({
+      path: "template-veo-recovery-deferred",
+      templateId: template.id,
+      veoJobId: operationId,
+      error: errorMessage(error),
+    });
+    return false;
+  }
+}
+
+export async function reconcileUnknownTemplateVeoOperations(): Promise<{
+  checked: number;
+  recovered: number;
+}> {
+  const now = new Date();
+  const templates = await prisma.campaignVideoTemplate.findMany({
+    where: {
+      status: "generating",
+      veoOperationId: { not: null },
+      OR: [
+        { veoOperationState: "active", veoSubmitLeaseAt: { lte: now } },
+        {
+          veoOperationState: "unknown",
+          OR: [
+            { veoSubmitLeaseAt: null },
+            { veoSubmitLeaseAt: { lte: now } },
+          ],
+        },
+        { veoOperationState: "recovering", veoSubmitLeaseAt: { lte: now } },
+      ],
+    },
+    select: {
+      id: true,
+      orgId: true,
+      selectedTone: true,
+      veoOperationId: true,
+      veoOperationState: true,
+      veoSubmitLeaseAt: true,
+    },
+    take: VEO_RECOVERY_BATCH_SIZE,
+  });
+
+  let recovered = 0;
+  for (const template of templates) {
+    if (await recoverUnknownTemplateVeoOperation(template)) recovered += 1;
+  }
+  return { checked: templates.length, recovered };
+}
+
 export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
   const worker = new Worker<VideoGenerationJob>(
     QUEUE_VIDEO_GENERATION,
@@ -1005,7 +1569,13 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
 export function startVeoOperationReconciliationWorker(): Worker {
   const worker = new Worker(
     QUEUE_RECONCILE_VEO_OPERATIONS,
-    async () => reconcileUnknownVeoOperations(),
+    async () => {
+      const [assets, templates] = await Promise.all([
+        reconcileUnknownVeoOperations(),
+        reconcileUnknownTemplateVeoOperations(),
+      ]);
+      return { assets, templates };
+    },
     { connection: redis },
   );
 
