@@ -6,7 +6,7 @@ const STORYBOARD = [
   { title: "Hook", time: "0-2s", detail: "Open with a relevant moment." },
   { title: "Problem", time: "2-4s", detail: "Name the challenge your buyer sees." },
   { title: "Solution", time: "4-6s", detail: "Show the value LeadReacher creates." },
-  { title: "Payoff", time: "6-8s", detail: "Finish with a clear next action." },
+  { title: "Payoff", time: "6-8s", detail: "Finish with a clear next action and branded end card." },
 ] as const;
 
 export function AiVideoAdVariant({
@@ -89,6 +89,9 @@ export function AiVideoAdVariant({
             </article>
           ))}
         </div>
+        <p className="mt-4 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
+          Each video ends with a two-second branded hold for a ten-second final runtime.
+        </p>
       </OnboardingCard>
     </div>
   );

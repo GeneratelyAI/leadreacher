@@ -101,6 +101,7 @@ beforeEach(async () => {
   organizationUpdate.mockResolvedValue({ id: "org-1" });
   strategyFindFirst.mockResolvedValue({
     id: "strategy-1",
+    campaignType: "personalized_outreach",
     videoConfig: { enabled: true, mode: "personalized", source: "generated" },
   });
   campaignFindFirst.mockResolvedValue({ id: "campaign-1", name: "Q3 outreach" });
@@ -114,7 +115,7 @@ afterEach(async () => {
 });
 
 describe("POST /webhooks/stripe", () => {
-  it("verifies an event, updates entitlement, and queues video only on first activation", async () => {
+  it("verifies an event, updates entitlement, and queues one personalized template on first activation", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/webhooks/stripe",
@@ -136,15 +137,15 @@ describe("POST /webhooks/stripe", () => {
       },
     });
     expect(add).toHaveBeenCalledWith(
-      "onboarding-video-generation",
+      "personalized-template-orchestrate",
       expect.objectContaining({
         orgId: "org-1",
         campaignId: "campaign-1",
-        leadId: "lead-1",
-        jobType: "orchestrate",
+        pipeline: "personalized",
+        jobType: "template-orchestrate",
       }),
       expect.objectContaining({
-        jobId: "onboarding-video:org-1:strategy-1:campaign-1:lead-1",
+        jobId: "personalized-template:campaign-1:1",
       }),
     );
   });
@@ -169,6 +170,29 @@ describe("POST /webhooks/stripe", () => {
     strategyFindFirst.mockResolvedValue({
       id: "strategy-1",
       videoConfig: { enabled: false, mode: null, source: null },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/webhooks/stripe",
+      headers: { "stripe-signature": "stripe-mock-signature" },
+      payload: subscriptionEvent,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue Google generation for an uploaded video campaign", async () => {
+    strategyFindFirst.mockResolvedValue({
+      id: "strategy-1",
+      campaignType: "uploaded_video",
+      videoConfig: {
+        enabled: true,
+        mode: null,
+        source: "uploaded",
+        uploadedVideoUrl: "https://cdn.example/video.mp4",
+      },
     });
 
     const response = await app.inject({

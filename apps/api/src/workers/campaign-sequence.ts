@@ -1,4 +1,4 @@
-import { Job, Worker } from "bullmq";
+import { DelayedError, Job, Worker } from "bullmq";
 import { UnipileAdapter } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
@@ -21,6 +21,9 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "../services/delivery-attempt.js";
+import { ensurePersonalizedVideoReady } from "../services/personalized-video.js";
+
+const PERSONALIZED_VIDEO_WAIT_MS = 30_000;
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
@@ -53,6 +56,24 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           data: { status: "completed", currentStep: step },
         });
         return { completed: true };
+      }
+
+      if (step === 0) {
+        const personalizedVideo = await ensurePersonalizedVideoReady({
+          orgId,
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+        });
+        if (personalizedVideo.state === "pending") {
+          await job.moveToDelayed(
+            Date.now() + PERSONALIZED_VIDEO_WAIT_MS,
+            job.token,
+          );
+          throw new DelayedError();
+        }
+        if (personalizedVideo.state === "failed") {
+          throw new Error(`Personalized video is unavailable: ${personalizedVideo.reason}`);
+        }
       }
 
       const socialAccount = await prisma.socialAccount.findFirst({

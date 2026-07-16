@@ -83,6 +83,12 @@ export type UnipileMessage = {
   message_id?: string;
 };
 
+export type UnipileVideoMessage = {
+  buffer: Buffer;
+  filename: string;
+  contentType: "video/mp4";
+};
+
 export type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 export class UnipileAdapter {
@@ -156,6 +162,7 @@ export class UnipileAdapter {
     accountId: string,
     attendeeProviderId: string,
     text: string,
+    options?: { videoMessage?: UnipileVideoMessage },
   ): Promise<{ chat_id: string }> {
     // Unipile's documented v1 start-chat endpoint has no provider idempotency
     // header/body field; callers rely on durable reservations around this call.
@@ -163,6 +170,14 @@ export class UnipileAdapter {
     formData.append("account_id", accountId);
     formData.append("text", text);
     formData.append("attendees_ids", attendeeProviderId);
+    if (options?.videoMessage) {
+      const { buffer, filename, contentType } = options.videoMessage;
+      formData.append(
+        "video_message",
+        new Blob([buffer], { type: contentType }),
+        filename,
+      );
+    }
 
     return this.request<{ chat_id: string }>("POST", "/chats", formData);
   }

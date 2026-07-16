@@ -10,6 +10,7 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "./delivery-attempt.js";
+import { getReadyPersonalizedVideoForDelivery } from "./personalized-video.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -47,6 +48,12 @@ export async function deliverSequenceStep1ViaChat(
     return { skipped: true, reason: "no sequence step 1" };
   }
 
+  const personalizedVideo = await getReadyPersonalizedVideoForDelivery({
+    campaignId,
+    leadId,
+  });
+  const messageText = step1.message;
+
   const reservation = await acquireDeliveryReservation(campaignLeadId, 1);
   if (!reservation.acquired) {
     return {
@@ -60,7 +67,16 @@ export async function deliverSequenceStep1ViaChat(
     chat = await adapter.startChat(
       unipileAccountId,
       attendeeProviderId,
-      step1.message,
+      messageText,
+      personalizedVideo
+        ? {
+            videoMessage: {
+              buffer: personalizedVideo.buffer,
+              filename: personalizedVideo.filename,
+              contentType: personalizedVideo.contentType,
+            },
+          }
+        : undefined,
     );
   } catch (error) {
     await markDeliveryReservationUnknown(reservation.attemptId);
@@ -82,7 +98,20 @@ export async function deliverSequenceStep1ViaChat(
           leadId,
           orgId,
           channel: "linkedin",
-          content: { type: "text", message: step1.message },
+          content: personalizedVideo
+            ? {
+                type: "text",
+                message: messageText,
+                attachments: [
+                  {
+                    type: "video",
+                    contentType: personalizedVideo.contentType,
+                    filename: personalizedVideo.filename,
+                    videoUrl: personalizedVideo.videoUrl,
+                  },
+                ],
+              }
+            : { type: "text", message: messageText },
           status: "sent",
           stepIndex: 1,
           sentAt: new Date(),

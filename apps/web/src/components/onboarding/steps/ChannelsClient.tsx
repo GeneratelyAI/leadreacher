@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
+import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
@@ -36,7 +37,7 @@ const CHANNELS = [
     key: "linkedin",
     title: "LinkedIn",
     description: "Connect your account to start outreach.",
-    icon: <i className="fa-brands fa-linkedin-in text-xl leading-none" aria-hidden />,
+    icon: <ChannelLogo name="linkedin" className="size-5" />,
     iconClassName: "onboarding-channel-logo--linkedin",
     available: true,
   },
@@ -44,7 +45,7 @@ const CHANNELS = [
     key: "whatsapp",
     title: "WhatsApp Business",
     description: "Coming soon",
-    icon: <i className="fa-brands fa-whatsapp text-xl leading-none" aria-hidden />,
+    icon: <ChannelLogo name="whatsapp" className="size-5" />,
     iconClassName: "onboarding-channel-logo--whatsapp",
     available: false,
   },

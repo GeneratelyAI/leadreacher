@@ -8,7 +8,11 @@ const {
   pollJobStatus,
   uploadBuffer,
   extractFrames,
+  normalizeDuration,
   runOutputCritic,
+  templateFindMany,
+  templateUpdateMany,
+  templateUpdate,
 } = vi.hoisted(() => ({
   findMany: vi.fn(),
   updateMany: vi.fn(),
@@ -17,7 +21,11 @@ const {
   pollJobStatus: vi.fn(),
   uploadBuffer: vi.fn(),
   extractFrames: vi.fn(),
+  normalizeDuration: vi.fn(),
   runOutputCritic: vi.fn(),
+  templateFindMany: vi.fn(),
+  templateUpdateMany: vi.fn(),
+  templateUpdate: vi.fn(),
 }));
 
 vi.mock("bullmq", () => ({
@@ -44,6 +52,11 @@ vi.mock("../../adapters/r2.js", () => ({
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     videoAsset: { findMany, updateMany },
+    campaignVideoTemplate: {
+      findMany: templateFindMany,
+      updateMany: templateUpdateMany,
+      update: templateUpdate,
+    },
     auditLog: { create: auditCreate },
   },
 }));
@@ -56,10 +69,12 @@ vi.mock("../../lib/queue.js", () => ({
 }));
 vi.mock("../../lib/video-frames.js", () => ({
   extractRepresentativeFrames: extractFrames,
+  normalizeVideoDuration: normalizeDuration,
 }));
-vi.mock("../../modules/agents/video-prompt-agent.js", () => ({
-  runVideoPromptAgent: vi.fn(),
-}));
+vi.mock("../../modules/agents/video-prompt-agent.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../modules/agents/video-prompt-agent.js")>();
+  return { ...actual, runVideoPromptAgent: vi.fn() };
+});
 vi.mock("../../modules/critics/video-output-critic.js", () => ({
   runVideoOutputCritic: runOutputCritic,
 }));
@@ -69,6 +84,8 @@ vi.mock("../../modules/critics/video-prompt-critic.js", () => ({
 
 import {
   reconcileUnknownVeoOperations,
+  reconcileUnknownTemplateVeoOperations,
+  resolveVideoGenerationPipeline,
   shouldAttemptUnknownVeoRecovery,
 } from "../video-generation.js";
 
@@ -89,9 +106,56 @@ beforeEach(() => {
   pollJobStatus.mockReset();
   uploadBuffer.mockReset();
   extractFrames.mockReset();
+  normalizeDuration.mockReset();
   runOutputCritic.mockReset();
+  templateFindMany.mockReset();
+  templateUpdateMany.mockReset();
+  templateUpdate.mockReset();
   updateMany.mockResolvedValue({ count: 1 });
+  templateUpdateMany.mockResolvedValue({ count: 1 });
+  templateUpdate.mockResolvedValue({});
   auditCreate.mockResolvedValue({});
+  normalizeDuration.mockImplementation(async (videoBuffer: Buffer) => ({
+    videoBuffer,
+    durationMs: 10_000,
+  }));
+});
+
+describe("reconcileUnknownTemplateVeoOperations", () => {
+  it("recovers a persisted template operation without submitting another Veo job", async () => {
+    templateFindMany.mockResolvedValue([
+      {
+        id: "template-1",
+        orgId: "org-1",
+        selectedTone: "professional",
+        veoOperationId: "operations/template-1",
+        veoOperationState: "unknown",
+        veoSubmitLeaseAt: null,
+      },
+    ]);
+    pollJobStatus.mockResolvedValue({ status: "complete" });
+    getJobResult.mockResolvedValue({
+      videoBuffer: Buffer.from("template-video"),
+      durationMs: 8_000,
+    });
+    uploadBuffer.mockResolvedValue({ url: "https://r2.example/template.mp4" });
+    extractFrames.mockResolvedValue([]);
+    runOutputCritic.mockResolvedValue({ score: 9, passed: true, issues: [] });
+
+    await expect(reconcileUnknownTemplateVeoOperations()).resolves.toEqual({
+      checked: 1,
+      recovered: 1,
+    });
+
+    expect(templateUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "template-1" },
+      data: expect.objectContaining({
+        status: "ready",
+        masterVideoUrl: "https://r2.example/template.mp4",
+        veoOperationState: "completed",
+      }),
+    }));
+  });
 });
 
 describe("shouldAttemptUnknownVeoRecovery", () => {
@@ -151,6 +215,29 @@ describe("shouldAttemptUnknownVeoRecovery", () => {
   });
 });
 
+describe("resolveVideoGenerationPipeline", () => {
+  it("routes only generated personalized outreach to the lead-specific pipeline", () => {
+    expect(
+      resolveVideoGenerationPipeline({
+        campaignType: "personalized_outreach",
+        videoConfig: { mode: "personalized", source: "generated" },
+      }),
+    ).toBe("personalized");
+    expect(
+      resolveVideoGenerationPipeline({
+        campaignType: "ai_video_ad",
+        videoConfig: { mode: "standardized", source: "generated" },
+      }),
+    ).toBe("standard");
+    expect(
+      resolveVideoGenerationPipeline({
+        campaignType: "uploaded_video",
+        videoConfig: { mode: null, source: "uploaded" },
+      }),
+    ).toBe("standard");
+  });
+});
+
 describe("reconcileUnknownVeoOperations", () => {
   it("marks ready only after a persisted operation is positively complete", async () => {
     findMany.mockResolvedValue([RECOVERABLE_ASSET]);
@@ -172,6 +259,15 @@ describe("reconcileUnknownVeoOperations", () => {
       checked: 1,
       recovered: 1,
     });
+
+    expect(normalizeDuration).toHaveBeenCalledWith(
+      Buffer.from("video"),
+      8_000,
+    );
+    expect(extractFrames).toHaveBeenCalledWith(
+      Buffer.from("video"),
+      10_000,
+    );
 
     expect(updateMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
