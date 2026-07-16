@@ -154,7 +154,6 @@ async function processCheckoutSessionCompleted(
     data: {
       ...(customerId ? { stripeCustomerId: customerId } : {}),
       ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
-      ...(subscriptionId ? { subscriptionStatus: "pending" } : {}),
       ...(readString(metadata, "planPriceId")
         ? { planPriceId: readString(metadata, "planPriceId") }
         : {}),
