@@ -7,6 +7,7 @@ import {
   parseLocationsFromText,
 } from "../strategy-filters.js";
 import { resolveCompanyHeadcountCodes } from "../../adapters/linkedin-company-size-codes.js";
+import { resolveIndustryIds } from "../../adapters/linkedin-industry-codes.js";
 
 describe("Strategy filter construction", () => {
   it("does not use product offer language as profile search keywords", () => {
@@ -22,6 +23,27 @@ describe("Strategy filter construction", () => {
       locations: [],
     });
     expect(filters.keywords).toBeUndefined();
+  });
+
+  it("retains a market only when it resolves to a LinkedIn industry", () => {
+    const filters = buildStrategyFilters({
+      market: "Accounting",
+      audience: "Finance leaders",
+      offer: "Fractional CFO services",
+    });
+
+    expect(filters.industries).toEqual(["Accounting"]);
+    expect(resolveIndustryIds(filters.industries)).toEqual([47]);
+  });
+
+  it("omits an unresolvable market instead of passing a broken industry filter", () => {
+    const filters = buildStrategyFilters({
+      market: "Enterprise Data and Marketing Automation",
+      audience: "Operations leaders",
+      offer: "Workflow automation software",
+    });
+
+    expect(filters.industries).toEqual([]);
   });
 
   it("extracts mid-sized to large enterprise headcount bands from Discovery audience text", () => {

@@ -76,6 +76,49 @@ describe("Apify adapter normalization", () => {
     expect(profiles[0]?.title).toBe("Senior Vice President of Global Sales");
   });
 
+  it("forwards resolved industry and company-headcount filters to the profile actor", async () => {
+    const requests: Array<{ url: string; body?: string }> = [];
+    const fetchMock = vi.fn(
+      async (
+        input: Parameters<typeof fetch>[0],
+        init?: Parameters<typeof fetch>[1],
+      ): Promise<Response> => {
+        const url = input instanceof Request ? input.url : input.toString();
+        requests.push({ url, body: init?.body?.toString() });
+        if (url.includes("/acts/harvestapi~linkedin-profile-search/runs/profile-run")) {
+          return jsonResponse({ data: { status: "SUCCEEDED" } });
+        }
+        if (url.includes("/acts/harvestapi~linkedin-profile-search/runs")) {
+          return jsonResponse({ data: { id: "profile-run" } });
+        }
+        if (url.includes("/actor-runs/profile-run/dataset/items")) {
+          return jsonResponse([]);
+        }
+        return jsonResponse({});
+      },
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const adapter = new ApifyAdapter({ apiKey: "test-token" });
+    await adapter.scrapeLeadsWithTotal(
+      {
+        jobTitles: ["CFO"],
+        industries: ["Accounting"],
+        companySizes: ["50-200 employees"],
+        locations: [],
+      },
+      1,
+    );
+
+    const startRequest = requests.find(({ url }) =>
+      url.includes("/acts/harvestapi~linkedin-profile-search/runs"),
+    );
+    expect(JSON.parse(startRequest?.body ?? "{}")).toMatchObject({
+      industryIds: [47],
+      companyHeadcount: ["D"],
+    });
+  });
+
   it("uses totalElements for profile totals when it is the only reported total", async () => {
     const fetchMock = vi.fn(
       async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
