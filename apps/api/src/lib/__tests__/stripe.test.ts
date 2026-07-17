@@ -8,12 +8,19 @@ vi.mock("../../config/env.js", () => ({
 }));
 
 import {
+  createBillingPortalSession,
   createMockStripeWebhookEvent,
   MOCK_STRIPE_WEBHOOK_SIGNATURE,
   verifyStripeWebhookEvent,
 } from "../stripe.js";
 
 describe("Stripe mock mode", () => {
+  it("creates a local billing portal URL without Stripe credentials", async () => {
+    await expect(createBillingPortalSession("cus_mock")).resolves.toEqual({
+      url: "http://localhost:3000/home?billing=portal",
+    });
+  });
+
   it("creates a locally verifiable webhook event without Stripe credentials", () => {
     const event = {
       id: "evt_mock_subscription",
