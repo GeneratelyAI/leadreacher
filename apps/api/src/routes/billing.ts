@@ -11,6 +11,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import {
+  createBillingPortalSession,
   createSubscriptionCheckoutSession,
   getStripePrice,
   type StripePriceDisplay,
@@ -97,6 +98,20 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       customerId: organization.stripeCustomerId,
     });
 
+    return reply.send({ url: session.url });
+  });
+
+  app.post("/billing/portal-session", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const organization = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { stripeCustomerId: true },
+    });
+    if (!organization?.stripeCustomerId) {
+      throw new ValidationError("No Stripe customer found for organization");
+    }
+
+    const session = await createBillingPortalSession(organization.stripeCustomerId);
     return reply.send({ url: session.url });
   });
 }

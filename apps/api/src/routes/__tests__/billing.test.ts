@@ -6,8 +6,13 @@ const { strategyFindFirst, organizationFindUnique } = vi.hoisted(() => ({
   strategyFindFirst: vi.fn(),
   organizationFindUnique: vi.fn(),
 }));
-const { getStripePrice, createSubscriptionCheckoutSession } = vi.hoisted(() => ({
+const {
+  getStripePrice,
+  createBillingPortalSession,
+  createSubscriptionCheckoutSession,
+} = vi.hoisted(() => ({
   getStripePrice: vi.fn(),
+  createBillingPortalSession: vi.fn(),
   createSubscriptionCheckoutSession: vi.fn(),
 }));
 
@@ -28,6 +33,7 @@ vi.mock("../../lib/prisma.js", () => ({
   },
 }));
 vi.mock("../../lib/stripe.js", () => ({
+  createBillingPortalSession,
   getStripePrice,
   createSubscriptionCheckoutSession,
 }));
@@ -68,6 +74,7 @@ beforeEach(async () => {
   strategyFindFirst.mockReset();
   organizationFindUnique.mockReset();
   getStripePrice.mockReset();
+  createBillingPortalSession.mockReset();
   createSubscriptionCheckoutSession.mockReset();
 
   strategyFindFirst.mockResolvedValue(strategy);
@@ -84,6 +91,9 @@ beforeEach(async () => {
   createSubscriptionCheckoutSession.mockResolvedValue({
     id: "mock_checkout_org-1",
     url: "http://localhost:3000/onboarding?step=checkout&status=success",
+  });
+  createBillingPortalSession.mockResolvedValue({
+    url: "http://localhost:3000/home?billing=portal",
   });
   app = await buildTestApp();
 });
@@ -152,5 +162,35 @@ describe("billing routes", () => {
 
     expect(response.statusCode).toBe(400);
     expect(createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+  });
+
+  it("creates a Stripe billing portal session for an existing customer", async () => {
+    organizationFindUnique.mockResolvedValue({
+      id: "org-1",
+      stripeCustomerId: "cus_123",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/portal-session",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      url: "http://localhost:3000/home?billing=portal",
+    });
+    expect(createBillingPortalSession).toHaveBeenCalledWith("cus_123");
+  });
+
+  it("rejects billing portal access when no Stripe customer exists", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/portal-session",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(createBillingPortalSession).not.toHaveBeenCalled();
   });
 });

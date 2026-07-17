@@ -25,6 +25,10 @@ export type SubscriptionCheckoutSession = {
   url: string;
 };
 
+export type BillingPortalSession = {
+  url: string;
+};
+
 const MockStripeEventSchema = z.object({
   id: z.string().min(1),
   type: z.string().min(1),
@@ -95,6 +99,23 @@ export async function createSubscriptionCheckoutSession(
   }
 
   return { id: session.id, url: session.url };
+}
+
+export async function createBillingPortalSession(
+  customerId: string,
+): Promise<BillingPortalSession> {
+  if (env.STRIPE_MOCK_MODE) {
+    return {
+      url: `${env.APP_URL}/home?billing=portal`,
+    };
+  }
+
+  const session = await getStripeClient().billingPortal.sessions.create({
+    customer: customerId,
+    return_url: env.APP_URL,
+  });
+
+  return { url: session.url };
 }
 
 export function verifyStripeWebhookEvent(
