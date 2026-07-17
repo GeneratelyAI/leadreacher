@@ -76,7 +76,6 @@ export default function ChannelsClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
-  const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const connectionFailed = searchParams.get("status") === "failed";
   const connectionReturned = searchParams.get("status") === "connected";
@@ -130,7 +129,7 @@ export default function ChannelsClient() {
     setError(null);
     try {
       await apiFetch<{ completed: boolean }>("/onboarding/complete", { method: "POST" });
-      setCompleted(true);
+      router.push("/home");
     } catch (completeError) {
       setError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",
@@ -235,19 +234,6 @@ export default function ChannelsClient() {
           </div>
         </OnboardingCard>
 
-        {completed ? (
-          <OnboardingCard className="mx-auto mt-6 flex w-full max-w-3xl items-center gap-3 border-onboarding-success-500 px-5 py-4">
-            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-onboarding-pill bg-onboarding-success-50 text-onboarding-success-500">
-              <Check className="size-5" aria-hidden />
-            </span>
-            <div>
-              <p className="font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">Onboarding complete</p>
-              <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                Your outreach workspace is ready for its first campaign.
-              </p>
-            </div>
-          </OnboardingCard>
-        ) : null}
       </main>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-7 z-30 flex items-center justify-between px-6 sm:px-10">
@@ -263,11 +249,11 @@ export default function ChannelsClient() {
         <Button
           type="button"
           variant="brand"
-          disabled={!linkedInConnected || isCompleting || completed}
+          disabled={!linkedInConnected || isCompleting}
           onClick={() => void handleComplete()}
           className="pointer-events-auto h-13 px-8 text-base sm:px-10"
         >
-          {completed ? "Setup complete" : isCompleting ? "Finishing..." : "Finish setup"}
+          {isCompleting ? "Finishing..." : "Finish setup"}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
       </div>
