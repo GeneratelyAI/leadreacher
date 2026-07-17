@@ -1,4 +1,5 @@
 import type { ICPFilters } from "../adapters/apify.js";
+import { resolveIndustryIds } from "../adapters/linkedin-industry-codes.js";
 
 export const COMPANY_SEARCH_UNAVAILABLE_REASON =
   "Industry classification wasn't precise enough for company search - showing decision-maker data only.";
@@ -172,7 +173,8 @@ export function buildStrategyFilters(input: {
   competitiveAdvantage?: string;
 }): ICPFilters {
   const jobTitles = inferJobTitlesFromAudience(input.audience);
-  const industries = input.market ? [input.market] : [];
+  const market = input.market.trim();
+  const industries = market && resolveIndustryIds([market]).length > 0 ? [market] : [];
   const demographicText = [
     input.market,
     input.audience,
