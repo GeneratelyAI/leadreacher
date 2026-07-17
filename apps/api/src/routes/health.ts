@@ -13,12 +13,16 @@ type ReadinessResponse = {
 };
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
-  app.get<{ Reply: HealthResponse }>("/health", async () => {
-    return {
-      status: "ok",
-      timestamp: new Date().toISOString(),
-    };
-  });
+  app.get<{ Reply: HealthResponse }>(
+    "/health",
+    { config: { rateLimit: false } },
+    async () => {
+      return {
+        status: "ok",
+        timestamp: new Date().toISOString(),
+      };
+    },
+  );
 
   app.get<{ Reply: ReadinessResponse }>("/ready", async (_request, reply) => {
     try {

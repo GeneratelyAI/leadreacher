@@ -36,7 +36,10 @@ vi.mock("bullmq", () => ({
     }
   },
 }));
-vi.mock("../../config/env.js", () => ({ getVeoParallelVariants: () => 1 }));
+vi.mock("../../config/env.js", () => ({
+  getBullMqIdleDrainDelaySeconds: () => 60,
+  getVeoParallelVariants: () => 1,
+}));
 vi.mock("../../adapters/google-ai.js", () => ({
   generateImageFromPrompt: vi.fn(),
   generateImageWithAssets: vi.fn(),
@@ -62,9 +65,7 @@ vi.mock("../../lib/prisma.js", () => ({
 }));
 vi.mock("../../lib/redis.js", () => ({ redis: {} }));
 vi.mock("../../lib/queue.js", () => ({
-  QUEUE_RECONCILE_VEO_OPERATIONS: "reconcile-veo-operations",
   QUEUE_VIDEO_GENERATION: "video-generation",
-  scheduleVeoOperationReconciliation: vi.fn(),
   videoGenerationQueue: { add: vi.fn() },
 }));
 vi.mock("../../lib/video-frames.js", () => ({

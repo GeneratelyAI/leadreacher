@@ -40,11 +40,8 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../config/env.js", () => ({
   env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
 }));
-vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_CAMPAIGN_SEQUENCE: "campaign-sequence",
-  QUEUE_RECONCILE_DELIVERY_ATTEMPTS: "reconcile-delivery-attempts",
-  scheduleDeliveryAttemptReconciliation: vi.fn(),
   campaignSequenceJobId: (campaignLeadId: string, step: number) =>
     `${campaignLeadId}-step-${step}`,
   campaignSequenceQueue: {

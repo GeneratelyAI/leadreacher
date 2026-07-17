@@ -1,4 +1,3 @@
-import { Worker } from "bullmq";
 import {
   UnipileAdapter,
   type UnipileChat,
@@ -6,13 +5,10 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
-import { redisSubscriber } from "../lib/redis.js";
 import {
   campaignSequenceJobId,
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
-  QUEUE_RECONCILE_DELIVERY_ATTEMPTS,
-  scheduleDeliveryAttemptReconciliation,
 } from "../lib/queue.js";
 import { parseSequence } from "../lib/sequence.js";
 
@@ -299,19 +295,4 @@ export async function reconcileDeliveryAttempts(): Promise<{
   }
 
   return { markedUnknown, confirmedSent };
-}
-
-/**
- * A stale reservation means the process may have died after the provider call.
- * It is made visible for recovery/review, never resent blindly.
- */
-export function startDeliveryAttemptReconciliationWorker(): Worker {
-  const worker = new Worker(
-    QUEUE_RECONCILE_DELIVERY_ATTEMPTS,
-    async () => reconcileDeliveryAttempts(),
-    { connection: redisSubscriber },
-  );
-
-  void scheduleDeliveryAttemptReconciliation();
-  return worker;
 }

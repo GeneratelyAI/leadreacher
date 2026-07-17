@@ -1,7 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { DelayedError, Job, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
-import { env, getVeoParallelVariants } from "../config/env.js";
+import {
+  env,
+  getBullMqIdleDrainDelaySeconds,
+  getVeoParallelVariants,
+} from "../config/env.js";
 import {
   generateImageFromPrompt,
   generateImageWithAssets,
@@ -16,9 +20,7 @@ import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import {
   type VideoGenerationJob,
-  QUEUE_RECONCILE_VEO_OPERATIONS,
   QUEUE_VIDEO_GENERATION,
-  scheduleVeoOperationReconciliation,
   videoGenerationQueue,
 } from "../lib/queue.js";
 import {
@@ -1494,6 +1496,7 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
     {
       connection: redis,
       concurrency: 6,
+      drainDelay: getBullMqIdleDrainDelaySeconds(),
     },
   );
 
@@ -1563,30 +1566,5 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
     }
   });
 
-  return worker;
-}
-
-export function startVeoOperationReconciliationWorker(): Worker {
-  const worker = new Worker(
-    QUEUE_RECONCILE_VEO_OPERATIONS,
-    async () => {
-      const [assets, templates] = await Promise.all([
-        reconcileUnknownVeoOperations(),
-        reconcileUnknownTemplateVeoOperations(),
-      ]);
-      return { assets, templates };
-    },
-    { connection: redis },
-  );
-
-  worker.on("failed", (job, error) => {
-    logError({
-      path: "veo-reconciliation-job-failed",
-      jobId: job?.id,
-      error: error.message,
-    });
-  });
-
-  void scheduleVeoOperationReconciliation();
   return worker;
 }

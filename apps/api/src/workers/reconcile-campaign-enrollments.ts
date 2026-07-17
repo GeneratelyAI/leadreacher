@@ -1,10 +1,4 @@
-import { Worker } from "bullmq";
 import { prisma } from "../lib/prisma.js";
-import { redisSubscriber } from "../lib/redis.js";
-import {
-  QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS,
-  scheduleCampaignEnrollmentReconciliation,
-} from "../lib/queue.js";
 import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
 
 const BATCH_SIZE = 100;
@@ -52,19 +46,4 @@ export async function reconcileCampaignStepZeroJobs(): Promise<{
   }
 
   return { checked: candidates.length, enqueued, flagged };
-}
-
-export function startCampaignEnrollmentReconciliationWorker(): Worker {
-  const worker = new Worker(
-    QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS,
-    async () => reconcileCampaignStepZeroJobs(),
-    { connection: redisSubscriber },
-  );
-
-  worker.on("failed", (job, error) => {
-    console.error(`Campaign enrollment reconcile job ${job?.id} failed:`, error.message);
-  });
-
-  void scheduleCampaignEnrollmentReconciliation();
-  return worker;
 }
