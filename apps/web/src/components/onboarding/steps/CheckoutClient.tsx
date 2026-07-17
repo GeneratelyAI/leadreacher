@@ -17,7 +17,7 @@ import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, bootstrapOrganization } from "@/lib/api";
 import { onboardingHref } from "./steps";
 
 type BillingLineItem = {
@@ -33,6 +33,17 @@ type PricingResponse = {
   lineItems: BillingLineItem[];
 };
 
+type StrategyResponse = {
+  campaignType: string | null;
+  videoConfig: {
+    source?: "generated" | "uploaded" | null;
+    tone?: "professional" | "casual" | "aggressive" | null;
+  } | null;
+  icpDefinition: {
+    idealCustomer?: unknown;
+  };
+};
+
 function formatPrice(item: BillingLineItem): string {
   if (item.unitAmount === null || !item.currency) {
     return "Usage-based";
@@ -45,6 +56,35 @@ function formatPrice(item: BillingLineItem): string {
   }).format(item.unitAmount / 100);
 }
 
+function campaignTypeLabel(value: string | null): string {
+  switch (value) {
+    case "personalized_outreach":
+      return "Personalized outreach";
+    case "ai_video_ad":
+      return "AI video ad";
+    case "uploaded_video":
+      return "Uploaded video";
+    default:
+      return "Not selected";
+  }
+}
+
+function videoLabel(config: StrategyResponse["videoConfig"]): string {
+  if (!config) return "Not selected";
+  if (config.tone) {
+    return `${config.tone.charAt(0).toUpperCase()}${config.tone.slice(1)} tone`;
+  }
+  if (config.source === "uploaded") return "Uploaded video";
+  if (config.source === "generated") return "AI generated";
+  return "Not selected";
+}
+
+function idealCustomerLabel(icpDefinition: StrategyResponse["icpDefinition"]): string {
+  return typeof icpDefinition.idealCustomer === "string" && icpDefinition.idealCustomer.trim()
+    ? icpDefinition.idealCustomer
+    : "Not available";
+}
+
 export default function CheckoutClient() {
   useLayoutEffect(() => {
     applyStoredTheme();
@@ -53,6 +93,7 @@ export default function CheckoutClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [lineItems, setLineItems] = useState<BillingLineItem[]>([]);
+  const [strategy, setStrategy] = useState<StrategyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -63,8 +104,15 @@ export default function CheckoutClient() {
 
     async function loadPricing() {
       try {
-        const pricing = await apiFetch<PricingResponse>("/billing/pricing");
+        const [pricing, bootstrap] = await Promise.all([
+          apiFetch<PricingResponse>("/billing/pricing"),
+          bootstrapOrganization("LeadReacher"),
+        ]);
+        const loadedStrategy = await apiFetch<StrategyResponse>(
+          `/strategy/${bootstrap.orgId}`,
+        );
         if (!cancelled) setLineItems(pricing.lineItems);
+        if (!cancelled) setStrategy(loadedStrategy);
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -190,15 +238,21 @@ export default function CheckoutClient() {
             <dl className="mt-5 space-y-4 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
-                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">Strategy selected</dd>
+                <dd className="max-w-48 text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
+                  {isLoading ? "Loading..." : strategy ? idealCustomerLabel(strategy.icpDefinition) : "Unavailable"}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Campaign</dt>
-                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">Configured</dd>
+                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
+                  {isLoading ? "Loading..." : campaignTypeLabel(strategy?.campaignType ?? null)}
+                </dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Video</dt>
-                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">Selected</dd>
+                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
+                  {isLoading ? "Loading..." : videoLabel(strategy?.videoConfig ?? null)}
+                </dd>
               </div>
             </dl>
           </OnboardingCard>
