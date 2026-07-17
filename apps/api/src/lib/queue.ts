@@ -3,20 +3,28 @@ import { redis } from "./redis.js";
 
 export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";
-export const QUEUE_RECONCILE_VEO_OPERATIONS = "reconcile-veo-operations";
-export const QUEUE_RECONCILE_RELATIONS = "reconcile-relations";
-export const QUEUE_RECONCILE_DELIVERY_ATTEMPTS = "reconcile-delivery-attempts";
-export const QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS = "reconcile-campaign-enrollments";
+export const QUEUE_RECONCILE_MAINTENANCE = "reconcile-maintenance";
 
-// Fallback poll cadence for the new_relation webhook (which can lag/no-show).
-export const RECONCILE_RELATIONS_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
-const RECONCILE_SCHEDULER_ID = "reconcile-relations-scheduler";
-const DELIVERY_ATTEMPT_RECONCILE_SCHEDULER_ID =
-  "reconcile-delivery-attempts-scheduler";
-const CAMPAIGN_ENROLLMENT_RECONCILE_SCHEDULER_ID =
-  "reconcile-campaign-enrollments-scheduler";
-const VEO_OPERATION_RECONCILE_SCHEDULER_ID =
-  "reconcile-veo-operations-scheduler";
+// A single maintenance queue avoids four idle BullMQ workers continuously
+// long-polling Redis. Individual task cadences are handled by the worker.
+export const RECONCILE_MAINTENANCE_INTERVAL_MS = 2 * 60 * 1000;
+const RECONCILE_MAINTENANCE_SCHEDULER_ID = "reconcile-maintenance-scheduler";
+
+const LEGACY_RECONCILIATION_SCHEDULERS = [
+  { queueName: "reconcile-relations", schedulerId: "reconcile-relations-scheduler" },
+  {
+    queueName: "reconcile-delivery-attempts",
+    schedulerId: "reconcile-delivery-attempts-scheduler",
+  },
+  {
+    queueName: "reconcile-campaign-enrollments",
+    schedulerId: "reconcile-campaign-enrollments-scheduler",
+  },
+  {
+    queueName: "reconcile-veo-operations",
+    schedulerId: "reconcile-veo-operations-scheduler",
+  },
+] as const;
 
 export type CampaignSequenceJob = {
   campaignLeadId: string;
@@ -68,58 +76,32 @@ export const videoGenerationQueue = new Queue(QUEUE_VIDEO_GENERATION, {
   connection: redis,
 });
 
-export const reconcileVeoOperationsQueue = new Queue(
-  QUEUE_RECONCILE_VEO_OPERATIONS,
-  { connection: redis },
-);
-
-export const reconcileRelationsQueue = new Queue(QUEUE_RECONCILE_RELATIONS, {
+export const reconcileMaintenanceQueue = new Queue(QUEUE_RECONCILE_MAINTENANCE, {
   connection: redis,
 });
 
-export const reconcileDeliveryAttemptsQueue = new Queue(
-  QUEUE_RECONCILE_DELIVERY_ATTEMPTS,
-  { connection: redis },
-);
-
-export const reconcileCampaignEnrollmentsQueue = new Queue(
-  QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS,
-  { connection: redis },
-);
-
 /**
- * Idempotently register the repeatable relation-reconciliation job. Safe to
- * call on every startup — upsert replaces any existing schedule.
+ * Idempotently register the single repeatable maintenance job. Safe to call
+ * on every startup because upsert replaces the existing schedule.
  */
-export async function scheduleReconcileRelations(): Promise<void> {
-  await reconcileRelationsQueue.upsertJobScheduler(
-    RECONCILE_SCHEDULER_ID,
-    { every: RECONCILE_RELATIONS_INTERVAL_MS },
-    { name: QUEUE_RECONCILE_RELATIONS },
+export async function scheduleReconciliationMaintenance(): Promise<void> {
+  await reconcileMaintenanceQueue.upsertJobScheduler(
+    RECONCILE_MAINTENANCE_SCHEDULER_ID,
+    { every: RECONCILE_MAINTENANCE_INTERVAL_MS },
+    { name: QUEUE_RECONCILE_MAINTENANCE },
   );
-}
 
-export async function scheduleDeliveryAttemptReconciliation(): Promise<void> {
-  await reconcileDeliveryAttemptsQueue.upsertJobScheduler(
-    DELIVERY_ATTEMPT_RECONCILE_SCHEDULER_ID,
-    { every: 5 * 60 * 1000 },
-    { name: QUEUE_RECONCILE_DELIVERY_ATTEMPTS },
-  );
-}
-
-export async function scheduleVeoOperationReconciliation(): Promise<void> {
-  await reconcileVeoOperationsQueue.upsertJobScheduler(
-    VEO_OPERATION_RECONCILE_SCHEDULER_ID,
-    { every: 5 * 60 * 1000 },
-    { name: QUEUE_RECONCILE_VEO_OPERATIONS },
-  );
-}
-
-export async function scheduleCampaignEnrollmentReconciliation(): Promise<void> {
-  await reconcileCampaignEnrollmentsQueue.upsertJobScheduler(
-    CAMPAIGN_ENROLLMENT_RECONCILE_SCHEDULER_ID,
-    { every: 2 * 60 * 1000 },
-    { name: QUEUE_RECONCILE_CAMPAIGN_ENROLLMENTS },
+  // Clean up schedules created before maintenance work was consolidated. They
+  // otherwise leave delayed jobs behind after a rolling deployment.
+  await Promise.all(
+    LEGACY_RECONCILIATION_SCHEDULERS.map(async ({ queueName, schedulerId }) => {
+      const queue = new Queue(queueName, { connection: redis });
+      try {
+        await queue.removeJobScheduler(schedulerId);
+      } finally {
+        await queue.close();
+      }
+    }),
   );
 }
 
@@ -127,9 +109,6 @@ export async function closeQueues(): Promise<void> {
   await Promise.all([
     campaignSequenceQueue.close(),
     videoGenerationQueue.close(),
-    reconcileVeoOperationsQueue.close(),
-    reconcileRelationsQueue.close(),
-    reconcileDeliveryAttemptsQueue.close(),
-    reconcileCampaignEnrollmentsQueue.close(),
+    reconcileMaintenanceQueue.close(),
   ]);
 }

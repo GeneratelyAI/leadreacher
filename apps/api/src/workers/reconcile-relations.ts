@@ -1,12 +1,6 @@
-import { Job, Worker } from "bullmq";
 import { UnipileAdapter } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
-import { redisSubscriber } from "../lib/redis.js";
-import {
-  QUEUE_RECONCILE_RELATIONS,
-  scheduleReconcileRelations,
-} from "../lib/queue.js";
 import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
 import { parseSequence } from "../lib/sequence.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
@@ -158,19 +152,4 @@ export async function reconcilePendingConnections(): Promise<{
   }
 
   return { checked: candidates.length, advanced };
-}
-
-export function startReconcileRelationsWorker(): Worker {
-  const worker = new Worker(
-    QUEUE_RECONCILE_RELATIONS,
-    async (_job: Job) => reconcilePendingConnections(),
-    { connection: redisSubscriber },
-  );
-
-  worker.on("failed", (job, error) => {
-    console.error(`Reconcile job ${job?.id} failed:`, error.message);
-  });
-
-  void scheduleReconcileRelations();
-  return worker;
 }

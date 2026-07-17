@@ -114,6 +114,12 @@ const envSchema = z.object({
   ENABLE_CAMPAIGN_WORKER: optionalBoolean,
   ENABLE_RECONCILE_WORKER: optionalBoolean,
   ENABLE_VIDEO_WORKER: optionalBoolean,
+  BULLMQ_IDLE_DRAIN_DELAY_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(5)
+    .max(60)
+    .default(60),
   VEO_PARALLEL_VARIANTS: z.coerce
     .number()
     .int()
@@ -162,4 +168,13 @@ export function isWorkerEnabled(value: boolean | undefined): boolean {
 
 export function getVeoParallelVariants(): number {
   return env.VEO_PARALLEL_VARIANTS;
+}
+
+/**
+ * BullMQ long-polls Redis while a queue is empty. Keeping this high avoids
+ * spending Upstash commands on idle workers; Redis wakes the worker
+ * immediately when a job is added, so it does not add job-start latency.
+ */
+export function getBullMqIdleDrainDelaySeconds(): number {
+  return env.BULLMQ_IDLE_DRAIN_DELAY_SECONDS;
 }

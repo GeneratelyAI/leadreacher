@@ -54,6 +54,7 @@ vi.mock("bullmq", () => ({
 }));
 vi.mock("../../config/env.js", () => ({
   env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
+  getBullMqIdleDrainDelaySeconds: () => 60,
 }));
 vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
 vi.mock("../../lib/queue.js", () => ({

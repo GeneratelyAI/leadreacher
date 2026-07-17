@@ -18,13 +18,8 @@ import { healthRoutes } from "./routes/health.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { stripeWebhookRoutes } from "./routes/stripe-webhook.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
-import { startReconcileRelationsWorker } from "./workers/reconcile-relations.js";
-import { startDeliveryAttemptReconciliationWorker } from "./workers/reconcile-delivery-attempts.js";
-import { startCampaignEnrollmentReconciliationWorker } from "./workers/reconcile-campaign-enrollments.js";
-import {
-  startVeoOperationReconciliationWorker,
-  startVideoGenerationWorker,
-} from "./workers/video-generation.js";
+import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
+import { startVideoGenerationWorker } from "./workers/video-generation.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -61,7 +56,10 @@ export async function buildServer() {
     global: true,
     max: 120,
     timeWindow: "1 minute",
-    redis,
+    // Keep HTTP throttling in-process. Queue state still requires Redis, but
+    // charging one Redis command per normal request quickly exhausts a
+    // request-metered Upstash plan. Revisit a shared limiter before scaling
+    // the API horizontally.
     keyGenerator: (request) =>
       request.orgId ?? request.dbUserId ?? request.userId ?? request.ip,
     errorResponseBuilder: (_request, context) => ({
@@ -108,7 +106,11 @@ export async function buildServer() {
   await app.register(anonymousDiscoveryRoutes);
   await app.register(protectedRoutes);
 
-  if (isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER)) {
+  const campaignWorkerEnabled = isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER);
+  const reconcileWorkerEnabled = isWorkerEnabled(env.ENABLE_RECONCILE_WORKER);
+  const videoWorkerEnabled = isWorkerEnabled(env.ENABLE_VIDEO_WORKER);
+
+  if (campaignWorkerEnabled) {
     registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
     stopHeartbeats.push(
       startBetterStackHeartbeat({
@@ -118,16 +120,17 @@ export async function buildServer() {
     );
   }
 
-  if (isWorkerEnabled(env.ENABLE_RECONCILE_WORKER)) {
-    registerWorker(startReconcileRelationsWorker(), "reconcile-relations");
+  if (reconcileWorkerEnabled || videoWorkerEnabled) {
     registerWorker(
-      startDeliveryAttemptReconciliationWorker(),
-      "reconcile-delivery-attempts",
+      startReconciliationMaintenanceWorker({
+        reconcileEnabled: reconcileWorkerEnabled,
+        videoEnabled: videoWorkerEnabled,
+      }),
+      "reconcile-maintenance",
     );
-    registerWorker(
-      startCampaignEnrollmentReconciliationWorker(),
-      "reconcile-campaign-enrollments",
-    );
+  }
+
+  if (reconcileWorkerEnabled) {
     stopHeartbeats.push(
       startBetterStackHeartbeat({
         name: "reconcile-workers",
@@ -136,12 +139,8 @@ export async function buildServer() {
     );
   }
 
-  if (isWorkerEnabled(env.ENABLE_VIDEO_WORKER)) {
+  if (videoWorkerEnabled) {
     registerWorker(startVideoGenerationWorker(), "video-generation");
-    registerWorker(
-      startVeoOperationReconciliationWorker(),
-      "reconcile-veo-operations",
-    );
     stopHeartbeats.push(
       startBetterStackHeartbeat({
         name: "video-workers",

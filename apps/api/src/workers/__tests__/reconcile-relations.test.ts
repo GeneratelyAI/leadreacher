@@ -20,11 +20,6 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../config/env.js", () => ({
   env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
 }));
-vi.mock("../../lib/redis.js", () => ({ redis: {}, redisSubscriber: {} }));
-vi.mock("../../lib/queue.js", () => ({
-  QUEUE_RECONCILE_RELATIONS: "reconcile-relations",
-  scheduleReconcileRelations: vi.fn(),
-}));
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {
     getProfile = getProfile;

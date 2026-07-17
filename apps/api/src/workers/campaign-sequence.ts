@@ -1,6 +1,6 @@
 import { DelayedError, Job, Worker } from "bullmq";
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
+import { env, getBullMqIdleDrainDelaySeconds } from "../config/env.js";
 import { prisma } from "../lib/prisma.js";
 import { redisSubscriber } from "../lib/redis.js";
 import {
@@ -335,7 +335,10 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       return { sent: true, step };
     },
-    { connection: redisSubscriber },
+    {
+      connection: redisSubscriber,
+      drainDelay: getBullMqIdleDrainDelaySeconds(),
+    },
   );
 
   worker.on("failed", (job, error) => {
