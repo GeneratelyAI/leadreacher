@@ -89,9 +89,14 @@ function parseVideoConfig(value: unknown, campaignType: CampaignType): VideoConf
     return {
       enabled: true,
       mode: "standardized",
-      source: source ?? "generated",
-      tone: null,
-      uploadedVideoUrl: source === "uploaded" ? uploadedVideoUrl : null,
+      source: "generated",
+      tone:
+        config.tone === "professional" ||
+        config.tone === "casual" ||
+        config.tone === "aggressive"
+          ? config.tone
+          : null,
+      uploadedVideoUrl: null,
     };
   }
 
@@ -134,34 +139,10 @@ function defaultEnabledVideoConfig(campaignType: CampaignType): VideoConfig {
   };
 }
 
-function enableVideoConfig(
-  campaignType: CampaignType,
-  current: VideoConfig,
-): VideoConfig {
-  const defaults = defaultEnabledVideoConfig(campaignType);
-
-  if (campaignType === "personalized_outreach") {
-    return { ...defaults, tone: current.tone };
-  }
-  if (campaignType === "ai_video_ad") {
-    return {
-      ...defaults,
-      source: current.source ?? "generated",
-      uploadedVideoUrl:
-        current.source === "uploaded" ? current.uploadedVideoUrl : null,
-    };
-  }
-  return {
-    ...defaults,
-    source: current.uploadedVideoUrl ? "uploaded" : null,
-    uploadedVideoUrl: current.uploadedVideoUrl,
-  };
-}
-
 function canContinueWith(campaignType: CampaignType, videoConfig: VideoConfig): boolean {
   if (!videoConfig.enabled) return true;
   if (campaignType === "personalized_outreach") return videoConfig.tone !== null;
-  if (campaignType === "ai_video_ad") return videoConfig.source !== null;
+  if (campaignType === "ai_video_ad") return videoConfig.tone !== null;
   return videoConfig.uploadedVideoUrl !== null;
 }
 
@@ -196,7 +177,15 @@ export default function VideoDecisionClient() {
 
         setOrgId(bootstrap.orgId);
         setCampaignType(strategy.campaignType);
-        setVideoConfig(parseVideoConfig(strategy.videoConfig, strategy.campaignType));
+        const parsedVideoConfig = parseVideoConfig(
+          strategy.videoConfig,
+          strategy.campaignType,
+        );
+        setVideoConfig(
+          parsedVideoConfig.enabled
+            ? parsedVideoConfig
+            : defaultEnabledVideoConfig(strategy.campaignType),
+        );
       } catch (loadError) {
         if (!cancelled) {
           setError(
@@ -215,15 +204,6 @@ export default function VideoDecisionClient() {
       cancelled = true;
     };
   }, [router]);
-
-  function updateEnabled(enabled: boolean) {
-    if (!campaignType) return;
-    setVideoConfig((current) =>
-      enabled
-        ? enableVideoConfig(campaignType, current)
-        : disabledVideoConfig(),
-    );
-  }
 
   async function handleContinue() {
     if (!orgId || !campaignType || isSaving) return;
@@ -248,6 +228,7 @@ export default function VideoDecisionClient() {
   }
 
   const hero = campaignType ? HERO_COPY[campaignType] : HERO_COPY.ai_video_ad;
+  const showPageHero = campaignType === "uploaded_video";
   const canContinue =
     Boolean(orgId && campaignType) &&
     !isLoading &&
@@ -257,15 +238,17 @@ export default function VideoDecisionClient() {
     <div className="onboarding-page relative flex h-dvh min-h-dvh w-full flex-col overflow-y-auto">
       <OnboardingChrome activeStep="video-decision" />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
-        <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-          <HeroBadge icon={<Clapperboard className="size-7" />} />
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-            {hero.title}
-          </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            {hero.description}
-          </p>
-        </div>
+        {showPageHero ? (
+          <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <HeroBadge icon={<Clapperboard className="size-7" />} />
+            <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
+              {hero.title}
+            </h1>
+            <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+              {hero.description}
+            </p>
+          </div>
+        ) : null}
 
         {error ? (
           <p className="mx-auto mt-6 w-full max-w-5xl rounded-onboarding bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
@@ -279,41 +262,23 @@ export default function VideoDecisionClient() {
             Loading your video options
           </OnboardingCard>
         ) : campaignType ? (
-          <div className="mx-auto mt-8 w-full max-w-5xl space-y-6">
-            <OnboardingCard className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                  Include video in this campaign
-                </h2>
-                <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                  Video is optional. It is never generated until your campaign needs it.
-                </p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={videoConfig.enabled}
-                onClick={() => updateEnabled(!videoConfig.enabled)}
-                className={`onboarding-toggle ${videoConfig.enabled ? "onboarding-toggle--active" : ""}`}
-              >
-                <span className="onboarding-toggle__thumb" />
-                <span className="sr-only">Include video in this campaign</span>
-              </button>
-            </OnboardingCard>
-
-            {videoConfig.enabled && campaignType === "personalized_outreach" ? (
-              <PersonalizedOutreachVariant
-                videoConfig={videoConfig}
-                setVideoConfig={setVideoConfig}
-              />
+          <div className={`mx-auto w-full max-w-5xl space-y-6 ${showPageHero ? "mt-8" : "mt-0"}`}>
+            {campaignType === "personalized_outreach" ? (
+              orgId ? (
+                <PersonalizedOutreachVariant
+                  orgId={orgId}
+                  videoConfig={videoConfig}
+                  setVideoConfig={setVideoConfig}
+                />
+              ) : null
             ) : null}
-            {videoConfig.enabled && campaignType === "ai_video_ad" ? (
+            {campaignType === "ai_video_ad" ? (
               <AiVideoAdVariant
                 videoConfig={videoConfig}
                 setVideoConfig={setVideoConfig}
               />
             ) : null}
-            {videoConfig.enabled && campaignType === "uploaded_video" && orgId ? (
+            {campaignType === "uploaded_video" && orgId ? (
               <UploadedVideoVariant
                 orgId={orgId}
                 videoConfig={videoConfig}

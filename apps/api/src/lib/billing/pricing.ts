@@ -122,13 +122,11 @@ export function buildPricingCatalog(input: PricingCatalogInput): {
     },
   ];
 
-  if (input.videoConfig.enabled) {
-    lineItems.push({
-      key: "video_addon",
-      priceId: resolvePriceId("video_addon", "STRIPE_PRICE_VIDEO_ADDON"),
-      label: "Video personalization",
-    });
-  }
+  lineItems.push({
+    key: "video_addon",
+    priceId: resolvePriceId("video_addon", "STRIPE_PRICE_VIDEO_ADDON"),
+    label: "Video personalization",
+  });
 
   return { lineItems };
 }

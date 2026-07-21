@@ -26,6 +26,7 @@ import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { VideoConfigSchema } from "../lib/billing/pricing.js";
+import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
 import {
   buildCompanySearchPlan,
   COMPANY_SEARCH_NO_RESULTS_REASON,
@@ -118,6 +119,9 @@ const CampaignTypeBodySchema = z.object({
 });
 
 const VideoDecisionBodySchema = VideoConfigSchema;
+const OutreachMessageBodySchema = z.object({
+  message: z.string().trim().min(1).max(1000),
+});
 const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
 
 function parseCampaignType(value: string): CampaignType {
@@ -133,7 +137,7 @@ function validateVideoDecisionForCampaign(
   videoConfig: z.infer<typeof VideoDecisionBodySchema>,
 ): void {
   if (!videoConfig.enabled) {
-    return;
+    throw new ValidationError("Video is required for every campaign type");
   }
 
   if (!campaignType || !CAMPAIGN_TYPES.includes(campaignType as CampaignType)) {
@@ -160,12 +164,17 @@ function validateVideoDecisionForCampaign(
   }
 
   if (campaignType === "ai_video_ad") {
-    if (videoConfig.tone !== null) {
-      throw new ValidationError("AI video ads do not support a personalized video tone");
+    if (videoConfig.tone === null) {
+      throw new ValidationError(
+        "AI video ads require a professional, casual, or aggressive tone",
+      );
     }
 
-    if (videoConfig.mode !== "standardized") {
-      throw new ValidationError("AI video ads use standardized video");
+    if (
+      videoConfig.mode !== "standardized" ||
+      videoConfig.source !== "generated"
+    ) {
+      throw new ValidationError("AI video ads use standardized AI-generated video");
     }
 
     return;
@@ -677,6 +686,94 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     });
 
     return reply.send(updated);
+  });
+
+  app.post("/strategy/:orgId/outreach-message", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    if (requestedOrgId !== orgId) {
+      throw new ForbiddenError();
+    }
+
+    const strategy = await prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!strategy) {
+      throw new NotFoundError("Strategy");
+    }
+
+    const messagingAngles = asRecord(strategy.messagingAngles);
+    const existingMessage = recordString(messagingAngles, "outreachMessage");
+    if (existingMessage) {
+      return reply.send({ message: existingMessage });
+    }
+
+    const positioning = asRecord(strategy.positioning);
+    const icpDefinition = asRecord(strategy.icpDefinition);
+    const product =
+      recordString(positioning, "businessModel") ||
+      recordString(positioning, "strengths");
+    const audience = recordString(icpDefinition, "idealCustomer");
+    if (!product || !audience) {
+      throw new ValidationError(
+        "Complete your strategy before generating an outreach message",
+      );
+    }
+
+    const videoConfig = asRecord(strategy.videoConfig);
+    const storedTone = recordString(videoConfig, "tone");
+    const tone =
+      storedTone === "professional" ||
+      storedTone === "casual" ||
+      storedTone === "aggressive"
+        ? storedTone
+        : "professional";
+    const result = await runOutreachMessageAgent({
+      orgId,
+      product,
+      audience,
+      tone,
+    });
+
+    await prisma.strategy.update({
+      where: { id: strategy.id },
+      data: {
+        messagingAngles: toJson({
+          ...messagingAngles,
+          outreachMessage: result.message,
+        }),
+      },
+    });
+
+    return reply.send({ message: result.message });
+  });
+
+  app.patch("/strategy/:orgId/outreach-message", async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    if (requestedOrgId !== orgId) {
+      throw new ForbiddenError();
+    }
+
+    const { message } = OutreachMessageBodySchema.parse(request.body);
+    const strategy = await prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!strategy) {
+      throw new NotFoundError("Strategy");
+    }
+
+    const messagingAngles = asRecord(strategy.messagingAngles);
+    await prisma.strategy.update({
+      where: { id: strategy.id },
+      data: {
+        messagingAngles: toJson({ ...messagingAngles, outreachMessage: message }),
+      },
+    });
+
+    return reply.send({ message });
   });
 
   app.post("/strategy/:orgId/video-upload", async (request, reply) => {

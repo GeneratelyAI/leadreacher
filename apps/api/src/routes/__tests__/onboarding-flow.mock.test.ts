@@ -230,7 +230,13 @@ describe("onboarding backend in Stripe mock mode", () => {
     const videoDecision = await app.inject({
       method: "PATCH",
       url: `/strategy/${ORG_ID}/video-decision`,
-      payload: { enabled: false, mode: null, source: null },
+      payload: {
+        enabled: true,
+        mode: "personalized",
+        source: "generated",
+        tone: "professional",
+        uploadedVideoUrl: null,
+      },
     });
     const pricing = await app.inject({ method: "GET", url: "/billing/pricing" });
     const checkout = await app.inject({

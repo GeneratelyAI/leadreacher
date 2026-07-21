@@ -43,7 +43,7 @@ describe("buildPricingCatalog", () => {
     });
   });
 
-  it("does not add a video add-on when video is disabled", () => {
+  it("adds a video add-on even when a stale caller sends disabled video", () => {
     expect(
       buildPricingCatalog({
         campaignType: "uploaded_video",
@@ -61,6 +61,11 @@ describe("buildPricingCatalog", () => {
           key: "uploaded_video",
           priceId: "price_uploaded_video",
           label: "Uploaded video outreach",
+        },
+        {
+          key: "video_addon",
+          priceId: "price_video_addon",
+          label: "Video personalization",
         },
       ],
     });

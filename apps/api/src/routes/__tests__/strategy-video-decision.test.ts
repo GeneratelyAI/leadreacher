@@ -98,6 +98,27 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it("rejects disabled video because every campaign requires video", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/video-decision",
+      payload: {
+        enabled: false,
+        mode: null,
+        source: null,
+        tone: null,
+        uploadedVideoUrl: null,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Video is required for every campaign type",
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("requires a tone for personalized outreach", async () => {
     const response = await app.inject({
       method: "PATCH",
@@ -120,7 +141,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("rejects tones for campaign types other than personalized outreach", async () => {
+  it("requires a tone for AI video ads", async () => {
     findFirst.mockResolvedValue({ ...strategy, campaignType: "ai_video_ad" });
 
     const response = await app.inject({
@@ -130,7 +151,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
         enabled: true,
         mode: "standardized",
         source: "generated",
-        tone: "casual",
+        tone: null,
         uploadedVideoUrl: null,
       },
     });
@@ -138,9 +159,33 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
       code: "VALIDATION_ERROR",
-      message: "AI video ads do not support a personalized video tone",
+      message:
+        "AI video ads require a professional, casual, or aggressive tone",
     });
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("accepts a generated AI video ad with a selected tone", async () => {
+    findFirst.mockResolvedValue({ ...strategy, campaignType: "ai_video_ad" });
+    const videoConfig = {
+      enabled: true,
+      mode: "standardized",
+      source: "generated",
+      tone: "casual",
+      uploadedVideoUrl: null,
+    };
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/video-decision",
+      payload: videoConfig,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "strategy-1" },
+      data: { videoConfig },
+    });
   });
 
   it("accepts an uploaded video configuration only after an upload URL exists", async () => {
