@@ -11,6 +11,11 @@ import {
   markDeliveryReservationUnknown,
 } from "./delivery-attempt.js";
 import { getReadyPersonalizedVideoForDelivery } from "./personalized-video.js";
+import {
+  checkAndIncrementDailySendLimit,
+  millisecondsUntilNextUtcDay,
+  utcDay,
+} from "../lib/rate-limiter.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -53,6 +58,23 @@ export async function deliverSequenceStep1ViaChat(
     leadId,
   });
   const messageText = step1.message;
+
+  const messageLimit = await checkAndIncrementDailySendLimit(
+    unipileAccountId,
+    "message",
+  );
+  if (!messageLimit.allowed) {
+    const delay = millisecondsUntilNextUtcDay();
+    await campaignSequenceQueue.add(
+      QUEUE_CAMPAIGN_SEQUENCE,
+      { campaignLeadId, orgId, step: 0 },
+      {
+        delay,
+        jobId: `${campaignSequenceJobId(campaignLeadId, 0)}-daily-limit-${utcDay(new Date(Date.now() + delay))}`,
+      },
+    );
+    return { skipped: true, reason: "daily send limit reached for this sender" };
+  }
 
   const reservation = await acquireDeliveryReservation(campaignLeadId, 1);
   if (!reservation.acquired) {

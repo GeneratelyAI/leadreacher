@@ -19,10 +19,13 @@ const {
   transaction,
   getProfile,
   sendConnectionInvite,
+  sendMessageToChat,
   deliverSequenceStep1ViaChat,
   ensurePersonalizedVideoReady,
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
+  checkAndIncrementDailySendLimit,
+  campaignSequenceQueueAdd,
 } = vi.hoisted(() => ({
   workerProcessor: { current: null as WorkerProcessor | null },
   campaignLeadFindUnique: vi.fn(),
@@ -34,10 +37,13 @@ const {
   transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
   getProfile: vi.fn(),
   sendConnectionInvite: vi.fn(),
+  sendMessageToChat: vi.fn(),
   deliverSequenceStep1ViaChat: vi.fn(),
   ensurePersonalizedVideoReady: vi.fn(),
   acquireDeliveryReservation: vi.fn(),
   markDeliveryReservationUnknown: vi.fn(),
+  checkAndIncrementDailySendLimit: vi.fn(),
+  campaignSequenceQueueAdd: vi.fn(),
 }));
 
 vi.mock("bullmq", () => ({
@@ -60,7 +66,7 @@ vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_CAMPAIGN_SEQUENCE: "campaign-sequence",
   campaignSequenceJobId: vi.fn(),
-  campaignSequenceQueue: { add: vi.fn() },
+  campaignSequenceQueue: { add: campaignSequenceQueueAdd },
 }));
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
@@ -76,7 +82,13 @@ vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {
     getProfile = getProfile;
     sendConnectionInvite = sendConnectionInvite;
+    sendMessageToChat = sendMessageToChat;
   },
+}));
+vi.mock("../../lib/rate-limiter.js", () => ({
+  checkAndIncrementDailySendLimit,
+  millisecondsUntilNextUtcDay: () => 60_000,
+  utcDay: () => "2026-07-22",
 }));
 vi.mock("../../services/campaign-step1-chat.js", () => ({
   deliverSequenceStep1ViaChat,
@@ -96,13 +108,13 @@ const sequence = [
   { type: "linkedin_message", message: "Thanks for connecting.", delayHours: 0 },
 ];
 
-function campaignLead() {
+function campaignLead(step = 0) {
   return {
     id: "campaign-lead-1",
     status: "active",
     campaignId: "campaign-1",
     leadId: "lead-1",
-    linkedinChatId: null,
+    linkedinChatId: step > 0 ? "chat-1" : null,
     lead: {
       providerLinkedinId: "lead-provider-1",
       linkedinUrl: "https://www.linkedin.com/in/lead-one",
@@ -121,6 +133,16 @@ async function processStepZero(): Promise<unknown> {
   });
 }
 
+async function processStep(step: number): Promise<unknown> {
+  startCampaignSequenceWorker();
+  if (!workerProcessor.current) {
+    throw new Error("Campaign sequence worker processor was not registered");
+  }
+  return workerProcessor.current({
+    data: { campaignLeadId: "campaign-lead-1", orgId: "org-1", step },
+  });
+}
+
 beforeEach(() => {
   campaignLeadFindUnique.mockReset().mockResolvedValue(campaignLead());
   socialAccountFindFirst.mockReset().mockResolvedValue({ unipileId: "account-1" });
@@ -131,10 +153,13 @@ beforeEach(() => {
   transaction.mockClear();
   getProfile.mockReset();
   sendConnectionInvite.mockReset().mockResolvedValue({});
+  sendMessageToChat.mockReset().mockResolvedValue({ message_id: "message-1" });
   deliverSequenceStep1ViaChat.mockReset().mockResolvedValue({ delivered: true, chatId: "chat-1" });
   ensurePersonalizedVideoReady.mockReset().mockResolvedValue({ state: "ready" });
   acquireDeliveryReservation.mockReset().mockResolvedValue({ acquired: true, attemptId: "attempt-1" });
   markDeliveryReservationUnknown.mockReset();
+  checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 19 });
+  campaignSequenceQueueAdd.mockReset();
   workerProcessor.current = null;
 });
 
@@ -178,5 +203,36 @@ describe("campaign sequence step zero", () => {
       "lead-provider-1",
       "Connect?",
     );
+  });
+
+  it("skips and reschedules delivery when the sender has reached the daily cap", async () => {
+    getProfile.mockResolvedValue({
+      network_distance: "SECOND_DEGREE",
+      is_relationship: false,
+      provider_id: "profile-provider-1",
+    });
+    checkAndIncrementDailySendLimit.mockResolvedValue({ allowed: false, remaining: 0 });
+
+    await expect(processStepZero()).resolves.toEqual({
+      skipped: true,
+      reason: "daily send limit reached for this sender",
+    });
+
+    expect(sendConnectionInvite).not.toHaveBeenCalled();
+    expect(acquireDeliveryReservation).not.toHaveBeenCalled();
+    expect(campaignSequenceQueueAdd).toHaveBeenCalledWith(
+      "campaign-sequence",
+      { campaignLeadId: "campaign-lead-1", orgId: "org-1", step: 0 },
+      expect.objectContaining({ delay: 60_000 }),
+    );
+  });
+
+  it("sends a follow-up when the message limit permits it", async () => {
+    campaignLeadFindUnique.mockResolvedValue(campaignLead(1));
+
+    await expect(processStep(1)).resolves.toMatchObject({ sent: true, step: 1 });
+
+    expect(checkAndIncrementDailySendLimit).toHaveBeenCalledWith("account-1", "message");
+    expect(sendMessageToChat).toHaveBeenCalledWith("chat-1", "Thanks for connecting.");
   });
 });

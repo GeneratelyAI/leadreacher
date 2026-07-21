@@ -16,6 +16,11 @@ import {
 import { parseSequence } from "../lib/sequence.js";
 import { resolveProviderId } from "../lib/provider-id.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
+import {
+  checkAndIncrementDailySendLimit,
+  millisecondsUntilNextUtcDay,
+  utcDay,
+} from "../lib/rate-limiter.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 import {
   acquireDeliveryReservation,
@@ -24,6 +29,23 @@ import {
 import { ensurePersonalizedVideoReady } from "../services/personalized-video.js";
 
 const PERSONALIZED_VIDEO_WAIT_MS = 30_000;
+
+async function rescheduleAfterDailyLimit(
+  job: Job<CampaignSequenceJob>,
+  reason: string,
+): Promise<{ skipped: true; reason: string }> {
+  const delay = millisecondsUntilNextUtcDay();
+  const retryDate = utcDay(new Date(Date.now() + delay));
+  await campaignSequenceQueue.add(
+    QUEUE_CAMPAIGN_SEQUENCE,
+    job.data,
+    {
+      delay,
+      jobId: `${campaignSequenceJobId(job.data.campaignLeadId, job.data.step)}-daily-limit-${retryDate}`,
+    },
+  );
+  return { skipped: true, reason };
+}
 
 export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
   const worker = new Worker<CampaignSequenceJob>(
@@ -164,6 +186,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             existingChatId: campaignLead.linkedinChatId,
           });
 
+          if (
+            "skipped" in step1Result &&
+            step1Result.reason === "daily send limit reached for this sender"
+          ) {
+            return { skipped: true, reason: step1Result.reason };
+          }
+
           console.log(
             JSON.stringify({
               event: "campaign-sequence-step0",
@@ -190,6 +219,17 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         if (!inviteProviderId) {
           throw new Error(
             `No provider_id available to send invite for CampaignLead ${campaignLeadId}`,
+          );
+        }
+
+        const inviteLimit = await checkAndIncrementDailySendLimit(
+          socialAccount.unipileId,
+          "invite",
+        );
+        if (!inviteLimit.allowed) {
+          return rescheduleAfterDailyLimit(
+            job,
+            "daily send limit reached for this sender",
           );
         }
 
@@ -273,6 +313,17 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       if (!chatId) {
         throw new Error(
           `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
+        );
+      }
+
+      const messageLimit = await checkAndIncrementDailySendLimit(
+        socialAccount.unipileId,
+        "message",
+      );
+      if (!messageLimit.allowed) {
+        return rescheduleAfterDailyLimit(
+          job,
+          "daily send limit reached for this sender",
         );
       }
 
