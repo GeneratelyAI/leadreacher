@@ -20,7 +20,7 @@ The test proves three things, in order:
 | Requirement | Notes |
 |---|---|
 | Unipile dashboard access | To obtain the API key + DSN and connect an account. |
-| Unipile **DSN** | Host **and** port, e.g. `apiXXX.unipile.com:13XXX`. The adapter builds `https://${dsn}/api/v1` ([`unipile.ts:26`](../src/adapters/unipile.ts)). |
+| Unipile **DSN** | Host **and** port, e.g. `apiXXX.unipile.com:13XXX`. The adapter builds `https://${dsn}/api/v1` ([`unipile.ts:26`](../../apps/api/src/adapters/unipile.ts)). |
 | Unipile **API key** | From the dashboard (Settings → API). |
 | A LinkedIn account | Use a **test/burner account**, not a critical one — LinkedIn automation carries ban risk. |
 | Node 20+, pnpm 9+ | Repo prerequisites. |
@@ -44,7 +44,7 @@ The test proves three things, in order:
 ## Step 2 — Configure environment
 
 Add the credentials to `apps/api/.env` (loaded from `process.cwd()/.env`,
-see [`config/env.ts:5`](../src/config/env.ts)):
+see [`config/env.ts:5`](../../apps/api/src/config/env.ts)):
 
 ```dotenv
 UNIPILE_DSN=apiXXX.unipile.com:13XXX
@@ -60,7 +60,7 @@ UNIPILE_API_KEY=your_api_key_here
 
 ## Step 3 — Run the smoke test
 
-The test is automated in [`src/scripts/test-unipile.ts`](../src/scripts/test-unipile.ts).
+The test is automated in [`src/scripts/test-unipile.ts`](../../apps/api/src/scripts/test-unipile.ts).
 It reads `UNIPILE_DSN` / `UNIPILE_API_KEY` from `.env` directly (no DB required)
 and runs all three checks in one command:
 
@@ -178,7 +178,7 @@ Result: 3/3 passed.
 - Responses are **unchecked `as T` casts** — no Zod validation at the boundary.
 - No **timeout / retry** on `fetch`.
 - `sendConnectionInvite` **crashes on empty `200/204` bodies** — `request()`
-  always calls `res.json()` ([`unipile.ts:52`](../src/adapters/unipile.ts)).
+  always calls `res.json()` ([`unipile.ts:52`](../../apps/api/src/adapters/unipile.ts)).
 
 **Fixed during this work:** `getAccountStatus` now reads status from `sources[]`
 instead of a non-existent top-level `status` field, and `listAccounts()` was

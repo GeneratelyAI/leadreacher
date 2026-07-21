@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-17
 **Branch:** `test/pipeline-live-e2e`
-**Plan:** `apps/api/docs/pipeline-live-e2e-plan.md`
+**Plan:** `docs/video/live-e2e-plan.md`
 **Method:** Subagent-driven development (fresh implementer per task, task review after each, final whole-branch review).
 
 ## Summary

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **Design spec:** `apps/api/docs/pipeline-live-e2e-design.md` (approved 2026-06-16).
+> **Design spec:** `docs/video/live-e2e-design.md` (approved 2026-06-16).
 
 **Goal:** Produce the tooling (configurable webhook URL, a recipient-seeding script) and the runbook needed to run the Apify→Unipile pipeline end to end against real services, then execute that run and record findings.
 
@@ -29,7 +29,7 @@
 | `apps/api/src/lib/seed-lead.ts` | **new** — `buildSeedLead(input)` pure builder |
 | `apps/api/src/lib/seed-lead.test.ts` | **new** — builder tests |
 | `apps/api/src/scripts/seed-test-lead.ts` | **new** — CLI that inserts the recipient lead |
-| `apps/api/docs/pipeline-live-e2e-runbook.md` | **new** — the executable runbook + findings |
+| `docs/video/live-e2e-runbook.md` | **new** — the executable runbook + findings |
 | `apps/api/.env.example` | **modify** — document `UNIPILE_WEBHOOK_URL` / `PUBLIC_BASE_URL` |
 
 ---
@@ -339,7 +339,7 @@ git commit -m "feat(api): add recipient lead seeding script for live E2E"
 The runbook is the operational deliverable: exact, copy-pasteable commands and a per-step verification table. All endpoints below are confirmed against the source.
 
 **Files:**
-- Create: `apps/api/docs/pipeline-live-e2e-runbook.md`
+- Create: `docs/video/live-e2e-runbook.md`
 
 - [ ] **Step 1: Create the runbook** with these sections and exact content:
 
@@ -400,7 +400,7 @@ Then: watch the API logs; **accept** the invite on the recipient account; after 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add apps/api/docs/pipeline-live-e2e-runbook.md
+git add docs/video/live-e2e-runbook.md
 git commit -m "docs(api): add live E2E pipeline runbook"
 ```
 
@@ -419,7 +419,7 @@ git commit -m "docs(api): add live E2E pipeline runbook"
 - [ ] **Step 7:** Fill in the runbook §4 Findings with evidence; commit:
 
 ```bash
-git add apps/api/docs/pipeline-live-e2e-runbook.md
+git add docs/video/live-e2e-runbook.md
 git commit -m "docs(api): record live E2E run findings"
 ```
 

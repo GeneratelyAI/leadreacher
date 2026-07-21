@@ -76,7 +76,7 @@ The runbook contains a checkpoint table: **action → expected structured log ev
 
 ## Deliverables
 
-- `apps/api/docs/pipeline-live-e2e-runbook.md` — procedure + observability table + findings section (filled in during the run).
+- `docs/video/live-e2e-runbook.md` — procedure + observability table + findings section (filled in during the run).
 - `apps/api/src/scripts/seed-test-lead.ts` — seeds the recipient lead with `providerLinkedinId`.
 - Parameterize the webhook URL in `recreate-unipile-webhooks.ts` (read from env, default to current value).
 

@@ -49,8 +49,9 @@ next-env.d.ts
 .claude/
 CLAUDE.local.md
 
-# local docs (root scratch only; apps/api/docs stays tracked)
-/docs
+# local documentation scratch files only. Curated project documentation lives in
+# /docs and is tracked.
+/docs/*.local.md
 
 # root-level scratch screenshots from manual/agent verification passes
 /*.png
