@@ -114,6 +114,7 @@ const envSchema = z.object({
   ENABLE_CAMPAIGN_WORKER: optionalBoolean,
   ENABLE_RECONCILE_WORKER: optionalBoolean,
   ENABLE_VIDEO_WORKER: optionalBoolean,
+  ENABLE_ANALYTICS_INSIGHTS_WORKER: optionalBoolean,
   BULLMQ_IDLE_DRAIN_DELAY_SECONDS: z.coerce
     .number()
     .int()

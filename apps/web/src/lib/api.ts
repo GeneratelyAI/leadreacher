@@ -106,6 +106,9 @@ export async function bootstrapOrganization(
 ): Promise<{
   orgId: string;
   userId: string;
+  subscriptionStatus: string | null;
+  onboardedAt: string | null;
+  activeChannelCount: number;
   scrapeStatus?: {
     status: "idle" | "running" | "completed" | "failed";
     url: string | null;

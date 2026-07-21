@@ -20,6 +20,7 @@ import { stripeWebhookRoutes } from "./routes/stripe-webhook.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
 import { startVideoGenerationWorker } from "./workers/video-generation.js";
+import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -109,6 +110,7 @@ export async function buildServer() {
   const campaignWorkerEnabled = isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER);
   const reconcileWorkerEnabled = isWorkerEnabled(env.ENABLE_RECONCILE_WORKER);
   const videoWorkerEnabled = isWorkerEnabled(env.ENABLE_VIDEO_WORKER);
+  const analyticsInsightsWorkerEnabled = isWorkerEnabled(env.ENABLE_ANALYTICS_INSIGHTS_WORKER);
 
   if (campaignWorkerEnabled) {
     registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
@@ -147,6 +149,10 @@ export async function buildServer() {
         url: env.BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL,
       }),
     );
+  }
+
+  if (analyticsInsightsWorkerEnabled) {
+    registerWorker(startAnalyticsInsightsWorker(), "analytics-insights");
   }
 
   app.addHook("onClose", async () => {

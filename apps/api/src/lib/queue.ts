@@ -4,11 +4,14 @@ import { redis } from "./redis.js";
 export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";
 export const QUEUE_RECONCILE_MAINTENANCE = "reconcile-maintenance";
+export const QUEUE_ANALYTICS_INSIGHTS = "analytics-insights";
 
 // A single maintenance queue avoids four idle BullMQ workers continuously
 // long-polling Redis. Individual task cadences are handled by the worker.
 export const RECONCILE_MAINTENANCE_INTERVAL_MS = 2 * 60 * 1000;
 const RECONCILE_MAINTENANCE_SCHEDULER_ID = "reconcile-maintenance-scheduler";
+const ANALYTICS_INSIGHTS_SCHEDULER_ID = "analytics-insights-scheduler";
+export const ANALYTICS_INSIGHTS_INTERVAL_MS = 60 * 60 * 1000;
 
 const LEGACY_RECONCILIATION_SCHEDULERS = [
   { queueName: "reconcile-relations", schedulerId: "reconcile-relations-scheduler" },
@@ -54,6 +57,10 @@ export type VideoGenerationJob = {
   referenceUrls?: string[];
 };
 
+export type AnalyticsInsightsJob = {
+  orgId?: string;
+};
+
 export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
   connection: redis,
   defaultJobOptions: {
@@ -77,6 +84,10 @@ export const videoGenerationQueue = new Queue(QUEUE_VIDEO_GENERATION, {
 });
 
 export const reconcileMaintenanceQueue = new Queue(QUEUE_RECONCILE_MAINTENANCE, {
+  connection: redis,
+});
+
+export const analyticsInsightsQueue = new Queue(QUEUE_ANALYTICS_INSIGHTS, {
   connection: redis,
 });
 
@@ -105,10 +116,19 @@ export async function scheduleReconciliationMaintenance(): Promise<void> {
   );
 }
 
+export async function scheduleAnalyticsInsightsAggregation(): Promise<void> {
+  await analyticsInsightsQueue.upsertJobScheduler(
+    ANALYTICS_INSIGHTS_SCHEDULER_ID,
+    { every: ANALYTICS_INSIGHTS_INTERVAL_MS },
+    { name: QUEUE_ANALYTICS_INSIGHTS, data: {} },
+  );
+}
+
 export async function closeQueues(): Promise<void> {
   await Promise.all([
     campaignSequenceQueue.close(),
     videoGenerationQueue.close(),
     reconcileMaintenanceQueue.close(),
+    analyticsInsightsQueue.close(),
   ]);
 }

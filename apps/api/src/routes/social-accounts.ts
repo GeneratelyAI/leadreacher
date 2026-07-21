@@ -15,6 +15,7 @@ const ConnectSocialAccountBodySchema = z.object({
   provider: z
     .enum(["LINKEDIN", "WHATSAPP", "GOOGLE", "MICROSOFT", "IMAP"])
     .default("LINKEDIN"),
+  returnTo: z.enum(["onboarding", "home"]).default("onboarding"),
 });
 
 function getHostedAuthNotifyUrl(): string {
@@ -61,7 +62,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/social-accounts/connect", async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { provider } = ConnectSocialAccountBodySchema.parse(request.body ?? {});
+    const { provider, returnTo } = ConnectSocialAccountBodySchema.parse(request.body ?? {});
     const adapter = new UnipileAdapter({
       dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
@@ -70,8 +71,14 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       providers: [provider],
       name: encodeHostedAuthName(orgId),
       notifyUrl: getHostedAuthNotifyUrl(),
-      successRedirectUrl: `${env.APP_URL}/onboarding?step=channels&status=connected`,
-      failureRedirectUrl: `${env.APP_URL}/onboarding?step=channels&status=failed`,
+      successRedirectUrl:
+        returnTo === "home"
+          ? `${env.APP_URL}/home?view=channels&status=connected`
+          : `${env.APP_URL}/onboarding?step=channels&status=connected`,
+      failureRedirectUrl:
+        returnTo === "home"
+          ? `${env.APP_URL}/home?view=channels&status=failed`
+          : `${env.APP_URL}/onboarding?step=channels&status=failed`,
       expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
 

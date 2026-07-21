@@ -113,6 +113,18 @@ export default async function OnboardingPage({
     data: { session },
   } = await supabase.auth.getSession();
 
+  try {
+    const bootstrap = await bootstrapOrganizationServer(
+      session?.access_token ?? "",
+      defaultOrgNameFromEmail(user.email ?? ""),
+    );
+    if (bootstrap.onboardedAt) {
+      redirect("/home");
+    }
+  } catch {
+    // Resume logic below retains its existing safe discovery fallback.
+  }
+
   const params = searchParams ? await searchParams : {};
   const requestedStep = firstParam(params.step);
   const requestedSubstep = firstParam(params.substep);

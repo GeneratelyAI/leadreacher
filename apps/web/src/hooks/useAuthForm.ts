@@ -7,6 +7,7 @@ import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { createClient } from "@/lib/supabase/client";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { promoteAnonymousDiscoveryCache } from "@/lib/discovery-scrape-cache";
+import { postLoginRedirectPath } from "@/lib/auth/post-login-redirect";
 
 type AuthMode = "login" | "signup";
 
@@ -37,6 +38,7 @@ export function useAuthForm(mode: AuthMode) {
     );
     window.localStorage.removeItem("lr_anon_scrape_id");
     window.localStorage.removeItem("lr_website_url");
+    return bootstrap;
   }
 
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
@@ -80,9 +82,9 @@ export function useAuthForm(mode: AuthMode) {
         }
       });
 
-      await ensureOrganizationBootstrapped(email);
+      const bootstrap = await ensureOrganizationBootstrapped(email);
 
-      router.push("/onboarding?step=discovery");
+      router.push(postLoginRedirectPath(bootstrap.onboardedAt));
       router.refresh();
     } catch (caught) {
       setError(
@@ -96,7 +98,7 @@ export function useAuthForm(mode: AuthMode) {
   async function handleOAuth(provider: "google" | "azure") {
     setError(null);
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding?step=discovery")}`;
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding")}`;
 
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
