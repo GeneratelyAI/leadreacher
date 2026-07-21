@@ -1,6 +1,10 @@
 import type { ComponentProps } from "react";
+import {
+  SocialMediaIcon,
+  type SocialMediaIconName,
+} from "@/components/ui/SocialMediaIcon";
 
-type ChannelLogoName = "linkedin" | "whatsapp";
+type ChannelLogoName = Extract<SocialMediaIconName, "linkedin" | "whatsapp">;
 
 type ChannelLogoProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> & {
   name: ChannelLogoName;
@@ -8,17 +12,5 @@ type ChannelLogoProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> & {
 
 /** Official channel marks used anywhere onboarding presents a social platform. */
 export function ChannelLogo({ name, ...props }: ChannelLogoProps) {
-  if (name === "linkedin") {
-    return (
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden {...props}>
-        <path d="M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12Zm1.78 13.02H3.56V9h3.56v11.45Z" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 32 32" fill="currentColor" aria-hidden {...props}>
-      <path d="M16.05 4C9.42 4 4.02 9.32 4.02 15.86c0 2.1.56 4.15 1.63 5.95L4 28l6.37-1.6a12.19 12.19 0 0 0 5.68 1.42c6.64 0 12.04-5.32 12.04-11.86C28.09 9.32 22.69 4 16.05 4Zm0 21.78c-1.8 0-3.55-.48-5.08-1.39l-.37-.22-3.78.95.98-3.6-.24-.38a9.76 9.76 0 0 1-1.5-5.18c0-5.41 4.48-9.82 9.99-9.82s9.99 4.41 9.99 9.82-4.48 9.82-9.99 9.82Zm5.48-7.35c-.3-.15-1.78-.86-2.06-.96-.28-.1-.48-.15-.68.15-.2.29-.78.96-.95 1.15-.18.2-.35.22-.65.07-.3-.15-1.27-.46-2.42-1.48-.9-.78-1.5-1.75-1.67-2.04-.18-.29-.02-.45.13-.6.14-.13.3-.34.45-.51.15-.17.2-.29.3-.49.1-.19.05-.36-.03-.51-.07-.15-.68-1.61-.93-2.2-.25-.58-.5-.5-.68-.51h-.58c-.2 0-.52.07-.8.36-.27.29-1.05 1.01-1.05 2.47 0 1.45 1.08 2.86 1.23 3.05.15.2 2.13 3.2 5.16 4.49.72.31 1.28.49 1.72.63.72.23 1.38.2 1.9.12.58-.08 1.78-.72 2.03-1.41.25-.69.25-1.28.17-1.41-.07-.12-.27-.2-.57-.34Z" />
-    </svg>
-  );
+  return <SocialMediaIcon name={name} {...props} />;
 }

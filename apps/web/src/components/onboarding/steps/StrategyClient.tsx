@@ -680,7 +680,7 @@ function ChannelsScreen({
       />
 
       <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-8 sm:px-8">
-        <div className="divide-y divide-neutral-100">
+        <div className="divide-y divide-neutral-100 dark:divide-white/18">
           {recommendations.map((item, index) => (
             <article key={item.channel} className="grid grid-cols-[2.5rem_4.5rem_minmax(0,1fr)] gap-5 py-6 first:pt-2 last:pb-2 md:grid-cols-[2.5rem_5rem_minmax(0,1fr)_11rem]">
               <span className="mt-3 inline-flex size-9 items-center justify-center rounded-full bg-brand-purple text-sm font-bold text-white">
@@ -695,17 +695,17 @@ function ChannelsScreen({
                 {channelIcon(item.channel)}
               </span>
               <div className="min-w-0">
-                <h2 className="text-xl font-bold text-neutral-950">{item.label}</h2>
-                <p className="mt-1 max-w-md text-sm leading-6 text-neutral-600">
+                <h2 className="text-xl font-bold text-neutral-950 dark:text-onboarding-neutral-0">{item.label}</h2>
+                <p className="mt-1 max-w-md text-sm leading-6 text-neutral-600 dark:text-onboarding-neutral-300">
                   {item.description}
                 </p>
               </div>
               <div className="col-span-3 flex flex-col items-start gap-3 md:col-span-1 md:items-end">
-                <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-600">
+                <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-600 dark:bg-emerald-100 dark:text-emerald-800">
                   {item.confidence}% Confidence
                 </span>
-                <span className="flex items-center gap-2 text-sm text-neutral-600">
-                  <Check className="size-4 text-brand-purple" aria-hidden />
+                <span className="flex items-center gap-2 text-sm text-neutral-600 dark:text-onboarding-neutral-300">
+                  <Check className="size-4 text-brand-purple dark:text-onboarding-purple-300" aria-hidden />
                   {item.tag}
                 </span>
               </div>
@@ -714,7 +714,7 @@ function ChannelsScreen({
         </div>
       </OnboardingCard>
 
-      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-neutral-500">
+      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-neutral-500 dark:text-onboarding-neutral-300">
         <Info className="size-4" aria-hidden />
         Confidence scores are based on reachability and engagement potential.
       </p>

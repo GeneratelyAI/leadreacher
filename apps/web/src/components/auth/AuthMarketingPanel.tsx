@@ -117,7 +117,7 @@ function StatusBadge({
   }
 
   return (
-    <span className="inline-flex min-w-24 items-center justify-center rounded-lg bg-neutral-100 px-2.5 py-1.5 text-xs font-semibold text-neutral-500 dark:bg-white/7 dark:text-white/45">
+    <span className="inline-flex min-w-24 items-center justify-center rounded-lg bg-neutral-100 px-2.5 py-1.5 text-xs font-semibold text-neutral-500 dark:bg-white/10 dark:text-white/65 dark:ring-1 dark:ring-white/10">
       Analyzing...
     </span>
   );
@@ -150,7 +150,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
               <h1 className="text-xl font-bold tracking-tight text-neutral-950 dark:text-white xl:text-2xl">
                 We&apos;re building your outreach blueprint
               </h1>
-              <p className="mt-1 text-sm text-neutral-500 dark:text-white/60">
+              <p className="mt-1 text-sm text-neutral-500 dark:text-white/72">
                 Here&apos;s what we learned from your website.
               </p>
             </div>
@@ -180,12 +180,12 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
       </div>
 
       {message ? (
-        <p className="mt-5 rounded-2xl bg-white/55 px-4 py-3 text-sm font-medium text-neutral-600 dark:bg-white/7 dark:text-white/65 dark:ring-1 dark:ring-white/8">
+        <p className="mt-5 rounded-2xl bg-white/55 px-4 py-3 text-sm font-medium text-neutral-600 dark:bg-white/10 dark:text-white/80 dark:ring-1 dark:ring-white/12">
           {message}
         </p>
       ) : null}
 
-      <div className="mt-5 overflow-hidden rounded-2xl bg-white/65 shadow-sm ring-1 ring-black/5 dark:bg-[#0f0b22]/72 dark:ring-white/10 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+      <div className="mt-5 overflow-hidden rounded-2xl bg-white/65 shadow-sm ring-1 ring-black/5 dark:bg-[#151d2a] dark:ring-white/14 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
         <div className="lg:grid lg:flex-1 lg:grid-rows-5">
           {INSIGHT_ROWS.map((row, index) => {
             const Icon = row.icon;
@@ -208,7 +208,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
                 </p>
                 <p
                   className={cn(
-                    "col-span-2 max-h-[2.85rem] overflow-hidden text-sm leading-relaxed text-neutral-600 transition-[opacity,transform] duration-slow ease-brand dark:text-white/62 xl:col-span-1",
+                    "col-span-2 max-h-[2.85rem] overflow-hidden text-sm leading-relaxed text-neutral-600 transition-[opacity,transform] duration-slow ease-brand dark:text-white/75 xl:col-span-1",
                     hasValue ? "opacity-100" : "opacity-50",
                   )}
                 >
@@ -226,7 +226,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
           })}
         </div>
 
-        <div className="flex items-center gap-3 border-t border-neutral-200/65 bg-white/55 px-4 py-3 dark:border-white/8 dark:bg-white/7">
+        <div className="flex items-center gap-3 border-t border-neutral-200/65 bg-white/55 px-4 py-3 dark:border-white/12 dark:bg-white/9">
           <Sparkles
             className="size-5 shrink-0 text-brand-purple dark:text-[#c4b5f0]"
             aria-hidden
@@ -235,7 +235,7 @@ export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
             <p className="text-sm font-bold text-neutral-950 dark:text-white/90">
               We&apos;re analyzing your insights to craft the most effective outreach strategy.
             </p>
-            <p className="mt-1 text-sm text-neutral-500 dark:text-white/55">
+            <p className="mt-1 text-sm text-neutral-500 dark:text-white/70">
               This usually takes less than a minute.
             </p>
           </div>

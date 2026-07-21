@@ -116,8 +116,8 @@ const config: Config = {
           "sans-serif",
         ],
         sans: [
-          "var(--font-satoshi)",
-          "Satoshi",
+          "var(--font-onboarding)",
+          "Geist",
           "ui-sans-serif",
           "system-ui",
           "sans-serif",

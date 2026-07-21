@@ -31,7 +31,7 @@ type AuthFormProps = {
 
 const inputClassName = cn(
   "auth-glass-control rounded-lg text-neutral-900 shadow-none placeholder:text-neutral-400",
-  "dark:text-white dark:placeholder:text-white/40",
+  "dark:text-white dark:placeholder:text-white/55",
   "h-9 text-xs h-compact:h-8",
   "lg:h-10 lg:text-sm xl:h-11 xl:text-base",
   "focus-visible:border-[#5842e3]/45 focus-visible:ring-2 focus-visible:ring-[#5842e3]/12",
@@ -143,7 +143,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   />
                   <span className="flex-1 text-center">Continue with Google</span>
                   <ChevronRight
-                    className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4 dark:text-white/35"
+                    className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4 dark:text-white/55"
                     aria-hidden
                   />
                 </Button>
@@ -162,7 +162,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     Continue with Microsoft
                   </span>
                   <ChevronRight
-                    className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4 dark:text-white/35"
+                    className="absolute right-3 size-3.5 text-neutral-400 lg:right-4 lg:size-4 dark:text-white/55"
                     aria-hidden
                   />
                 </Button>
@@ -173,9 +173,9 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   "my-4 flex items-center gap-3 h-compact:my-3 lg:my-6 xl:my-7",
                 )}
               >
-                <div className="h-px flex-1 bg-neutral-200 dark:bg-white/12" />
-                <span className="text-xs text-neutral-400 dark:text-white/40">or</span>
-                <div className="h-px flex-1 bg-neutral-200 dark:bg-white/12" />
+                <div className="h-px flex-1 bg-neutral-200 dark:bg-white/16" />
+                <span className="text-xs text-neutral-400 dark:text-white/60">or</span>
+                <div className="h-px flex-1 bg-neutral-200 dark:bg-white/16" />
               </div>
 
               <form
@@ -193,7 +193,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       <User
                         className={cn(
                           "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
-                          "lg:left-4 lg:size-5 dark:text-white/35",
+                          "lg:left-4 lg:size-5 dark:text-white/55",
                         )}
                         aria-hidden
                       />
@@ -219,7 +219,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <Mail
                       className={cn(
                         "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
-                        "lg:left-4 lg:size-5 dark:text-white/35",
+                        "lg:left-4 lg:size-5 dark:text-white/55",
                       )}
                       aria-hidden
                     />
@@ -244,7 +244,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <Lock
                       className={cn(
                         "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
-                        "lg:left-4 lg:size-5 dark:text-white/35",
+                        "lg:left-4 lg:size-5 dark:text-white/55",
                       )}
                       aria-hidden
                     />
@@ -264,7 +264,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <button
                       type="button"
                       onClick={() => setShowPassword((current) => !current)}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
+                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
@@ -315,7 +315,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
 
               <p
                 className={cn(
-                  "mt-5 text-center text-xs text-neutral-500 dark:text-white/55",
+                  "mt-5 text-center text-xs text-neutral-500 dark:text-white/70",
                   "h-compact:mt-4 lg:mt-6 xl:mt-7",
                 )}
               >
@@ -331,7 +331,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               {isSignup ? (
                 <footer
                   className={cn(
-                    "mt-5 flex items-center justify-center gap-3 text-xs text-neutral-400 dark:text-white/45",
+                    "mt-5 flex items-center justify-center gap-3 text-xs text-neutral-400 dark:text-white/60",
                     "h-compact:mt-4 h-compact:gap-2",
                     "lg:mt-7 lg:gap-4",
                     "xl:mt-9",
@@ -341,7 +341,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <Clock className="size-3.5 lg:size-4" aria-hidden />
                     Setup in minutes
                   </span>
-                  <span className="h-3 w-px bg-neutral-200 dark:bg-white/12" aria-hidden />
+                  <span className="h-3 w-px bg-neutral-200 dark:bg-white/16" aria-hidden />
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                     <CheckCircle2 className="size-3.5 lg:size-4" aria-hidden />
                     You approve every campaign

@@ -1,3 +1,6 @@
+import { Mail, MessageSquareText } from "lucide-react";
+import { SocialMediaIcon, type SocialMediaIconName } from "@/components/ui/SocialMediaIcon";
+
 const FEATURES = [
   {
     icon: "fa-star",
@@ -17,17 +20,23 @@ const FEATURES = [
 ] as const;
 
 const SOCIAL_PLATFORMS = [
-  { icon: "fa-linkedin", label: "LinkedIn", brand: true },
-  { icon: "fa-instagram", label: "Instagram", brand: true },
-  { icon: "fa-facebook", label: "Facebook", brand: true },
-  { icon: "fa-whatsapp", label: "WhatsApp", brand: true },
-  { icon: "fa-tiktok", label: "TikTok", brand: true },
-  { icon: "fa-youtube", label: "YouTube", brand: true },
-  { icon: "fa-reddit", label: "Reddit", brand: true },
-  { icon: "fa-telegram", label: "Telegram", brand: true },
-  { icon: "fa-comment-sms", label: "SMS", brand: false },
-  { icon: "fa-envelope", label: "Email", brand: false },
+  { icon: "linkedin", label: "LinkedIn" },
+  { icon: "instagram", label: "Instagram" },
+  { icon: "facebook", label: "Facebook" },
+  { icon: "whatsapp", label: "WhatsApp" },
+  { icon: "tiktok", label: "TikTok" },
+  { icon: "youtube", label: "YouTube" },
+  { icon: "reddit", label: "Reddit" },
+  { icon: "telegram", label: "Telegram" },
+  { icon: "sms", label: "SMS" },
+  { icon: "email", label: "Email" },
 ] as const;
+
+function platformIcon(icon: (typeof SOCIAL_PLATFORMS)[number]["icon"]) {
+  if (icon === "sms") return <MessageSquareText className="size-5" aria-hidden />;
+  if (icon === "email") return <Mail className="size-5" aria-hidden />;
+  return <SocialMediaIcon name={icon satisfies SocialMediaIconName} className="size-5" />;
+}
 
 export default function HeroValueProp() {
   return (
@@ -84,10 +93,7 @@ export default function HeroValueProp() {
               <li key={platform.label}>
                 <span className="sr-only">{platform.label}</span>
                 <span className="flex size-11 items-center justify-center rounded-xl border border-brand-purple/25 bg-brand-purple/5 text-white/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <i
-                    className={`${platform.brand ? "fab" : "fas"} ${platform.icon} text-xl`}
-                    aria-hidden
-                  />
+                  {platformIcon(platform.icon)}
                 </span>
               </li>
             ))}

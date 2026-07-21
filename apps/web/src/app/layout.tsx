@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { geist } from "@/lib/fonts/geist";
-import { satoshi } from "@/lib/fonts/satoshi";
 import { themeInitScript } from "@/lib/theme-init-script";
 import "./globals.css";
 
@@ -24,7 +23,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${satoshi.variable} ${geist.variable} h-full antialiased`}
+      className={`${geist.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

@@ -56,9 +56,9 @@ const CAMPAIGN_TYPE_OPTIONS = [
 ] as const;
 
 const VIDEO_ADVANTAGE_STATS = [
-  { value: "40%", label: "Higher response rates", icon: TrendingUp },
-  { value: "3-4x", label: "More engagement", icon: BarChart3 },
-  { value: "2-5x", label: "More conversions", icon: BarChart3 },
+  { value: "Engage", label: "Capture attention", icon: TrendingUp },
+  { value: "Connect", label: "Start conversations", icon: BarChart3 },
+  { value: "Scale", label: "Choose the right format", icon: CirclePlay },
 ] as const;
 
 type CampaignType = (typeof CAMPAIGN_TYPE_OPTIONS)[number]["id"];
@@ -201,29 +201,36 @@ export default function CampaignTypeClient() {
           </p>
         ) : null}
 
-        <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-5 py-5 sm:px-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <Sparkles className="mt-0.5 size-5 shrink-0 text-onboarding-purple-500" aria-hidden />
+        <OnboardingCard className="mx-auto mt-8 w-full max-w-5xl px-6 py-6 sm:px-7">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 flex-1 items-start gap-4 lg:pr-7">
+              <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900/30 dark:text-onboarding-purple-200">
+                <Sparkles className="size-5" aria-hidden />
+              </span>
               <div>
-                <p className="text-xs font-bold tracking-wide text-onboarding-purple-600 uppercase dark:text-onboarding-purple-200">
+                <p className="text-sm font-bold tracking-wide text-onboarding-purple-600 uppercase dark:text-onboarding-purple-200">
                   Video Advantage
                 </p>
-                <p className="mt-1 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                <p className="mt-1 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                   Video helps capture attention, increase engagement, and improve campaign performance.
                 </p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3 sm:gap-7">
+            <div className="grid grid-cols-3 divide-x divide-onboarding-neutral-150 border-t border-onboarding-neutral-150 pt-5 dark:divide-onboarding-neutral-750 dark:border-onboarding-neutral-750 lg:border-t-0 lg:pt-0">
               {VIDEO_ADVANTAGE_STATS.map((stat) => {
                 const Icon = stat.icon;
                 return (
-                  <div key={stat.label} className="min-w-0 text-center sm:text-left">
-                    <div className="flex items-center justify-center gap-1.5 sm:justify-start">
+                  <div
+                    key={stat.label}
+                    className="min-w-0 px-3 text-center first:pl-0 last:pr-0 sm:px-5 lg:text-left"
+                  >
+                    <div className="flex items-center justify-center gap-1.5 lg:justify-start">
                       <Icon className="size-4 text-onboarding-purple-500" aria-hidden />
-                      <p className="text-lg font-bold text-onboarding-purple-600 dark:text-onboarding-purple-200">{stat.value}</p>
+                      <p className="text-xl font-bold text-onboarding-purple-600 dark:text-onboarding-purple-200">
+                        {stat.value}
+                      </p>
                     </div>
-                    <p className="mt-0.5 text-xs leading-snug text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
+                    <p className="mt-1 text-xs leading-snug text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
                       {stat.label}
                     </p>
                   </div>
@@ -233,7 +240,7 @@ export default function CampaignTypeClient() {
           </div>
         </OnboardingCard>
 
-        <div className="mx-auto mt-6 grid w-full max-w-4xl gap-4 md:grid-cols-3">
+        <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
           {CAMPAIGN_TYPE_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = selectedType === option.id;
@@ -253,27 +260,35 @@ export default function CampaignTypeClient() {
                     <Check className="size-4 stroke-[2.5]" aria-hidden />
                   </span>
                 ) : null}
-                <div className="flex flex-1 flex-col px-5 pb-5 pt-8">
-                  <Icon className="size-6 text-onboarding-purple-500" aria-hidden />
-                  <h2 className="mt-4 text-lg font-bold text-onboarding-ink dark:text-onboarding-neutral-0">{option.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{option.description}</p>
-                  <p className="mt-5 text-xs font-semibold tracking-wide text-onboarding-neutral-500 uppercase">
+                <div className="flex flex-1 flex-col px-6 pb-6 pt-7">
+                  <span className="inline-flex size-11 items-center justify-center rounded-onboarding bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900/30 dark:text-onboarding-purple-200">
+                    <Icon className="size-6" aria-hidden />
+                  </span>
+                  <h2 className="mt-5 text-lg font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
+                    {option.title}
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                    {option.description}
+                  </p>
+                  <p className="mt-6 text-xs font-semibold tracking-wide text-onboarding-neutral-500 uppercase">
                     Best for
                   </p>
-                  <ul className="mt-2 space-y-2 text-sm text-onboarding-neutral-700 dark:text-onboarding-neutral-300">
+                  <ul className="mt-2.5 space-y-2 text-sm text-onboarding-neutral-700 dark:text-onboarding-neutral-300">
                     {option.bestFor.map((item) => (
                       <li key={item} className="flex items-start gap-2">
                         <span
-                          className="mt-2 size-1.5 shrink-0 rounded-onboarding-pill bg-onboarding-purple-500"
+                          className="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-onboarding-pill bg-onboarding-purple-500 text-white"
                           aria-hidden
-                        />
+                        >
+                          <Check className="size-2.5 stroke-[3]" />
+                        </span>
                         {item}
                       </li>
                     ))}
                   </ul>
                 </div>
-                <div className="border-t border-onboarding-purple-100 px-5 py-3 dark:border-onboarding-neutral-750">
-                  <span className="inline-flex items-center gap-1.5 rounded-onboarding-pill bg-onboarding-purple-50 px-3 py-1 text-xs font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-200">
+                <div className="border-t border-onboarding-purple-100 bg-onboarding-purple-50/70 px-6 py-4 dark:border-onboarding-neutral-750 dark:bg-onboarding-purple-900/20">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-onboarding-purple-600 dark:text-onboarding-purple-200">
                     <Sparkles className="size-3" aria-hidden />
                     {option.tag}
                   </span>

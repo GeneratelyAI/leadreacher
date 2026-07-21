@@ -92,7 +92,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
           </span>
         </h1>
 
-        <p className="mt-3 max-w-[280px] text-center text-sm leading-relaxed text-neutral-500 dark:text-white/60">
+        <p className="mt-3 max-w-[280px] text-center text-sm leading-relaxed text-neutral-500 dark:text-white/72">
           {copy.subtext}
         </p>
 
@@ -117,7 +117,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
               {index > 0 ? (
                 <div className="flex h-12 items-center">
                   <ArrowRight
-                    className="size-4 shrink-0 text-[#c4b8d8] dark:text-white/25"
+                    className="size-4 shrink-0 text-[#c4b8d8] dark:text-white/55"
                     strokeWidth={1.75}
                     aria-hidden
                   />
@@ -125,7 +125,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
               ) : null}
               <div className="flex flex-col items-center gap-2">
                 <span
-                  className="inline-flex size-12 items-center justify-center rounded-xl bg-[#ede8f7] dark:bg-white/8"
+                  className="inline-flex size-12 items-center justify-center rounded-xl bg-[#ede8f7] dark:bg-white/10"
                   aria-hidden
                 >
                   {(() => {
@@ -167,11 +167,11 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
           </div>
 
           <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-neutral-300/70 dark:bg-white/12" />
-            <span className="text-xs font-medium text-neutral-400 dark:text-white/40">
+            <div className="h-px flex-1 bg-neutral-300/70 dark:bg-white/16" />
+            <span className="text-xs font-medium text-neutral-400 dark:text-white/60">
               OR
             </span>
-            <div className="h-px flex-1 bg-neutral-300/70 dark:bg-white/12" />
+            <div className="h-px flex-1 bg-neutral-300/70 dark:bg-white/16" />
           </div>
 
           <form className="space-y-4" onSubmit={handleEmailSubmit}>
@@ -188,7 +188,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                     className={cn(inputClassName, "pr-11")}
                   />
                   <User
-                    className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-neutral-400 dark:text-white/35"
+                    className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-neutral-400 dark:text-white/55"
                     aria-hidden
                   />
                 </div>
@@ -206,7 +206,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                   className={cn(inputClassName, "pr-11")}
                 />
                 <Mail
-                  className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-neutral-400 dark:text-white/35"
+                  className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-neutral-400 dark:text-white/55"
                   aria-hidden
                 />
               </div>
@@ -228,7 +228,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                 <button
                   type="button"
                   onClick={() => setShowPassword((current) => !current)}
-                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 dark:text-white/35 dark:hover:text-white/60 dark:focus-visible:ring-[#c4b5f0]/30"
+                  className="absolute top-1/2 right-4 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-purple/30 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
@@ -262,7 +262,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
             </button>
 
             {copy.showTerms ? (
-              <p className="text-center text-xs text-neutral-400 dark:text-white/45">
+              <p className="text-center text-xs text-neutral-400 dark:text-white/60">
                 By registering you agree to our{" "}
                 <Link
                   href="#"
