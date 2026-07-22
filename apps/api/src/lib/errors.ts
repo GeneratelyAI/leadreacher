@@ -46,6 +46,16 @@ export class ConflictError extends AppError {
   }
 }
 
+export class DailySendLimitError extends AppError {
+  constructor(readonly resetAt: string) {
+    super(
+      `Daily LinkedIn message limit reached. Sending resets at ${resetAt}.`,
+      429,
+      "daily_message_limit",
+    );
+  }
+}
+
 export class ExternalServiceError extends AppError {
   constructor(service: string, message: string) {
     super(`${service}: ${message}`, 502, "EXTERNAL_SERVICE_ERROR");

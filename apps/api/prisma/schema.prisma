@@ -93,23 +93,26 @@ model Strategy {
 }
 
 model Campaign {
-  id          String         @id @default(cuid())
-  orgId       String
-  org         Organization   @relation(fields: [orgId], references: [id])
-  strategyId  String?
-  name        String
-  status      String         @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
-  channels    String[]
-  sequence    Json // SequenceStep[]
-  aiConfig    Json?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  leads       CampaignLead[]
-  messages    Message[]
-  videoAssets VideoAsset[]
+  id              String         @id @default(cuid())
+  orgId           String
+  org             Organization   @relation(fields: [orgId], references: [id])
+  strategyId      String?
+  socialAccountId String?
+  senderAccount   SocialAccount? @relation("CampaignSender", fields: [socialAccountId], references: [id], onDelete: SetNull)
+  name            String
+  status          String         @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
+  channels        String[]
+  sequence        Json // SequenceStep[]
+  aiConfig        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  leads           CampaignLead[]
+  messages        Message[]
+  videoAssets     VideoAsset[]
   videoTemplates CampaignVideoTemplate[]
 
   @@index([orgId, status])
+  @@index([orgId, socialAccountId])
 }
 
 model Lead {
@@ -120,6 +123,7 @@ model Lead {
   email          String?
   linkedinUrl    String?
   phone          String?
+  avatarUrl      String?
   firstName      String
   lastName       String
   company        String
@@ -131,6 +135,8 @@ model Lead {
   enrichmentData     Json?
   providerLinkedinId String?
   status             String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  reviewStatus       String         @default("pending") // 'pending' | 'approved' | 'excluded'
+  reviewedAt         DateTime?
   pipelineStage  String?
   tags           String[]
   notes          Json[]
@@ -140,6 +146,7 @@ model Lead {
   messages       Message[]
 
   @@index([orgId, status])
+  @@index([orgId, reviewStatus])
   @@index([orgId, email])
 }
 
@@ -154,6 +161,7 @@ model CampaignLead {
   status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
   createdAt       DateTime @default(now())
   deliveryAttempts DeliveryAttempt[]
+  manualDeliveryAttempts ManualDeliveryAttempt[]
 
   @@unique([campaignId, leadId])
 }
@@ -187,18 +195,40 @@ model Message {
   channel    String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
   content    Json // { type, subject?, body?, message?, text? }
   direction  String    @default("outbound") // 'inbound' | 'outbound'
+  origin     String    @default("automation") // 'automation' | 'operator'
   status     String    @default("draft") // 'draft' | 'queued' | 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'skipped'
   externalId String?
   stepIndex  Int
   sentAt     DateTime?
   approvedBy String?
   approvedAt DateTime?
+  readAt     DateTime?
+  handledAt  DateTime?
+  idempotencyKey String? @unique
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  manualDeliveryAttempt ManualDeliveryAttempt?
 
   @@index([orgId, campaignId])
   @@index([externalId])
   @@index([status])
+  @@index([orgId, direction, readAt])
+}
+
+model ManualDeliveryAttempt {
+  id             String       @id @default(cuid())
+  messageId      String       @unique
+  message        Message      @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  campaignLeadId String
+  campaignLead   CampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  state          String       @default("reserved") // 'reserved' | 'sent' | 'unknown' | 'failed'
+  providerRef    String?
+  reservedAt     DateTime     @default(now())
+  sentAt         DateTime?
+  updatedAt      DateTime     @updatedAt
+
+  @@index([campaignLeadId, state])
+  @@index([state, reservedAt])
 }
 
 model AnalyticsEvent {
@@ -228,6 +258,7 @@ model SocialAccount {
   avatarUrl      String?
   status         String       @default("active") // 'active' | 'disconnected' | 'error' | 'reconnecting'
   metadata       Json?
+  senderCampaigns Campaign[] @relation("CampaignSender")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

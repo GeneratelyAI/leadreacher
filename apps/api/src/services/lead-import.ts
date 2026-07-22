@@ -82,6 +82,7 @@ export async function importScrapedProfiles(
       companySize: profile.companySize,
       email: profile.email,
       phone: profile.phone,
+      avatarUrl: profile.avatarUrl,
       providerLinkedinId: profile.providerLinkedinId,
       enrichmentData: profile.enrichmentData as Prisma.InputJsonValue,
     });

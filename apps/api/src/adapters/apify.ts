@@ -41,6 +41,9 @@ type RawLinkedInProfile = {
   phone?: string;
   publicIdentifier?: string;
   id?: string;
+  profilePictureUrl?: string;
+  pictureUrl?: string;
+  profilePicture?: string | { url?: string };
   /** Legacy / forward-compat — actor does not return these today */
   industry?: string;
   companySize?: string;
@@ -95,6 +98,7 @@ export type ScrapedProfile = {
   phone?: string;
   publicIdentifier?: string;
   providerLinkedinId?: string;
+  avatarUrl?: string;
   enrichmentData: Record<string, unknown>;
 };
 
@@ -361,6 +365,10 @@ export class ApifyAdapter {
       phone: raw.phone,
       publicIdentifier: raw.publicIdentifier,
       providerLinkedinId: raw.id,
+      avatarUrl:
+        raw.profilePictureUrl ??
+        raw.pictureUrl ??
+        (typeof raw.profilePicture === "string" ? raw.profilePicture : raw.profilePicture?.url),
       enrichmentData: raw as Record<string, unknown>,
     };
   }

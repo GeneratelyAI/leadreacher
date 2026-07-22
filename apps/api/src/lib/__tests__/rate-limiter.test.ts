@@ -1,22 +1,26 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { incr, decr, expire } = vi.hoisted(() => ({
+const { incr, decr, expire, get } = vi.hoisted(() => ({
   incr: vi.fn(),
   decr: vi.fn(),
   expire: vi.fn(),
+  get: vi.fn(),
 }));
 
-vi.mock("../redis.js", () => ({ redis: { incr, decr, expire } }));
+vi.mock("../redis.js", () => ({ redis: { incr, decr, expire, get } }));
 
 import {
   checkAndIncrementDailySendLimit,
   dailySendLimitKey,
+  getDailySendLimitStatus,
 } from "../rate-limiter.js";
 
 describe("daily LinkedIn send limiter", () => {
   const counters = new Map<string, number>();
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-21T12:00:00.000Z"));
     counters.clear();
     incr.mockReset().mockImplementation(async (key: string) => {
       const value = (counters.get(key) ?? 0) + 1;
@@ -29,6 +33,11 @@ describe("daily LinkedIn send limiter", () => {
       return value;
     });
     expire.mockReset().mockResolvedValue(1);
+    get.mockReset().mockImplementation(async (key: string) => String(counters.get(key) ?? 0));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("allows sends under the cap and blocks the next invite", async () => {
@@ -59,5 +68,17 @@ describe("daily LinkedIn send limiter", () => {
     expect(dailySendLimitKey("sender-a", "invite", new Date("2026-07-21T23:59:59.000Z"))).not.toBe(
       dailySendLimitKey("sender-a", "invite", new Date("2026-07-22T00:00:01.000Z")),
     );
+  });
+
+  it("reports the daily allowance without incrementing the sender counter", async () => {
+    const date = new Date("2026-07-21T12:00:00.000Z");
+    counters.set(dailySendLimitKey("sender-a", "message", date), 12);
+
+    await expect(getDailySendLimitStatus("sender-a", "message", date)).resolves.toMatchObject({
+      limit: 50,
+      remaining: 38,
+      resetAt: "2026-07-22T00:00:00.000Z",
+    });
+    expect(incr).not.toHaveBeenCalled();
   });
 });

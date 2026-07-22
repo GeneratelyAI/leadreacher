@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppError } from "../../lib/errors.js";
 
 const {
   organizationFindUnique,
@@ -9,11 +10,21 @@ const {
   campaignLeadCount,
   messageCount,
   messageFindMany,
+  messageFindFirst,
   campaignCount,
   campaignFindMany,
   socialAccountFindMany,
   videoAssetCount,
   videoAssetFindMany,
+  campaignLeadFindMany,
+  campaignLeadFindFirst,
+  leadFindFirst,
+  leadUpdate,
+  messageUpdateMany,
+  checkAndIncrementDailySendLimit,
+  getDailySendLimitStatus,
+  deliverOperatorMessage,
+  runReplyDraftAgent,
   readCachedAnalyticsInsights,
   analyticsInsightsQueueAdd,
 } = vi.hoisted(() => ({
@@ -24,11 +35,21 @@ const {
   campaignLeadCount: vi.fn(),
   messageCount: vi.fn(),
   messageFindMany: vi.fn(),
+  messageFindFirst: vi.fn(),
   campaignCount: vi.fn(),
   campaignFindMany: vi.fn(),
   socialAccountFindMany: vi.fn(),
   videoAssetCount: vi.fn(),
   videoAssetFindMany: vi.fn(),
+  campaignLeadFindMany: vi.fn(),
+  campaignLeadFindFirst: vi.fn(),
+  leadFindFirst: vi.fn(),
+  leadUpdate: vi.fn(),
+  messageUpdateMany: vi.fn(),
+  checkAndIncrementDailySendLimit: vi.fn(),
+  getDailySendLimitStatus: vi.fn(),
+  deliverOperatorMessage: vi.fn(),
+  runReplyDraftAgent: vi.fn(),
   readCachedAnalyticsInsights: vi.fn(),
   analyticsInsightsQueueAdd: vi.fn(),
 }));
@@ -36,9 +57,9 @@ const {
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     organization: { findUnique: organizationFindUnique, update: organizationUpdate },
-    lead: { count: leadCount, findMany: leadFindMany },
-    campaignLead: { count: campaignLeadCount },
-    message: { count: messageCount, findMany: messageFindMany },
+    lead: { count: leadCount, findMany: leadFindMany, findFirst: leadFindFirst, update: leadUpdate },
+    campaignLead: { count: campaignLeadCount, findMany: campaignLeadFindMany, findFirst: campaignLeadFindFirst },
+    message: { count: messageCount, findMany: messageFindMany, findFirst: messageFindFirst, updateMany: messageUpdateMany },
     campaign: { count: campaignCount, findMany: campaignFindMany },
     socialAccount: { findMany: socialAccountFindMany },
     videoAsset: { count: videoAssetCount, findMany: videoAssetFindMany },
@@ -51,6 +72,10 @@ vi.mock("../../lib/queue.js", () => ({
 vi.mock("../../services/analytics-insights.js", () => ({
   readCachedAnalyticsInsights,
 }));
+vi.mock("../../lib/rate-limiter.js", () => ({ checkAndIncrementDailySendLimit, getDailySendLimitStatus }));
+vi.mock("../../services/operator-message-delivery.js", () => ({ deliverOperatorMessage }));
+vi.mock("../../modules/agents/reply-draft-agent.js", () => ({ runReplyDraftAgent }));
+vi.mock("../../adapters/unipile.js", () => ({ UnipileAdapter: class {} }));
 
 import {
   dashboardRoutes,
@@ -60,6 +85,12 @@ import {
 
 async function buildTestApp() {
   const app = Fastify();
+  app.setErrorHandler((error, _request, reply) => {
+    if (error instanceof AppError) {
+      return reply.status(error.statusCode).send({ code: error.code, message: error.message });
+    }
+    return reply.status(500).send({ code: "INTERNAL_ERROR", message: "Unexpected error" });
+  });
   app.addHook("preHandler", async (request) => {
     request.orgId = "org-1";
   });
@@ -132,6 +163,7 @@ beforeEach(async () => {
       campaign: { name: "Q3 outreach" },
     },
   ]);
+  messageFindFirst.mockReset().mockResolvedValue(null);
   leadFindMany.mockReset().mockResolvedValue([
     {
       id: "lead-1",
@@ -151,6 +183,15 @@ beforeEach(async () => {
       lead: null,
     },
   ]);
+  campaignLeadFindMany.mockReset().mockResolvedValue([]);
+  campaignLeadFindFirst.mockReset().mockResolvedValue(null);
+  leadFindFirst.mockReset().mockResolvedValue(null);
+  leadUpdate.mockReset().mockResolvedValue({});
+  messageUpdateMany.mockReset().mockResolvedValue({ count: 0 });
+  checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
+  getDailySendLimitStatus.mockReset().mockResolvedValue({ limit: 50, remaining: 49, resetAt: "2026-07-22T00:00:00.000Z" });
+  deliverOperatorMessage.mockReset().mockResolvedValue({ messageId: "operator-message-1" });
+  runReplyDraftAgent.mockReset().mockResolvedValue({ drafts: ["A safe draft."] });
   readCachedAnalyticsInsights.mockReset().mockResolvedValue(null);
   analyticsInsightsQueueAdd.mockReset().mockResolvedValue({});
   app = await buildTestApp();
@@ -272,6 +313,20 @@ describe("dashboard overview", () => {
     );
   });
 
+  it("returns a chronological, persisted activity feed without forecast data", async () => {
+    const response = await app.inject({ method: "GET", url: "/dashboard/activity?limit=10" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      activity: expect.arrayContaining([
+        expect.objectContaining({ id: "message:message-1", kind: "message" }),
+        expect.objectContaining({ id: "lead:lead-1", kind: "prospect" }),
+      ]),
+    });
+    expect(response.json().activity[0]).toMatchObject({ id: "message:message-1" });
+    expect(response.json()).not.toHaveProperty("forecast");
+  });
+
   it("derives analytics from persisted message and lead records", async () => {
     messageFindMany.mockResolvedValueOnce([
       { direction: "outbound", status: "sent", channel: "linkedin", createdAt: new Date() },
@@ -344,5 +399,57 @@ describe("dashboard overview", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ status: "ready" });
     expect(analyticsInsightsQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it("returns a visible 429 for a capped manual reply without sending or queuing work", async () => {
+    campaignLeadFindFirst.mockResolvedValueOnce({
+      id: "campaign-lead-1",
+      campaignId: "campaign-1",
+      leadId: "lead-1",
+      linkedinChatId: "chat-1",
+      lead: { id: "lead-1" },
+      campaign: {
+        senderAccount: { id: "account-1", status: "active", unipileId: "unipile-1" },
+      },
+    });
+    messageCount.mockResolvedValueOnce(1);
+    checkAndIncrementDailySendLimit.mockResolvedValueOnce({ allowed: false, remaining: 0 });
+    getDailySendLimitStatus.mockResolvedValueOnce({
+      limit: 50,
+      remaining: 0,
+      resetAt: "2026-07-22T00:00:00.000Z",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/conversations/campaign-lead-1/replies",
+      payload: {
+        message: "Thanks for your note. Would next week work?",
+        idempotencyKey: "8fe2f68c-c707-44c5-95b3-d8fe08de7517",
+      },
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({ code: "daily_message_limit" });
+    expect(deliverOperatorMessage).not.toHaveBeenCalled();
+    expect(analyticsInsightsQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it("returns the original reply for an idempotent operator retry", async () => {
+    messageFindFirst.mockResolvedValueOnce({ id: "operator-message-1" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/conversations/campaign-lead-1/replies",
+      payload: {
+        message: "Thanks for your note. Would next week work?",
+        idempotencyKey: "8fe2f68c-c707-44c5-95b3-d8fe08de7517",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json()).toEqual({ messageId: "operator-message-1" });
+    expect(deliverOperatorMessage).not.toHaveBeenCalled();
+    expect(checkAndIncrementDailySendLimit).not.toHaveBeenCalled();
   });
 });

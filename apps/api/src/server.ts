@@ -5,7 +5,7 @@ import fastifyRawBody from "fastify-raw-body";
 import { ZodError } from "zod";
 import "./config/env.js";
 import { env, isWorkerEnabled } from "./config/env.js";
-import { AppError } from "./lib/errors.js";
+import { AppError, DailySendLimitError } from "./lib/errors.js";
 import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
@@ -71,6 +71,12 @@ export async function buildServer() {
   });
 
   app.setErrorHandler((error, request, reply) => {
+    if (error instanceof DailySendLimitError) {
+      return reply
+        .status(error.statusCode)
+        .send({ code: error.code, message: error.message, resetAt: error.resetAt });
+    }
+
     if (error instanceof AppError) {
       return reply
         .status(error.statusCode)

@@ -49,6 +49,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     const accounts = await prisma.socialAccount.findMany({
       where: { orgId },
       select: {
+        id: true,
         platform: true,
         accountName: true,
         avatarUrl: true,

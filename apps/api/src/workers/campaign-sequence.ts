@@ -55,7 +55,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       const campaignLead = await prisma.campaignLead.findUnique({
         where: { id: campaignLeadId },
-        include: { lead: true, campaign: true },
+        include: { lead: true, campaign: { include: { senderAccount: true } } },
       });
 
       if (!campaignLead) {
@@ -98,12 +98,14 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         }
       }
 
-      const socialAccount = await prisma.socialAccount.findFirst({
-        where: { orgId, platform: "linkedin", status: "active" },
-      });
-
-      if (!socialAccount?.unipileId) {
-        throw new Error(`No active LinkedIn account for org: ${orgId}`);
+      const socialAccount = campaignLead.campaign.senderAccount;
+      if (
+        !socialAccount ||
+        socialAccount.platform !== "linkedin" ||
+        socialAccount.status !== "active" ||
+        !socialAccount.unipileId
+      ) {
+        throw new Error(`Campaign ${campaignLead.campaignId} has no active LinkedIn sender`);
       }
 
       const adapter = new UnipileAdapter({

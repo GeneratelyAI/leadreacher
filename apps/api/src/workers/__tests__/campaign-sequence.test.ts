@@ -11,7 +11,6 @@ type WorkerProcessor = (job: { data: CampaignSequenceJobData }) => Promise<unkno
 const {
   workerProcessor,
   campaignLeadFindUnique,
-  socialAccountFindFirst,
   leadUpdate,
   campaignLeadUpdate,
   messageCreate,
@@ -29,7 +28,6 @@ const {
 } = vi.hoisted(() => ({
   workerProcessor: { current: null as WorkerProcessor | null },
   campaignLeadFindUnique: vi.fn(),
-  socialAccountFindFirst: vi.fn(),
   leadUpdate: vi.fn(),
   campaignLeadUpdate: vi.fn(),
   messageCreate: vi.fn(),
@@ -71,7 +69,6 @@ vi.mock("../../lib/queue.js", () => ({
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     campaignLead: { findUnique: campaignLeadFindUnique, update: campaignLeadUpdate },
-    socialAccount: { findFirst: socialAccountFindFirst },
     lead: { update: leadUpdate },
     message: { create: messageCreate },
     deliveryAttempt: { update: deliveryAttemptUpdate },
@@ -119,7 +116,15 @@ function campaignLead(step = 0) {
       providerLinkedinId: "lead-provider-1",
       linkedinUrl: "https://www.linkedin.com/in/lead-one",
     },
-    campaign: { sequence },
+    campaign: {
+      sequence,
+      senderAccount: {
+        id: "social-account-1",
+        platform: "linkedin",
+        status: "active",
+        unipileId: "account-1",
+      },
+    },
   };
 }
 
@@ -145,7 +150,6 @@ async function processStep(step: number): Promise<unknown> {
 
 beforeEach(() => {
   campaignLeadFindUnique.mockReset().mockResolvedValue(campaignLead());
-  socialAccountFindFirst.mockReset().mockResolvedValue({ unipileId: "account-1" });
   leadUpdate.mockReset().mockResolvedValue({});
   campaignLeadUpdate.mockReset().mockResolvedValue({});
   messageCreate.mockReset().mockResolvedValue({});

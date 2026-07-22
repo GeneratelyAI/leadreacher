@@ -62,10 +62,11 @@ type CampaignLeadWithLead = Prisma.CampaignLeadGetPayload<{
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.post("/campaigns", async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { name, channels, sequence } = request.body as {
+    const { name, channels, sequence, socialAccountId } = request.body as {
       name: string;
       channels: string[];
       sequence: unknown;
+      socialAccountId?: string;
     };
 
     if (!name) throw new ValidationError("name is required");
@@ -73,6 +74,21 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw new ValidationError("channels must be a non-empty array");
     }
     validateChannels(channels);
+
+    let selectedSocialAccountId: string | null = null;
+    if (channels.includes("linkedin")) {
+      if (!socialAccountId) {
+        throw new ValidationError("Select an active LinkedIn sender for this campaign");
+      }
+      const sender = await prisma.socialAccount.findFirst({
+        where: { id: socialAccountId, orgId, platform: "linkedin", status: "active" },
+        select: { id: true, unipileId: true },
+      });
+      if (!sender?.unipileId) {
+        throw new ValidationError("The selected LinkedIn sender is not active for this organization");
+      }
+      selectedSocialAccountId = sender.id;
+    }
 
     const validatedSequence = parseSequenceOrThrow(sequence);
 
@@ -83,6 +99,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         channels,
         sequence: validatedSequence,
         status: "draft",
+        socialAccountId: selectedSocialAccountId,
       },
     });
 
@@ -141,11 +158,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     const leadsInOrg = await prisma.lead.findMany({
       where: { id: { in: leadIds }, orgId },
-      select: { id: true },
+      select: { id: true, reviewStatus: true },
     });
 
     if (leadsInOrg.length !== leadIds.length) {
       throw new ValidationError("One or more leadIds do not belong to this org");
+    }
+    if (leadsInOrg.some((lead) => lead.reviewStatus !== "approved")) {
+      throw new ValidationError("Only approved prospects can be added to a campaign");
     }
 
     const created = await prisma.$transaction(async (tx) => {
@@ -193,7 +213,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
-      include: { leads: true },
+      include: { leads: true, senderAccount: true },
     });
 
     if (!campaign) throw new NotFoundError("Campaign");
@@ -211,6 +231,16 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     if (campaign.leads.length === 0) {
       throw new ValidationError("Campaign has no enrolled leads");
+    }
+    if (campaign.channels.includes("linkedin")) {
+      if (
+        !campaign.senderAccount ||
+        campaign.senderAccount.platform !== "linkedin" ||
+        campaign.senderAccount.status !== "active" ||
+        !campaign.senderAccount.unipileId
+      ) {
+        throw new ValidationError("Select an active LinkedIn sender before launching this campaign");
+      }
     }
 
     await prisma.campaign.update({

@@ -28,6 +28,28 @@ export function millisecondsUntilNextUtcDay(now = new Date()): number {
   return Math.max(1, nextDay - now.getTime());
 }
 
+export type DailySendLimitStatus = {
+  limit: number;
+  remaining: number;
+  resetAt: string;
+};
+
+export async function getDailySendLimitStatus(
+  unipileId: string,
+  kind: DailySendKind,
+  now = new Date(),
+): Promise<DailySendLimitStatus> {
+  const limit = DAILY_SEND_CAPS[kind];
+  const rawCount = await redis.get(dailySendLimitKey(unipileId, kind, now));
+  const count = Number.parseInt(rawCount ?? "0", 10);
+
+  return {
+    limit,
+    remaining: Math.max(0, limit - (Number.isFinite(count) ? count : 0)),
+    resetAt: new Date(now.getTime() + millisecondsUntilNextUtcDay(now)).toISOString(),
+  };
+}
+
 export async function checkAndIncrementDailySendLimit(
   unipileId: string,
   kind: DailySendKind,

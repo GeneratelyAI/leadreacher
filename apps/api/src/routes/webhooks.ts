@@ -299,7 +299,11 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       });
 
       const campaignLead = await prisma.campaignLead.findFirst({
-        where: { leadId: lead.id, status: "active" },
+        where: {
+          leadId: lead.id,
+          status: "active",
+          campaign: { socialAccountId: socialAccount.id },
+        },
         include: { campaign: true },
       });
 
