@@ -129,7 +129,7 @@ export default function ChannelsClient() {
     setError(null);
     try {
       await apiFetch<{ completed: boolean }>("/onboarding/complete", { method: "POST" });
-      router.push("/home");
+      router.push("/dashboard");
     } catch (completeError) {
       setError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",

@@ -119,7 +119,7 @@ export default async function OnboardingPage({
       defaultOrgNameFromEmail(user.email ?? ""),
     );
     if (bootstrap.onboardedAt) {
-      redirect("/home");
+      redirect("/dashboard");
     }
   } catch {
     // Resume logic below retains its existing safe discovery fallback.

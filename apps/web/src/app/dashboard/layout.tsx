@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { HomeDashboardClient } from "@/components/dashboard/HomeDashboardClient";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
 import { createClient } from "@/lib/supabase/server";
@@ -18,7 +18,13 @@ function displayName(input: { email?: string; user_metadata?: unknown }): string
   return input.email?.split("@")[0] || "Workspace member";
 }
 
-export default async function HomePage() {
+export default async function DashboardLayout({
+  children,
+  modal,
+}: {
+  children: React.ReactNode;
+  modal: React.ReactNode;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -36,7 +42,6 @@ export default async function HomePage() {
       session.access_token,
       defaultOrgNameFromEmail(user.email),
     );
-
     if (!bootstrap.onboardedAt) {
       redirect("/onboarding");
     }
@@ -44,5 +49,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  return <HomeDashboardClient memberName={displayName(user)} />;
+  return <DashboardShell memberName={displayName(user)} modal={modal}>{children}</DashboardShell>;
 }
