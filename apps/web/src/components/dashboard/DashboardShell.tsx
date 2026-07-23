@@ -1,26 +1,62 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  BarChart3,
+  ArrowRight,
   Bell,
+  CalendarDays,
   ChevronDown,
+  CircleHelp,
+  CreditCard,
   Clock3,
   LayoutDashboard,
   Link2,
+  LogOut,
   Megaphone,
   MessageSquare,
+  Menu,
   Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
   Settings,
   Sun,
   Users,
+  Video,
+  X,
+  BarChart3,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Input } from "@/components/ui/Input";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
 
 const NAVIGATION: Array<{
   href: string;
@@ -38,6 +74,208 @@ const NAVIGATION: Array<{
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ] as const;
 
+type ShellOverview = {
+  organization: { name: string; plan: string };
+  engine: { status: "running" | "ready" | "needs_attention"; label: string; detail: string };
+  unreadNotificationCount: number;
+  channels: Array<{ id: string; platform: string; accountName: string; status: string }>;
+  activity: ShellActivity[];
+};
+
+type ShellActivity = {
+  id: string;
+  kind: "message" | "prospect" | "video" | "campaign";
+  title: string;
+  detail: string;
+  occurredAt: string;
+  avatarUrl?: string | null;
+  channel?: string;
+  action?: "reply" | "view";
+  href?: string;
+};
+
+type SearchResults = {
+  prospects: Array<{ id: string; name: string; company: string; avatarUrl: string | null }>;
+  campaigns: Array<{ id: string; name: string; status: string }>;
+};
+
+const RANGE_OPTIONS = [
+  { value: 7, label: "Last 7 days" },
+  { value: 30, label: "Last 30 days" },
+  { value: 90, label: "Last 90 days" },
+] as const;
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase() || "W";
+}
+
+function dateParam(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
+function readableRange(startDate: string | null, endDate: string | null): string {
+  if (!startDate || !endDate) return "Last 7 days";
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const format = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+  return `${format.format(start)} - ${format.format(end)}`;
+}
+
+function relativeTime(value: string): string {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60_000));
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function ShellActivityIcon({ kind }: { kind: ShellActivity["kind"] }) {
+  const Icon = kind === "message" ? MessageSquare : kind === "prospect" ? Users : kind === "video" ? Video : Megaphone;
+  return <Icon className="size-4" aria-hidden />;
+}
+
+function WorkspaceSidebar({
+  pathname,
+  memberName,
+  overview,
+  collapsed = false,
+  mobile = false,
+  onClose,
+  onSignOut,
+}: {
+  pathname: string;
+  memberName: string;
+  overview: ShellOverview | null;
+  collapsed?: boolean;
+  mobile?: boolean;
+  onClose?: () => void;
+  onSignOut: () => void;
+}) {
+  return (
+    <aside
+      className={cn(
+        "flex h-full flex-col border-r border-app-border bg-app-chrome py-5",
+        collapsed ? "items-center px-2" : "px-4",
+        mobile ? "w-[17.75rem] shadow-2xl" : "w-full",
+      )}
+      aria-label="Workspace sidebar"
+    >
+      <div className={cn("flex w-full items-center", collapsed ? "justify-center" : "justify-between")}>
+        <Link
+          href="/dashboard"
+          onClick={onClose}
+          className="inline-flex min-w-0 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+          aria-label="LeadReacher overview"
+        >
+          {collapsed ? (
+            <OnboardingLogo markOnly className="h-5 w-auto translate-x-1" />
+          ) : (
+            <OnboardingLogo className="h-auto w-[15rem] max-w-full" />
+          )}
+        </Link>
+        {mobile ? <button type="button" onClick={onClose} className="inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-500 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300" aria-label="Close navigation"><X className="size-4" aria-hidden /></button> : null}
+      </div>
+
+      <nav className={cn("w-full", collapsed ? "mt-10" : "mt-10 space-y-1")} aria-label="Workspace navigation">
+        {NAVIGATION.map(({ href, label, icon: Icon, exact }) => {
+          const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+          const link = (
+            <Link
+              key={href}
+              href={href}
+              onClick={onClose}
+              className={cn(
+                "group flex h-10 items-center rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+                collapsed ? "mb-1 justify-center px-0" : "gap-3 px-3.5",
+                active
+                  ? "bg-onboarding-purple-50 font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100"
+                  : "text-app-fg-muted hover:bg-app-hover dark:text-onboarding-neutral-300",
+              )}
+              aria-current={active ? "page" : undefined}
+              aria-label={collapsed ? label : undefined}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden />
+              {!collapsed ? <span className="truncate">{label}</span> : null}
+            </Link>
+          );
+
+          return collapsed ? (
+            <Tooltip key={href}>
+              <TooltipTrigger render={link} />
+              <TooltipContent side="right" align="center" sideOffset={12}>
+                {label}
+              </TooltipContent>
+            </Tooltip>
+          ) : link;
+        })}
+      </nav>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className={cn(
+          "mt-auto flex h-9 items-center rounded-lg text-left text-sm text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300",
+          collapsed ? "w-10 justify-center px-0" : "w-full gap-3 px-3.5",
+        )}
+        aria-label="Help center"
+      >
+        <CircleHelp className="size-4 shrink-0" aria-hidden />
+        {!collapsed ? "Help center" : null}
+      </button>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              className={cn(
+                "mt-3 flex items-center rounded-lg transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+                collapsed ? "size-10 justify-center px-0" : "w-full gap-3 px-2 py-2.5",
+              )}
+              aria-label={`${memberName} account`}
+            >
+              <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-onboarding-purple-50 text-xs font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">{initials(memberName)}</span>
+              {!collapsed ? (
+                <span className="min-w-0 flex-1 text-left">
+                  <span className="block truncate text-sm font-semibold">{memberName}</span>
+                  <span className="block truncate text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{overview?.organization.plan ?? "Starter"}</span>
+                </span>
+              ) : null}
+              {!collapsed ? <ChevronDown className="size-4 shrink-0 text-onboarding-neutral-400" aria-hidden /> : null}
+            </button>
+          }
+        />
+        <DropdownMenuContent
+          side="top"
+          align={collapsed ? "start" : "end"}
+          sideOffset={8}
+          className="w-60 border border-app-border bg-app-elevated p-1.5 text-app-fg shadow-onboarding-button"
+        >
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="px-3 py-2">
+              <p className="truncate text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{memberName}</p>
+              <p className="truncate text-xs font-normal text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{overview?.organization.plan ?? "Starter"} plan</p>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
+          <DropdownMenuItem render={<Link href="/dashboard/settings" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Settings className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Settings</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/settings" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><CreditCard className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Billing</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/activity" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Bell className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Notifications</DropdownMenuItem>
+          <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
+          <DropdownMenuItem onClick={() => void onSignOut()} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><LogOut className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Log out</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </aside>
+  );
+}
+
 export function DashboardShell({
   memberName,
   children,
@@ -48,68 +286,238 @@ export function DashboardShell({
   modal?: ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { isDark, toggle } = useThemeMode();
+  const [overview, setOverview] = useState<ShellOverview | null>(null);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
+
+  useEffect(() => {
+    const savedState = window.localStorage.getItem("leadreacher-sidebar-open");
+    if (savedState === "false") setSidebarOpen(false);
+  }, []);
+
+  useEffect(() => {
+    function handleSidebarKeyboard(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen((current) => !current);
+        return;
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setSidebarOpen((current) => {
+          const next = !current;
+          window.localStorage.setItem("leadreacher-sidebar-open", String(next));
+          return next;
+        });
+      }
+      if (event.key === "Escape") setMobileSidebarOpen(false);
+    }
+
+    window.addEventListener("keydown", handleSidebarKeyboard);
+    return () => window.removeEventListener("keydown", handleSidebarKeyboard);
+  }, []);
+
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
+
+  function toggleDesktopSidebar() {
+    setSidebarOpen((current) => {
+      const next = !current;
+      window.localStorage.setItem("leadreacher-sidebar-open", String(next));
+      return next;
+    });
+  }
+
+  const overviewQuery = useMemo(() => {
+    if (pathname !== "/dashboard") return "";
+    const params = new URLSearchParams(searchParams.toString());
+    return params.toString();
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const suffix = overviewQuery ? `?${overviewQuery}` : "";
+    void apiFetch<ShellOverview>(`/dashboard/overview${suffix}`)
+      .then((data) => {
+        if (!cancelled) setOverview(data);
+      })
+      .catch(() => {
+        if (!cancelled) setOverview(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [overviewQuery]);
+
+  useEffect(() => {
+    if (!searchOpen) {
+      setResults(null);
+      return;
+    }
+    const normalized = search.trim();
+    if (normalized.length < 2) {
+      setResults(null);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      void apiFetch<SearchResults>(`/dashboard/search?query=${encodeURIComponent(normalized)}`)
+        .then((data) => {
+          if (!cancelled) setResults(data);
+        })
+        .catch(() => {
+          if (!cancelled) setResults(null);
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [search, searchOpen]);
+
+  function closeSearch() {
+    setSearchOpen(false);
+    setSearch("");
+    setResults(null);
+  }
+
+  const pageRange = readableRange(searchParams.get("startDate"), searchParams.get("endDate"));
+
+  function setRange(days: number) {
+    const end = new Date();
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("startDate", dateParam(start));
+    params.set("endDate", dateParam(end));
+    const basePath = pathname.startsWith("/dashboard/activity")
+      ? "/dashboard/activity"
+      : pathname.startsWith("/dashboard/channels")
+        ? "/dashboard/channels"
+        : pathname.startsWith("/dashboard/analytics")
+          ? "/dashboard/analytics"
+          : "/dashboard";
+    router.replace(`${basePath}?${params.toString()}`);
+  }
 
   return (
-    <div className="h-dvh overflow-hidden bg-onboarding-neutral-0 text-onboarding-ink dark:bg-onboarding-neutral-950 dark:text-onboarding-neutral-0">
+    <TooltipProvider>
+      <div
+        className="dashboard-shell h-dvh overflow-hidden bg-app-canvas text-app-fg"
+        style={{
+          // Used by floating workspace chrome (e.g. prospect selection bar) to center in the main pane.
+          ["--dashboard-sidebar-width" as string]: sidebarOpen ? "17.75rem" : "4.5rem",
+          ["--dashboard-page-px" as string]: sidebarOpen ? "1rem" : "0.75rem",
+          ["--dashboard-page-py" as string]: sidebarOpen ? "1.25rem" : "1rem",
+        }}
+      >
       <div className="flex h-full w-full">
-        <aside className="hidden h-full w-[17.5rem] shrink-0 border-r border-onboarding-neutral-150 bg-onboarding-neutral-0 px-5 py-7 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 lg:flex lg:flex-col">
-          <OnboardingLogo className="h-8 w-auto" />
-          <p className="mt-1 pl-9 text-[10px] font-medium tracking-[0.14em] text-onboarding-neutral-400 uppercase dark:text-onboarding-neutral-500">AI customer acquisition</p>
-          <nav className="mt-11 space-y-1.5" aria-label="Workspace navigation">
-            {NAVIGATION.map(({ href, label, icon: Icon, exact }) => {
-              const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={cn(
-                    "flex h-11 items-center gap-3 rounded-onboarding px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
-                    active
-                      ? "bg-onboarding-purple-50 font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100"
-                      : "text-onboarding-neutral-500 hover:bg-onboarding-neutral-100 dark:text-onboarding-neutral-400 dark:hover:bg-onboarding-neutral-800",
-                  )}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <Icon className="size-4" aria-hidden />
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-          <Link href="/dashboard/settings" className="mt-auto flex w-full items-center gap-3 rounded-onboarding px-2 py-2 text-left text-sm transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:hover:bg-onboarding-neutral-800">
-            <span className="inline-flex size-8 items-center justify-center rounded-full bg-onboarding-neutral-150 font-semibold text-onboarding-purple-600 dark:bg-onboarding-neutral-750 dark:text-onboarding-purple-200">{memberName.slice(0, 1).toUpperCase()}</span>
-            <span className="min-w-0 flex-1 truncate font-medium">{memberName}</span>
-            <ChevronDown className="size-4 text-onboarding-neutral-400" aria-hidden />
-          </Link>
-        </aside>
+        <div className={cn("relative hidden h-full shrink-0 transition-[width] duration-200 ease-out lg:block", sidebarOpen ? "w-[17.75rem]" : "w-[4.5rem]")}>
+          <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} />
+        </div>
+
+        {mobileSidebarOpen ? (
+          <>
+            <button type="button" className="fixed inset-0 z-40 bg-onboarding-ink/20 backdrop-blur-[1px] lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Close navigation" />
+            <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
+              <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} mobile onClose={() => setMobileSidebarOpen(false)} onSignOut={handleSignOut} />
+            </div>
+          </>
+        ) : null}
+
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="flex h-[4.75rem] shrink-0 items-center justify-between border-b border-onboarding-neutral-150 bg-onboarding-neutral-0 px-5 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 sm:px-7 lg:px-8">
-            <div className="flex items-center gap-3 lg:hidden">
-              <OnboardingLogo className="h-6 w-auto" />
-              <span className="text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Workspace</span>
-            </div>
-            <div className="hidden max-w-[29rem] flex-1 lg:block">
-              <div className="flex h-10 items-center gap-2.5 rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-50 px-3.5 text-sm text-onboarding-neutral-400 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-850 dark:text-onboarding-neutral-500">
-                <Search className="size-4" aria-hidden />
-                Search coming soon
-                <span className="ml-auto rounded border border-onboarding-neutral-200 px-1.5 py-0.5 text-[10px] font-medium text-onboarding-neutral-400 dark:border-onboarding-neutral-700">⌘ K</span>
-              </div>
-            </div>
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-              <button type="button" onClick={(event) => toggle(event.currentTarget)} className="inline-flex size-10 items-center justify-center rounded-onboarding text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-                {isDark ? <Sun className="size-[1.1rem]" aria-hidden /> : <Moon className="size-[1.1rem]" aria-hidden />}
+          <header className="relative flex h-[4.75rem] shrink-0 items-center border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)]">
+            <button type="button" onClick={() => setMobileSidebarOpen(true)} className="mr-1 inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-600 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden" aria-label="Open navigation" aria-expanded={mobileSidebarOpen}><Menu className="size-5" aria-hidden /></button>
+            <Link href="/dashboard" className="mr-4 lg:hidden"><OnboardingLogo className="h-6 w-auto" /></Link>
+            <button type="button" onClick={toggleDesktopSidebar} className="mr-3 hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:inline-flex" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} aria-expanded={sidebarOpen} title={sidebarOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}>{sidebarOpen ? <PanelLeftClose className="size-4" aria-hidden /> : <PanelLeftOpen className="size-4" aria-hidden />}</button>
+            <div className="relative hidden min-w-0 w-full max-w-[29rem] flex-1 lg:block">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="flex h-10 w-full items-center rounded-lg border border-app-border bg-app-elevated pr-3 pl-10 text-left text-sm text-app-fg-subtle outline-none transition-colors hover:border-app-border-strong focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+                aria-label="Open search"
+              >
+                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-onboarding-neutral-500" aria-hidden />
+                <span className="truncate">Ask Leadreacher anything...</span>
+                <kbd className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[11px] font-medium text-onboarding-neutral-400">⌘ K</kbd>
               </button>
-              <span className="hidden size-10 items-center justify-center text-onboarding-neutral-400 sm:inline-flex" aria-label="Notifications coming soon"><Bell className="size-4" aria-hidden /></span>
+            </div>
+
+            <Dialog open={searchOpen} onOpenChange={(open) => open ? setSearchOpen(true) : closeSearch()}>
+              <DialogContent className="max-w-2xl p-0">
+                <DialogHeader className="border-b border-onboarding-neutral-150 px-5 py-4 dark:border-onboarding-neutral-750">
+                  <DialogTitle>Search workspace</DialogTitle>
+                  <DialogDescription>Find prospects and campaigns by name or company.</DialogDescription>
+                </DialogHeader>
+                <div className="px-5 pb-5">
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-onboarding-neutral-500" aria-hidden />
+                    <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search prospects or campaigns..." className="h-11 pl-9 pr-10" aria-label="Search prospects and campaigns" />
+                    {search ? <button type="button" onClick={() => setSearch("")} className="absolute top-1/2 right-2.5 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded text-onboarding-neutral-400 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300" aria-label="Clear search"><X className="size-3.5" /></button> : null}
+                  </div>
+                  <div className="mt-4 max-h-[22rem] overflow-y-auto">
+                    {search.trim().length < 2 ? <p className="py-8 text-center text-sm text-onboarding-neutral-500">Type at least two characters to search.</p> : null}
+                    {search.trim().length >= 2 && results && !results.prospects.length && !results.campaigns.length ? <p className="py-8 text-center text-sm text-onboarding-neutral-500">No matching prospects or campaigns.</p> : null}
+                    {results?.prospects.length ? <div className="py-1"><p className="px-1.5 pb-2 text-[10px] font-semibold tracking-[0.1em] text-onboarding-neutral-500 uppercase">Prospects</p><div className="space-y-1">{results.prospects.map((prospect) => <Link key={prospect.id} href={`/dashboard/prospects/${prospect.id}`} onClick={closeSearch} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-onboarding-neutral-50 focus-visible:bg-onboarding-neutral-50 focus-visible:outline-none dark:hover:bg-app-hover dark:focus-visible:bg-onboarding-neutral-800"><span className="inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-onboarding-purple-50 text-[10px] font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">{prospect.avatarUrl ? <img src={prospect.avatarUrl} alt="" className="size-full object-cover" /> : initials(prospect.name)}</span><span className="min-w-0"><span className="block truncate font-medium">{prospect.name}</span><span className="block truncate text-xs text-onboarding-neutral-500">{prospect.company}</span></span></Link>)}</div></div> : null}
+                    {results?.campaigns.length ? <div className="mt-2 border-t border-onboarding-neutral-150 py-3 dark:border-onboarding-neutral-750"><p className="px-1.5 pb-2 text-[10px] font-semibold tracking-[0.1em] text-onboarding-neutral-500 uppercase">Campaigns</p><div className="space-y-1">{results.campaigns.map((campaign) => <Link key={campaign.id} href="/dashboard/campaigns" onClick={closeSearch} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-onboarding-neutral-50 focus-visible:bg-onboarding-neutral-50 focus-visible:outline-none dark:hover:bg-app-hover dark:focus-visible:bg-onboarding-neutral-800"><Megaphone className="size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" /><span className="min-w-0"><span className="block truncate font-medium">{campaign.name}</span><span className="block text-xs text-onboarding-neutral-500">{campaign.status}</span></span></Link>)}</div></div> : null}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+              {pathname === "/dashboard" || pathname.startsWith("/dashboard/activity") || pathname.startsWith("/dashboard/channels") || pathname.startsWith("/dashboard/analytics") ? <div className="hidden xl:block"><Select onValueChange={(value) => setRange(Number(value))}><SelectTrigger aria-label="Date range" className="h-10 w-auto gap-2 border-onboarding-neutral-150 px-3 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover"><CalendarDays className="size-4 text-onboarding-neutral-600 dark:text-onboarding-neutral-300" aria-hidden /><span>{pageRange}</span></SelectTrigger><SelectContent align="end" className="w-44 border border-app-border bg-app-elevated text-app-fg">{RANGE_OPTIONS.map((option) => <SelectItem key={option.value} value={String(option.value)} className="px-3 py-2 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">{option.label}</SelectItem>)}</SelectContent></Select></div> : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button type="button" className="relative inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={`${overview?.unreadNotificationCount ?? 0} unread notifications`}>
+                      <Bell className="size-[1.05rem]" aria-hidden />
+                      {overview?.unreadNotificationCount ? <span className="absolute top-1 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-onboarding-purple-600 px-1 text-[10px] font-semibold leading-4 text-white">{overview.unreadNotificationCount > 9 ? "9+" : overview.unreadNotificationCount}</span> : null}
+                    </button>
+                  }
+                />
+                <DropdownMenuContent align="end" className="w-[22rem] border border-app-border bg-app-elevated p-1.5 text-app-fg shadow-onboarding-button">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">Recent activity</DropdownMenuLabel>
+                    {overview?.activity?.length ? overview.activity.slice(0, 5).map((item) => (
+                      <DropdownMenuItem key={item.id} render={<Link href={item.href ?? "/dashboard/activity"} />} className="items-start gap-3 rounded-lg px-3 py-2.5 text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">
+                        <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200"><ShellActivityIcon kind={item.kind} /></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{item.title}</span>
+                          <span className="mt-0.5 block truncate text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{item.detail}</span>
+                        </span>
+                        <time className="shrink-0 pt-0.5 text-[11px] text-onboarding-neutral-500 dark:text-onboarding-neutral-400" dateTime={item.occurredAt}>{relativeTime(item.occurredAt)}</time>
+                      </DropdownMenuItem>
+                    )) : <DropdownMenuItem disabled className="px-3 py-3 text-sm text-onboarding-neutral-500">No recent activity</DropdownMenuItem>}
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
+                  <DropdownMenuItem render={<Link href="/dashboard/activity" />} className="justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-onboarding-purple-600 focus:bg-onboarding-purple-50 focus:text-onboarding-purple-700 dark:text-onboarding-purple-200 dark:focus:bg-onboarding-purple-950 dark:focus:text-onboarding-purple-100">
+                    View all activity <ArrowRight className="size-3.5" aria-hidden />
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button type="button" onClick={(event) => toggle(event)} className="inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>{isDark ? <Sun className="size-[1.1rem]" aria-hidden /> : <Moon className="size-[1.1rem]" aria-hidden />}</button>
             </div>
           </header>
-          <main className={cn(
-            "min-h-0 flex-1 overscroll-contain",
-            pathname === "/dashboard" ? "overflow-y-auto lg:overflow-hidden" : "overflow-y-auto",
-          )}>{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</main>
           {modal}
         </div>
       </div>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

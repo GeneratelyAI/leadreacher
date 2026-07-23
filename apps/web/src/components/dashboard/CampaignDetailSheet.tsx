@@ -1,0 +1,449 @@
+"use client";
+
+import Link from "next/link";
+import {
+  CheckCircle2,
+  Loader2,
+  MessageSquare,
+  Pause,
+  Play,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/Input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ApiError, apiFetch } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+type SequenceStep = { type: string; message: string; delayHours: number };
+
+export type CampaignDetail = {
+  id: string;
+  name: string;
+  status: string;
+  channels: string[];
+  sequence: SequenceStep[] | unknown;
+  archived: boolean;
+  socialAccountId: string | null;
+  senderAccount: {
+    id: string;
+    platform: string;
+    accountName: string;
+    status: string;
+    avatarUrl: string | null;
+  } | null;
+  createdAt: string;
+  updatedAt: string;
+  prospectCount: number;
+  metrics: {
+    sent: number;
+    replies: number;
+    meetings: number;
+    replyRate: number | null;
+    meetingRate: number | null;
+  };
+  video: CampaignVideoSummary;
+  leads: Array<{
+    id: string;
+    leadId: string;
+    name: string;
+    company: string;
+    leadStatus: string;
+    campaignLeadStatus: string;
+    currentStep: number;
+    avatarUrl: string | null;
+  }>;
+  launchReady: {
+    hasLeads: boolean;
+    hasSender: boolean;
+    reasons: string[];
+  };
+};
+
+type CampaignDetailSheetProps = {
+  campaignId: string | null;
+  accounts: Array<{ id: string; platform: string; accountName: string; status: string }>;
+  onClose: () => void;
+  onChanged: () => Promise<void> | void;
+};
+
+function titleCase(value: string): string {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function asSequence(value: unknown): SequenceStep[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (step): step is SequenceStep =>
+      Boolean(step) &&
+      typeof step === "object" &&
+      typeof (step as SequenceStep).type === "string" &&
+      typeof (step as SequenceStep).message === "string" &&
+      typeof (step as SequenceStep).delayHours === "number",
+  );
+}
+
+export function CampaignDetailSheet({
+  campaignId,
+  accounts,
+  onClose,
+  onChanged,
+}: CampaignDetailSheetProps) {
+  const [detail, setDetail] = useState<CampaignDetail | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState("");
+  const [sequence, setSequence] = useState<SequenceStep[]>([]);
+  const [senderAccountId, setSenderAccountId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async (id: string) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const next = await apiFetch<CampaignDetail>(`/campaigns/${id}`);
+      setDetail(next);
+      setName(next.name);
+      setSequence(asSequence(next.sequence));
+      setSenderAccountId(next.socialAccountId ?? "");
+      setEditing(false);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Unable to load campaign.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!campaignId) {
+      setDetail(null);
+      return;
+    }
+    void load(campaignId);
+  }, [campaignId, load]);
+
+  async function patch(body: Record<string, unknown>, successMessage: string) {
+    if (!campaignId) return;
+    setIsSaving(true);
+    setError(null);
+    try {
+      await apiFetch(`/campaigns/${campaignId}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      });
+      toast.success(successMessage);
+      await load(campaignId);
+      await onChanged();
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : "Unable to update campaign.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function launch() {
+    if (!campaignId) return;
+    setIsSaving(true);
+    try {
+      await apiFetch(`/campaigns/${campaignId}/launch`, { method: "POST", body: JSON.stringify({}) });
+      toast.success("Campaign launched");
+      await load(campaignId);
+      await onChanged();
+    } catch (requestError) {
+      const message = requestError instanceof ApiError ? requestError.message : "Unable to launch campaign.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function saveEdits() {
+    await patch(
+      {
+        name,
+        sequence,
+        ...(senderAccountId ? { socialAccountId: senderAccountId } : {}),
+      },
+      "Campaign updated",
+    );
+    setEditing(false);
+  }
+
+  const open = Boolean(campaignId);
+  const activeSenders = accounts.filter((account) => account.platform === "linkedin" && account.status === "active");
+  const canLaunch =
+    detail &&
+    ["draft", "review"].includes(detail.status) &&
+    detail.launchReady.hasLeads &&
+    detail.launchReady.hasSender;
+
+  return (
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent className="flex max-h-[min(90dvh,56rem)] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0" showCloseButton>
+        {isLoading || !detail ? (
+          <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
+            <Loader2 className="mr-2 size-4 animate-spin" /> Loading campaign
+          </div>
+        ) : (
+          <>
+            <DialogHeader className="shrink-0 border-b border-border px-6 py-5 pr-14">
+              <div className="flex flex-wrap items-center gap-2">
+                <DialogTitle className="text-xl">{detail.name}</DialogTitle>
+                <Badge variant="outline">{detail.status === "active" ? "Running" : titleCase(detail.status)}</Badge>
+                {detail.archived ? <Badge variant="secondary">Archived</Badge> : null}
+              </div>
+              <DialogDescription>
+                {detail.channels.map((channel) => titleCase(channel)).join(" · ")} · Updated{" "}
+                {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(detail.updatedAt))}
+              </DialogDescription>
+            </DialogHeader>
+
+            {error ? (
+              <p className="mx-6 mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+            ) : null}
+
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+              <div className="flex flex-wrap gap-2">
+                {detail.status === "active" ? (
+                  <Button size="sm" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "paused" }, "Campaign paused")}>
+                    <Pause /> Pause
+                  </Button>
+                ) : null}
+                {detail.status === "paused" ? (
+                  <Button size="sm" variant="brand" disabled={isSaving} onClick={() => void patch({ status: "active" }, "Campaign resumed")}>
+                    <Play /> Resume
+                  </Button>
+                ) : null}
+                {["draft", "review"].includes(detail.status) ? (
+                  <Button size="sm" variant="brand" disabled={isSaving || !canLaunch} onClick={() => void launch()}>
+                    {isSaving ? <Loader2 className="animate-spin" /> : <Play />} Launch
+                  </Button>
+                ) : null}
+                {["active", "paused"].includes(detail.status) ? (
+                  <Button size="sm" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "completed" }, "Campaign completed")}>
+                    <CheckCircle2 /> Complete
+                  </Button>
+                ) : null}
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/dashboard/prospects?enrollCampaignId=${detail.id}`}>
+                    <Users /> {detail.prospectCount === 0 ? "Add prospects" : "Add more"}
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/dashboard/messages?campaignId=${detail.id}`}>
+                    <MessageSquare /> Messages
+                  </Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/dashboard/analytics?campaignId=${detail.id}`}>Analytics</Link>
+                </Button>
+              </div>
+
+              {["draft", "review"].includes(detail.status) && detail.launchReady.reasons.length > 0 ? (
+                <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  {detail.launchReady.reasons.map((reason) => (
+                    <p key={reason}>{reason}</p>
+                  ))}
+                </div>
+              ) : null}
+
+              <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {[
+                  ["Prospects", detail.prospectCount],
+                  ["Sent", detail.metrics.sent],
+                  ["Replies", detail.metrics.replies],
+                  ["Meetings", detail.metrics.meetings],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-border p-3">
+                    <p className="text-xl font-semibold">{value}</p>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                  </div>
+                ))}
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Sequence</h3>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing((value) => !value)}>
+                    {editing ? "Cancel edit" : "Edit"}
+                  </Button>
+                </div>
+                {editing ? (
+                  <div className="space-y-3">
+                    <label className="grid gap-1.5 text-sm font-medium">
+                      Name
+                      <Input value={name} onChange={(event) => setName(event.target.value)} />
+                    </label>
+                    <label className="grid gap-1.5 text-sm font-medium">
+                      LinkedIn sender
+                      <select
+                        className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm"
+                        value={senderAccountId}
+                        onChange={(event) => setSenderAccountId(event.target.value)}
+                      >
+                        <option value="">Select sender</option>
+                        {activeSenders.map((account) => (
+                          <option key={account.id} value={account.id}>
+                            {account.accountName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {sequence.map((step, index) => (
+                      <label key={`${step.type}-${index}`} className="grid gap-1.5 text-sm font-medium">
+                        Step {index + 1} · {step.type} · delay {step.delayHours}h
+                        <textarea
+                          className="min-h-20 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
+                          value={step.message}
+                          onChange={(event) => {
+                            const next = [...sequence];
+                            next[index] = { ...step, message: event.target.value };
+                            setSequence(next);
+                          }}
+                        />
+                      </label>
+                    ))}
+                    <Button size="sm" variant="brand" disabled={isSaving} onClick={() => void saveEdits()}>
+                      {isSaving ? <Loader2 className="animate-spin" /> : null} Save changes
+                    </Button>
+                  </div>
+                ) : (
+                  <ul className="space-y-2">
+                    {asSequence(detail.sequence).map((step, index) => (
+                      <li key={`${step.type}-${index}`} className="rounded-lg border border-border p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Step {index + 1} · {step.type} · {step.delayHours}h delay
+                        </p>
+                        <p className="mt-1 text-sm whitespace-pre-wrap">{step.message}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Audience</h3>
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link href={`/dashboard/prospects?campaignId=${detail.id}`}>View in Prospects</Link>
+                  </Button>
+                </div>
+                {detail.leads.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No prospects enrolled yet.</p>
+                ) : (
+                  <ul className="divide-y divide-border rounded-lg border border-border">
+                    {detail.leads.map((lead) => (
+                      <li key={lead.id} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{lead.name}</p>
+                          <p className="truncate text-xs text-muted-foreground">{lead.company}</p>
+                        </div>
+                        <Badge variant="secondary">{titleCase(lead.leadStatus)}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-muted-foreground">{detail.prospectCount} enrolled total</p>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Delivery</h3>
+                <div className="rounded-lg border border-border p-3 text-sm">
+                  {detail.senderAccount ? (
+                    <p>
+                      Sender: <span className="font-medium">{detail.senderAccount.accountName}</span>{" "}
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          detail.senderAccount.status === "active"
+                            ? "border-transparent bg-onboarding-success-50 text-onboarding-success-700"
+                            : "",
+                        )}
+                      >
+                        {detail.senderAccount.status}
+                      </Badge>
+                    </p>
+                  ) : (
+                    <p className="text-muted-foreground">No LinkedIn sender selected.</p>
+                  )}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {detail.channels.map((channel) => (
+                      <span key={channel} className="inline-flex items-center gap-1.5 text-xs font-medium">
+                        {channel === "linkedin" || channel === "whatsapp" ? (
+                          <ChannelLogo name={channel} className="size-3.5" />
+                        ) : null}
+                        {titleCase(channel)}
+                      </span>
+                    ))}
+                  </div>
+                  {detail.senderAccount && detail.senderAccount.status !== "active" ? (
+                    <Button size="sm" variant="ghost" className="mt-2 h-auto px-0" asChild>
+                      <Link href="/dashboard/channels">Fix sender in Channels</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold">Video</h3>
+                <CampaignVideoView
+                  campaignId={detail.id}
+                  video={detail.video}
+                  onVideoChange={(next) => setDetail((current) => (current ? { ...current, video: next } : current))}
+                />
+              </section>
+
+              <section className="space-y-2">
+                <h3 className="text-sm font-semibold">More</h3>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/dashboard/activity?kind=campaign&campaignId=${detail.id}`}>Open activity</Link>
+                  </Button>
+                  {!detail.archived ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSaving}
+                      onClick={() => void patch({ archived: true }, "Campaign archived")}
+                    >
+                      Archive
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSaving}
+                      onClick={() => void patch({ archived: false }, "Campaign restored")}
+                    >
+                      Restore
+                    </Button>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+            </DialogFooter>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

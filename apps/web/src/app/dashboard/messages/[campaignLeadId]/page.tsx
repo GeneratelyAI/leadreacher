@@ -6,5 +6,9 @@ export default async function ConversationPage({
   params: Promise<{ campaignLeadId: string }>;
 }) {
   const { campaignLeadId } = await params;
-  return <DashboardPageFrame><MessagesView conversationId={campaignLeadId} /></DashboardPageFrame>;
+  return (
+    <DashboardPageFrame>
+      <MessagesView conversationId={campaignLeadId} />
+    </DashboardPageFrame>
+  );
 }

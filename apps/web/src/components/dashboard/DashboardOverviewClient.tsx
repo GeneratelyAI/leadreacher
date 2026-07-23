@@ -8,28 +8,30 @@ import {
   ArrowUp,
   BarChart3,
   CalendarDays,
+  Check,
   CheckCircle2,
   ChevronDown,
   CircleAlert,
   Clock3,
-  CreditCard,
   LayoutDashboard,
   Link2,
   Loader2,
   Megaphone,
   MessageSquare,
-  Play,
   Plus,
-  Rocket,
   Send,
   Sparkles,
   TrendingUp,
   Users,
-  Video,
 } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import { LiveActivityTable } from "@/components/dashboard/LiveActivityTable";
 import { Button } from "@/components/ui/Button";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -56,6 +58,7 @@ type DashboardOverview = {
     customers?: number;
   };
   trends?: Partial<Record<keyof DashboardOverview["metrics"], { direction: "up" | "down" | "flat" | "new"; percent: number | null }>>;
+  activityTrend?: Array<{ date: string; sent: number; replies: number }>;
   dateRange?: { startDate: string; endDate: string };
   unreadNotificationCount?: number;
   aiOptimizationActive?: boolean;
@@ -70,7 +73,7 @@ type DashboardOverview = {
     startedAt: string;
     stats?: { prospects: number; contacted: number; replies: number; meetings: number; customers: number };
     channelSendCounts?: Record<string, number>;
-    video?: { id: string; status: string; videoUrl: string | null; thumbnailUrl: string | null } | null;
+    video?: CampaignVideoSummary | null;
   } | null;
   channels: Array<{
     id: string;
@@ -110,19 +113,14 @@ type AnalyticsInsights = {
   }>;
 };
 
-type IconTone = "brand" | "success" | "warning" | "neutral";
-
 const METRICS: Array<{
   key: keyof DashboardOverview["metrics"];
   label: string;
-  icon: typeof Users;
-  tone: IconTone;
 }> = [
-  { key: "prospects", label: "Prospects", icon: Users, tone: "brand" },
-  { key: "outreachInProgress", label: "Outreach in progress", icon: Rocket, tone: "warning" },
-  { key: "replies", label: "Replies", icon: MessageSquare, tone: "success" },
-  { key: "meetingsBooked", label: "Meetings booked", icon: CalendarDays, tone: "neutral" },
-  { key: "customers", label: "Customers", icon: CheckCircle2, tone: "success" },
+  { key: "prospects", label: "Prospects" },
+  { key: "outreachInProgress", label: "Outreach in progress" },
+  { key: "replies", label: "Replies" },
+  { key: "meetingsBooked", label: "Meetings booked" },
 ];
 
 function isChannelLogoName(value: string): value is "linkedin" | "whatsapp" {
@@ -173,53 +171,35 @@ function relativeTime(value: string): string {
   return `${Math.round(hours / 24)}d ago`;
 }
 
-function IconTile({
-  icon: Icon,
-  tone = "brand",
-  className,
-}: {
-  icon: typeof Users;
-  tone?: IconTone;
-  className?: string;
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center",
-        tone === "brand" && "text-onboarding-purple-600 dark:text-onboarding-purple-200",
-        tone === "success" && "text-onboarding-success-500",
-        tone === "warning" && "text-onboarding-warning-900 dark:text-onboarding-warning-150",
-        tone === "neutral" && "text-onboarding-neutral-600 dark:text-onboarding-neutral-300",
-        className,
-      )}
-      aria-hidden
-    >
-      <Icon className="size-[1.05rem]" />
-    </span>
-  );
+function formatDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
+
+function formatChartDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
+}
+
+const INSIGHT_CHART_CONFIG: ChartConfig = {
+  sent: { label: "Sent", color: "#5326b7" },
+  replies: { label: "Replies", color: "#16a34a" },
+};
 
 function MetricCell({
   value,
   label,
-  icon: Icon,
-  tone,
   trend,
 }: {
   value: number;
   label: string;
-  icon: typeof Users;
-  tone: IconTone;
   trend?: NonNullable<DashboardOverview["trends"]>[keyof NonNullable<DashboardOverview["trends"]>];
 }) {
   return (
-    <div className="min-w-0 px-4 py-3 sm:px-5">
-      <IconTile icon={Icon} tone={tone} className="size-6" />
-      <p className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">{formatNumber(value)}</p>
-      <p className="mt-0.5 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{label}</p>
+    <div className="flex min-h-full min-w-0 flex-col items-center justify-center px-5 py-1.5 text-center sm:px-6 sm:py-2">
+      <p className="text-2xl font-semibold tracking-tight sm:text-[1.75rem]">{formatNumber(value)}</p>
+      <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{label}</p>
       {trend ? (
         <p className={cn(
-          "mt-2 flex items-center gap-1 text-xs font-medium",
+          "mt-1 flex items-center justify-center gap-1 text-xs font-medium",
           trend.direction === "up" || trend.direction === "new"
             ? "text-onboarding-success-500"
             : trend.direction === "down"
@@ -227,77 +207,57 @@ function MetricCell({
               : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
         )}>
           {trend.direction === "up" ? <ArrowUp className="size-3" aria-hidden /> : trend.direction === "down" ? <ArrowDown className="size-3" aria-hidden /> : null}
-          {trend.direction === "new" ? "New activity this period" : `${trend.percent ?? 0}% vs prior period`}
+          {trend.direction === "new"
+            ? "New activity this period"
+            : trend.direction === "flat"
+              ? "No change this period"
+              : `${trend.percent ?? 0}% this period`}
         </p>
       ) : null}
     </div>
   );
 }
 
-function ActivityMark({ item }: { item: DashboardOverview["activity"][number] }) {
-  const channel = item.channel ?? "";
-
-  if (item.avatarUrl) {
-    return (
-      <span className="relative size-9 shrink-0" aria-hidden>
-        <img src={item.avatarUrl} alt="" className="size-9 rounded-full object-cover" />
-        {isChannelLogoName(channel) ? (
-          <DashboardChannelMark
-            name={channel}
-            size="badge"
-            className="absolute -right-0.5 -bottom-0.5 border-2 border-onboarding-neutral-0 dark:border-onboarding-neutral-900"
-          />
-        ) : null}
-      </span>
-    );
-  }
-
-  if (isChannelLogoName(channel)) {
-    return <DashboardChannelMark name={channel} />;
-  }
-  const Icon = item.kind === "message" ? MessageSquare : item.kind === "prospect" ? Users : item.kind === "video" ? Video : Megaphone;
-  return <Icon className="size-5 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />;
-}
-
 function ProgressStage({
   label,
   complete,
+  active,
+  detail,
   index,
-  final,
 }: {
   label: string;
   complete: boolean;
+  active: boolean;
+  detail: string;
   index: number;
-  final: boolean;
 }) {
   return (
     <div className="relative min-w-0 flex-1 text-center">
-      {!final ? (
-        <span
-          className={cn(
-            "absolute top-3 left-1/2 h-px w-full",
-            complete ? "bg-onboarding-purple-500" : "bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750",
-          )}
-          aria-hidden
-        />
-      ) : null}
       <span
         className={cn(
-          "relative z-10 inline-flex size-6 items-center justify-center rounded-full border text-[11px] font-semibold",
+          "relative z-10 inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold",
           complete
             ? "border-onboarding-purple-500 bg-onboarding-purple-500 text-white"
+            : active
+              ? "border-onboarding-purple-500 bg-onboarding-purple-500 text-white"
             : "border-onboarding-neutral-200 bg-onboarding-neutral-0 text-onboarding-neutral-400 dark:border-onboarding-neutral-700 dark:bg-onboarding-neutral-900",
         )}
       >
-        {complete ? <CheckCircle2 className="size-3.5" aria-hidden /> : index + 1}
+        {complete ? <Check className="size-4" strokeWidth={2.5} aria-hidden /> : index + 1}
       </span>
       <span
         className={cn(
-          "mt-1.5 block truncate text-[11px] font-medium",
-          complete ? "text-onboarding-ink dark:text-onboarding-neutral-0" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
+          "mt-1.5 block truncate text-xs font-medium",
+          complete || active ? "text-onboarding-ink dark:text-onboarding-neutral-0" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
         )}
       >
         {label}
+      </span>
+      <span className={cn(
+        "mt-0.5 block truncate text-xs",
+        active ? "font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
+      )}>
+        {detail}
       </span>
     </div>
   );
@@ -310,7 +270,6 @@ export function DashboardOverviewClient() {
   const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOpeningPortal, setIsOpeningPortal] = useState(false);
   const overviewQuery = searchParams.toString();
 
   useEffect(() => {
@@ -358,22 +317,6 @@ export function DashboardOverviewClient() {
     };
   }, [overviewQuery]);
 
-  async function openBillingPortal() {
-    if (!overview?.organization.hasBillingPortal || isOpeningPortal) return;
-
-    setIsOpeningPortal(true);
-    try {
-      const session = await apiFetch<{ url: string }>("/billing/portal-session", {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      window.location.assign(session.url);
-    } catch (portalError) {
-      setError(portalError instanceof Error ? portalError.message : "Unable to open billing portal.");
-      setIsOpeningPortal(false);
-    }
-  }
-
   const recommendationItems = insights?.status === "ready"
     ? insights.whatToDoNext.slice(0, 3).map((item) => ({ title: item.action, detail: item.reason }))
     : (overview?.attention ?? []).slice(0, 3).map((item) => ({ title: item.title, detail: item.detail }));
@@ -384,10 +327,18 @@ export function DashboardOverviewClient() {
         { label: "Meetings", value: overview.metrics.meetingsBooked },
       ]
     : [];
-  const snapshotMaximum = Math.max(1, ...performanceSnapshot.map((item) => item.value));
+  const activityTrend = overview?.activityTrend ?? [];
+  const hasActivityTrend = activityTrend.some((item) => item.sent > 0 || item.replies > 0);
+  const featuredInsight = insights?.status === "ready"
+    ? insights.whatToDoNext[0]
+      ? { title: insights.whatToDoNext[0].action, detail: insights.whatToDoNext[0].reason }
+      : insights.whatsWorking[0]
+        ? { title: insights.whatsWorking[0].text, detail: insights.whatsWorking[0].campaignName }
+        : null
+    : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[100rem] flex-col px-5 py-6 sm:px-6 lg:h-full lg:px-4 lg:py-4 xl:px-5">
+    <div className="mx-auto flex w-full max-w-[104rem] flex-col px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]">
             {error ? (
               <div className="mb-6 flex items-start gap-3 rounded-onboarding border border-onboarding-error-500/30 bg-onboarding-error-50 p-4 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -401,7 +352,7 @@ export function DashboardOverviewClient() {
             <section className="flex shrink-0 flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-[1.7rem] font-semibold tracking-tight sm:text-[1.8rem]">Acquisition engine</h1>
+                  <h1 className="text-[1.75rem] font-semibold tracking-tight sm:text-[1.9rem]">Acquisition engine</h1>
                   {overview ? (
                     <span
                       className={cn(
@@ -428,7 +379,7 @@ export function DashboardOverviewClient() {
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-1.5 max-w-2xl text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                <p className="mt-1 max-w-2xl text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                   {overview?.engine.detail ?? "Loading your operational workspace."}
                 </p>
               </div>
@@ -439,12 +390,6 @@ export function DashboardOverviewClient() {
                     <strong>{overview.trends.outreachSent.direction === "new" ? "New" : `${overview.trends.outreachSent.percent ?? 0}%`}</strong>
                     <span className="text-onboarding-neutral-500 dark:text-onboarding-neutral-400">vs prior period</span>
                   </div>
-                ) : null}
-                {overview?.organization.hasBillingPortal ? (
-                  <Button variant="secondary" onClick={openBillingPortal} disabled={isOpeningPortal}>
-                    {isOpeningPortal ? <Loader2 className="animate-spin" aria-hidden /> : <CreditCard aria-hidden />}
-                    Manage billing
-                  </Button>
                 ) : null}
                 <Button asChild variant="brand">
                   <Link href="/dashboard/campaigns">
@@ -460,74 +405,88 @@ export function DashboardOverviewClient() {
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> Loading workspace
               </div>
             ) : overview ? (
-              <div className="grid gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                <div className="content-start space-y-4 lg:grid lg:min-h-0 lg:grid-rows-[auto_auto_auto] lg:space-y-0 lg:gap-4">
-                  <section className="grid overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small sm:grid-cols-2 lg:grid-cols-5 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-label="Campaign metrics">
-                    {METRICS.filter(({ key }) => key !== "customers" || typeof overview.metrics.customers === "number").map(({ key, label, icon: Icon, tone }, index) => (
-                      <div
-                        key={key}
-                        className={cn(
-                          "border-b border-onboarding-neutral-150 last:border-b-0 lg:border-r lg:border-b-0 lg:last:border-r-0 dark:border-onboarding-neutral-750",
-                          index === 1 && "sm:border-b-0",
-                        )}
-                      >
-                        <MetricCell value={overview.metrics[key] ?? 0} label={label} icon={Icon} tone={tone} trend={overview.trends?.[key]} />
-                      </div>
-                    ))}
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_23rem]">
+                <div className="order-1 flex min-h-0 min-w-0 flex-col gap-4">
+                  <section className="shrink-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-label="Campaign metrics">
+                    <div className="flex items-center justify-end px-5 pt-2 pb-0 sm:px-6">
+                      <Link href="/dashboard/analytics" className="inline-flex items-center gap-1 text-xs font-semibold text-onboarding-purple-600 transition-colors hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
+                        View analytics <ArrowRight className="size-3" aria-hidden />
+                      </Link>
+                    </div>
+                    <div className="grid min-h-[10rem] grid-cols-2 sm:grid-cols-4">
+                      {METRICS.map(({ key, label }, index) => (
+                        <div
+                          key={key}
+                          className={cn(
+                            "border-b border-onboarding-neutral-150 last:border-b-0 dark:border-onboarding-neutral-750 sm:border-b-0 sm:relative sm:border-r-0 sm:after:absolute sm:after:inset-y-4 sm:after:right-0 sm:after:w-px sm:after:bg-onboarding-neutral-150 sm:last:after:hidden dark:sm:after:bg-onboarding-neutral-750",
+                            index >= 2 && "border-b-0",
+                          )}
+                        >
+                          <MetricCell value={overview.metrics[key] ?? 0} label={label} trend={overview.trends?.[key]} />
+                        </div>
+                      ))}
+                    </div>
                   </section>
 
-                  <section className="shrink-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="primary-campaign-heading">
-                    <div className="grid lg:grid-cols-[minmax(0,1fr)_12rem_10rem]">
-                      <div className="p-4 sm:p-5">
+                  <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[0.4rem] border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small lg:min-h-[32rem] dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="primary-campaign-heading">
+                    <div className="grid lg:min-h-[11rem] lg:grid-cols-[minmax(0,1.15fr)_minmax(14rem,1fr)_minmax(10.5rem,0.7fr)]">
+                      <div className="flex flex-col justify-center p-4 sm:p-5 2xl:p-7 lg:relative lg:after:absolute lg:after:inset-y-5 lg:after:right-0 lg:after:w-px lg:after:bg-onboarding-neutral-150 dark:lg:after:bg-onboarding-neutral-750">
                         <p className="text-[11px] font-semibold tracking-[0.08em] text-onboarding-neutral-500 uppercase dark:text-onboarding-neutral-400">Active campaign</p>
-                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <h2 id="primary-campaign-heading" className="text-xl font-semibold tracking-tight">
-                            {overview.primaryCampaign?.name ?? "Campaign ready to launch"}
-                          </h2>
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-success-500">
-                            <span className="size-1.5 rounded-full bg-onboarding-success-500" aria-hidden />
+                        <h2 id="primary-campaign-heading" className="mt-2 text-xl font-semibold tracking-tight 2xl:text-2xl">
+                          {overview.primaryCampaign?.name ?? "Campaign ready to launch"}
+                        </h2>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+                          <span className={cn(
+                            "inline-flex items-center gap-2 text-sm font-medium",
+                            overview.primaryCampaign?.status === "active" ? "text-onboarding-success-500" : "text-onboarding-purple-600 dark:text-onboarding-purple-200",
+                          )}>
+                            <span className={cn("size-2 rounded-full", overview.primaryCampaign?.status === "active" ? "bg-onboarding-success-500" : "bg-onboarding-purple-500")} aria-hidden />
                             {overview.primaryCampaign ? titleCase(overview.primaryCampaign.status) : "Ready"}
                           </span>
-                        </div>
-                        <p className="mt-1.5 max-w-xl text-sm leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                          {overview.primaryCampaign
-                            ? `${formatNumber(overview.primaryCampaign.prospectCount)} prospects are enrolled for this campaign.`
-                            : "Your strategy, billing, and channel connection are complete. Create a campaign when you are ready."}
-                        </p>
-                        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-                          <span className="text-xs font-medium text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Using</span>
-                          {overview.primaryCampaign?.channels.length ? overview.primaryCampaign.channels.map((channel) => (
-                            <span key={channel} className="inline-flex items-center gap-1.5 text-xs font-semibold">
-                              {isChannelLogoName(channel) ? <DashboardChannelMark name={channel} size="small" /> : <Link2 className="size-3.5 text-onboarding-purple-600" aria-hidden />}
-                              {titleCase(channel)}
-                            </span>
-                          )) : <span className="text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">No campaign channel selected</span>}
+                          {overview.primaryCampaign ? <span className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Started {formatDate(overview.primaryCampaign.startedAt)}</span> : null}
+                          <span className="inline-flex items-center gap-2 text-xs">
+                            <span className="font-medium text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Using</span>
+                            {overview.primaryCampaign?.channels.length ? overview.primaryCampaign.channels.map((channel) => (
+                              <span key={channel} className="inline-flex items-center gap-1.5 font-semibold">
+                                {isChannelLogoName(channel) ? <DashboardChannelMark name={channel} size="small" /> : <Link2 className="size-3.5 text-onboarding-purple-600" aria-hidden />}
+                                {titleCase(channel)}
+                              </span>
+                            )) : <span className="text-onboarding-neutral-500 dark:text-onboarding-neutral-400">No campaign channel selected</span>}
+                          </span>
                         </div>
                       </div>
 
-                      <div className="border-t border-onboarding-neutral-150 p-3 dark:border-onboarding-neutral-750 lg:border-t-0 lg:border-l">
-                        <div className="relative flex h-24 items-center justify-center overflow-hidden rounded-lg bg-onboarding-neutral-100 dark:bg-onboarding-neutral-850">
-                          {overview.primaryCampaign?.video?.thumbnailUrl ? (
-                            <img src={overview.primaryCampaign.video.thumbnailUrl} alt="Campaign video preview" className="absolute inset-0 size-full object-cover" />
-                          ) : null}
-                          <div className="flex flex-col items-center gap-2 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-                            <span className="inline-flex size-9 items-center justify-center rounded-full border border-onboarding-neutral-300 bg-onboarding-neutral-0/90 text-onboarding-purple-600 dark:border-onboarding-neutral-700 dark:bg-onboarding-neutral-900">
-                              <Play className="ml-0.5 size-4" aria-hidden />
-                            </span>
-                            <span className="text-xs font-medium">Video preview</span>
-                          </div>
-                        </div>
-                        <p className="mt-1.5 text-center text-[11px] text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{overview.primaryCampaign?.video ? "Campaign video ready" : "Preview appears when ready."}</p>
+                      <div className="relative flex flex-col justify-center p-4 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750 sm:p-5 lg:before:hidden lg:after:absolute lg:after:inset-y-5 lg:after:left-0 lg:after:w-px lg:after:bg-onboarding-neutral-150 dark:lg:after:bg-onboarding-neutral-750">
+                        {overview.primaryCampaign ? (
+                          <CampaignVideoView
+                            campaignId={overview.primaryCampaign.id}
+                            video={overview.primaryCampaign.video}
+                            onVideoChange={(next) => {
+                              setOverview((current) => {
+                                if (!current?.primaryCampaign) return current;
+                                return {
+                                  ...current,
+                                  primaryCampaign: {
+                                    ...current.primaryCampaign,
+                                    video: next,
+                                  },
+                                };
+                              });
+                            }}
+                          />
+                        ) : (
+                          <CampaignVideoView campaignId="" video={null} />
+                        )}
                       </div>
 
-                      <div className="border-t border-onboarding-neutral-150 p-3 dark:border-onboarding-neutral-750 lg:border-t-0 lg:border-l">
-                        <p className="text-[11px] font-semibold tracking-[0.08em] text-onboarding-neutral-500 uppercase dark:text-onboarding-neutral-400">Channels active</p>
-                        <div className="mt-3 space-y-2.5">
+                      <div className="relative flex flex-col justify-center p-4 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750 sm:p-5 lg:before:hidden lg:after:absolute lg:after:inset-y-5 lg:after:left-0 lg:after:w-px lg:after:bg-onboarding-neutral-150 dark:lg:after:bg-onboarding-neutral-750">
+                        <p className="text-base font-medium text-onboarding-ink dark:text-onboarding-neutral-0">Channels Active</p>
+                        <div className="mt-4 space-y-3">
                           {overview.channels.filter((channel) => channel.status === "active").slice(0, 3).map((channel) => (
                             <div key={channel.id} className="flex items-center gap-2.5">
-                              {isChannelLogoName(channel.platform) ? <DashboardChannelMark name={channel.platform} /> : <Link2 className="size-4 text-onboarding-purple-600" aria-hidden />}
-                              <span className="min-w-0 flex-1 truncate text-xs font-medium">{titleCase(channel.platform)}</span>
-                              <span className="text-[11px] font-semibold text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{formatNumber(overview.primaryCampaign?.channelSendCounts?.[channel.platform.toLowerCase()] ?? 0)} sent</span>
+                              {isChannelLogoName(channel.platform) ? <DashboardChannelMark name={channel.platform} /> : <Link2 className="size-5 text-onboarding-purple-600" aria-hidden />}
+                              <span className="min-w-0 flex-1 truncate text-sm font-medium">{titleCase(channel.platform)}</span>
+                              <span className="inline-flex shrink-0 rounded bg-onboarding-success-50 px-2 py-1 text-xs font-semibold text-onboarding-success-700 dark:bg-onboarding-success-900/50 dark:text-onboarding-success-200">{formatNumber(overview.primaryCampaign?.channelSendCounts?.[channel.platform.toLowerCase()] ?? 0)} sent</span>
                             </div>
                           ))}
                           {overview.channels.every((channel) => channel.status !== "active") ? <p className="text-xs leading-5 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Connect a channel before launch.</p> : null}
@@ -535,71 +494,88 @@ export function DashboardOverviewClient() {
                       </div>
                     </div>
 
-                    <div className="grid border-t border-onboarding-neutral-150 sm:grid-cols-5 dark:border-onboarding-neutral-750">
+                    <div className="relative grid grid-cols-2 gap-0 p-4 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750 sm:grid-cols-3 sm:p-5 lg:grid-cols-5">
                       {[
                         { label: "Prospects", value: overview.primaryCampaign?.stats?.prospects ?? overview.primaryCampaign?.prospectCount ?? 0, icon: Users },
                         { label: "Contacted", value: overview.primaryCampaign?.stats?.contacted ?? 0, icon: Send },
                         { label: "Replies", value: overview.primaryCampaign?.stats?.replies ?? 0, icon: MessageSquare },
                         { label: "Meetings", value: overview.primaryCampaign?.stats?.meetings ?? 0, icon: CalendarDays },
                         { label: "Customers", value: overview.primaryCampaign?.stats?.customers ?? 0, icon: CheckCircle2 },
-                      ].map(({ label, value, icon: Icon }, index) => (
-                        <div key={label} className={cn("flex items-center gap-2.5 px-4 py-2.5", index > 0 && "border-t border-onboarding-neutral-150 sm:border-t-0 sm:border-l dark:border-onboarding-neutral-750")}>
-                          <Icon className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
+                      ].map(({ label, value, icon: Icon }) => (
+                        <div key={label} className="relative flex min-w-0 items-center gap-2.5 px-3 py-2.5 first:pl-0 last:pr-0 lg:after:absolute lg:after:inset-y-2.5 lg:after:right-0 lg:after:w-px lg:after:bg-onboarding-neutral-150 lg:last:after:hidden dark:lg:after:bg-onboarding-neutral-750">
+                          <Icon className="size-5 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" strokeWidth={1.75} aria-hidden />
                           <div>
                             <p className="text-lg font-semibold leading-none">{formatNumber(value)}</p>
-                            <p className="mt-1 text-[11px] text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{label}</p>
+                            <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{label}</p>
                           </div>
                         </div>
                       ))}
                     </div>
 
-                    <div className="border-t border-onboarding-neutral-150 px-5 py-2.5 dark:border-onboarding-neutral-750">
-                      <div className="flex">
+                    <div className="relative flex min-h-[7.5rem] flex-1 items-center px-4 pt-6 pb-5 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750 sm:px-5 2xl:px-7">
+                      <div className="relative flex w-full">
                         {(() => {
-                          const reached = overview.primaryCampaign?.stats?.meetings
-                            ? 4
-                            : overview.primaryCampaign?.status === "active"
-                              ? 3
-                              : overview.primaryCampaign?.stats?.prospects || overview.primaryCampaign?.prospectCount
-                                ? 2
-                                : overview.primaryCampaign
+                          const campaign = overview.primaryCampaign;
+                          const prospectCount = campaign?.stats?.prospects ?? campaign?.prospectCount ?? 0;
+                          const currentStage = !campaign
+                            ? 0
+                            : campaign.status === "completed"
+                              ? 4
+                              : campaign.status === "active"
+                                ? prospectCount > 0
+                                  ? 2
+                                  : 1
+                                : prospectCount > 0
                                   ? 1
                                   : 0;
-                          return ["Setup", "Prospects added", "Outreach running", "Meetings booked"].map((label, index, stages) => (
-                            <ProgressStage key={label} label={label} complete={index < reached} index={index} final={index === stages.length - 1} />
-                          ));
+                          const stages = [
+                            { label: "Setup", detail: overview.primaryCampaign ? "Complete" : "Not started" },
+                            { label: "Prospects Added", detail: overview.primaryCampaign?.prospectCount ? `Complete · ${formatNumber(overview.primaryCampaign.prospectCount)} added` : "Not started" },
+                            { label: "Outreach Running", detail: overview.primaryCampaign?.status === "active" ? "In progress" : "Not started" },
+                            { label: "Meetings Booked", detail: overview.primaryCampaign?.stats?.meetings ? `${formatNumber(overview.primaryCampaign.stats.meetings)} booked` : "Not started" },
+                          ];
+                          const activeIndex = Math.min(currentStage, stages.length - 1);
+                          return (
+                            <>
+                              <span className="absolute top-3.5 left-[12.5%] w-[75%] border-t-2 border-onboarding-neutral-200 dark:border-onboarding-neutral-700" aria-hidden />
+                              <span className="absolute top-3.5 left-[12.5%] border-t-2 border-onboarding-purple-500" style={{ width: `${(activeIndex / (stages.length - 1)) * 75}%` }} aria-hidden />
+                              {stages.map((stage, index) => (
+                                <ProgressStage key={stage.label} label={stage.label} detail={stage.detail} complete={index < currentStage || currentStage === stages.length} active={index === activeIndex && currentStage < stages.length} index={index} />
+                              ))}
+                            </>
+                          );
                         })()}
                       </div>
                     </div>
                   </section>
 
-                  <section className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="activity-heading">
+                </div>
+
+                <section className="order-4 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small xl:col-span-2 xl:row-start-3 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="activity-heading">
                     <div className="flex items-center justify-between border-b border-onboarding-neutral-150 px-5 py-3 dark:border-onboarding-neutral-750">
                       <div className="flex items-center gap-2.5">
                         <h2 id="activity-heading" className="font-semibold">Live activity</h2>
                         <span className="size-1.5 rounded-full bg-onboarding-success-500" aria-hidden />
                         <p className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Latest updates from your workspace</p>
                       </div>
-                      <label className="relative">
-                        <span className="sr-only">Filter activity</span>
-                        <select
-                          value={searchParams.get("activityKind") ?? "all"}
-                          onChange={(event) => {
+                      <Select
+                        value={searchParams.get("activityKind") ?? "all"}
+                        onValueChange={(value) => {
                             const params = new URLSearchParams(searchParams.toString());
-                            if (event.target.value === "all") params.delete("activityKind");
-                            else params.set("activityKind", event.target.value);
+                            if (value === "all" || !value) params.delete("activityKind");
+                            else params.set("activityKind", value);
                             router.replace(`/dashboard?${params.toString()}`);
                           }}
-                          className="h-8 appearance-none rounded-lg border border-onboarding-neutral-150 bg-onboarding-neutral-0 pr-7 pl-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
-                        >
-                          <option value="all">All activity</option>
-                          <option value="message">Messages</option>
-                          <option value="prospect">Prospects</option>
-                          <option value="video">Videos</option>
-                          <option value="campaign">Campaigns</option>
-                        </select>
-                        <ChevronDown className="pointer-events-none absolute top-2.5 right-2 size-3" aria-hidden />
-                      </label>
+                      >
+                        <SelectTrigger aria-label="Filter activity" className="h-8 w-auto min-w-28 border-onboarding-neutral-150 bg-onboarding-neutral-0 px-2 text-xs font-semibold text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0"><span>{searchParams.get("activityKind") === "message" ? "Messages" : searchParams.get("activityKind") === "prospect" ? "Prospects" : searchParams.get("activityKind") === "video" ? "Videos" : searchParams.get("activityKind") === "campaign" ? "Campaigns" : "All activity"}</span></SelectTrigger>
+                        <SelectContent align="end" className="w-36 border border-onboarding-neutral-150 bg-onboarding-neutral-0 text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0">
+                          <SelectItem value="all" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">All activity</SelectItem>
+                          <SelectItem value="message" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">Messages</SelectItem>
+                          <SelectItem value="prospect" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">Prospects</SelectItem>
+                          <SelectItem value="video" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">Videos</SelectItem>
+                          <SelectItem value="campaign" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">Campaigns</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     {overview.activity.length === 0 ? (
                       <div className="px-5 py-5">
@@ -607,33 +583,18 @@ export function DashboardOverviewClient() {
                         <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Activity will appear after you add prospects or launch a campaign.</p>
                       </div>
                     ) : (
-                      <ul className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
-                        {overview.activity.slice(0, 3).map((item) => (
-                          <li key={item.id} className="flex items-center gap-3 px-5 py-2.5">
-                            <ActivityMark item={item} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold">{item.title}</p>
-                              <p className="mt-0.5 truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.detail}</p>
-                            </div>
-                            <time className="shrink-0 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400" dateTime={item.occurredAt}>{relativeTime(item.occurredAt)}</time>
-                            <Button asChild variant="outline" size="sm">
-                              <Link href={item.href ?? "/dashboard/activity"}>{item.href && item.action === "reply" ? "Reply" : "View"}</Link>
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
+                      <LiveActivityTable data={overview.activity.slice(0, 4)} />
                     )}
                     <div className="flex justify-center border-t border-onboarding-neutral-150 px-5 py-2.5 dark:border-onboarding-neutral-750">
                       <Link href="/dashboard/activity" className="inline-flex items-center gap-1.5 text-sm font-semibold text-onboarding-purple-600 transition-colors hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
                         View all activity <ChevronDown className="size-3.5 -rotate-90" aria-hidden />
                       </Link>
                     </div>
-                  </section>
-                </div>
+                </section>
 
-                <aside className="grid gap-4 lg:min-h-0 lg:grid-rows-2" aria-label="Workspace insights">
+                <aside className="order-3 grid gap-4 xl:col-start-2 xl:grid-rows-2 xl:self-stretch" aria-label="Workspace insights">
                   <section className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="recommendations-heading">
-                    <div className="border-b border-onboarding-neutral-150 px-4 py-3 dark:border-onboarding-neutral-750">
+                    <div className="relative px-4 py-3 before:absolute before:right-4 before:bottom-0 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
                       <div className="flex items-center gap-2">
                         <h2 id="recommendations-heading" className="font-semibold">Recommendations</h2>
                         <span className="rounded bg-onboarding-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">AI</span>
@@ -641,9 +602,9 @@ export function DashboardOverviewClient() {
                       <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Prioritized from recorded workspace data.</p>
                     </div>
                     {recommendationItems.length ? (
-                      <ul className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
+                      <ul>
                         {recommendationItems.map((item, index) => (
-                          <li key={`${item.title}-${index}`} className="flex items-start gap-3 px-4 py-3">
+                          <li key={`${item.title}-${index}`} className="relative flex items-start gap-3 px-4 py-3 after:absolute after:right-4 after:bottom-0 after:left-4 after:h-px after:bg-onboarding-neutral-150 last:after:hidden dark:after:bg-onboarding-neutral-750">
                             <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden>
                               {index === 0 ? <TrendingUp className="size-4" /> : index === 1 ? <Sparkles className="size-4" /> : <CircleAlert className="size-4" />}
                             </span>
@@ -663,7 +624,7 @@ export function DashboardOverviewClient() {
                         <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Recommendations will appear after recorded outreach has enough data to analyze.</p>
                       </div>
                     )}
-                    <div className="flex justify-center border-t border-onboarding-neutral-150 px-4 py-2.5 dark:border-onboarding-neutral-750">
+                    <div className="relative flex justify-center px-4 py-2.5 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
                       <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
                         View all recommendations <ArrowRight className="size-3" aria-hidden />
                       </Link>
@@ -674,23 +635,45 @@ export function DashboardOverviewClient() {
                     <div className="px-4 pt-4">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
-                        <h2 id="snapshot-heading" className="font-semibold">Performance snapshot</h2>
+                        <h2 id="snapshot-heading" className="font-semibold">Today&apos;s insight</h2>
                       </div>
-                      <p className="mt-2 text-sm font-semibold">Recorded campaign activity</p>
-                      <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">A factual view of persisted delivery and response counts.</p>
+                      {featuredInsight ? (
+                        <>
+                          <p className="mt-3 text-sm font-semibold leading-5">{featuredInsight.title}</p>
+                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{featuredInsight.detail}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="mt-3 text-sm font-semibold">Recorded campaign activity</p>
+                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Once outreach is sent, evidence-based insights will appear here.</p>
+                        </>
+                      )}
                     </div>
-                    <div className="space-y-3 px-4 py-4">
-                      {performanceSnapshot.map((item) => (
-                        <div key={item.label}>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.label}</span>
-                            <span className="text-xl font-semibold">{formatNumber(item.value)}</span>
-                          </div>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-onboarding-neutral-100 dark:bg-onboarding-neutral-800">
-                            <div className="h-full rounded-full bg-onboarding-purple-500" style={{ width: `${(item.value / snapshotMaximum) * 100}%` }} />
-                          </div>
-                        </div>
-                      ))}
+                    <div className="px-4 pt-3">
+                      <ChartContainer config={INSIGHT_CHART_CONFIG} className="h-36 w-full aspect-auto">
+                        <AreaChart data={activityTrend} margin={{ top: 8, right: 2, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="insight-sent-fill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--color-sent)" stopOpacity={0.22} />
+                              <stop offset="100%" stopColor="var(--color-sent)" stopOpacity={0.02} />
+                            </linearGradient>
+                            <linearGradient id="insight-replies-fill" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="var(--color-replies)" stopOpacity={0.18} />
+                              <stop offset="100%" stopColor="var(--color-replies)" stopOpacity={0.02} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                          <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={22} tickFormatter={(value) => formatChartDate(String(value))} />
+                          <YAxis hide domain={[0, "auto"]} />
+                          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(value) => formatChartDate(String(value))} />} />
+                          <Area type="monotone" dataKey="sent" stroke="var(--color-sent)" fill="url(#insight-sent-fill)" strokeWidth={2} dot={false} />
+                          <Area type="monotone" dataKey="replies" stroke="var(--color-replies)" fill="url(#insight-replies-fill)" strokeWidth={2} dot={false} />
+                        </AreaChart>
+                      </ChartContainer>
+                      {!hasActivityTrend ? <p className="pb-2 text-center text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">No sent messages or replies in this period.</p> : null}
+                      <div className="grid grid-cols-3 gap-2 border-t border-onboarding-neutral-150 py-3 dark:border-onboarding-neutral-750">
+                        {performanceSnapshot.map((item) => <div key={item.label} className="min-w-0"><p className="text-[11px] text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{item.label}</p><p className="mt-0.5 text-base font-semibold">{formatNumber(item.value)}</p></div>)}
+                      </div>
                     </div>
                     <div className="flex justify-center border-t border-onboarding-neutral-150 px-4 py-2.5 dark:border-onboarding-neutral-750">
                       <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
