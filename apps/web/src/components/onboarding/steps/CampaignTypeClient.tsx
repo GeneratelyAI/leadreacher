@@ -204,8 +204,8 @@ export default function CampaignTypeClient() {
         <OnboardingCard className="mx-auto mt-8 w-full max-w-5xl px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
             <div className="flex min-w-0 flex-1 items-start gap-4 lg:pr-7">
-              <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900/30 dark:text-onboarding-purple-200">
-                <Sparkles className="size-5" aria-hidden />
+              <span className="inline-flex shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200">
+                <Sparkles className="size-6" strokeWidth={1.75} aria-hidden />
               </span>
               <div>
                 <p className="text-sm font-bold tracking-wide text-onboarding-purple-600 uppercase dark:text-onboarding-purple-200">
@@ -261,8 +261,8 @@ export default function CampaignTypeClient() {
                   </span>
                 ) : null}
                 <div className="flex flex-1 flex-col px-6 pb-6 pt-7">
-                  <span className="inline-flex size-11 items-center justify-center rounded-onboarding bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900/30 dark:text-onboarding-purple-200">
-                    <Icon className="size-6" aria-hidden />
+                  <span className="inline-flex items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200">
+                    <Icon className="size-7" strokeWidth={1.75} aria-hidden />
                   </span>
                   <h2 className="mt-5 text-lg font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
                     {option.title}

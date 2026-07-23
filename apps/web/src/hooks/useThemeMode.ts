@@ -71,7 +71,27 @@ function supportsViewTransitions(): boolean {
   );
 }
 
-async function animateThemeToggle(nextIsDark: boolean, origin: HTMLElement) {
+type ThemeToggleOrigin = HTMLElement | Pick<MouseEvent, "clientX" | "clientY" | "currentTarget">;
+
+function resolveOriginPoint(origin: ThemeToggleOrigin): { xPercent: number; yPercent: number } {
+  const viewportWidth = Math.max(window.innerWidth, 1);
+  const viewportHeight = Math.max(window.innerHeight, 1);
+
+  if (origin instanceof HTMLElement) {
+    const rect = origin.getBoundingClientRect();
+    return {
+      xPercent: ((rect.left + rect.width / 2) / viewportWidth) * 100,
+      yPercent: ((rect.top + rect.height / 2) / viewportHeight) * 100,
+    };
+  }
+
+  return {
+    xPercent: (origin.clientX / viewportWidth) * 100,
+    yPercent: (origin.clientY / viewportHeight) * 100,
+  };
+}
+
+async function animateThemeToggle(nextIsDark: boolean, origin: ThemeToggleOrigin) {
   if (
     !supportsViewTransitions() ||
     window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -80,37 +100,46 @@ async function animateThemeToggle(nextIsDark: boolean, origin: HTMLElement) {
     return;
   }
 
+  // Capture origin in viewport % before the transition. Pixel coords on
+  // ::view-transition-* are relative to the snapshot containing block, which
+  // can diverge from the layout viewport on smaller screens — percentages map
+  // to the transition layer itself and stay anchored to the toggle.
+  const { xPercent, yPercent } = resolveOriginPoint(origin);
+  const root = document.documentElement;
+  root.style.setProperty("--theme-toggle-x", `${xPercent}%`);
+  root.style.setProperty("--theme-toggle-y", `${yPercent}%`);
+
   const transition = document.startViewTransition(() => {
     flushSync(() => {
       setThemeState(nextIsDark);
     });
   });
 
-  await transition.ready;
+  try {
+    await transition.ready;
 
-  const { top, left, width, height } = origin.getBoundingClientRect();
-  const x = left + width / 2;
-  const y = top + height / 2;
-  const right = window.innerWidth - left;
-  const bottom = window.innerHeight - top;
-  const maxRadius = Math.hypot(
-    Math.max(left, right),
-    Math.max(top, bottom),
-  );
-
-  document.documentElement.animate(
-    {
-      clipPath: [
-        `circle(0px at ${x}px ${y}px)`,
-        `circle(${maxRadius}px at ${x}px ${y}px)`,
-      ],
-    },
-    {
-      duration: 400,
-      easing: "ease-in-out",
-      pseudoElement: "::view-transition-new(root)",
-    },
-  );
+    root.animate(
+      {
+        clipPath: [
+          `circle(0% at ${xPercent}% ${yPercent}%)`,
+          `circle(150% at ${xPercent}% ${yPercent}%)`,
+        ],
+      },
+      {
+        duration: 450,
+        easing: "ease-in-out",
+        pseudoElement: "::view-transition-new(root)",
+      },
+    );
+  } finally {
+    try {
+      await transition.finished;
+    } catch {
+      // Transition may be skipped; still clear the CSS vars below.
+    }
+    root.style.removeProperty("--theme-toggle-x");
+    root.style.removeProperty("--theme-toggle-y");
+  }
 }
 
 if (typeof window !== "undefined") {
@@ -128,7 +157,7 @@ export function useThemeMode() {
     () => false,
   );
 
-  const toggle = useCallback((origin?: HTMLElement | null) => {
+  const toggle = useCallback((origin?: ThemeToggleOrigin | null) => {
     const nextIsDark = !readIsDarkFromDocument();
 
     if (origin) {

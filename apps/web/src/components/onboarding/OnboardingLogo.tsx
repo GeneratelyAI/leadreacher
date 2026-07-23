@@ -5,29 +5,37 @@ import { ASSETS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
 export function OnboardingLogo({
-  className = "h-6 w-auto",
+  className = "h-20 w-auto",
+  markOnly = false,
 }: {
   className?: string;
+  markOnly?: boolean;
 }) {
   const { isDark } = useThemeMode();
   const transitionClass = "transition-opacity duration-base ease-brand";
 
+  const imageClassName = markOnly
+    ? cn("h-full w-auto max-w-none", transitionClass)
+    : cn(className, transitionClass);
+  const lightSource = markOnly ? ASSETS.planeIcon : ASSETS.logoColored;
+  const darkSource = markOnly ? ASSETS.planeIconWhite : ASSETS.logoWhite;
+
   return (
-    <span className="discovery-logo relative inline-block shrink-0 leading-none">
+    <span className={cn("discovery-logo relative inline-block shrink-0 leading-none translate-x-2", markOnly && "h-9 w-13 overflow-hidden")}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={ASSETS.logoColored}
+        src={lightSource}
         alt={isDark ? "" : "leadreacher"}
         aria-hidden={isDark}
-        className={cn(className, transitionClass, isDark ? "opacity-0" : "opacity-100")}
+        className={cn(imageClassName, isDark ? "opacity-0" : "opacity-100")}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={ASSETS.logoWhite}
+        src={darkSource}
         alt={isDark ? "leadreacher" : ""}
         aria-hidden={!isDark}
         className={cn(
-          className,
+          imageClassName,
           "absolute top-0 left-0",
           transitionClass,
           isDark ? "opacity-100" : "opacity-0",

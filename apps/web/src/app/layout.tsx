@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { geist } from "@/lib/fonts/geist";
 import { themeInitScript } from "@/lib/theme-init-script";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -40,6 +41,7 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-dvh flex-col overscroll-y-none font-sans">
         {children}
+        <Toaster />
       </body>
     </html>
   );

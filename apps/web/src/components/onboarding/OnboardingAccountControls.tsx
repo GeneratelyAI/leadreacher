@@ -9,7 +9,7 @@ export function ThemeToggleButton() {
   return (
     <button
       type="button"
-      onClick={(event) => toggle(event.currentTarget)}
+      onClick={(event) => toggle(event)}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       className="inline-flex size-9 shrink-0 items-center justify-center text-neutral-600 transition-colors duration-fast ease-brand hover:text-onboarding-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:text-onboarding-neutral-0"
     >
