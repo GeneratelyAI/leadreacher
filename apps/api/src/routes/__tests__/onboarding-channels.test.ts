@@ -5,11 +5,13 @@ import { AppError } from "../../lib/errors.js";
 const {
   socialAccountFindMany,
   socialAccountCount,
+  messageFindMany,
   organizationFindUnique,
   organizationUpdate,
 } = vi.hoisted(() => ({
   socialAccountFindMany: vi.fn(),
   socialAccountCount: vi.fn(),
+  messageFindMany: vi.fn(),
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
 }));
@@ -31,6 +33,9 @@ vi.mock("../../lib/prisma.js", () => ({
     socialAccount: {
       findMany: socialAccountFindMany,
       count: socialAccountCount,
+    },
+    message: {
+      findMany: messageFindMany,
     },
     organization: {
       findUnique: organizationFindUnique,
@@ -72,17 +77,26 @@ let app: Awaited<ReturnType<typeof buildTestApp>>;
 beforeEach(async () => {
   socialAccountFindMany.mockReset();
   socialAccountCount.mockReset();
+  messageFindMany.mockReset();
   organizationFindUnique.mockReset();
   organizationUpdate.mockReset();
   createHostedAuthLink.mockReset();
 
   socialAccountFindMany.mockResolvedValue([
     {
+      id: "sa-1",
       platform: "linkedin",
       accountName: "Ada Lovelace",
       avatarUrl: "https://example.test/avatar.png",
       status: "active",
+      createdAt: new Date("2026-05-10T00:00:00.000Z"),
+      updatedAt: new Date("2026-05-10T00:00:00.000Z"),
     },
+  ]);
+  messageFindMany.mockResolvedValue([
+    { channel: "linkedin", leadId: "lead-1" },
+    { channel: "linkedin", leadId: "lead-1" },
+    { channel: "linkedin", leadId: "lead-2" },
   ]);
   socialAccountCount.mockResolvedValue(1);
   organizationFindUnique.mockResolvedValue({
@@ -113,15 +127,26 @@ describe("channel connection and onboarding completion", () => {
     });
 
     expect(list.statusCode).toBe(200);
-    expect(list.json()).toEqual({
+    expect(list.json()).toMatchObject({
       accounts: [
         {
+          id: "sa-1",
           platform: "linkedin",
           accountName: "Ada Lovelace",
           avatarUrl: "https://example.test/avatar.png",
           status: "active",
+          isPrimary: true,
+          health: "healthy",
+          messagesSent: 3,
+          prospectsReached: 2,
         },
       ],
+      summary: {
+        connectedChannels: 1,
+        healthyPercent: 100,
+        messagesSent: 3,
+        prospectsReached: 2,
+      },
     });
     expect(connect.statusCode).toBe(200);
     expect(connect.json()).toEqual({
@@ -132,6 +157,8 @@ describe("channel connection and onboarding completion", () => {
         providers: ["LINKEDIN"],
         name: "lr:org-1:signed",
         notifyUrl: "https://api.example.test/webhooks/unipile",
+        successRedirectUrl: "http://localhost:3000/onboarding?step=channels&status=connected",
+        failureRedirectUrl: "http://localhost:3000/onboarding?step=channels&status=failed",
       }),
     );
   });

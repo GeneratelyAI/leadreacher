@@ -9,7 +9,8 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:demo": "tsx src/scripts/seed-demo-workspace.ts"
+    "seed:demo": "tsx src/scripts/seed-demo-workspace.ts",
+    "seed:messages": "tsx src/scripts/seed-messages-inbox-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1073.0",

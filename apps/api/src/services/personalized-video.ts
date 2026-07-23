@@ -187,6 +187,20 @@ export async function getReadyPersonalizedVideoForDelivery(input: {
   campaignId: string;
   leadId: string;
 }): Promise<PersonalizedVideoDelivery | null> {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: input.campaignId },
+    select: { aiConfig: true },
+  });
+  const videoConfig =
+    campaign?.aiConfig && typeof campaign.aiConfig === "object" && !Array.isArray(campaign.aiConfig)
+      ? (campaign.aiConfig as Record<string, unknown>).video
+      : null;
+  const paused =
+    videoConfig && typeof videoConfig === "object" && !Array.isArray(videoConfig)
+      ? (videoConfig as Record<string, unknown>).paused === true
+      : false;
+  if (paused) return null;
+
   const videoUrl = await getReadyPersonalizedVideoUrl(input);
   if (!videoUrl) return null;
 

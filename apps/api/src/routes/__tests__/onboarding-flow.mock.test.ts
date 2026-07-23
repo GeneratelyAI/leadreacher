@@ -106,7 +106,7 @@ vi.mock("../../lib/prisma.js", () => ({
     },
     campaign: { findFirst: vi.fn(async () => null) },
     lead: { findFirst: vi.fn(async () => null) },
-    message: { findFirst: vi.fn() },
+    message: { findFirst: vi.fn(), findMany: vi.fn(async () => []) },
   },
 }));
 vi.mock("../../lib/redis.js", () => ({

@@ -10,13 +10,46 @@ import { ValidationError } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
+import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
 
 const ConnectSocialAccountBodySchema = z.object({
   provider: z
     .enum(["LINKEDIN", "WHATSAPP", "GOOGLE", "MICROSOFT", "IMAP"])
     .default("LINKEDIN"),
-  returnTo: z.enum(["onboarding", "home"]).default("onboarding"),
+  returnTo: z.enum(["onboarding", "home", "dashboard"]).default("onboarding"),
 });
+
+const SocialAccountsQuerySchema = z.object({
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+});
+
+type ChannelMetricBucket = {
+  messagesSent: number;
+  prospectsReached: number;
+  leadIds: Set<string>;
+};
+
+function emptyBucket(): ChannelMetricBucket {
+  return { messagesSent: 0, prospectsReached: 0, leadIds: new Set() };
+}
+
+function buildChannelMetrics(
+  messages: Array<{ channel: string; leadId: string }>,
+): Map<string, ChannelMetricBucket> {
+  const byChannel = new Map<string, ChannelMetricBucket>();
+  for (const message of messages) {
+    const key = message.channel.toLowerCase();
+    const bucket = byChannel.get(key) ?? emptyBucket();
+    bucket.messagesSent += 1;
+    bucket.leadIds.add(message.leadId);
+    byChannel.set(key, bucket);
+  }
+  for (const bucket of byChannel.values()) {
+    bucket.prospectsReached = bucket.leadIds.size;
+  }
+  return byChannel;
+}
 
 function getHostedAuthNotifyUrl(): string {
   try {
@@ -43,22 +76,118 @@ async function resolveAccountStatus(
   }
 }
 
+function channelsRedirect(returnTo: "onboarding" | "home" | "dashboard", status: "connected" | "failed"): string {
+  if (returnTo === "onboarding") {
+    return `${env.APP_URL}/onboarding?step=channels&status=${status}`;
+  }
+  return `${env.APP_URL}/dashboard/channels?status=${status}`;
+}
+
 export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   app.get("/social-accounts", async (request, reply) => {
     const orgId = requireOrgId(request);
-    const accounts = await prisma.socialAccount.findMany({
-      where: { orgId },
-      select: {
-        id: true,
-        platform: true,
-        accountName: true,
-        avatarUrl: true,
-        status: true,
-      },
-      orderBy: { createdAt: "asc" },
+    const query = SocialAccountsQuerySchema.parse(request.query ?? {});
+    const range = resolveOverviewDateRange({
+      startDate: query.startDate,
+      endDate: query.endDate,
+      activityKind: "all",
+    });
+    const currentDateWhere = { gte: range.start, lte: range.end };
+    const previousDateWhere = { gte: range.previousStart, lte: range.previousEnd };
+
+    const [accounts, currentOutbound, previousOutbound] = await Promise.all([
+      prisma.socialAccount.findMany({
+        where: { orgId },
+        select: {
+          id: true,
+          platform: true,
+          accountName: true,
+          avatarUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.message.findMany({
+        where: {
+          orgId,
+          direction: "outbound",
+          createdAt: currentDateWhere,
+        },
+        select: { channel: true, leadId: true },
+      }),
+      prisma.message.findMany({
+        where: {
+          orgId,
+          direction: "outbound",
+          createdAt: previousDateWhere,
+        },
+        select: { channel: true, leadId: true },
+      }),
+    ]);
+
+    // Summary KPIs always use the resolved range (default last 7 days). Account row metrics use the same window.
+    const currentMetrics = buildChannelMetrics(currentOutbound);
+    const previousMetrics = buildChannelMetrics(previousOutbound);
+
+    const primaryLinkedIn = accounts.find(
+      (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
+    ) ?? accounts.find((account) => account.platform.toLowerCase() === "linkedin");
+
+    const enrichedAccounts = accounts.map((account) => {
+      const platform = account.platform.toLowerCase();
+      const metrics = currentMetrics.get(platform) ?? emptyBucket();
+      const health = account.status === "active" ? "healthy" : account.status === "disconnected" ? "disconnected" : "needs_attention";
+      return {
+        id: account.id,
+        platform: account.platform,
+        accountName: account.accountName,
+        avatarUrl: account.avatarUrl,
+        status: account.status,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt,
+        isPrimary: primaryLinkedIn ? account.id === primaryLinkedIn.id : accounts[0]?.id === account.id,
+        health,
+        messagesSent: metrics.messagesSent,
+        prospectsReached: metrics.prospectsReached,
+      };
     });
 
-    return reply.send({ accounts });
+    const connectedAccounts = accounts.filter((account) => account.status !== "disconnected");
+    const monitoredAccounts = accounts.filter((account) => account.status !== "disconnected");
+    const healthyAccounts = accounts.filter((account) => account.status === "active");
+    const healthyPercent = monitoredAccounts.length === 0
+      ? 100
+      : Math.round((healthyAccounts.length / monitoredAccounts.length) * 100);
+
+    const messagesSent = currentOutbound.length;
+    const previousMessagesSent = previousOutbound.length;
+    const prospectsReached = new Set(currentOutbound.map((message) => message.leadId)).size;
+    const previousProspectsReached = new Set(previousOutbound.map((message) => message.leadId)).size;
+    const previousConnected = previousOutbound.length > 0 ? connectedAccounts.length : 0;
+
+    const summary = {
+      connectedChannels: connectedAccounts.length,
+      healthyPercent,
+      messagesSent,
+      prospectsReached,
+      trends: {
+        connectedChannels: overviewMetricTrend(connectedAccounts.length, previousConnected),
+        healthyPercent: overviewMetricTrend(healthyPercent, monitoredAccounts.length === 0 ? 100 : healthyPercent),
+        messagesSent: overviewMetricTrend(messagesSent, previousMessagesSent),
+        prospectsReached: overviewMetricTrend(prospectsReached, previousProspectsReached),
+      },
+    };
+
+    return reply.send({
+      accounts: enrichedAccounts,
+      summary,
+      range: {
+        startDate: range.start.toISOString().slice(0, 10),
+        endDate: range.end.toISOString().slice(0, 10),
+      },
+    });
   });
 
   app.post("/social-accounts/connect", async (request, reply) => {
@@ -68,18 +197,13 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
     });
+    const resolvedReturnTo = returnTo === "home" ? "dashboard" : returnTo;
     const link = await adapter.createHostedAuthLink({
       providers: [provider],
       name: encodeHostedAuthName(orgId),
       notifyUrl: getHostedAuthNotifyUrl(),
-      successRedirectUrl:
-        returnTo === "home"
-          ? `${env.APP_URL}/home?view=channels&status=connected`
-          : `${env.APP_URL}/onboarding?step=channels&status=connected`,
-      failureRedirectUrl:
-        returnTo === "home"
-          ? `${env.APP_URL}/home?view=channels&status=failed`
-          : `${env.APP_URL}/onboarding?step=channels&status=failed`,
+      successRedirectUrl: channelsRedirect(resolvedReturnTo, "connected"),
+      failureRedirectUrl: channelsRedirect(resolvedReturnTo, "failed"),
       expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
     });
 
