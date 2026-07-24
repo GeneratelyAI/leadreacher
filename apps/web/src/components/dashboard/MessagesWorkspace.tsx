@@ -54,11 +54,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -189,33 +184,24 @@ function statusTooltipLabel(conversation: ConversationRow): string {
 function ConversationStatusIndicator({ conversation }: { conversation: ConversationRow }) {
   const label = statusTooltipLabel(conversation);
 
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          conversation.unreadCount > 0 ? (
-            <span
-              className="mt-0.5 inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-onboarding-error-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
-              aria-label={label}
-            />
-          ) : (
-            <span
-              className={cn("mt-1 size-2 shrink-0 rounded-full", statusDotClass(conversation))}
-              aria-label={label}
-            />
-          )
-        }
+  if (conversation.unreadCount > 0) {
+    return (
+      <span
+        className="mt-0.5 inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-onboarding-error-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+        aria-label={label}
+        title={label}
       >
-        {conversation.unreadCount > 0
-          ? conversation.unreadCount > 99
-            ? "99+"
-            : conversation.unreadCount
-          : null}
-      </TooltipTrigger>
-      <TooltipContent side="left" sideOffset={8} className="z-[70]">
-        {label}
-      </TooltipContent>
-    </Tooltip>
+        {conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className={cn("mt-1 size-2.5 shrink-0 rounded-full", statusDotClass(conversation))}
+      aria-label={label}
+      title={label}
+    />
   );
 }
 
@@ -397,6 +383,8 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       setSelectedId((current) => {
         if (conversationId) return conversationId;
         if (current && rows.some((row) => row.id === current)) return current;
+        // Keep list-first on phones/tablets; desktop can auto-open the first thread.
+        if (typeof window !== "undefined" && window.innerWidth < 1024) return null;
         return rows[0]?.id ?? null;
       });
       setError(null);
@@ -507,17 +495,32 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     router.push(`/dashboard/messages/${id}`);
   }
 
+  function backToList() {
+    setSelectedId(null);
+    setDetail(null);
+    router.push("/dashboard/messages");
+  }
+
+  const mobileThreadOpen = Boolean(selectedId);
+
   return (
     <div
       className={cn(
         "flex flex-col",
         amplified
-          ? "fixed inset-x-0 bottom-0 top-[4.75rem] z-30 bg-onboarding-neutral-0 p-3 sm:p-4 dark:bg-onboarding-neutral-950 lg:left-[var(--dashboard-sidebar-width)]"
-          : "h-[calc(100dvh-7.25rem)] min-h-[42rem] gap-3",
+          ? "fixed inset-x-0 bottom-[var(--dashboard-bottom-nav-height,0px)] top-[4.75rem] z-30 bg-onboarding-neutral-0 p-3 sm:p-4 dark:bg-onboarding-neutral-950 lg:bottom-0 lg:left-[var(--dashboard-sidebar-width)]"
+          : "h-[calc(100dvh-4.75rem-var(--dashboard-bottom-nav-height,0px))] min-h-0 gap-0 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[42rem] lg:gap-3",
       )}
     >
-      {!amplified ? (
-        <div className="min-w-0">
+      {!amplified && !mobileThreadOpen ? (
+        <div className="min-w-0 shrink-0 px-4 pb-3 pt-4 lg:px-0 lg:pb-0 lg:pt-0">
+          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Messages</h1>
+          <p className="mt-1 hidden text-sm text-muted-foreground lg:block lg:truncate lg:whitespace-nowrap">
+            Operator inbox for your conversations. AI drafts are editable, and every reply is sent only after your explicit action.
+          </p>
+        </div>
+      ) : !amplified ? (
+        <div className="hidden min-w-0 lg:block">
           <h1 className="text-3xl font-semibold tracking-tight">Messages</h1>
           <p className="mt-1 truncate text-sm text-muted-foreground whitespace-nowrap">
             Operator inbox for your conversations. AI drafts are editable, and every reply is sent only after your explicit action.
@@ -526,33 +529,34 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       ) : null}
 
       {error ? (
-        <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
+        <div role="alert" className="mx-4 mb-3 rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 lg:mx-0 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
           {error}
         </div>
       ) : null}
 
-      <Card className="flex min-h-0 flex-1 overflow-hidden shadow-onboarding-small">
+      <Card className="flex min-h-0 flex-1 overflow-hidden rounded-none border-x-0 border-b-0 shadow-none lg:rounded-xl lg:border lg:shadow-onboarding-small">
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
           <div
             className={cn(
-              "min-h-0 shrink-0 overflow-hidden transition-[width,height,opacity] duration-200 ease-out",
+              "flex min-h-0 flex-col overflow-hidden transition-[width,height,opacity] duration-200 ease-out",
               showListSidebar
-                ? "h-auto w-full border-b border-border opacity-100 lg:h-full lg:w-96 lg:border-r lg:border-b-0"
+                ? "h-full w-full opacity-100 lg:w-96 lg:shrink-0 lg:border-r lg:border-b-0"
                 : "pointer-events-none h-0 w-0 border-0 opacity-0 lg:h-full",
+              mobileThreadOpen && "max-lg:hidden",
             )}
           >
             <aside className="flex h-full min-h-0 w-full flex-col lg:w-96">
-            <div className="space-y-3 border-b border-border p-3">
+            <div className="space-y-2.5 border-b border-border px-3 py-3">
               <div className="flex items-center justify-between gap-2">
                 <Tabs value={state} onValueChange={(value) => setState(value as ConversationState)} className="min-w-0 flex-1">
-                  <TabsList variant="line" className="w-full justify-start gap-1 rounded-none p-0">
-                    <TabsTrigger value="all" className="flex-none px-3 py-2">
+                  <TabsList variant="line" className="w-full justify-start gap-0 overflow-x-auto rounded-none p-0">
+                    <TabsTrigger value="all" className="min-h-10 flex-none px-3 py-2.5 lg:min-h-0 lg:py-2">
                       All <span className="text-xs text-muted-foreground">{counts.all}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="unread" className="flex-none px-3 py-2">
+                    <TabsTrigger value="unread" className="min-h-10 flex-none px-3 py-2.5 lg:min-h-0 lg:py-2">
                       Unread <span className="text-xs text-muted-foreground">{counts.unread}</span>
                     </TabsTrigger>
-                    <TabsTrigger value="needs_reply" className="flex-none px-3 py-2">
+                    <TabsTrigger value="needs_reply" className="min-h-10 flex-none px-3 py-2.5 lg:min-h-0 lg:py-2">
                       Needs reply <span className="text-xs text-muted-foreground">{counts.needsReply}</span>
                     </TabsTrigger>
                   </TabsList>
@@ -569,26 +573,26 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                 </button>
               </div>
 
-              <label className="flex h-9 items-center gap-2 rounded-lg border border-input px-3">
+              <label className="flex h-11 items-center gap-2 rounded-xl border border-input px-3 lg:h-9 lg:rounded-lg">
                 <Search className="size-4 shrink-0 text-muted-foreground" />
                 <span className="sr-only">Search conversations</span>
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+                  className="min-w-0 flex-1 bg-transparent text-base outline-none lg:text-sm"
                   placeholder="Search conversations..."
                 />
               </label>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex gap-2 overflow-x-auto pb-0.5">
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2.5" />
+                      <Button size="sm" variant="secondary" className="h-10 shrink-0 gap-1.5 px-3 lg:h-8 lg:px-2.5" />
                     }
                   >
                     <Filter className="size-3.5" />
-                    <span className="max-w-28 truncate">{selectedCampaignLabel}</span>
+                    <span className="max-w-36 truncate">{selectedCampaignLabel}</span>
                     <ChevronDown className="size-3.5 opacity-70" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start" className="min-w-56">
@@ -611,10 +615,10 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                 <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
-                      <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2.5" />
+                      <Button size="sm" variant="secondary" className="h-10 shrink-0 gap-1.5 px-3 lg:h-8 lg:px-2.5" />
                     }
                   >
-                    Sort by: {sortMode === "last_activity" ? "Last activity" : "Unread first"}
+                    {sortMode === "last_activity" ? "Recent" : "Unread first"}
                     <ChevronDown className="size-3.5 opacity-70" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -625,7 +629,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {isLoading ? (
                 <div className="space-y-3 p-4">
                   {Array.from({ length: 6 }, (_, index) => (
@@ -650,7 +654,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                           type="button"
                           onClick={() => selectConversation(conversation.id)}
                           className={cn(
-                            "flex w-full gap-3 border-b border-border px-3 py-3 text-left transition-colors",
+                            "flex w-full gap-3 border-b border-border px-4 py-3.5 text-left transition-colors active:bg-onboarding-neutral-100 lg:px-3 lg:py-3 dark:active:bg-onboarding-neutral-850",
                             active
                               ? "bg-onboarding-purple-50 text-onboarding-ink dark:bg-onboarding-purple-900 dark:text-onboarding-neutral-0"
                               : "text-onboarding-ink hover:bg-onboarding-neutral-50 dark:text-onboarding-neutral-0 dark:hover:bg-onboarding-neutral-850",
@@ -659,32 +663,34 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                           <PersonAvatar name={conversation.prospect.name} url={conversation.prospect.avatarUrl} />
                           <span className="min-w-0 flex-1">
                             <span className="flex items-baseline justify-between gap-2">
-                              <span className="truncate font-semibold">{conversation.prospect.name}</span>
+                              <span className={cn("truncate font-semibold", conversation.unreadCount > 0 && "font-bold")}>
+                                {conversation.prospect.name}
+                              </span>
                               <time
                                 className={cn(
                                   "shrink-0 text-[11px]",
-                                  active
-                                    ? "text-onboarding-neutral-600 dark:text-onboarding-neutral-400"
-                                    : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
+                                  conversation.unreadCount > 0
+                                    ? "font-semibold text-onboarding-purple-600 dark:text-onboarding-purple-200"
+                                    : active
+                                      ? "text-onboarding-neutral-600 dark:text-onboarding-neutral-400"
+                                      : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
                                 )}
                               >
                                 {relativeTime(conversation.latestMessage.occurredAt)}
                               </time>
                             </span>
-                            <span
-                              className={cn(
-                                "mt-0.5 block truncate text-xs",
-                                "text-onboarding-neutral-600 dark:text-onboarding-neutral-400",
-                              )}
-                            >
+                            <span className="mt-0.5 block truncate text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                               {conversation.prospect.title || conversation.prospect.company || "Prospect"}
+                              {conversation.campaign.name ? ` · ${conversation.campaign.name}` : ""}
                             </span>
                             <span
                               className={cn(
                                 "mt-1 block truncate text-sm",
-                                active
-                                  ? "text-onboarding-neutral-700 dark:text-onboarding-neutral-400"
-                                  : "text-onboarding-neutral-600 dark:text-onboarding-neutral-500",
+                                conversation.unreadCount > 0
+                                  ? "font-medium text-onboarding-ink dark:text-onboarding-neutral-0"
+                                  : active
+                                    ? "text-onboarding-neutral-700 dark:text-onboarding-neutral-400"
+                                    : "text-onboarding-neutral-600 dark:text-onboarding-neutral-500",
                               )}
                             >
                               {conversation.latestMessage.content}
@@ -699,18 +705,18 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               )}
             </div>
 
-            <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2 text-xs text-muted-foreground">
-              <span>
-                Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()}
+            <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2.5 text-xs text-muted-foreground">
+              <span className="truncate">
+                {total === 0 ? "0" : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)}`} of {total.toLocaleString()}
               </span>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page">
+                <Button variant="ghost" size="icon" className="size-10 lg:size-8" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page">
                   <ChevronLeft />
                 </Button>
                 <span className="px-1 font-medium text-foreground">
                   {page}/{pageCount}
                 </span>
-                <Button variant="ghost" size="icon" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page">
+                <Button variant="ghost" size="icon" className="size-10 lg:size-8" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page">
                   <ChevronRight />
                 </Button>
               </div>
@@ -718,7 +724,12 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
             </aside>
           </div>
 
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <main
+            className={cn(
+              "flex min-h-0 min-w-0 flex-1 flex-col",
+              !mobileThreadOpen && "max-lg:hidden",
+            )}
+          >
             {isDetailLoading && !detail ? (
               <div className="relative flex flex-1 items-center justify-center text-sm text-muted-foreground">
                 {!showListSidebar ? (
@@ -737,14 +748,22 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               </div>
             ) : detail ? (
               <>
-                <div className={cn("space-y-4 border-b border-border p-4", amplified && "px-5 sm:px-6")}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                <div className={cn("border-b border-border px-3 py-3 lg:space-y-4 lg:p-4", amplified && "lg:px-6")}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5 lg:gap-3">
+                      <button
+                        type="button"
+                        onClick={backToList}
+                        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 lg:hidden dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
+                        aria-label="Back to conversations"
+                      >
+                        <ChevronLeft className="size-5" aria-hidden />
+                      </button>
                       {!showListSidebar ? (
                         <button
                           type="button"
                           onClick={toggleListSidebar}
-                          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
+                          className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 lg:inline-flex dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
                           aria-label="Expand conversation list"
                           aria-expanded={showListSidebar}
                           title="Expand conversation list"
@@ -754,24 +773,27 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                       ) : null}
                       <PersonAvatar name={detail.prospect.name} url={detail.prospect.avatarUrl} size="lg" />
                       <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h2 className="truncate text-lg font-semibold">{detail.prospect.name}</h2>
-                          <span className="size-2 rounded-full bg-onboarding-success-500" aria-hidden />
+                        <div className="flex items-center gap-2">
+                          <h2 className="truncate text-base font-semibold lg:text-lg">{detail.prospect.name}</h2>
+                          <span className="hidden size-2 rounded-full bg-onboarding-success-500 lg:inline-flex" aria-hidden />
                           {amplified ? (
                             <Badge variant="secondary" className="text-[10px] font-medium uppercase tracking-wide">
                               Amplified
                             </Badge>
                           ) : null}
                         </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {[detail.prospect.title, detail.prospect.company].filter(Boolean).join(" at ") || "Prospect"}
-                          {detail.prospect.location ? ` · ${detail.prospect.location}` : ""}
+                        <p className="truncate text-xs text-muted-foreground lg:text-sm">
+                          <span className="lg:hidden">{detail.campaign.name}</span>
+                          <span className="hidden lg:inline">
+                            {[detail.prospect.title, detail.prospect.company].filter(Boolean).join(" at ") || "Prospect"}
+                            {detail.prospect.location ? ` · ${detail.prospect.location}` : ""}
+                          </span>
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-0.5">
                       {detail.prospect.linkedinUrl ? (
-                        <Button variant="ghost" size="icon" asChild aria-label="Open LinkedIn profile">
+                        <Button variant="ghost" size="icon" className="size-10 lg:size-8" asChild aria-label="Open LinkedIn profile">
                           <a href={detail.prospect.linkedinUrl} target="_blank" rel="noreferrer">
                             <ChannelLogo name="linkedin" className="size-4" />
                           </a>
@@ -780,6 +802,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="hidden lg:inline-flex"
                         onClick={toggleAmplified}
                         aria-label={amplified ? "Exit amplified chat view" : "Enter amplified chat view"}
                         aria-pressed={amplified}
@@ -788,7 +811,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                         {amplified ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
                       </Button>
                       <DropdownMenu>
-                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Conversation actions" />}>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 lg:size-8" aria-label="Conversation actions" />}>
                           <MoreHorizontal />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -798,7 +821,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                           <DropdownMenuItem render={<Link href="/dashboard/campaigns" />}>
                             Open campaigns
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={toggleAmplified}>
+                          <DropdownMenuItem className="hidden lg:flex" onClick={toggleAmplified}>
                             {amplified ? "Exit amplified view" : "Amplified chat view"}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -807,7 +830,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                   </div>
 
                   <div className={cn(
-                    "grid gap-3 rounded-xl border border-border p-3 text-sm sm:grid-cols-2 xl:grid-cols-[1fr_1.4fr_1fr_auto_auto] xl:items-center",
+                    "mt-3 hidden gap-3 rounded-xl border border-border p-3 text-sm sm:grid-cols-2 lg:grid xl:grid-cols-[1fr_1.4fr_1fr_auto_auto] xl:items-center",
                     amplified && "xl:max-w-5xl",
                   )}>
                     <div>
@@ -844,7 +867,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                 <div className="min-h-0 flex-1">
                   <MessageScrollerProvider>
                     <MessageScroller className="h-full">
-                      <MessageScrollerViewport className={cn("px-4 py-4", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
+                      <MessageScrollerViewport className={cn("px-3 py-3 lg:px-4 lg:py-4", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
                         <MessageScrollerContent>
                           {feedItems.map((item, index) => {
                             if (item.kind === "marker") {
@@ -892,7 +915,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                                             align={item.align}
                                             variant={inbound ? "outline" : "tinted"}
                                             className={cn(
-                                              amplified ? "max-w-[min(42rem,88%)]" : "max-w-[80%]",
+                                              amplified ? "max-w-[min(42rem,88%)]" : "max-w-[min(85%,20rem)] lg:max-w-[80%]",
                                               inbound &&
                                                 "*:data-[slot=bubble-content]:border-onboarding-purple-200 dark:*:data-[slot=bubble-content]:border-onboarding-purple-400/40",
                                               !inbound &&
@@ -936,7 +959,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                   </MessageScrollerProvider>
                 </div>
 
-                <div className={cn("border-t border-border p-3", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
+                <div className={cn("shrink-0 border-t border-border bg-onboarding-neutral-0 p-3 dark:bg-onboarding-neutral-900", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
                   {limitError || isLimitReached ? (
                     <p className="mb-2 text-xs font-medium text-onboarding-warning-900 dark:text-onboarding-warning-150">
                       {limitError || `Daily LinkedIn message limit reached. Sending resets at ${resetTime}.`}
@@ -948,67 +971,52 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                       A real inbound reply and an active campaign sender are required before an operator can reply.
                     </p>
                   ) : (
-                    <div className="space-y-3">
-                      <Tabs value={composerTab} onValueChange={(value) => setComposerTab(value as "reply" | "draft")}>
-                        <TabsList variant="line" className="justify-start gap-1 rounded-none p-0">
-                          <TabsTrigger value="reply" className="px-3 py-2">Reply</TabsTrigger>
-                          <TabsTrigger value="draft" className="gap-2 px-3 py-2">
-                            AI Draft
-                            {!draftSeen ? <Badge className="bg-onboarding-purple-500 text-white">New</Badge> : null}
-                          </TabsTrigger>
-                        </TabsList>
-                      </Tabs>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <Tabs value={composerTab} onValueChange={(value) => setComposerTab(value as "reply" | "draft")}>
+                          <TabsList variant="line" className="justify-start gap-1 rounded-none p-0">
+                            <TabsTrigger value="reply" className="min-h-10 px-3 py-2 lg:min-h-0">Reply</TabsTrigger>
+                            <TabsTrigger value="draft" className="min-h-10 gap-2 px-3 py-2 lg:min-h-0">
+                              AI Draft
+                              {!draftSeen ? <Badge className="bg-onboarding-purple-500 text-white">New</Badge> : null}
+                            </TabsTrigger>
+                          </TabsList>
+                        </Tabs>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-10 shrink-0 lg:h-8"
+                          disabled={isDrafting || isLimitReached}
+                          onClick={() => void generateDraft()}
+                        >
+                          {isDrafting ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                          <span className="hidden sm:inline">Use AI to draft</span>
+                          <span className="sm:hidden">AI</span>
+                        </Button>
+                      </div>
 
                       <Textarea
                         value={message}
                         onChange={(event) => setMessage(event.target.value)}
                         placeholder={composerTab === "draft" ? "Generate or edit an AI draft..." : "Type your message..."}
-                        className={cn("min-h-24", amplified && "min-h-36")}
+                        className={cn("min-h-[5.5rem] text-base lg:min-h-24 lg:text-sm", amplified && "min-h-36")}
                       />
 
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs text-muted-foreground">
-                          Send as {detail.sender?.accountName || "LinkedIn account"}
-                          {detail.senderLimit ? ` · ${detail.senderLimit.remaining}/${detail.senderLimit.limit} remaining today` : ""}
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="min-w-0 truncate text-xs text-muted-foreground">
+                          {detail.sender?.accountName || "LinkedIn"}
+                          {detail.senderLimit ? ` · ${detail.senderLimit.remaining}/${detail.senderLimit.limit}` : ""}
                         </p>
-                        <div className="flex items-center gap-2">
-                          <Button size="sm" variant="outline" disabled={isDrafting || isLimitReached} onClick={() => void generateDraft()}>
-                            {isDrafting ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                            Use AI to draft
-                          </Button>
-                          <div className="flex overflow-hidden rounded-lg">
-                            <Button
-                              size="sm"
-                              variant="brand"
-                              className="rounded-r-none"
-                              disabled={isSending || !message.trim() || isLimitReached}
-                              onClick={() => void sendReply()}
-                            >
-                              {isSending ? <Loader2 className="animate-spin" /> : <Send />}
-                              Send
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger
-                                render={
-                                  <Button
-                                    size="sm"
-                                    variant="brand"
-                                    className="rounded-l-none border-l border-white/20 px-2"
-                                    disabled={isSending || !message.trim() || isLimitReached}
-                                    aria-label="Send options"
-                                  />
-                                }
-                              >
-                                <ChevronDown className="size-3.5" />
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem disabled={isSending || !message.trim() || isLimitReached} onClick={() => void sendReply()}>
-                                  Send now
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="brand"
+                          className="h-11 min-w-28 gap-2 px-4 lg:h-8 lg:min-w-0"
+                          disabled={isSending || !message.trim() || isLimitReached}
+                          onClick={() => void sendReply()}
+                        >
+                          {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+                          Send
+                        </Button>
                       </div>
                     </div>
                   )}
