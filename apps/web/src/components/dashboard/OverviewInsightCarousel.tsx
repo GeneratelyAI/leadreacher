@@ -6,10 +6,10 @@ import {
   CircleAlert,
   Link2,
   MessageSquare,
+  Plus,
   TrendingUp,
-  Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import {
   Carousel,
@@ -18,6 +18,12 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { type SocialMediaIconName } from "@/components/ui/SocialMediaIcon";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 type InsightSlideOverview = {
@@ -27,6 +33,12 @@ type InsightSlideOverview = {
     meetingsBooked: number;
   };
   activityTrend?: Array<{ date: string; sent: number; replies: number }>;
+  channels?: Array<{
+    id: string;
+    platform: string;
+    accountName: string;
+    status: string;
+  }>;
   primaryCampaign: {
     id: string;
     name: string;
@@ -67,8 +79,74 @@ function formatChartDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value));
 }
 
-function titleCase(value: string): string {
-  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+const UPSELL_CHANNELS = [
+  { id: "linkedin" as const, label: "LinkedIn", detail: "Connection notes + sequences" },
+  { id: "whatsapp" as const, label: "WhatsApp", detail: "Direct follow-ups" },
+  { id: "instagram" as const, label: "Instagram", detail: "Social outreach" },
+  { id: "facebook" as const, label: "Facebook", detail: "Messenger outreach" },
+] satisfies Array<{
+  id: SocialMediaIconName;
+  label: string;
+  detail: string;
+}>;
+
+type UpsellChannelId = (typeof UPSELL_CHANNELS)[number]["id"];
+
+function clusterItemClass(index: number, total: number): string {
+  if (total <= 1) return "z-30";
+  if (total === 2) {
+    return index === 0 ? "z-20 -rotate-[14deg]" : "z-30 -ml-3 rotate-[14deg]";
+  }
+  // Instagram left, WhatsApp center (on top), Facebook right — tight fan like the reference
+  if (index === 0) return "z-10 -rotate-[14deg]";
+  if (index === 1) return "z-30 -ml-3";
+  return "z-20 -ml-3 rotate-[14deg]";
+}
+
+function ChannelStickerMark({ name }: { name: UpsellChannelId }) {
+  const reactId = useId().replace(/:/g, "");
+
+  if (name === "instagram" || name === "facebook" || name === "linkedin") {
+    const src =
+      name === "instagram"
+        ? "/dashboard/instagram-logo.png"
+        : name === "facebook"
+          ? "/dashboard/facebook-logo.png"
+          : "/dashboard/linkedin-logo.png";
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- static brand sticker assets
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        className="size-full object-contain drop-shadow-[0_4px_10px_rgba(15,23,42,0.18)]"
+      />
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 80 80" className="size-full" aria-hidden>
+      <defs>
+        <filter id={`wa-shadow-${reactId}`} x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="3.5" floodColor="#0f172a" floodOpacity="0.18" />
+        </filter>
+      </defs>
+      <g filter={`url(#wa-shadow-${reactId})`}>
+        <path
+          fill="white"
+          d="M40.1 5.2C21.6 5.2 6.6 20.2 6.6 38.7c0 6.1 1.6 11.8 4.4 16.8L6 74.2l19.3-5.1c4.8 2.6 10.2 4 15.8 4h.1c18.5 0 33.5-15 33.5-33.5S58.6 5.2 40.1 5.2Z"
+        />
+        <path
+          fill="#25D366"
+          d="M40.1 11.2C24.9 11.2 12.6 23.5 12.6 38.7c0 5.1 1.3 9.9 3.7 14.1l-2.4 14 14.4-3.8a26.7 26.7 0 0 0 11.8 2.7h.1c15.2 0 27.5-12.3 27.5-27.5S55.3 11.2 40.1 11.2Z"
+        />
+        <path
+          fill="white"
+          d="M54.2 47.4c-.8-.4-4.8-2.4-5.5-2.6-.7-.3-1.3-.4-1.8.4-.5.7-2 2.5-2.5 3-.4.5-1 .6-1.8.2-4.7-2.3-7.8-4.2-10.9-9.5-.8-1.4.8-1.3 2.3-4.2.3-.5.1-1-.1-1.4-.3-.4-1.8-4.4-2.5-6-.7-1.6-1.4-1.4-1.9-1.4h-1.6c-.5 0-1.4.2-2.1 1-.7.8-2.8 2.8-2.8 6.8s2.9 7.9 3.3 8.4c.4.6 5.7 8.8 13.9 12.3 1.9.8 3.4 1.3 4.6 1.7 1.9.6 3.7.5 5.1.3 1.5-.2 4.8-2 5.4-3.9.7-1.9.7-3.5.5-3.8-.2-.4-.8-.6-1.6-1Z"
+        />
+      </g>
+    </svg>
+  );
 }
 
 function SlideShell({
@@ -111,7 +189,27 @@ export function OverviewInsightCarousel({
   const actions = overview.actions;
   const health = overview.sendingHealth;
   const sender = health?.senders[0];
-  const campaign = overview.primaryCampaign;
+  const connectedPlatforms = new Set(
+    (overview.channels ?? [])
+      .filter((channel) => channel.status === "active")
+      .map((channel) => channel.platform.toLowerCase()),
+  );
+  const connectedCount = UPSELL_CHANNELS.filter((channel) => connectedPlatforms.has(channel.id)).length;
+  const missingChannels = UPSELL_CHANNELS.filter((channel) => !connectedPlatforms.has(channel.id));
+  const stickerOrder: UpsellChannelId[] = ["instagram", "whatsapp", "facebook", "linkedin"];
+  const clusterChannels = [...missingChannels]
+    .sort((a, b) => stickerOrder.indexOf(a.id) - stickerOrder.indexOf(b.id))
+    .slice(0, 3);
+  const allConnected = missingChannels.length === 0;
+  const missingLabels = missingChannels.map((channel) => channel.label);
+  const missingSummary =
+    missingLabels.length === 0
+      ? null
+      : missingLabels.length === 1
+        ? missingLabels[0]
+        : missingLabels.length === 2
+          ? `${missingLabels[0]} and ${missingLabels[1]}`
+          : `${missingLabels.slice(0, -1).join(", ")}, and ${missingLabels.at(-1)}`;
 
   useEffect(() => {
     if (!api) return;
@@ -139,8 +237,8 @@ export function OverviewInsightCarousel({
       className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
       aria-roledescription="carousel"
       aria-label="Workspace insight cards"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
+      onPointerEnter={() => setPaused(true)}
+      onPointerLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
@@ -221,6 +319,69 @@ export function OverviewInsightCarousel({
                   ))}
                 </div>
               </div>
+            </SlideShell>
+          </CarouselItem>
+
+          <CarouselItem className="pl-0">
+            <SlideShell
+              footerHref="/dashboard/channels"
+              footerLabel={allConnected ? "Manage channels" : "Connect channels"}
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
+                <h2 className="font-semibold">
+                  {allConnected ? "Channels connected" : "Connect more channels"}
+                </h2>
+              </div>
+              <p className="mt-3 text-sm font-semibold leading-5">
+                {allConnected
+                  ? "All channels connected"
+                  : connectedCount === 0
+                    ? "Add your first outreach channel"
+                    : `${connectedCount} of ${UPSELL_CHANNELS.length} channels live`}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {allConnected
+                  ? "LinkedIn, WhatsApp, Instagram, and Facebook are live in your operator workspace."
+                  : missingSummary
+                    ? `Add ${missingSummary} to reach the same ICP across every channel from one workspace.`
+                    : "Reach the same ICP across LinkedIn, WhatsApp, Instagram, and Facebook from one operator workspace."}
+              </p>
+
+              {clusterChannels.length > 0 ? (
+                <div className="mt-8 flex flex-1 items-center justify-center pb-1 pt-4">
+                  <div className="flex items-center justify-center py-2">
+                    {clusterChannels.map((channel, index) => (
+                      <Tooltip key={channel.id}>
+                        <TooltipTrigger
+                          render={
+                            <Link
+                              href="/dashboard/channels"
+                              aria-label={`Connect ${channel.label}`}
+                              className={cn(
+                                "relative shrink-0 transition duration-200 ease-out will-change-transform hover:-translate-y-2.5 hover:scale-110 hover:z-40 focus-visible:-translate-y-2.5 focus-visible:scale-110 focus-visible:z-40 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+                                channel.id === "whatsapp" ? "size-[5.85rem]" : "size-[5rem]",
+                                clusterItemClass(index, clusterChannels.length),
+                              )}
+                            />
+                          }
+                        >
+                          <ChannelStickerMark name={channel.id} />
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={12}>
+                          Connect {channel.label}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-8 flex flex-1 items-center justify-center pb-1 pt-4">
+                  <p className="text-center text-sm text-muted-foreground">
+                    Nothing left to connect — you&apos;re fully multi-channel.
+                  </p>
+                </div>
+              )}
             </SlideShell>
           </CarouselItem>
 
@@ -306,67 +467,27 @@ export function OverviewInsightCarousel({
               </div>
             </SlideShell>
           </CarouselItem>
-
-          <CarouselItem className="pl-0">
-            <SlideShell
-              footerHref={campaign ? "/dashboard/campaigns" : "/dashboard/prospects"}
-              footerLabel={campaign ? "Open campaigns" : "Find prospects"}
-            >
-              <div className="flex items-center gap-2">
-                <Users className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
-                <h2 className="font-semibold">{campaign ? "Primary campaign" : "Grow your pipeline"}</h2>
-              </div>
-              {campaign ? (
-                <>
-                  <p className="mt-3 text-sm font-semibold leading-5">{campaign.name}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    {titleCase(campaign.status)} · {formatNumber(campaign.prospectCount)} prospect
-                    {campaign.prospectCount === 1 ? "" : "s"} enrolled
-                  </p>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    {[
-                      { label: "Contacted", value: campaign.stats?.contacted ?? 0 },
-                      { label: "Replies", value: campaign.stats?.replies ?? 0 },
-                      { label: "Meetings", value: campaign.stats?.meetings ?? 0 },
-                      { label: "Customers", value: campaign.stats?.customers ?? 0 },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-lg border border-border px-3 py-2.5">
-                        <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                        <p className="mt-1 text-lg font-semibold">{formatNumber(item.value)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="mt-3 text-sm font-semibold leading-5">No active campaign yet</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Import a CSV or run an ICP search, approve prospects, then launch your first sequence.
-                  </p>
-                  <ul className="mt-4 space-y-2 text-sm">
-                    <li className="rounded-lg border border-border px-3 py-2.5">1. Find or import prospects</li>
-                    <li className="rounded-lg border border-border px-3 py-2.5">2. Approve and enroll them</li>
-                    <li className="rounded-lg border border-border px-3 py-2.5">3. Launch a campaign sequence</li>
-                  </ul>
-                </>
-              )}
-            </SlideShell>
-          </CarouselItem>
         </CarouselContent>
       </Carousel>
 
-      <div className="flex items-center justify-center gap-1.5 pb-3" aria-hidden>
+      <div className="flex items-center justify-center gap-1 pb-3" role="tablist" aria-label="Insight slides">
         {Array.from({ length: slideCount }).map((_, index) => (
           <button
             key={index}
             type="button"
-            className={cn(
-              "size-1.5 rounded-full transition-colors",
-              index === current ? "bg-onboarding-purple-500" : "bg-onboarding-neutral-300 dark:bg-onboarding-neutral-700",
-            )}
+            role="tab"
+            aria-selected={index === current}
+            className="inline-flex size-10 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
             onClick={() => api?.scrollTo(index)}
             aria-label={`Go to slide ${index + 1}`}
-          />
+          >
+            <span
+              className={cn(
+                "size-2.5 rounded-full transition-colors",
+                index === current ? "bg-onboarding-purple-500" : "bg-onboarding-neutral-300 dark:bg-onboarding-neutral-700",
+              )}
+            />
+          </button>
         ))}
       </div>
       <p className="sr-only">{paused ? "Carousel paused" : "Carousel playing"}</p>
