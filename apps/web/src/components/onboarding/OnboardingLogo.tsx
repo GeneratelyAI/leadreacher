@@ -21,13 +21,20 @@ export function OnboardingLogo({
   const darkSource = markOnly ? ASSETS.planeIconWhite : ASSETS.logoWhite;
 
   return (
-    <span className={cn("discovery-logo relative inline-block shrink-0 leading-none translate-x-2", markOnly && "h-9 w-13 overflow-hidden")}>
+    <span
+      className={cn(
+        "discovery-logo relative inline-block leading-none",
+        markOnly
+          ? "h-9 w-13 shrink-0 overflow-hidden translate-x-2"
+          : "max-w-full",
+      )}
+    >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={lightSource}
         alt={isDark ? "" : "leadreacher"}
         aria-hidden={isDark}
-        className={cn(imageClassName, isDark ? "opacity-0" : "opacity-100")}
+        className={cn(imageClassName, "max-w-full", isDark ? "opacity-0" : "opacity-100")}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -36,7 +43,7 @@ export function OnboardingLogo({
         aria-hidden={!isDark}
         className={cn(
           imageClassName,
-          "absolute top-0 left-0",
+          "absolute top-0 left-0 max-w-full",
           transitionClass,
           isDark ? "opacity-100" : "opacity-0",
         )}

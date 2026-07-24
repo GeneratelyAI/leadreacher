@@ -10,6 +10,7 @@ import {
   CircleHelp,
   CreditCard,
   Clock3,
+  Ellipsis,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -45,6 +46,13 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -58,21 +66,32 @@ import { useThemeMode } from "@/hooks/useThemeMode";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-const NAVIGATION: Array<{
+type NavItem = {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
-}> = [
+};
+
+const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/dashboard/prospects", label: "Prospects", icon: Users },
   { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+];
+
+const SECONDARY_NAV: NavItem[] = [
   { href: "/dashboard/activity", label: "Activity", icon: Clock3 },
   { href: "/dashboard/channels", label: "Channels", icon: Link2 },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
-] as const;
+];
+
+const NAVIGATION: NavItem[] = [...PRIMARY_NAV, ...SECONDARY_NAV];
+
+function navItemActive(pathname: string, item: NavItem): boolean {
+  return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
 
 type ShellOverview = {
   organization: { name: string; plan: string };
@@ -146,31 +165,25 @@ function WorkspaceSidebar({
   memberName,
   overview,
   collapsed = false,
-  mobile = false,
-  onClose,
   onSignOut,
 }: {
   pathname: string;
   memberName: string;
   overview: ShellOverview | null;
   collapsed?: boolean;
-  mobile?: boolean;
-  onClose?: () => void;
   onSignOut: () => void;
 }) {
   return (
     <aside
       className={cn(
-        "flex h-full flex-col border-r border-app-border bg-app-chrome py-5",
+        "flex h-full w-full flex-col border-r border-app-border bg-app-chrome py-5",
         collapsed ? "items-center px-2" : "px-4",
-        mobile ? "w-[17.75rem] shadow-2xl" : "w-full",
       )}
       aria-label="Workspace sidebar"
     >
       <div className={cn("flex w-full items-center", collapsed ? "justify-center" : "justify-between")}>
         <Link
           href="/dashboard"
-          onClick={onClose}
           className="inline-flex min-w-0 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
           aria-label="LeadReacher overview"
         >
@@ -180,17 +193,15 @@ function WorkspaceSidebar({
             <OnboardingLogo className="h-auto w-[15rem] max-w-full" />
           )}
         </Link>
-        {mobile ? <button type="button" onClick={onClose} className="inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-500 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300" aria-label="Close navigation"><X className="size-4" aria-hidden /></button> : null}
       </div>
 
       <nav className={cn("w-full", collapsed ? "mt-10" : "mt-10 space-y-1")} aria-label="Workspace navigation">
         {NAVIGATION.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
+          const active = navItemActive(pathname, { href, label, icon: Icon, exact });
           const link = (
             <Link
               key={href}
               href={href}
-              onClick={onClose}
               className={cn(
                 "group flex h-10 items-center rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
                 collapsed ? "mb-1 justify-center px-0" : "gap-3 px-3.5",
@@ -219,7 +230,6 @@ function WorkspaceSidebar({
 
       <button
         type="button"
-        onClick={onClose}
         className={cn(
           "mt-auto flex h-9 items-center rounded-lg text-left text-sm text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300",
           collapsed ? "w-10 justify-center px-0" : "w-full gap-3 px-3.5",
@@ -265,9 +275,9 @@ function WorkspaceSidebar({
             </DropdownMenuLabel>
           </DropdownMenuGroup>
           <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
-          <DropdownMenuItem render={<Link href="/dashboard/settings" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Settings className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Settings</DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/settings" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><CreditCard className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Billing</DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/dashboard/activity" onClick={onClose} />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Bell className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Notifications</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Settings className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Settings</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/settings" />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><CreditCard className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Billing</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/dashboard/activity" />} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><Bell className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Notifications</DropdownMenuItem>
           <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
           <DropdownMenuItem onClick={() => void onSignOut()} className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"><LogOut className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />Log out</DropdownMenuItem>
         </DropdownMenuContent>
@@ -295,6 +305,7 @@ export function DashboardShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -332,6 +343,7 @@ export function DashboardShell({
 
   useEffect(() => {
     setMobileSidebarOpen(false);
+    setMoreOpen(false);
   }, [pathname]);
 
   function toggleDesktopSidebar() {
@@ -396,6 +408,12 @@ export function DashboardShell({
   }
 
   const pageRange = readableRange(searchParams.get("startDate"), searchParams.get("endDate"));
+  const showRangeControl =
+    pathname === "/dashboard" ||
+    pathname.startsWith("/dashboard/activity") ||
+    pathname.startsWith("/dashboard/channels") ||
+    pathname.startsWith("/dashboard/analytics");
+  const secondaryActive = SECONDARY_NAV.some((item) => navItemActive(pathname, item));
 
   function setRange(days: number) {
     const end = new Date();
@@ -423,6 +441,7 @@ export function DashboardShell({
           ["--dashboard-sidebar-width" as string]: sidebarOpen ? "17.75rem" : "4.5rem",
           ["--dashboard-page-px" as string]: sidebarOpen ? "1rem" : "0.75rem",
           ["--dashboard-page-py" as string]: sidebarOpen ? "1.25rem" : "1rem",
+          ["--dashboard-bottom-nav-height" as string]: "calc(3.75rem + var(--safe-area-bottom))",
         }}
       >
       <div className="flex h-full w-full">
@@ -430,19 +449,168 @@ export function DashboardShell({
           <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} />
         </div>
 
-        {mobileSidebarOpen ? (
-          <>
-            <button type="button" className="fixed inset-0 z-40 bg-onboarding-ink/20 backdrop-blur-[1px] lg:hidden" onClick={() => setMobileSidebarOpen(false)} aria-label="Close navigation" />
-            <div className="fixed inset-y-0 left-0 z-50 lg:hidden">
-              <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} mobile onClose={() => setMobileSidebarOpen(false)} onSignOut={handleSignOut} />
+        <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+          <SheetContent
+            side="top"
+            showCloseButton={false}
+            className="max-h-[min(85dvh,40rem)] gap-0 overflow-y-auto rounded-b-2xl border-app-border bg-app-chrome p-0 shadow-lg lg:hidden"
+          >
+            <SheetHeader className="flex flex-row items-center justify-between gap-3 border-b border-app-border px-4 py-3 text-left">
+              <div className="min-w-0">
+                <SheetTitle className="text-base">Menu</SheetTitle>
+                <SheetDescription className="text-xs">Jump to a workspace destination</SheetDescription>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-500 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+                aria-label="Close navigation"
+              >
+                <X className="size-4" aria-hidden />
+              </button>
+            </SheetHeader>
+
+            <nav className="grid grid-cols-2 gap-1.5 p-3" aria-label="Workspace navigation">
+              {NAVIGATION.map((item) => {
+                const active = navItemActive(pathname, item);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className={cn(
+                      "flex min-h-14 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+                      active
+                        ? "bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100"
+                        : "text-app-fg hover:bg-app-hover",
+                    )}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon className="size-5 shrink-0" aria-hidden />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="space-y-1 border-t border-app-border p-3 pb-[max(0.75rem,var(--safe-area-bottom))]">
+              <button
+                type="button"
+                onClick={() => setMobileSidebarOpen(false)}
+                className="flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300"
+                aria-label="Help center"
+              >
+                <CircleHelp className="size-5 shrink-0" aria-hidden />
+                Help center
+              </button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="flex h-12 w-full items-center gap-3 rounded-xl px-3 text-left transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+                      aria-label={`${memberName} account`}
+                    />
+                  }
+                >
+                  <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-onboarding-purple-50 text-xs font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
+                    {initials(memberName)}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold">{memberName}</span>
+                    <span className="block truncate text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
+                      {overview?.organization.plan ?? "Starter"}
+                    </span>
+                  </span>
+                  <ChevronDown className="size-4 shrink-0 text-onboarding-neutral-400" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  side="bottom"
+                  align="end"
+                  sideOffset={8}
+                  className="w-60 border border-app-border bg-app-elevated p-1.5 text-app-fg shadow-onboarding-button"
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="px-3 py-2">
+                      <p className="truncate text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{memberName}</p>
+                      <p className="truncate text-xs font-normal text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
+                        {overview?.organization.plan ?? "Starter"} plan
+                      </p>
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
+                  <DropdownMenuItem
+                    render={<Link href="/dashboard/settings" onClick={() => setMobileSidebarOpen(false)} />}
+                    className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"
+                  >
+                    <Settings className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={<Link href="/dashboard/settings" onClick={() => setMobileSidebarOpen(false)} />}
+                    className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"
+                  >
+                    <CreditCard className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />
+                    Billing
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    render={<Link href="/dashboard/activity" onClick={() => setMobileSidebarOpen(false)} />}
+                    className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"
+                  >
+                    <Bell className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />
+                    Notifications
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
+                  <DropdownMenuItem
+                    onClick={() => void handleSignOut()}
+                    className="gap-3 rounded-lg px-3 py-2.5 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0"
+                  >
+                    <LogOut className="size-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400" aria-hidden />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
-          </>
-        ) : null}
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+          <SheetContent side="bottom" className="gap-0 rounded-t-2xl border-app-border bg-app-elevated pb-[max(1rem,var(--safe-area-bottom))] lg:hidden">
+            <SheetHeader className="border-b border-app-border px-1 pb-3">
+              <SheetTitle>More</SheetTitle>
+              <SheetDescription>Secondary workspace destinations.</SheetDescription>
+            </SheetHeader>
+            <nav className="grid gap-1 py-3" aria-label="More destinations">
+              {SECONDARY_NAV.map((item) => {
+                const active = navItemActive(pathname, item);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMoreOpen(false)}
+                    className={cn(
+                      "flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+                      active
+                        ? "bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100"
+                        : "text-app-fg hover:bg-app-hover",
+                    )}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <Icon className="size-5 shrink-0" aria-hidden />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </SheetContent>
+        </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="relative flex h-[4.75rem] shrink-0 items-center border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)]">
-            <button type="button" onClick={() => setMobileSidebarOpen(true)} className="mr-1 inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-600 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden" aria-label="Open navigation" aria-expanded={mobileSidebarOpen}><Menu className="size-5" aria-hidden /></button>
-            <Link href="/dashboard" className="mr-4 lg:hidden"><OnboardingLogo className="h-6 w-auto" /></Link>
+          <header className="relative flex min-h-[4.75rem] shrink-0 items-center border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)] pt-[var(--safe-area-top)]">
+            <button type="button" onClick={() => setMobileSidebarOpen(true)} className="mr-1 inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden" aria-label="Open menu" aria-expanded={mobileSidebarOpen}><Menu className="size-5" aria-hidden /></button>
             <button type="button" onClick={toggleDesktopSidebar} className="mr-3 hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:inline-flex" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} aria-expanded={sidebarOpen} title={sidebarOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}>{sidebarOpen ? <PanelLeftClose className="size-4" aria-hidden /> : <PanelLeftOpen className="size-4" aria-hidden />}</button>
             <div className="relative hidden min-w-0 w-full max-w-[29rem] flex-1 lg:block">
               <button
@@ -479,8 +647,32 @@ export function DashboardShell({
               </DialogContent>
             </Dialog>
 
-            <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-              {pathname === "/dashboard" || pathname.startsWith("/dashboard/activity") || pathname.startsWith("/dashboard/channels") || pathname.startsWith("/dashboard/analytics") ? <div className="hidden xl:block"><Select onValueChange={(value) => setRange(Number(value))}><SelectTrigger aria-label="Date range" className="h-10 w-auto gap-2 border-onboarding-neutral-150 px-3 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover"><CalendarDays className="size-4 text-onboarding-neutral-600 dark:text-onboarding-neutral-300" aria-hidden /><span>{pageRange}</span></SelectTrigger><SelectContent align="end" className="w-44 border border-app-border bg-app-elevated text-app-fg">{RANGE_OPTIONS.map((option) => <SelectItem key={option.value} value={String(option.value)} className="px-3 py-2 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">{option.label}</SelectItem>)}</SelectContent></Select></div> : null}
+            <div className="ml-auto flex items-center gap-1 sm:gap-2">
+              <button
+                type="button"
+                onClick={() => setSearchOpen(true)}
+                className="inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden"
+                aria-label="Open search"
+              >
+                <Search className="size-[1.05rem]" aria-hidden />
+              </button>
+              {showRangeControl ? (
+                <div className="hidden sm:block">
+                  <Select onValueChange={(value) => setRange(Number(value))}>
+                    <SelectTrigger aria-label="Date range" className="h-10 w-auto max-w-[11rem] gap-2 border-onboarding-neutral-150 px-3 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover">
+                      <CalendarDays className="size-4 shrink-0 text-onboarding-neutral-600 dark:text-onboarding-neutral-300" aria-hidden />
+                      <span className="truncate">{pageRange}</span>
+                    </SelectTrigger>
+                    <SelectContent align="end" className="w-44 border border-app-border bg-app-elevated text-app-fg">
+                      {RANGE_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={String(option.value)} className="px-3 py-2 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
@@ -490,7 +682,7 @@ export function DashboardShell({
                     </button>
                   }
                 />
-                <DropdownMenuContent align="end" className="w-[22rem] border border-app-border bg-app-elevated p-1.5 text-app-fg shadow-onboarding-button">
+                <DropdownMenuContent align="end" className="w-[min(22rem,calc(100vw-2rem))] border border-app-border bg-app-elevated p-1.5 text-app-fg shadow-onboarding-button">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="px-3 py-2 text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">Recent activity</DropdownMenuLabel>
                     {overview?.activity?.length ? overview.activity.slice(0, 5).map((item) => (
@@ -513,8 +705,54 @@ export function DashboardShell({
               <button type="button" onClick={(event) => toggle(event)} className="inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>{isDark ? <Sun className="size-[1.1rem]" aria-hidden /> : <Moon className="size-[1.1rem]" aria-hidden />}</button>
             </div>
           </header>
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[var(--dashboard-bottom-nav-height)] lg:pb-0">{children}</main>
           {modal}
+
+          <nav
+            className="fixed inset-x-0 bottom-0 z-40 border-t border-app-border bg-app-chrome/95 pb-[var(--safe-area-bottom)] backdrop-blur-md lg:hidden"
+            aria-label="Primary destinations"
+          >
+            <ul className="grid h-[3.75rem] grid-cols-5">
+              {PRIMARY_NAV.map((item) => {
+                const active = navItemActive(pathname, item);
+                const Icon = item.icon;
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      className={cn(
+                        "flex h-full flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-onboarding-purple-300",
+                        active
+                          ? "text-onboarding-purple-600 dark:text-onboarding-purple-200"
+                          : "text-onboarding-neutral-500 hover:text-onboarding-neutral-800 dark:text-onboarding-neutral-400 dark:hover:text-onboarding-neutral-200",
+                      )}
+                      aria-current={active ? "page" : undefined}
+                    >
+                      <Icon className="size-5" aria-hidden />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen(true)}
+                  className={cn(
+                    "flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-onboarding-purple-300",
+                    secondaryActive || moreOpen
+                      ? "text-onboarding-purple-600 dark:text-onboarding-purple-200"
+                      : "text-onboarding-neutral-500 hover:text-onboarding-neutral-800 dark:text-onboarding-neutral-400 dark:hover:text-onboarding-neutral-200",
+                  )}
+                  aria-expanded={moreOpen}
+                  aria-label="More destinations"
+                >
+                  <Ellipsis className="size-5" aria-hidden />
+                  <span>More</span>
+                </button>
+              </li>
+            </ul>
+          </nav>
         </div>
       </div>
       </div>

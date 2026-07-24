@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 const DURATION_MS = 500;
 
 const actionButtonClassName =
-  "h-8 gap-1.5 px-2.5 font-medium text-app-fg-muted hover:bg-app-hover hover:text-app-fg";
+  "h-10 gap-1.5 px-3 font-medium text-app-fg-muted hover:bg-app-hover hover:text-app-fg sm:h-8 sm:px-2.5";
 
 /**
  * Shared bottom selection toolbar for multi-select screens (Campaigns, Prospects, …).
@@ -82,7 +82,7 @@ export function SelectionToolbar({
   return (
     <div
       className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-0 z-40 px-3 pb-4 will-change-transform motion-reduce:!transition-none sm:px-4 sm:pb-6 lg:left-[var(--dashboard-sidebar-width)]",
+        "pointer-events-none fixed inset-x-0 bottom-[var(--dashboard-bottom-nav-height,0px)] z-40 px-3 pb-[max(0.75rem,var(--safe-area-bottom))] will-change-transform motion-reduce:!transition-none sm:px-4 lg:bottom-0 lg:left-[var(--dashboard-sidebar-width)] lg:pb-6",
         className,
       )}
       style={{
@@ -103,7 +103,7 @@ export function SelectionToolbar({
           <button
             type="button"
             onClick={onClear}
-            className="inline-flex h-8 shrink-0 items-center gap-2 rounded-lg border border-app-border bg-app-muted-surface px-2.5 text-sm font-medium text-app-fg transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:border-white/15 dark:bg-white/5 dark:focus-visible:ring-white/20"
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg border border-app-border bg-app-muted-surface px-2.5 text-sm font-medium text-app-fg transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:border-white/15 dark:bg-white/5 dark:focus-visible:ring-white/20 sm:h-8"
             aria-label={`Clear selected ${plural.toLowerCase()}`}
           >
             <span className="whitespace-nowrap">

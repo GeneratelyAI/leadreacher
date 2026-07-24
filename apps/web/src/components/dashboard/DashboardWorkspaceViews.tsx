@@ -374,9 +374,20 @@ export function SettingsView() {
 function ErrorNotice({ message }: { message: string }) { return <div className="flex items-start gap-3 rounded-onboarding border border-onboarding-error-500/30 bg-onboarding-error-50 p-4 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert"><CircleAlert className="mt-0.5 size-4 shrink-0" /><p>{message}</p></div>; }
 function LoadingState() { return <div className="flex min-h-44 items-center justify-center text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400"><Loader2 className="mr-2 size-4 animate-spin" />Loading workspace data</div>; }
 
-export function DashboardPageFrame({ children }: { children: ReactNode }) {
+export function DashboardPageFrame({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mx-auto w-full max-w-[100rem] px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]">
+    <div
+      className={cn(
+        "mx-auto w-full max-w-[100rem] px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]",
+        className,
+      )}
+    >
       {children}
     </div>
   );
