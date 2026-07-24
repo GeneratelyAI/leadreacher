@@ -534,10 +534,10 @@ function ProgressStage({
   index: number;
 }) {
   return (
-    <div className="relative min-w-0 flex-1 text-center">
+    <div className="relative flex min-w-0 flex-1 items-start gap-3 text-left sm:flex-col sm:items-center sm:text-center">
       <span
         className={cn(
-          "relative z-10 inline-flex size-7 items-center justify-center rounded-full border text-xs font-semibold",
+          "relative z-10 inline-flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold sm:size-7",
           complete
             ? "border-onboarding-purple-500 bg-onboarding-purple-500 text-white"
             : active
@@ -547,20 +547,22 @@ function ProgressStage({
       >
         {complete ? <Check className="size-4" strokeWidth={2.5} aria-hidden /> : index + 1}
       </span>
-      <span
-        className={cn(
-          "mt-1.5 block truncate text-xs font-medium",
-          complete || active ? "text-onboarding-ink dark:text-onboarding-neutral-0" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
-        )}
-      >
-        {label}
-      </span>
-      <span className={cn(
-        "mt-0.5 block truncate text-xs",
-        active ? "font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
-      )}>
-        {detail}
-      </span>
+      <div className="min-w-0 flex-1 sm:w-full">
+        <span
+          className={cn(
+            "block text-sm font-medium sm:mt-1.5 sm:truncate sm:text-xs",
+            complete || active ? "text-onboarding-ink dark:text-onboarding-neutral-0" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
+          )}
+        >
+          {label}
+        </span>
+        <span className={cn(
+          "mt-0.5 block text-xs sm:truncate",
+          active ? "font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200" : "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
+        )}>
+          {detail}
+        </span>
+      </div>
     </div>
   );
 }
@@ -827,7 +829,7 @@ export function DashboardOverviewClient() {
                     </div>
 
                     <div className="relative flex min-h-[7.5rem] flex-1 items-center px-4 pt-6 pb-5 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750 sm:px-5 2xl:px-7">
-                      <div className="relative flex w-full">
+                      <div className="relative flex w-full flex-col gap-4 sm:flex-row sm:gap-0">
                         {(() => {
                           const campaign = overview.primaryCampaign;
                           const prospectCount = campaign?.stats?.prospects ?? campaign?.prospectCount ?? 0;
@@ -851,8 +853,8 @@ export function DashboardOverviewClient() {
                           const activeIndex = Math.min(currentStage, stages.length - 1);
                           return (
                             <>
-                              <span className="absolute top-3.5 left-[12.5%] w-[75%] border-t-2 border-onboarding-neutral-200 dark:border-onboarding-neutral-700" aria-hidden />
-                              <span className="absolute top-3.5 left-[12.5%] border-t-2 border-onboarding-purple-500" style={{ width: `${(activeIndex / (stages.length - 1)) * 75}%` }} aria-hidden />
+                              <span className="absolute top-3.5 left-[12.5%] hidden w-[75%] border-t-2 border-onboarding-neutral-200 sm:block dark:border-onboarding-neutral-700" aria-hidden />
+                              <span className="absolute top-3.5 left-[12.5%] hidden border-t-2 border-onboarding-purple-500 sm:block" style={{ width: `${(activeIndex / (stages.length - 1)) * 75}%` }} aria-hidden />
                               {stages.map((stage, index) => (
                                 <ProgressStage key={stage.label} label={stage.label} detail={stage.detail} complete={index < currentStage || currentStage === stages.length} active={index === activeIndex && currentStage < stages.length} index={index} />
                               ))}
