@@ -26,6 +26,10 @@ const {
   leadFindFirst,
   leadUpdate,
   messageUpdateMany,
+  deliveryAttemptFindMany,
+  deliveryAttemptCount,
+  manualDeliveryAttemptFindMany,
+  manualDeliveryAttemptCount,
   checkAndIncrementDailySendLimit,
   getDailySendLimitStatus,
   deliverOperatorMessage,
@@ -55,6 +59,10 @@ const {
   leadFindFirst: vi.fn(),
   leadUpdate: vi.fn(),
   messageUpdateMany: vi.fn(),
+  deliveryAttemptFindMany: vi.fn(),
+  deliveryAttemptCount: vi.fn(),
+  manualDeliveryAttemptFindMany: vi.fn(),
+  manualDeliveryAttemptCount: vi.fn(),
   checkAndIncrementDailySendLimit: vi.fn(),
   getDailySendLimitStatus: vi.fn(),
   deliverOperatorMessage: vi.fn(),
@@ -73,6 +81,8 @@ vi.mock("../../lib/prisma.js", () => ({
     campaign: { count: campaignCount, findMany: campaignFindMany, findFirst: campaignFindFirst, update: campaignUpdate },
     socialAccount: { findMany: socialAccountFindMany },
     videoAsset: { count: videoAssetCount, findMany: videoAssetFindMany },
+    deliveryAttempt: { findMany: deliveryAttemptFindMany, count: deliveryAttemptCount },
+    manualDeliveryAttempt: { findMany: manualDeliveryAttemptFindMany, count: manualDeliveryAttemptCount },
   },
 }));
 vi.mock("../../lib/queue.js", () => ({
@@ -182,6 +192,7 @@ beforeEach(async () => {
       accountName: "Ada Lovelace",
       avatarUrl: null,
       status: "active",
+      unipileId: "unipile-1",
     },
     {
       id: "account-2",
@@ -189,26 +200,42 @@ beforeEach(async () => {
       accountName: "Ada WhatsApp",
       avatarUrl: null,
       status: "error",
+      unipileId: null,
     },
   ]);
   videoAssetCount
     .mockReset()
     .mockResolvedValueOnce(1)
     .mockResolvedValueOnce(2);
-  messageFindMany.mockReset().mockResolvedValue([
-    {
-      id: "message-1",
-      direction: "inbound",
-      channel: "linkedin",
-      status: "replied",
-      createdAt: new Date("2026-07-20T12:00:00.000Z"),
-      leadId: "lead-1",
-      campaignId: "campaign-1",
-      content: { message: "Hello", attachments: [] },
-      lead: { id: "lead-1", firstName: "Ada", lastName: "Lovelace", company: "Analytical Engines", avatarUrl: null },
-      campaign: { id: "campaign-1", name: "Q3 outreach" },
-    },
-  ]);
+  messageFindMany.mockReset().mockImplementation(async (input) => {
+    if (input?.where?.handledAt === null) {
+      return [
+        {
+          id: "message-needs-reply",
+          campaignId: "campaign-1",
+          leadId: "lead-1",
+          createdAt: new Date("2026-07-20T12:00:00.000Z"),
+          content: { message: "Can we talk next week?", attachments: [] },
+          lead: { firstName: "Ada", lastName: "Lovelace", company: "Analytical Engines", avatarUrl: null },
+          campaign: { id: "campaign-1", name: "Q3 outreach" },
+        },
+      ];
+    }
+    return [
+      {
+        id: "message-1",
+        direction: "inbound",
+        channel: "linkedin",
+        status: "replied",
+        createdAt: new Date("2026-07-20T12:00:00.000Z"),
+        leadId: "lead-1",
+        campaignId: "campaign-1",
+        content: { message: "Hello", attachments: [] },
+        lead: { id: "lead-1", firstName: "Ada", lastName: "Lovelace", company: "Analytical Engines", avatarUrl: null },
+        campaign: { id: "campaign-1", name: "Q3 outreach" },
+      },
+    ];
+  });
   messageFindFirst.mockReset().mockResolvedValue(null);
   leadFindMany.mockReset().mockResolvedValue([
     {
@@ -232,11 +259,23 @@ beforeEach(async () => {
       lead: null,
     },
   ]);
-  campaignLeadFindMany.mockReset().mockResolvedValue([]);
+  campaignLeadFindMany.mockReset().mockImplementation(async (input) => {
+    if (input?.where?.lead?.status === "contacted" || input?.select?.currentStep) {
+      return [];
+    }
+    if (input?.select?.status && input?.select?.lead) {
+      return [{ status: "active", lead: { status: "replied" } }];
+    }
+    return [{ id: "cl-1", campaignId: "campaign-1", leadId: "lead-1" }];
+  });
   campaignLeadFindFirst.mockReset().mockResolvedValue(null);
   leadFindFirst.mockReset().mockResolvedValue(null);
   leadUpdate.mockReset().mockResolvedValue({});
   messageUpdateMany.mockReset().mockResolvedValue({ count: 0 });
+  deliveryAttemptFindMany.mockReset().mockResolvedValue([]);
+  deliveryAttemptCount.mockReset().mockResolvedValue(0);
+  manualDeliveryAttemptFindMany.mockReset().mockResolvedValue([]);
+  manualDeliveryAttemptCount.mockReset().mockResolvedValue(0);
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
   getDailySendLimitStatus.mockReset().mockResolvedValue({ limit: 50, remaining: 49, resetAt: "2026-07-22T00:00:00.000Z" });
   deliverOperatorMessage.mockReset().mockResolvedValue({ messageId: "operator-message-1" });
@@ -293,6 +332,22 @@ describe("dashboard overview", () => {
         expect.objectContaining({ title: "2 video assets need review" }),
       ]),
     );
+    expect(response.json().actions).toMatchObject({
+      needsReplyCount: expect.any(Number),
+      needsReply: expect.arrayContaining([
+        expect.objectContaining({ prospectName: "Ada Lovelace", campaignLeadId: "cl-1" }),
+      ]),
+      reconnectAccounts: expect.arrayContaining([
+        expect.objectContaining({ platform: "whatsapp", status: "error" }),
+      ]),
+    });
+    expect(response.json().sendingHealth).toMatchObject({
+      failedSendCount: 0,
+      pendingInviteAcceptances: expect.any(Number),
+      senders: expect.arrayContaining([
+        expect.objectContaining({ accountName: "Ada Lovelace" }),
+      ]),
+    });
     expect(leadCount).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ orgId: "org-1" }) }));
     expect(campaignLeadCount).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ campaign: { orgId: "org-1" }, status: "active" }) }),
