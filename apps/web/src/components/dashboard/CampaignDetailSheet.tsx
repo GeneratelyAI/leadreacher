@@ -12,6 +12,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
@@ -192,6 +193,8 @@ export function CampaignDetailSheet({
     ["draft", "review"].includes(detail.status) &&
     detail.launchReady.hasLeads &&
     detail.launchReady.hasSender;
+  const sequenceEditable = detail ? ["draft", "review", "paused"].includes(detail.status) : false;
+  const sequenceLocked = detail?.status === "active";
 
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
@@ -280,11 +283,32 @@ export function CampaignDetailSheet({
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Sequence</h3>
-                  <Button size="sm" variant="ghost" onClick={() => setEditing((value) => !value)}>
-                    {editing ? "Cancel edit" : "Edit"}
-                  </Button>
+                  {sequenceLocked ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isSaving}
+                      onClick={() => void patch({ status: "paused" }, "Campaign paused — you can edit the sequence now")}
+                    >
+                      <Pause /> Pause to edit
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={!sequenceEditable}
+                      onClick={() => setEditing((value) => !value)}
+                    >
+                      {editing ? "Cancel edit" : "Edit"}
+                    </Button>
+                  )}
                 </div>
-                {editing ? (
+                {sequenceLocked ? (
+                  <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                    Sequence is locked while the campaign is running. Pause to change steps, delays, or copy.
+                  </p>
+                ) : null}
+                {editing && sequenceEditable ? (
                   <div className="space-y-3">
                     <label className="grid gap-1.5 text-sm font-medium">
                       Name
@@ -305,20 +329,7 @@ export function CampaignDetailSheet({
                         ))}
                       </select>
                     </label>
-                    {sequence.map((step, index) => (
-                      <label key={`${step.type}-${index}`} className="grid gap-1.5 text-sm font-medium">
-                        Step {index + 1} · {step.type} · delay {step.delayHours}h
-                        <textarea
-                          className="min-h-20 rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
-                          value={step.message}
-                          onChange={(event) => {
-                            const next = [...sequence];
-                            next[index] = { ...step, message: event.target.value };
-                            setSequence(next);
-                          }}
-                        />
-                      </label>
-                    ))}
+                    <SequenceBuilder value={sequence} onChange={setSequence} />
                     <Button size="sm" variant="brand" disabled={isSaving} onClick={() => void saveEdits()}>
                       {isSaving ? <Loader2 className="animate-spin" /> : null} Save changes
                     </Button>
@@ -372,7 +383,7 @@ export function CampaignDetailSheet({
                         variant="outline"
                         className={cn(
                           detail.senderAccount.status === "active"
-                            ? "border-transparent bg-onboarding-success-50 text-onboarding-success-700"
+                            ? "border-transparent bg-onboarding-success-50 text-onboarding-success-700 dark:bg-onboarding-success-500/20 dark:text-onboarding-success-300"
                             : "",
                         )}
                       >

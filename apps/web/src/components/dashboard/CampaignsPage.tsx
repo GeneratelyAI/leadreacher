@@ -27,6 +27,7 @@ import {
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { CampaignDetailSheet } from "@/components/dashboard/CampaignDetailSheet";
+import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@/components/dashboard/SequenceBuilder";
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
@@ -403,8 +404,7 @@ function CampaignRowView({
 function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount[]; onCreated: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [invite, setInvite] = useState("");
-  const [firstMessage, setFirstMessage] = useState("");
+  const [sequence, setSequence] = useState<SequenceStepDraft[]>(() => defaultSequenceDraft());
   const [senderAccountId, setSenderAccountId] = useState("");
   const [includeWhatsapp, setIncludeWhatsapp] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -417,6 +417,10 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (sequence.some((step) => !step.message.trim())) {
+      setError("Every sequence step needs a message.");
+      return;
+    }
     setIsSaving(true);
     setError(null);
     try {
@@ -427,15 +431,15 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
           name,
           channels,
           socialAccountId: senderAccountId,
-          sequence: [
-            { type: "linkedin_invite", message: invite, delayHours: 0 },
-            { type: "linkedin_message", message: firstMessage, delayHours: 0 },
-          ],
+          sequence: sequence.map((step, index) => ({
+            type: index === 0 ? "linkedin_invite" : "linkedin_message",
+            message: step.message.trim(),
+            delayHours: index === 0 ? 0 : step.delayHours,
+          })),
         }),
       });
       setName("");
-      setInvite("");
-      setFirstMessage("");
+      setSequence(defaultSequenceDraft());
       setIncludeWhatsapp(false);
       setOpen(false);
       toast.success("Campaign draft created");
@@ -452,60 +456,52 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       <Button variant="primary" leftIcon={<Plus />} onClick={() => setOpen(true)}>
         New Campaign
       </Button>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[min(90dvh,48rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create a campaign draft</DialogTitle>
           <DialogDescription>
-            Review the copy and sender before adding prospects. Creating a draft never sends outreach.
+            Build the sequence and pick a sender. Creating a draft never sends outreach.
           </DialogDescription>
         </DialogHeader>
         {error ? (
-          <p className="rounded-lg bg-onboarding-error-50 p-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-950 dark:text-onboarding-error-100">
+          <p className="rounded-lg bg-onboarding-error-50 p-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
             {error}
           </p>
         ) : null}
-        <form onSubmit={(event) => void submit(event)} className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-medium">
-            Campaign name
-            <Input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Q3 founder outreach" />
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            LinkedIn sender
-            <Select value={senderAccountId || null} onValueChange={(value) => setSenderAccountId(value ?? "")} required>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select a connected account" />
-              </SelectTrigger>
-              <SelectContent>
-                {activeAccounts.map((account) => (
-                  <SelectItem key={account.id} value={account.id}>
-                    {account.accountName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className="grid gap-2 text-sm font-medium">
-            Connection note
-            <Input required value={invite} onChange={(event) => setInvite(event.target.value)} placeholder="A short invitation note" />
-          </label>
-          <label className="flex items-center gap-2 self-end rounded-lg border border-border px-3 py-2 text-sm">
+        <form onSubmit={(event) => void submit(event)} className="grid gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="grid gap-2 text-sm font-medium">
+              Campaign name
+              <Input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Q3 founder outreach" />
+            </label>
+            <label className="grid gap-2 text-sm font-medium">
+              LinkedIn sender
+              <Select value={senderAccountId || null} onValueChange={(value) => setSenderAccountId(value ?? "")} required>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a connected account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activeAccounts.map((account) => (
+                    <SelectItem key={account.id} value={account.id}>
+                      {account.accountName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
+          <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
             <Checkbox checked={includeWhatsapp} onCheckedChange={(checked) => setIncludeWhatsapp(checked === true)} />
             <span>
               Also target WhatsApp
               <span className="mt-0.5 block text-xs text-muted-foreground">Stored on the campaign; LinkedIn remains the live send path today.</span>
             </span>
           </label>
-          <label className="grid gap-2 text-sm font-medium sm:col-span-2">
-            First message
-            <textarea
-              required
-              value={firstMessage}
-              onChange={(event) => setFirstMessage(event.target.value)}
-              className="min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              placeholder="The message sent after a prospect accepts the connection."
-            />
-          </label>
-          <DialogFooter className="sm:col-span-2">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Sequence</p>
+            <SequenceBuilder value={sequence} onChange={setSequence} />
+          </div>
+          <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
@@ -705,7 +701,7 @@ export function CampaignsPage() {
       </header>
 
       {error ? (
-        <p className="rounded-lg border border-onboarding-error-500/30 bg-onboarding-error-50 p-4 text-sm text-onboarding-error-900 dark:bg-onboarding-error-950 dark:text-onboarding-error-100">
+        <p className="rounded-lg border border-onboarding-error-500/30 bg-onboarding-error-50 p-4 text-sm text-onboarding-error-900 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
           {error}
         </p>
       ) : null}
