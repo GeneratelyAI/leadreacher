@@ -348,7 +348,7 @@ export function ActivityWorkspace() {
 
       {error ? (
         <div
-          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-800 dark:bg-onboarding-error-950 dark:text-onboarding-error-100"
+          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100"
           role="alert"
         >
           {error}

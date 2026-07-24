@@ -431,14 +431,14 @@ export function ChannelsWorkspace() {
       </div>
 
       {notice ? (
-        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-700 dark:border-onboarding-purple-800 dark:bg-onboarding-purple-950 dark:text-onboarding-purple-100">
+        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-700 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
           {notice}
         </div>
       ) : null}
 
       {error ? (
         <div
-          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-800 dark:bg-onboarding-error-950 dark:text-onboarding-error-100"
+          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100"
           role="alert"
         >
           {error}
@@ -529,9 +529,9 @@ export function ChannelsWorkspace() {
         </div>
       </Card>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-800 sm:flex-row sm:items-center sm:justify-between dark:border-onboarding-purple-800 dark:bg-onboarding-purple-950 dark:text-onboarding-purple-100">
+      <div className="flex flex-col gap-2 rounded-xl border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-800 sm:flex-row sm:items-center sm:justify-between dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
         <p className="inline-flex items-start gap-2 sm:items-center">
-          <Info className="mt-0.5 size-4 shrink-0 sm:mt-0" aria-hidden />
+          <Info className="mt-0.5 size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-300 sm:mt-0" aria-hidden />
           All messages are sent only after your explicit approval and follow platform guidelines.
         </p>
         <Link

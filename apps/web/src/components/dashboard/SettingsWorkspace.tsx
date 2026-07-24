@@ -174,7 +174,7 @@ function roleBadgeClass(role: string): string {
 
 function subscriptionBadgeClass(status: string | null): string {
   if (status === "active") {
-    return "border-transparent bg-onboarding-success-50 text-onboarding-success-700 dark:bg-onboarding-success-950 dark:text-onboarding-success-100";
+    return "border-transparent bg-onboarding-success-50 text-onboarding-success-700 dark:bg-onboarding-success-500/20 dark:text-onboarding-success-300 dark:ring-1 dark:ring-onboarding-success-400/25";
   }
   return "border-transparent bg-onboarding-neutral-100 text-onboarding-neutral-700 dark:bg-onboarding-neutral-800 dark:text-onboarding-neutral-200";
 }
@@ -325,7 +325,7 @@ export function SettingsWorkspace() {
 
       {error ? (
         <div
-          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-800 dark:bg-onboarding-error-950 dark:text-onboarding-error-100"
+          className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100"
           role="alert"
         >
           {error}
@@ -365,7 +365,7 @@ export function SettingsWorkspace() {
                 <div>
                   <dt className="text-xs font-medium text-muted-foreground">Plan</dt>
                   <dd className="mt-1.5">
-                    <Badge className="border-transparent bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
+                    <Badge className="border-transparent bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-500/20 dark:text-onboarding-purple-200 dark:ring-1 dark:ring-onboarding-purple-300/25">
                       {titleCase(organization?.plan ?? "starter")} Plan
                     </Badge>
                   </dd>

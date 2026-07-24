@@ -484,7 +484,7 @@ export function DashboardShell({
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={
-                    <button type="button" className="relative inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={`${overview?.unreadNotificationCount ?? 0} unread notifications`}>
+                    <button type="button" className="relative inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={`${overview?.unreadNotificationCount ?? 0} unread replies`}>
                       <Bell className="size-[1.05rem]" aria-hidden />
                       {overview?.unreadNotificationCount ? <span className="absolute top-1 right-1 inline-flex min-w-4 items-center justify-center rounded-full bg-onboarding-purple-600 px-1 text-[10px] font-semibold leading-4 text-white">{overview.unreadNotificationCount > 9 ? "9+" : overview.unreadNotificationCount}</span> : null}
                     </button>
@@ -505,7 +505,7 @@ export function DashboardShell({
                     )) : <DropdownMenuItem disabled className="px-3 py-3 text-sm text-onboarding-neutral-500">No recent activity</DropdownMenuItem>}
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator className="my-1 bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750" />
-                  <DropdownMenuItem render={<Link href="/dashboard/activity" />} className="justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-onboarding-purple-600 focus:bg-onboarding-purple-50 focus:text-onboarding-purple-700 dark:text-onboarding-purple-200 dark:focus:bg-onboarding-purple-950 dark:focus:text-onboarding-purple-100">
+                  <DropdownMenuItem render={<Link href="/dashboard/activity" />} className="justify-between rounded-lg px-3 py-2.5 text-sm font-semibold text-onboarding-purple-600 focus:bg-onboarding-purple-50 focus:text-onboarding-purple-700 dark:text-onboarding-purple-200 dark:focus:bg-onboarding-purple-500/15 dark:focus:text-onboarding-purple-100">
                     View all activity <ArrowRight className="size-3.5" aria-hidden />
                   </DropdownMenuItem>
                 </DropdownMenuContent>

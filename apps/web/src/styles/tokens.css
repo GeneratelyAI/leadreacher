@@ -32,6 +32,7 @@
   --onboarding-purple-700: #24106e;
   --onboarding-purple-800: #170a5e;
   --onboarding-purple-900: #0d0854;
+  --onboarding-purple-950: #070430;
 
   /* Neutrals */
   --onboarding-neutral-0: #ffffff;
@@ -54,11 +55,26 @@
 
   /* Semantic */
   --onboarding-error-50: #f5e4e2;
+  --onboarding-error-100: #fecaca;
+  --onboarding-error-200: #f5c2bc;
   --onboarding-error-500: #ef4444;
+  --onboarding-error-700: #b91c1c;
+  --onboarding-error-800: #7f1d1d;
   --onboarding-error-900: #140605;
+  --onboarding-error-950: #1f0a08;
+
   --onboarding-success-50: #e0f1e6;
+  --onboarding-success-100: #d1fae0;
+  --onboarding-success-200: #a7f3c4;
+  --onboarding-success-300: #6ee7a8;
+  --onboarding-success-400: #4ade80;
   --onboarding-success-500: #22c55e;
+  --onboarding-success-600: #16a34a;
+  --onboarding-success-700: #15803d;
+  --onboarding-success-800: #166534;
   --onboarding-success-900: #04140a;
+  --onboarding-success-950: #0a1f12;
+
   --onboarding-warning-50: #f2eede;
   --onboarding-warning-150: #fff1b6;
   --onboarding-warning-500: #ffd000;
