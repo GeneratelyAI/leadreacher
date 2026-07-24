@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Check,
   CheckCircle2,
@@ -13,12 +13,15 @@ import {
   Mail,
   MoreHorizontal,
   Search,
+  Upload,
   Users,
   X,
   Clock3,
 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
+import { ImportProspectsModal } from "@/components/dashboard/ImportProspectsModal";
+import { ScrapeProspectsModal } from "@/components/dashboard/ScrapeProspectsModal";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import { Button } from "@/components/ui/Button";
@@ -279,7 +282,6 @@ function SelectionActionBar({
 }
 
 export function ProspectsWorkspace() {
-  const router = useRouter();
   const [leads, setLeads] = useState<Prospect[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [counts, setCounts] = useState<ProspectListResponse["counts"]>({ all: 0, pending: 0, approved: 0, excluded: 0, reached: 0 });
@@ -300,6 +302,8 @@ export function ProspectsWorkspace() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [scrapeOpen, setScrapeOpen] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -384,8 +388,12 @@ export function ProspectsWorkspace() {
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">Review real people before enrollment. Approval and exclusion are reversible and do not alter existing campaign delivery.</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="secondary" asChild><Link href="/onboarding?step=strategy">Review strategy</Link></Button>
-          <Button variant="brand" onClick={() => router.push("/onboarding?step=discovery")}><Users /> Add prospects</Button>
+          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+            <Upload /> Import CSV
+          </Button>
+          <Button variant="brand" onClick={() => setScrapeOpen(true)}>
+            <Search /> Find prospects
+          </Button>
         </div>
       </div>
 
@@ -397,10 +405,10 @@ export function ProspectsWorkspace() {
         <TrendlessMetric label="Total reached" value={counts.reached} detail="Distinct prospects with outreach" tone="blue" icon={<Mail strokeWidth={1.75} />} />
       </div>
 
-      {error ? <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-800 dark:bg-onboarding-error-950 dark:text-onboarding-error-100">{error}</div> : null}
+      {error ? <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">{error}</div> : null}
 
       {enrollmentCampaignId ? (
-        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-900 dark:border-onboarding-purple-800 dark:bg-onboarding-purple-950 dark:text-onboarding-purple-100">
+        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-900 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
           Enrolling into{" "}
           <span className="font-semibold">
             {campaigns.find((campaign) => campaign.id === enrollmentCampaignId)?.name ?? "selected campaign"}
@@ -443,7 +451,7 @@ export function ProspectsWorkspace() {
           </Tabs>
         </div>
 
-        {isLoading ? <LoadingRows /> : leads.length === 0 ? <div className="px-6 py-16 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><h2 className="mt-3 font-semibold">No prospects match these filters</h2><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Import a CSV or run a strategy-led search to begin reviewing prospects.</p></div> : <Table><TableHeader><TableRow className="bg-muted/40"><TableHead className="w-12"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => setSelected(checked ? new Set(visibleIds) : new Set())} aria-label="Select visible prospects" /></TableHead><TableHead>Prospect</TableHead><TableHead>Company and location</TableHead><TableHead>Reachable</TableHead><TableHead>Review</TableHead><TableHead>Lifecycle</TableHead><TableHead>Campaigns</TableHead><TableHead>Last activity</TableHead><TableHead className="w-12"><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader><TableBody>{leads.map((lead) => { const name = `${lead.firstName} ${lead.lastName}`.trim(); return <TableRow key={lead.id} className="cursor-pointer" onClick={() => void openDetail(lead.id)}><TableCell onClick={(event) => event.stopPropagation()}><Checkbox checked={selected.has(lead.id)} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked) next.add(lead.id); else next.delete(lead.id); return next; })} aria-label={`Select ${name}`} /></TableCell><TableCell><div className="flex items-center gap-3"><ProspectAvatar name={name} url={lead.avatarUrl} /><div className="min-w-0"><p className="font-semibold">{name}</p><p className="max-w-40 truncate text-xs text-muted-foreground">{lead.title || "Title unavailable"}</p></div></div></TableCell><TableCell><p>{lead.company || "Company unavailable"}</p><p className="text-xs text-muted-foreground">{lead.location || "Location unavailable"}</p></TableCell><TableCell><ReachableSignals prospect={lead} /></TableCell><TableCell><ReviewBadge status={lead.reviewStatus} /></TableCell><TableCell><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />{titleCase(lead.status)}</span></TableCell><TableCell><div className="max-w-48 truncate text-xs text-primary">{lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}</div></TableCell><TableCell className="text-xs text-muted-foreground">{relativeTime(lead.lastActivityAt)}</TableCell><TableCell onClick={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>{lead.reviewStatus !== "approved" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "approved")}>Approve</DropdownMenuItem> : null}{lead.reviewStatus !== "excluded" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "excluded")}>Exclude</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>; })}</TableBody></Table>}
+        {isLoading ? <LoadingRows /> : leads.length === 0 ? <div className="px-6 py-16 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><h2 className="mt-3 font-semibold">No prospects match these filters</h2><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Import a CSV or run an ICP search to begin reviewing prospects.</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button><Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button></div></div> : <Table><TableHeader><TableRow className="bg-muted/40"><TableHead className="w-12"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => setSelected(checked ? new Set(visibleIds) : new Set())} aria-label="Select visible prospects" /></TableHead><TableHead>Prospect</TableHead><TableHead>Company and location</TableHead><TableHead>Reachable</TableHead><TableHead>Review</TableHead><TableHead>Lifecycle</TableHead><TableHead>Campaigns</TableHead><TableHead>Last activity</TableHead><TableHead className="w-12"><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader><TableBody>{leads.map((lead) => { const name = `${lead.firstName} ${lead.lastName}`.trim(); return <TableRow key={lead.id} className="cursor-pointer" onClick={() => void openDetail(lead.id)}><TableCell onClick={(event) => event.stopPropagation()}><Checkbox checked={selected.has(lead.id)} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked) next.add(lead.id); else next.delete(lead.id); return next; })} aria-label={`Select ${name}`} /></TableCell><TableCell><div className="flex items-center gap-3"><ProspectAvatar name={name} url={lead.avatarUrl} /><div className="min-w-0"><p className="font-semibold">{name}</p><p className="max-w-40 truncate text-xs text-muted-foreground">{lead.title || "Title unavailable"}</p></div></div></TableCell><TableCell><p>{lead.company || "Company unavailable"}</p><p className="text-xs text-muted-foreground">{lead.location || "Location unavailable"}</p></TableCell><TableCell><ReachableSignals prospect={lead} /></TableCell><TableCell><ReviewBadge status={lead.reviewStatus} /></TableCell><TableCell><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />{titleCase(lead.status)}</span></TableCell><TableCell><div className="max-w-48 truncate text-xs text-primary">{lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}</div></TableCell><TableCell className="text-xs text-muted-foreground">{relativeTime(lead.lastActivityAt)}</TableCell><TableCell onClick={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>{lead.reviewStatus !== "approved" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "approved")}>Approve</DropdownMenuItem> : null}{lead.reviewStatus !== "excluded" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "excluded")}>Exclude</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>; })}</TableBody></Table>}
 
         <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()} prospects</span><div className="flex items-center gap-1"><Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft /></Button><span className="px-2 text-xs font-medium text-foreground">Page {page} of {pageCount}</span><Button variant="ghost" size="icon" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page"><ChevronRight /></Button></div></div>
       </Card>
@@ -460,6 +468,9 @@ export function ProspectsWorkspace() {
         onEnroll={() => void enrollSelected()}
         onClear={() => setSelected(new Set())}
       />
+
+      <ImportProspectsModal open={importOpen} onOpenChange={setImportOpen} onImported={load} />
+      <ScrapeProspectsModal open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
