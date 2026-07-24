@@ -24,13 +24,12 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { useEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
 import { LiveActivityTable } from "@/components/dashboard/LiveActivityTable";
+import { OverviewInsightCarousel } from "@/components/dashboard/OverviewInsightCarousel";
 import { Button } from "@/components/ui/Button";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -98,6 +97,61 @@ type DashboardOverview = {
     action?: "reply" | "view";
     href?: string;
   }>;
+  actions?: {
+    needsReply: Array<{
+      campaignLeadId: string;
+      prospectName: string;
+      company: string | null;
+      avatarUrl: string | null;
+      campaignName: string;
+      preview: string;
+      occurredAt: string;
+    }>;
+    needsReplyCount: number;
+    reconnectAccounts: Array<{
+      id: string;
+      platform: string;
+      accountName: string;
+      status: string;
+    }>;
+    failedSends: Array<{
+      id: string;
+      kind: "automation" | "operator";
+      state: string;
+      campaignLeadId: string;
+      campaignName: string;
+      prospectName: string;
+      occurredAt: string;
+    }>;
+    failedSendCount: number;
+    stalled: Array<{
+      campaignLeadId: string;
+      campaignId: string;
+      campaignName: string;
+      prospectName: string;
+      company: string | null;
+      currentStep: number;
+      waitingSince: string;
+    }>;
+    stalledCount: number;
+  };
+  sendingHealth?: {
+    senders: Array<{
+      id: string;
+      accountName: string;
+      status: string;
+      invite: { limit: number; remaining: number; resetAt: string };
+      message: { limit: number; remaining: number; resetAt: string };
+    }>;
+    unhealthyAccounts: Array<{
+      id: string;
+      platform: string;
+      accountName: string;
+      status: string;
+    }>;
+    failedSendCount: number;
+    pendingInviteAcceptances: number;
+  };
 };
 
 type AnalyticsInsights = {
@@ -113,6 +167,101 @@ type AnalyticsInsights = {
   }>;
 };
 
+type RecommendationItem = {
+  title: string;
+  detail: string;
+  href: string;
+  source: "ai" | "ops";
+};
+
+function buildOperationalRecommendations(overview: DashboardOverview | null): RecommendationItem[] {
+  if (!overview) return [];
+  const items: RecommendationItem[] = [];
+  const actions = overview.actions;
+
+  if (actions) {
+    if (actions.needsReplyCount > 0) {
+      items.push({
+        title: `Reply to ${actions.needsReplyCount} conversation${actions.needsReplyCount === 1 ? "" : "s"}`,
+        detail: actions.needsReply[0]
+          ? `${actions.needsReply[0].prospectName}: ${actions.needsReply[0].preview}`
+          : "Inbound replies are waiting in Messages.",
+        href: "/dashboard/messages?state=needs_reply",
+        source: "ops",
+      });
+    }
+    if (actions.reconnectAccounts.length > 0) {
+      const account = actions.reconnectAccounts[0]!;
+      items.push({
+        title: `Reconnect ${account.accountName}`,
+        detail: `${titleCase(account.platform)} is ${account.status}. Outreach pauses until the channel is healthy.`,
+        href: "/dashboard/channels",
+        source: "ops",
+      });
+    }
+    if (actions.failedSendCount > 0) {
+      items.push({
+        title: `Review ${actions.failedSendCount} failed send${actions.failedSendCount === 1 ? "" : "s"}`,
+        detail: actions.failedSends[0]
+          ? `${actions.failedSends[0].prospectName} · ${actions.failedSends[0].campaignName}`
+          : "Delivery attempts failed or stayed unknown in the last 48 hours.",
+        href: "/dashboard/activity",
+        source: "ops",
+      });
+    }
+    if (actions.stalledCount > 0 && items.length < 3) {
+      items.push({
+        title: `${actions.stalledCount} invite${actions.stalledCount === 1 ? "" : "s"} awaiting acceptance`,
+        detail: actions.stalled[0]
+          ? `${actions.stalled[0].prospectName} in ${actions.stalled[0].campaignName}`
+          : "Prospects were contacted and are still waiting to connect.",
+        href: "/dashboard/prospects",
+        source: "ops",
+      });
+    }
+  }
+
+  if (items.length === 0) {
+    for (const item of overview.attention.slice(0, 3)) {
+      const href =
+        item.kind === "channels"
+          ? "/dashboard/channels"
+          : item.kind === "campaign"
+            ? "/dashboard/campaigns"
+            : item.kind === "billing"
+              ? "/dashboard/settings"
+              : "/dashboard/campaigns";
+      items.push({ title: item.title, detail: item.detail, href, source: "ops" });
+    }
+  }
+
+  if (items.length === 0 && !overview.primaryCampaign) {
+    items.push({
+      title: "Create your first campaign",
+      detail: "Draft a sequence, add prospects, then launch outreach.",
+      href: "/dashboard/campaigns",
+      source: "ops",
+    });
+  }
+
+  return items.slice(0, 3);
+}
+
+function buildRecommendationItems(
+  overview: DashboardOverview | null,
+  insights: AnalyticsInsights | null,
+): RecommendationItem[] {
+  if (insights?.status === "ready" && insights.whatToDoNext.length > 0) {
+    return insights.whatToDoNext.slice(0, 3).map((item) => ({
+      title: item.action,
+      detail: item.reason,
+      href: `/dashboard/analytics?campaignId=${encodeURIComponent(item.campaignId)}`,
+      source: "ai" as const,
+    }));
+  }
+  return buildOperationalRecommendations(overview);
+}
+
 const METRICS: Array<{
   key: keyof DashboardOverview["metrics"];
   label: string;
@@ -125,6 +274,168 @@ const METRICS: Array<{
 
 function isChannelLogoName(value: string): value is "linkedin" | "whatsapp" {
   return value === "linkedin" || value === "whatsapp";
+}
+
+function TodayActionsPanel({ overview }: { overview: DashboardOverview }) {
+  const actions = overview.actions;
+  if (!actions) return null;
+
+  const cards: Array<{
+    key: string;
+    title: string;
+    detail: string;
+    href: string;
+    count: number;
+  }> = [];
+
+  if (actions.needsReplyCount > 0) {
+    cards.push({
+      key: "needs-reply",
+      title: `${actions.needsReplyCount} need${actions.needsReplyCount === 1 ? "s" : ""} a reply`,
+      detail: actions.needsReply[0]
+        ? `${actions.needsReply[0].prospectName}: ${actions.needsReply[0].preview}`
+        : "Open the inbox and clear inbound replies.",
+      href: "/dashboard/messages?state=needs_reply",
+      count: actions.needsReplyCount,
+    });
+  }
+  if (actions.reconnectAccounts.length > 0) {
+    cards.push({
+      key: "reconnect",
+      title: `${actions.reconnectAccounts.length} channel${actions.reconnectAccounts.length === 1 ? "" : "s"} need reconnect`,
+      detail: actions.reconnectAccounts
+        .slice(0, 2)
+        .map((account) => `${account.accountName} (${account.status})`)
+        .join(" · "),
+      href: "/dashboard/channels",
+      count: actions.reconnectAccounts.length,
+    });
+  }
+  if (actions.failedSendCount > 0) {
+    cards.push({
+      key: "failed",
+      title: `${actions.failedSendCount} failed or unknown send${actions.failedSendCount === 1 ? "" : "s"}`,
+      detail: actions.failedSends[0]
+        ? `${actions.failedSends[0].prospectName} · ${actions.failedSends[0].campaignName}`
+        : "Review delivery issues from the last 48 hours.",
+      href: "/dashboard/activity",
+      count: actions.failedSendCount,
+    });
+  }
+  if (actions.stalledCount > 0) {
+    cards.push({
+      key: "stalled",
+      title: `${actions.stalledCount} waiting on invite acceptance`,
+      detail: actions.stalled[0]
+        ? `${actions.stalled[0].prospectName} in ${actions.stalled[0].campaignName}`
+        : "Prospects contacted and still waiting to connect.",
+      href: "/dashboard/prospects",
+      count: actions.stalledCount,
+    });
+  }
+
+  return (
+    <section
+      className="shrink-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+      aria-labelledby="today-heading"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-onboarding-neutral-150 px-5 py-3 dark:border-onboarding-neutral-750 sm:px-6">
+        <div>
+          <h2 id="today-heading" className="text-sm font-semibold tracking-tight">
+            Today
+          </h2>
+          <p className="text-xs text-muted-foreground">What to do in the next 15 minutes</p>
+        </div>
+        <Button asChild size="sm" variant="outline">
+          <Link href="/dashboard/messages?state=needs_reply">
+            <MessageSquare className="size-3.5" aria-hidden />
+            Inbox
+          </Link>
+        </Button>
+      </div>
+      {cards.length === 0 ? (
+        <div className="flex items-start gap-3 px-5 py-4 sm:px-6">
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-onboarding-success-500" aria-hidden />
+          <div>
+            <p className="text-sm font-medium">You&apos;re clear for now</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              No replies waiting, channels are healthy, and nothing is stalled.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <ul className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
+          {cards.map((card) => (
+            <li key={card.key}>
+              <Link
+                href={card.href}
+                className="flex items-start justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-app-hover sm:px-6"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">{card.title}</p>
+                  <p className="mt-0.5 truncate text-xs text-muted-foreground">{card.detail}</p>
+                </div>
+                <ArrowRight className="mt-1 size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function SendingHealthStrip({ overview }: { overview: DashboardOverview }) {
+  const health = overview.sendingHealth;
+  if (!health) return null;
+
+  const primarySender = health.senders[0];
+
+  return (
+    <section
+      className="grid gap-3 rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 p-4 shadow-onboarding-small sm:grid-cols-2 lg:grid-cols-4 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+      aria-label="Sending health"
+    >
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Messages left</p>
+        <p className="mt-1 text-lg font-semibold">
+          {primarySender ? `${primarySender.message.remaining}/${primarySender.message.limit}` : "—"}
+        </p>
+        <p className="text-xs text-muted-foreground">{primarySender?.accountName ?? "No LinkedIn sender"}</p>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Invites left</p>
+        <p className="mt-1 text-lg font-semibold">
+          {primarySender ? `${primarySender.invite.remaining}/${primarySender.invite.limit}` : "—"}
+        </p>
+        <p className="text-xs text-muted-foreground">Resets daily (UTC)</p>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Awaiting accept</p>
+        <p className="mt-1 text-lg font-semibold">{health.pendingInviteAcceptances}</p>
+        <p className="text-xs text-muted-foreground">Contacted, not connected</p>
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Health flags</p>
+        <p className="mt-1 text-lg font-semibold">
+          {health.unhealthyAccounts.length + health.failedSendCount}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {health.unhealthyAccounts.length > 0 ? (
+            <Link href="/dashboard/channels" className="font-medium text-onboarding-purple-600 underline-offset-2 hover:underline dark:text-onboarding-purple-200">
+              Reconnect channels
+            </Link>
+          ) : health.failedSendCount > 0 ? (
+            <Link href="/dashboard/activity" className="font-medium text-onboarding-purple-600 underline-offset-2 hover:underline dark:text-onboarding-purple-200">
+              Review failed sends
+            </Link>
+          ) : (
+            "All clear"
+          )}
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function DashboardChannelMark({
@@ -174,15 +485,6 @@ function relativeTime(value: string): string {
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
-
-function formatChartDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${value}T00:00:00.000Z`));
-}
-
-const INSIGHT_CHART_CONFIG: ChartConfig = {
-  sent: { label: "Sent", color: "#5326b7" },
-  replies: { label: "Replies", color: "#16a34a" },
-};
 
 function MetricCell({
   value,
@@ -305,37 +607,46 @@ export function DashboardOverviewClient() {
     }
 
     void loadOverview();
-    void apiFetch<AnalyticsInsights>("/dashboard/analytics/insights")
-      .then((nextInsights) => {
-        if (!cancelled) setInsights(nextInsights);
-      })
-      .catch(() => {
+
+    let cancelledInsights = false;
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+
+    async function loadInsights(attempt = 0) {
+      try {
+        const nextInsights = await apiFetch<AnalyticsInsights>("/dashboard/analytics/insights");
+        if (cancelledInsights) return;
+        setInsights(nextInsights);
+        if (nextInsights.status === "aggregating" && attempt < 6) {
+          pollTimer = setTimeout(() => {
+            void loadInsights(attempt + 1);
+          }, 2500);
+        }
+      } catch {
         // Overview data remains useful if the optional recommendation preview is unavailable.
-      });
+      }
+    }
+
+    void loadInsights();
     return () => {
       cancelled = true;
+      cancelledInsights = true;
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [overviewQuery]);
 
-  const recommendationItems = insights?.status === "ready"
-    ? insights.whatToDoNext.slice(0, 3).map((item) => ({ title: item.action, detail: item.reason }))
-    : (overview?.attention ?? []).slice(0, 3).map((item) => ({ title: item.title, detail: item.detail }));
-  const performanceSnapshot = overview
-    ? [
-        { label: "Sent", value: overview.metrics.outreachSent },
-        { label: "Replies", value: overview.metrics.replies },
-        { label: "Meetings", value: overview.metrics.meetingsBooked },
-      ]
-    : [];
-  const activityTrend = overview?.activityTrend ?? [];
-  const hasActivityTrend = activityTrend.some((item) => item.sent > 0 || item.replies > 0);
+  const recommendationItems = buildRecommendationItems(overview, insights);
   const featuredInsight = insights?.status === "ready"
     ? insights.whatToDoNext[0]
       ? { title: insights.whatToDoNext[0].action, detail: insights.whatToDoNext[0].reason }
       : insights.whatsWorking[0]
         ? { title: insights.whatsWorking[0].text, detail: insights.whatsWorking[0].campaignName }
-        : null
-    : null;
+        : recommendationItems[0]
+          ? { title: recommendationItems[0].title, detail: recommendationItems[0].detail }
+          : null
+    : recommendationItems[0]
+      ? { title: recommendationItems[0].title, detail: recommendationItems[0].detail }
+      : null;
+  const recommendationsAreAi = insights?.status === "ready" && (insights.whatToDoNext.length ?? 0) > 0;
 
   return (
     <div className="mx-auto flex w-full max-w-[104rem] flex-col px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]">
@@ -352,7 +663,7 @@ export function DashboardOverviewClient() {
             <section className="flex shrink-0 flex-col gap-3 pb-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-[1.75rem] font-semibold tracking-tight sm:text-[1.9rem]">Acquisition engine</h1>
+                  <h1 className="text-[1.75rem] font-semibold tracking-tight sm:text-[1.9rem]">Today</h1>
                   {overview ? (
                     <span
                       className={cn(
@@ -407,6 +718,9 @@ export function DashboardOverviewClient() {
             ) : overview ? (
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_23rem]">
                 <div className="order-1 flex min-h-0 min-w-0 flex-col gap-4">
+                  <TodayActionsPanel overview={overview} />
+                  <SendingHealthStrip overview={overview} />
+
                   <section className="shrink-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-label="Campaign metrics">
                     <div className="flex items-center justify-end px-5 pt-2 pb-0 sm:px-6">
                       <Link href="/dashboard/analytics" className="inline-flex items-center gap-1 text-xs font-semibold text-onboarding-purple-600 transition-colors hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
@@ -597,9 +911,21 @@ export function DashboardOverviewClient() {
                     <div className="relative px-4 py-3 before:absolute before:right-4 before:bottom-0 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
                       <div className="flex items-center gap-2">
                         <h2 id="recommendations-heading" className="font-semibold">Recommendations</h2>
-                        <span className="rounded bg-onboarding-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">AI</span>
+                        <span className="rounded bg-onboarding-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
+                          {recommendationsAreAi ? "AI" : "Ops"}
+                        </span>
+                        {insights?.status === "aggregating" ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                            <Loader2 className="size-3 animate-spin" aria-hidden />
+                            Generating
+                          </span>
+                        ) : null}
                       </div>
-                      <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Prioritized from recorded workspace data.</p>
+                      <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                        {recommendationsAreAi
+                          ? "Prioritized from recorded workspace data."
+                          : "Actionable next steps from your live workspace."}
+                      </p>
                     </div>
                     {recommendationItems.length ? (
                       <ul>
@@ -612,75 +938,31 @@ export function DashboardOverviewClient() {
                               <p className="text-sm font-semibold leading-5">{item.title}</p>
                               <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.detail}</p>
                             </div>
-                            <Link href="/dashboard/analytics" className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
-                              Review <ArrowRight className="size-3" aria-hidden />
+                            <Link href={item.href} className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
+                              Open <ArrowRight className="size-3" aria-hidden />
                             </Link>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <div className="px-4 py-5">
-                        <p className="text-sm font-medium">Insights are still gathering</p>
-                        <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Recommendations will appear after recorded outreach has enough data to analyze.</p>
+                      <div className="flex items-start gap-3 px-4 py-5">
+                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-onboarding-success-500" aria-hidden />
+                        <div>
+                          <p className="text-sm font-medium">You&apos;re clear for now</p>
+                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                            No replies waiting and channels look healthy. AI recommendations appear after more outreach data lands.
+                          </p>
+                        </div>
                       </div>
                     )}
                     <div className="relative flex justify-center px-4 py-2.5 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
                       <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
-                        View all recommendations <ArrowRight className="size-3" aria-hidden />
+                        View analytics <ArrowRight className="size-3" aria-hidden />
                       </Link>
                     </div>
                   </section>
 
-                  <section className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="snapshot-heading">
-                    <div className="px-4 pt-4">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
-                        <h2 id="snapshot-heading" className="font-semibold">Today&apos;s insight</h2>
-                      </div>
-                      {featuredInsight ? (
-                        <>
-                          <p className="mt-3 text-sm font-semibold leading-5">{featuredInsight.title}</p>
-                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{featuredInsight.detail}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="mt-3 text-sm font-semibold">Recorded campaign activity</p>
-                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Once outreach is sent, evidence-based insights will appear here.</p>
-                        </>
-                      )}
-                    </div>
-                    <div className="px-4 pt-3">
-                      <ChartContainer config={INSIGHT_CHART_CONFIG} className="h-36 w-full aspect-auto">
-                        <AreaChart data={activityTrend} margin={{ top: 8, right: 2, left: 0, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="insight-sent-fill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="var(--color-sent)" stopOpacity={0.22} />
-                              <stop offset="100%" stopColor="var(--color-sent)" stopOpacity={0.02} />
-                            </linearGradient>
-                            <linearGradient id="insight-replies-fill" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="var(--color-replies)" stopOpacity={0.18} />
-                              <stop offset="100%" stopColor="var(--color-replies)" stopOpacity={0.02} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                          <XAxis dataKey="date" tickLine={false} axisLine={false} tickMargin={8} minTickGap={22} tickFormatter={(value) => formatChartDate(String(value))} />
-                          <YAxis hide domain={[0, "auto"]} />
-                          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(value) => formatChartDate(String(value))} />} />
-                          <Area type="monotone" dataKey="sent" stroke="var(--color-sent)" fill="url(#insight-sent-fill)" strokeWidth={2} dot={false} />
-                          <Area type="monotone" dataKey="replies" stroke="var(--color-replies)" fill="url(#insight-replies-fill)" strokeWidth={2} dot={false} />
-                        </AreaChart>
-                      </ChartContainer>
-                      {!hasActivityTrend ? <p className="pb-2 text-center text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">No sent messages or replies in this period.</p> : null}
-                      <div className="grid grid-cols-3 gap-2 border-t border-onboarding-neutral-150 py-3 dark:border-onboarding-neutral-750">
-                        {performanceSnapshot.map((item) => <div key={item.label} className="min-w-0"><p className="text-[11px] text-onboarding-neutral-500 dark:text-onboarding-neutral-400">{item.label}</p><p className="mt-0.5 text-base font-semibold">{formatNumber(item.value)}</p></div>)}
-                      </div>
-                    </div>
-                    <div className="flex justify-center border-t border-onboarding-neutral-150 px-4 py-2.5 dark:border-onboarding-neutral-750">
-                      <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
-                        View full report <ArrowRight className="size-3" aria-hidden />
-                      </Link>
-                    </div>
-                  </section>
+                  <OverviewInsightCarousel overview={overview} featuredInsight={featuredInsight} />
                 </aside>
               </div>
             ) : null}
