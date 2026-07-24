@@ -219,27 +219,76 @@ function ConversationStatusIndicator({ conversation }: { conversation: Conversat
   );
 }
 
-type FeedItem =
-  | { kind: "marker"; id: string; label: string }
-  | { kind: "message"; id: string; message: ConversationDetail["messages"][number]; showAvatar: boolean };
+type FeedMarker = { kind: "marker"; id: string; label: string };
+type FeedMessage = {
+  kind: "message";
+  id: string;
+  message: ConversationDetail["messages"][number];
+  showHeader: boolean;
+  showAvatar: boolean;
+};
+type FeedGroup = {
+  kind: "group";
+  id: string;
+  align: "start" | "end";
+  senderName: string;
+  senderUrl: string | null;
+  messages: FeedMessage[];
+};
+type FeedItem = FeedMarker | FeedGroup;
 
-function buildFeedItems(messages: ConversationDetail["messages"]): FeedItem[] {
+function buildFeedItems(
+  messages: ConversationDetail["messages"],
+  prospect: { name: string; avatarUrl: string | null },
+  senderName: string,
+): FeedItem[] {
   const items: FeedItem[] = [];
   let lastDay: string | null = null;
-  let lastDirection: string | null = null;
+  let openGroup: FeedGroup | null = null;
+
+  const flushGroup = () => {
+    if (!openGroup) return;
+    const last = openGroup.messages[openGroup.messages.length - 1];
+    if (last) last.showAvatar = true;
+    items.push(openGroup);
+    openGroup = null;
+  };
 
   for (const message of messages) {
     const day = dayKey(message.occurredAt);
     if (day !== lastDay) {
+      flushGroup();
       items.push({ kind: "marker", id: `day-${day}`, label: formatDayLabel(message.occurredAt) });
       lastDay = day;
-      lastDirection = null;
     }
-    const showAvatar = message.direction !== lastDirection;
-    items.push({ kind: "message", id: message.id, message, showAvatar });
-    lastDirection = message.direction;
+
+    const inbound = message.direction === "inbound";
+    const align = inbound ? "start" : "end";
+    const name = inbound ? prospect.name : senderName;
+    const url = inbound ? prospect.avatarUrl : null;
+
+    if (!openGroup || openGroup.align !== align) {
+      flushGroup();
+      openGroup = {
+        kind: "group",
+        id: `group-${message.id}`,
+        align,
+        senderName: name,
+        senderUrl: url,
+        messages: [],
+      };
+    }
+
+    openGroup.messages.push({
+      kind: "message",
+      id: message.id,
+      message,
+      showHeader: openGroup.messages.length === 0,
+      showAvatar: false,
+    });
   }
 
+  flushGroup();
   return items;
 }
 
@@ -256,7 +305,10 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   const [message, setMessage] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [query, setQuery] = useState("");
-  const [state, setState] = useState<ConversationState>("all");
+  const [state, setState] = useState<ConversationState>(() => {
+    const raw = searchParams.get("state");
+    return raw === "unread" || raw === "needs_reply" ? raw : "all";
+  });
   const [campaignFilter, setCampaignFilter] = useState(() => searchParams.get("campaignId") ?? "");
   const [sortMode, setSortMode] = useState<SortMode>("last_activity");
   const [composerTab, setComposerTab] = useState<"reply" | "draft">("reply");
@@ -432,7 +484,17 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   }
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const feedItems = useMemo(() => (detail ? buildFeedItems(detail.messages) : []), [detail]);
+  const feedItems = useMemo(
+    () =>
+      detail
+        ? buildFeedItems(
+            detail.messages,
+            detail.prospect,
+            detail.sender?.accountName || "You",
+          )
+        : [],
+    [detail],
+  );
   const hasInbound = Boolean(detail?.messages.some((item) => item.direction === "inbound"));
   const resetTime = detail?.senderLimit
     ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(detail.senderLimit.resetAt))
@@ -464,7 +526,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       ) : null}
 
       {error ? (
-        <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-800 dark:bg-onboarding-error-950 dark:text-onboarding-error-100">
+        <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
           {error}
         </div>
       ) : null}
@@ -795,59 +857,76 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                               );
                             }
 
-                            const inbound = item.message.direction === "inbound";
-                            const align = inbound ? "start" : "end";
-                            const senderName = inbound
-                              ? detail.prospect.name
-                              : detail.sender?.accountName || "You";
-                            const senderUrl = inbound ? detail.prospect.avatarUrl : null;
-                            const isLast = index === feedItems.length - 1;
+                            const isLastGroup = index === feedItems.length - 1;
 
                             return (
-                              <MessageScrollerItem key={item.id} messageId={item.id} scrollAnchor={isLast}>
-                                <MessageGroup>
-                                  <Message align={align}>
-                                    <MessageAvatar>
-                                      {item.showAvatar ? (
-                                        <PersonAvatar name={senderName} url={senderUrl} size="sm" />
-                                      ) : (
-                                        <span className="size-6" aria-hidden />
-                                      )}
-                                    </MessageAvatar>
-                                    <MessageContent>
-                                      {item.showAvatar ? <MessageHeader>{senderName}</MessageHeader> : null}
-                                      <Bubble
-                                        align={align}
-                                        variant={inbound ? "outline" : "tinted"}
-                                        className={cn(
-                                          amplified ? "max-w-[min(42rem,88%)]" : "max-w-[80%]",
-                                          inbound && "*:data-[slot=bubble-content]:border-onboarding-purple-200 dark:*:data-[slot=bubble-content]:border-onboarding-purple-700",
-                                          !inbound && "*:data-[slot=bubble-content]:bg-onboarding-purple-100 *:data-[slot=bubble-content]:text-onboarding-ink dark:*:data-[slot=bubble-content]:bg-onboarding-purple-900 dark:*:data-[slot=bubble-content]:text-onboarding-neutral-0",
-                                        )}
-                                      >
-                                        <BubbleContent>{item.message.content.message}</BubbleContent>
-                                      </Bubble>
-                                      {item.message.content.attachments
-                                        .filter((attachment) => attachment.type === "video" && attachment.videoUrl)
-                                        .map((attachment) => (
-                                          <a
-                                            key={attachment.videoUrl}
-                                            href={attachment.videoUrl}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="inline-flex items-center gap-1 px-3 text-xs text-onboarding-purple-600 underline"
+                              <MessageGroup key={item.id}>
+                                {item.messages.map((entry, messageIndex) => {
+                                  const inbound = entry.message.direction === "inbound";
+                                  const isLastMessage =
+                                    isLastGroup && messageIndex === item.messages.length - 1;
+
+                                  return (
+                                    <MessageScrollerItem
+                                      key={entry.id}
+                                      messageId={entry.id}
+                                      scrollAnchor={isLastMessage}
+                                    >
+                                      <Message align={item.align}>
+                                        <MessageAvatar>
+                                          {entry.showAvatar ? (
+                                            <PersonAvatar
+                                              name={item.senderName}
+                                              url={item.senderUrl}
+                                              size="sm"
+                                            />
+                                          ) : (
+                                            <span className="size-6" aria-hidden />
+                                          )}
+                                        </MessageAvatar>
+                                        <MessageContent>
+                                          {entry.showHeader ? (
+                                            <MessageHeader>{item.senderName}</MessageHeader>
+                                          ) : null}
+                                          <Bubble
+                                            align={item.align}
+                                            variant={inbound ? "outline" : "tinted"}
+                                            className={cn(
+                                              amplified ? "max-w-[min(42rem,88%)]" : "max-w-[80%]",
+                                              inbound &&
+                                                "*:data-[slot=bubble-content]:border-onboarding-purple-200 dark:*:data-[slot=bubble-content]:border-onboarding-purple-400/40",
+                                              !inbound &&
+                                                "*:data-[slot=bubble-content]:bg-onboarding-purple-100 *:data-[slot=bubble-content]:text-onboarding-ink dark:*:data-[slot=bubble-content]:bg-onboarding-purple-500/25 dark:*:data-[slot=bubble-content]:text-onboarding-neutral-0",
+                                            )}
                                           >
-                                            Video attachment <ExternalLink className="size-3" />
-                                          </a>
-                                        ))}
-                                      <MessageFooter>
-                                        Sent via LinkedIn · {relativeTimeLong(item.message.occurredAt)}
-                                        {item.message.origin === "operator" ? " · Operator" : ""}
-                                      </MessageFooter>
-                                    </MessageContent>
-                                  </Message>
-                                </MessageGroup>
-                              </MessageScrollerItem>
+                                            <BubbleContent>{entry.message.content.message}</BubbleContent>
+                                          </Bubble>
+                                          {entry.message.content.attachments
+                                            .filter(
+                                              (attachment) =>
+                                                attachment.type === "video" && attachment.videoUrl,
+                                            )
+                                            .map((attachment) => (
+                                              <a
+                                                key={attachment.videoUrl}
+                                                href={attachment.videoUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 px-3 text-xs text-onboarding-purple-600 underline dark:text-onboarding-purple-300"
+                                              >
+                                                Video attachment <ExternalLink className="size-3" />
+                                              </a>
+                                            ))}
+                                          <MessageFooter>
+                                            Sent via LinkedIn · {relativeTimeLong(entry.message.occurredAt)}
+                                            {entry.message.origin === "operator" ? " · Operator" : ""}
+                                          </MessageFooter>
+                                        </MessageContent>
+                                      </Message>
+                                    </MessageScrollerItem>
+                                  );
+                                })}
+                              </MessageGroup>
                             );
                           })}
                         </MessageScrollerContent>
