@@ -1,4 +1,10 @@
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
+import {
+  errorResponses,
+  stripeSecurity,
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { videoGenerationQueue } from "../lib/queue.js";
 import { verifyStripeWebhookEvent, type StripeWebhookEvent } from "../lib/stripe.js";
@@ -235,9 +241,20 @@ export async function processStripeWebhookEvent(
 }
 
 export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post(
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
     "/webhooks/stripe",
-    { config: { rawBody: true } },
+    {
+      config: { rawBody: true },
+      schema: {
+        tags: ["Webhooks"],
+        summary: "Stripe billing webhook",
+        description:
+          "Receives Stripe events. Authenticate with stripe-signature. Do not try from Scalar.",
+        security: [...stripeSecurity],
+      },
+    },
     async (request, reply) => {
       if (!request.rawBody) {
         return reply.status(400).send({ error: "Missing raw webhook body" });

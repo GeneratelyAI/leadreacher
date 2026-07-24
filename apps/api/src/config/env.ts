@@ -115,6 +115,7 @@ const envSchema = z.object({
   ENABLE_RECONCILE_WORKER: optionalBoolean,
   ENABLE_VIDEO_WORKER: optionalBoolean,
   ENABLE_ANALYTICS_INSIGHTS_WORKER: optionalBoolean,
+  ENABLE_API_DOCS: optionalBoolean,
   BULLMQ_IDLE_DRAIN_DELAY_SECONDS: z.coerce
     .number()
     .int()
@@ -165,6 +166,14 @@ export type Env = z.infer<typeof envSchema>;
 
 export function isWorkerEnabled(value: boolean | undefined): boolean {
   return value ?? process.env.NODE_ENV === "production";
+}
+
+/** Docs default on outside production; set ENABLE_API_DOCS to override. */
+export function isApiDocsEnabled(): boolean {
+  if (env.ENABLE_API_DOCS !== undefined) {
+    return env.ENABLE_API_DOCS;
+  }
+  return process.env.NODE_ENV !== "production";
 }
 
 export function getVeoParallelVariants(): number {

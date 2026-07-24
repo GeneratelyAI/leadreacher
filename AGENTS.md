@@ -122,7 +122,16 @@ APIFY_API_KEY=                  # Note: env.ts uses APIFY_API_KEY (not APIFY_API
 UPSTASH_REDIS_URL=
 UPSTASH_REDIS_TOKEN=
 CORS_ORIGIN=http://localhost:3000
+ENABLE_API_DOCS=                # optional; default on when NODE_ENV !== production
 ```
+
+### API docs (Scalar + OpenAPI)
+
+- Local UI: `http://localhost:<PORT>/docs` (Scalar)
+- OpenAPI JSON: `http://localhost:<PORT>/documentation/json`
+- Docs are **on by default outside production**. Set `ENABLE_API_DOCS=false` to disable, or `ENABLE_API_DOCS=true` to force on.
+- In Scalar, set the Bearer token to a Supabase JWT for protected routes. Do not call Unipile/Stripe webhooks from Scalar.
+- Route contracts live on Fastify `schema` objects (Zod via `fastify-type-provider-zod`). Prefer request schemas + tags/summary; avoid `z.any()` in Fastify schemas.
 
 ---
 

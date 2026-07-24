@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import fastifyRawBody from "fastify-raw-body";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,6 +71,7 @@ const subscriptionEvent = {
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   await app.register(fastifyRawBody, {
     field: "rawBody",
     global: false,

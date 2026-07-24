@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import fastifyRawBody from "fastify-raw-body";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../lib/errors.js";
@@ -151,6 +152,7 @@ import { webhookRoutes } from "../webhooks.js";
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   app.addHook("preHandler", async (request) => {
     request.orgId = ORG_ID;
   });

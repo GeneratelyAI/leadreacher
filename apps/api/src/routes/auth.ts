@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import {
   anonScrapeClaimKey,
@@ -12,6 +13,7 @@ import {
   type DiscoveryScrapeStatus,
 } from "./discovery.js";
 import { AuthError, ValidationError } from "../lib/errors.js";
+import { bearerSecurity, errorResponses } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { verifySupabaseJwt } from "../plugins/auth.js";
@@ -104,11 +106,21 @@ export async function claimCompletedAnonymousScrape(
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
-  app.post(
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
     "/auth/bootstrap",
-    { preHandler: [verifySupabaseJwt] },
+    {
+      preHandler: [verifySupabaseJwt],
+      schema: {
+        tags: ["Auth"],
+        summary: "Bootstrap user and organization from Supabase JWT",
+        security: [...bearerSecurity],
+        body: BootstrapBodySchema,
+      },
+    },
     async (request, reply) => {
-      const { name, anonScrapeId } = BootstrapBodySchema.parse(request.body);
+      const { name, anonScrapeId } = request.body;
       const supabaseId = request.userId;
       if (!supabaseId) {
         throw new AuthError();

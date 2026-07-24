@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
 
@@ -24,12 +25,20 @@ import { leadsRoutes } from "../leads.js";
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   app.addHook("preHandler", async (request) => {
     request.orgId = "org-1";
   });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof ZodError) {
       return reply.status(400).send({ code: "VALIDATION_ERROR", message: error.message });
+    }
+    const fastifyError = error as { code?: string; message?: string };
+    if (fastifyError.code === "FST_ERR_VALIDATION") {
+      return reply.status(400).send({
+        code: "VALIDATION_ERROR",
+        message: fastifyError.message ?? "Validation failed",
+      });
     }
     throw error;
   });

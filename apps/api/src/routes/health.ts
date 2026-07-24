@@ -1,42 +1,46 @@
 import type { FastifyPluginAsync } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { prisma } from "../lib/prisma.js";
+import { publicRoute } from "../lib/openapi.js";
 import { redis } from "../lib/redis.js";
 
-type HealthResponse = {
-  status: "ok";
-  timestamp: string;
-};
-
-type ReadinessResponse = {
-  status: "ok" | "unavailable";
-  timestamp: string;
-};
-
 export const healthRoutes: FastifyPluginAsync = async (app) => {
-  app.get<{ Reply: HealthResponse }>(
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get(
     "/health",
-    { config: { rateLimit: false } },
+    {
+      config: { rateLimit: false },
+      schema: {
+        ...publicRoute("Health", "Liveness probe"),
+      },
+    },
     async () => {
       return {
-        status: "ok",
+        status: "ok" as const,
         timestamp: new Date().toISOString(),
       };
     },
   );
 
-  app.get<{ Reply: ReadinessResponse }>("/ready", async (_request, reply) => {
-    try {
-      await Promise.all([
-        prisma.$queryRaw`SELECT 1`,
-        redis.ping(),
-      ]);
-      return { status: "ok", timestamp: new Date().toISOString() };
-    } catch (error) {
-      app.log.error({ err: error }, "Readiness check failed");
-      return reply.status(503).send({
-        status: "unavailable",
-        timestamp: new Date().toISOString(),
-      });
-    }
-  });
+  r.get(
+    "/ready",
+    {
+      schema: {
+        ...publicRoute("Health", "Readiness probe (database + Redis)"),
+      },
+    },
+    async (_request, reply) => {
+      try {
+        await Promise.all([prisma.$queryRaw`SELECT 1`, redis.ping()]);
+        return { status: "ok" as const, timestamp: new Date().toISOString() };
+      } catch (error) {
+        app.log.error({ err: error }, "Readiness check failed");
+        return reply.status(503).send({
+          status: "unavailable",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    },
+  );
 };

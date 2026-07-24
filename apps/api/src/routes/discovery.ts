@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import {
@@ -14,6 +15,12 @@ import {
 import { enrichFromUrl } from "../lib/link-enricher.js";
 import { fetchWebsitePreviewImage } from "../lib/website-text.js";
 import { ValidationError } from "../lib/errors.js";
+import {
+  ErrorResponseSchema,
+  authenticatedRoute,
+  publicRoute,
+  errorResponses
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 
@@ -107,6 +114,30 @@ const AnonymousDiscoveryScrapeBodySchema = DiscoveryScrapeBodySchema.extend({
 
 const AnonymousDiscoveryScrapeStatusQuerySchema = z.object({
   anonId: AnonScrapeIdSchema,
+});
+
+const DiscoverySummaryBodySchema = z.object({
+  messages: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string(),
+  })).min(1),
+}).passthrough();
+
+const DiscoveryCompleteBodySchema = z.object({
+  summary: z.object({
+    businessModel: z.string().optional(),
+    industry: z.string().optional(),
+    strengths: z.string().optional(),
+    idealCustomer: z.string().optional(),
+    suggestedChannels: z.array(z.string()).optional(),
+    nextStep: z.string().optional(),
+    websiteEnriched: z.boolean().optional(),
+    websiteImageUrl: z.string().nullable().optional(),
+  }).passthrough(),
+  messages: z.array(z.object({
+    role: z.enum(["user", "assistant"]),
+    content: z.string(),
+  })).min(1),
 });
 
 const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onboarding. Return ONLY valid JSON with no markdown:
@@ -615,7 +646,9 @@ async function buildSummarySystemPrompt(
 }
 
 export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
-  app.post(
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
     "/discovery/scrape",
     {
       config: {
@@ -624,10 +657,14 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
           timeWindow: "1 minute",
         },
       },
+      schema: {
+        ...authenticatedRoute("Discovery", "Start website discovery scrape"),
+        body: DiscoveryScrapeBodySchema,
+      },
     },
     async (request, reply) => {
       const orgId = requireOrgId(request);
-      const { url: rawUrl } = DiscoveryScrapeBodySchema.parse(request.body);
+      const { url: rawUrl } = request.body;
       const url = normalizeScrapeUrl(rawUrl);
       const runningStatus = emptyScrapeStatus("running", url);
       const statusKey = orgScrapeStatusKey(orgId);
@@ -639,7 +676,11 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get("/discovery/scrape-status", async (request, reply) => {
+  r.get("/discovery/scrape-status", {
+    schema: {
+      ...authenticatedRoute("Discovery", "Get discovery scrape status"),
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
     return reply.send(
       (await getScrapeStatus(orgScrapeStatusKey(orgId))) ??
@@ -647,7 +688,12 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     );
   });
 
-  app.post("/discovery/summary", async (request, reply) => {
+  r.post("/discovery/summary", {
+    schema: {
+      ...authenticatedRoute("Discovery", "Generate discovery summary from chat messages"),
+      body: DiscoverySummaryBodySchema,
+    },
+  }, async (request, reply) => {
     requireOrgId(request);
     const messages = parseMessages(request.body);
     const conversation = formatConversation(messages);
@@ -668,26 +714,17 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(summary);
   });
 
-  app.post("/discovery/complete", async (request, reply) => {
+  r.post("/discovery/complete", {
+    schema: {
+      ...authenticatedRoute("Discovery", "Persist discovery summary into Strategy"),
+      body: DiscoveryCompleteBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-
-    if (
-      !request.body ||
-      typeof request.body !== "object" ||
-      !("summary" in request.body) ||
-      !("messages" in request.body)
-    ) {
-      throw new ValidationError("summary and messages are required");
-    }
-
     const { summary, messages } = request.body as {
       summary: DiscoverySummary;
       messages: IncomingMessage[];
     };
-
-    if (!summary || typeof summary !== "object") {
-      throw new ValidationError("summary is required");
-    }
 
     parseMessages({ messages });
 
@@ -733,7 +770,9 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
 export async function anonymousDiscoveryRoutes(
   app: FastifyInstance,
 ): Promise<void> {
-  app.post(
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
     "/discovery/scrape/anonymous",
     {
       config: {
@@ -742,11 +781,13 @@ export async function anonymousDiscoveryRoutes(
           timeWindow: "10 minutes",
         },
       },
+      schema: {
+        ...publicRoute("Discovery", "Anonymous website discovery scrape (pre-signup)"),
+        body: AnonymousDiscoveryScrapeBodySchema,
+      },
     },
     async (request, reply) => {
-      const { url: rawUrl, anonId } = AnonymousDiscoveryScrapeBodySchema.parse(
-        request.body,
-      );
+      const { url: rawUrl, anonId } = request.body;
       const url = normalizeScrapeUrl(rawUrl);
       const statusKey = anonScrapeStatusKey(anonId);
       const runningStatus = emptyScrapeStatus("running", url);
@@ -767,7 +808,7 @@ export async function anonymousDiscoveryRoutes(
     },
   );
 
-  app.get(
+  r.get(
     "/discovery/scrape/anonymous-status",
     {
       config: {
@@ -776,11 +817,13 @@ export async function anonymousDiscoveryRoutes(
           timeWindow: "10 minutes",
         },
       },
+      schema: {
+        ...publicRoute("Discovery", "Anonymous discovery scrape status"),
+        querystring: AnonymousDiscoveryScrapeStatusQuerySchema,
+      },
     },
     async (request, reply) => {
-      const { anonId } = AnonymousDiscoveryScrapeStatusQuerySchema.parse(
-        request.query,
-      );
+      const { anonId } = request.query;
       const status = await getScrapeStatus(anonScrapeStatusKey(anonId));
 
       return reply.send(status ?? emptyScrapeStatus("idle", null));

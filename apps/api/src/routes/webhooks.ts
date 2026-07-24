@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import crypto from "node:crypto";
 import { z } from "zod";
 import {
@@ -8,6 +9,10 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { ExternalServiceError } from "../lib/errors.js";
+import {
+  errorResponses,
+  unipileSecurity,
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import {
   campaignSequenceJobId,
@@ -112,7 +117,20 @@ function verifyUnipileAuthHeader(
 }
 
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/webhooks/unipile", async (request, reply) => {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.post(
+    "/webhooks/unipile",
+    {
+      schema: {
+        tags: ["Webhooks"],
+        summary: "Unipile messaging / relations / hosted-auth webhook",
+        description:
+          "Receives Unipile events. Authenticate with the Unipile-Auth header. Do not try from Scalar.",
+        security: [...unipileSecurity],
+      },
+    },
+    async (request, reply) => {
     const hostedAuthCallback = UnipileHostedAuthCallbackSchema.safeParse(
       request.body,
     );
@@ -384,5 +402,6 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.send({ received: true });
-  });
+    },
+  );
 }

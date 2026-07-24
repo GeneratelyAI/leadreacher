@@ -10,6 +10,7 @@ import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
 import { captureException } from "./lib/sentry.js";
+import { openapiPlugin } from "./plugins/openapi.js";
 import { prismaPlugin } from "./plugins/prisma.js";
 import { protectedRoutes } from "./plugins/protected-routes.js";
 import { authRoutes } from "./routes/auth.js";
@@ -50,7 +51,7 @@ export async function buildServer() {
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type"],
+    allowedHeaders: ["Authorization", "Content-Type", "Unipile-Auth", "stripe-signature"],
   });
 
   await app.register(rateLimit, {
@@ -70,6 +71,8 @@ export async function buildServer() {
     }),
   });
 
+  await app.register(openapiPlugin);
+
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof DailySendLimitError) {
       return reply
@@ -87,6 +90,14 @@ export async function buildServer() {
       return reply.status(400).send({
         code: "VALIDATION_ERROR",
         message: error.message,
+      });
+    }
+
+    const fastifyError = error as { code?: string; statusCode?: number; message?: string };
+    if (fastifyError.code === "FST_ERR_VALIDATION") {
+      return reply.status(400).send({
+        code: "VALIDATION_ERROR",
+        message: fastifyError.message ?? "Validation failed",
       });
     }
 

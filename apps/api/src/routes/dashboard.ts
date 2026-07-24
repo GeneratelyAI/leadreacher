@@ -1,9 +1,18 @@
 import type { FastifyPluginAsync } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { UnipileAdapter } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { DailySendLimitError, NotFoundError, ValidationError } from "../lib/errors.js";
+import {
+  CampaignIdParamsSchema,
+  CampaignLeadIdParamsSchema,
+  ErrorResponseSchema,
+  LeadIdParamsSchema,
+  authenticatedRoute,
+  errorResponses
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { checkAndIncrementDailySendLimit, getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import {
@@ -519,9 +528,16 @@ function inDateRange(value: Date, start: Date, end: Date): boolean {
 }
 
 export const dashboardRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/dashboard/campaigns", async (request, reply) => {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get("/dashboard/campaigns", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "List campaigns with operator summary"),
+      querystring: DashboardCampaignsQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = DashboardCampaignsQuerySchema.parse(request.query);
+    const query = request.query;
     const statusFilter = campaignStatusFilter(query.status);
     const now = new Date();
     const currentStart = new Date(now);
@@ -636,9 +652,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/overview", async (request, reply) => {
+  r.get("/dashboard/overview", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Workspace overview metrics"),
+      querystring: OverviewQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = OverviewQuerySchema.parse(request.query);
+    const query = request.query;
     const range = resolveOverviewDateRange(query);
     const currentDateWhere = { gte: range.start, lte: range.end };
     const previousDateWhere = { gte: range.previousStart, lte: range.previousEnd };
@@ -965,10 +986,16 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.patch("/dashboard/campaigns/:campaignId/video", async (request, reply) => {
+  r.patch("/dashboard/campaigns/:campaignId/video", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Pause or resume campaign video"),
+      params: CampaignIdParamsSchema,
+      body: CampaignVideoPatchSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
-    const body = CampaignVideoPatchSchema.parse(request.body);
+    const { campaignId } = request.params;
+    const body = request.body;
 
     const campaign = await prisma.campaign.findFirst({
       where: { id: campaignId, orgId },
@@ -994,9 +1021,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ id: campaign.id, paused: body.paused });
   });
 
-  app.get("/dashboard/activity", async (request, reply) => {
+  r.get("/dashboard/activity", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "List operator activity feed"),
+      querystring: ActivityListQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = ActivityListQuerySchema.parse(request.query);
+    const query = request.query;
     const hasExplicitRange = Boolean(query.startDate || query.endDate);
     const range = resolveOverviewDateRange({
       startDate: query.startDate,
@@ -1198,9 +1230,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/search", async (request, reply) => {
+  r.get("/dashboard/search", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Search prospects and campaigns"),
+      querystring: DashboardSearchQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = DashboardSearchQuerySchema.parse(request.query);
+    const query = request.query;
     const [prospects, campaigns] = await Promise.all([
       prisma.lead.findMany({
         where: {
@@ -1234,9 +1271,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/prospects", async (request, reply) => {
+  r.get("/dashboard/prospects", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "List prospects for review"),
+      querystring: ProspectListQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = ProspectListQuerySchema.parse(request.query);
+    const query = request.query;
     const where = prospectListWhere(orgId, query);
     const [leads, total, allLeadsTotal, reviewCounts, reachedLeads] = await Promise.all([
       prisma.lead.findMany({
@@ -1329,9 +1371,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/prospects/:leadId", async (request, reply) => {
+  r.get("/dashboard/prospects/:leadId", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Get prospect detail"),
+      params: LeadIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { leadId } = request.params as { leadId: string };
+    const { leadId } = request.params;
     const lead = await prisma.lead.findFirst({
       where: { id: leadId, orgId },
       select: {
@@ -1401,10 +1448,16 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.patch("/dashboard/prospects/:leadId/review", async (request, reply) => {
+  r.patch("/dashboard/prospects/:leadId/review", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Update prospect review status"),
+      params: LeadIdParamsSchema,
+      body: ReviewProspectSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { leadId } = request.params as { leadId: string };
-    const body = ReviewProspectSchema.parse(request.body);
+    const { leadId } = request.params;
+    const body = request.body;
     const existing = await prisma.lead.findFirst({ where: { id: leadId, orgId }, select: { id: true } });
     if (!existing) throw new NotFoundError("Prospect");
 
@@ -1416,9 +1469,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ lead });
   });
 
-  app.post("/dashboard/prospects/review", async (request, reply) => {
+  r.post("/dashboard/prospects/review", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Bulk update prospect review status"),
+      body: BulkReviewProspectsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const body = BulkReviewProspectsSchema.parse(request.body);
+    const body = request.body;
     const result = await prisma.lead.updateMany({
       where: { id: { in: [...new Set(body.leadIds)] }, orgId },
       data: { reviewStatus: body.reviewStatus, reviewedAt: new Date() },
@@ -1426,9 +1484,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ updated: result.count, reviewStatus: body.reviewStatus });
   });
 
-  app.get("/dashboard/conversations", async (request, reply) => {
+  r.get("/dashboard/conversations", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "List inbox conversations"),
+      querystring: ConversationListQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = ConversationListQuerySchema.parse(request.query);
+    const query = request.query;
     const campaignLeads = await prisma.campaignLead.findMany({
       where: {
         linkedinChatId: { not: null },
@@ -1557,9 +1620,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/conversations/:campaignLeadId", async (request, reply) => {
+  r.get("/dashboard/conversations/:campaignLeadId", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Get conversation thread"),
+      params: CampaignLeadIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignLeadId } = request.params as { campaignLeadId: string };
+    const { campaignLeadId } = request.params;
     const campaignLead = await prisma.campaignLead.findFirst({
       where: { id: campaignLeadId, campaign: { orgId } },
       select: {
@@ -1640,9 +1708,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.post("/dashboard/conversations/:campaignLeadId/drafts", async (request, reply) => {
+  r.post("/dashboard/conversations/:campaignLeadId/drafts", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Generate AI reply draft"),
+      params: CampaignLeadIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignLeadId } = request.params as { campaignLeadId: string };
+    const { campaignLeadId } = request.params;
     const campaignLead = await prisma.campaignLead.findFirst({
       where: { id: campaignLeadId, campaign: { orgId } },
       select: {
@@ -1672,10 +1745,16 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(result);
   });
 
-  app.post("/dashboard/conversations/:campaignLeadId/replies", async (request, reply) => {
+  r.post("/dashboard/conversations/:campaignLeadId/replies", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Send operator reply"),
+      params: CampaignLeadIdParamsSchema,
+      body: OperatorReplyBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignLeadId } = request.params as { campaignLeadId: string };
-    const body = OperatorReplyBodySchema.parse(request.body);
+    const { campaignLeadId } = request.params;
+    const body = request.body;
     const existingReply = await prisma.message.findFirst({
       where: { orgId, idempotencyKey: body.idempotencyKey },
       select: { id: true },
@@ -1729,7 +1808,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.status(201).send(result);
   });
 
-  app.get("/dashboard/messages", async (request, reply) => {
+  r.get("/dashboard/messages", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "List recent messages"),
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const messages = await prisma.message.findMany({
       where: { orgId },
@@ -1767,9 +1850,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/analytics", async (request, reply) => {
+  r.get("/dashboard/analytics", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Analytics totals and breakdowns"),
+      querystring: AnalyticsQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = AnalyticsQuerySchema.parse(request.query ?? {});
+    const query = request.query;
     const range = resolveOverviewDateRange({
       startDate: query.startDate,
       endDate: query.endDate,
@@ -1983,7 +2071,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/analytics/insights", async (request, reply) => {
+  r.get("/dashboard/analytics/insights", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Analytics insights (cached or queued)"),
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const cached = await readCachedAnalyticsInsights(orgId);
     if (cached) {
@@ -2023,7 +2115,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get("/dashboard/settings", async (request, reply) => {
+  r.get("/dashboard/settings", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Get organization settings"),
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const [organization, members] = await Promise.all([
       prisma.organization.findUnique({
@@ -2071,9 +2167,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.patch("/dashboard/settings", async (request, reply) => {
+  r.patch("/dashboard/settings", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Update organization settings"),
+      body: UpdateDashboardSettingsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { organizationName } = UpdateDashboardSettingsSchema.parse(request.body);
+    const { organizationName } = request.body;
     const [organization, members] = await Promise.all([
       prisma.organization.update({
         where: { id: orgId },

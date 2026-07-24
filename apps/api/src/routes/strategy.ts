@@ -1,6 +1,7 @@
 import type { Prisma, Strategy } from "@prisma/client";
 import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { z } from "zod";
@@ -22,6 +23,11 @@ import {
   NotFoundError,
   ValidationError,
 } from "../lib/errors.js";
+import {
+  ErrorResponseSchema,
+  authenticatedRoute,
+  errorResponses
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { requireOrgId } from "../lib/request-org.js";
@@ -612,6 +618,8 @@ export async function generateStrategy(
 }
 
 export async function strategyRoutes(app: FastifyInstance): Promise<void> {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
   await app.register(multipart, {
     limits: {
       files: 1,
@@ -619,9 +627,14 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     },
   });
 
-  app.get("/strategy/:orgId", async (request, reply) => {
+  r.get("/strategy/:orgId", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Get latest strategy for organization"),
+      params: StrategyParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
@@ -637,14 +650,20 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(strategy);
   });
 
-  app.patch("/strategy/:orgId/campaign-type", async (request, reply) => {
+  r.patch("/strategy/:orgId/campaign-type", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Set campaign type"),
+      params: StrategyParamsSchema,
+      body: CampaignTypeBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
 
-    const { campaignType } = CampaignTypeBodySchema.parse(request.body);
+    const { campaignType } = request.body;
     const validatedCampaignType = parseCampaignType(campaignType);
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
@@ -662,14 +681,20 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
-  app.patch("/strategy/:orgId/video-decision", async (request, reply) => {
+  r.patch("/strategy/:orgId/video-decision", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Set video decision config"),
+      params: StrategyParamsSchema,
+      body: VideoDecisionBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
 
-    const videoConfig = VideoDecisionBodySchema.parse(request.body);
+    const videoConfig = request.body;
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
@@ -688,9 +713,14 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
-  app.post("/strategy/:orgId/outreach-message", async (request, reply) => {
+  r.post("/strategy/:orgId/outreach-message", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Generate outreach message"),
+      params: StrategyParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
@@ -749,14 +779,20 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ message: result.message });
   });
 
-  app.patch("/strategy/:orgId/outreach-message", async (request, reply) => {
+  r.patch("/strategy/:orgId/outreach-message", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Update outreach message"),
+      params: StrategyParamsSchema,
+      body: OutreachMessageBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
 
-    const { message } = OutreachMessageBodySchema.parse(request.body);
+    const { message } = request.body;
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
@@ -776,9 +812,15 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ message });
   });
 
-  app.post("/strategy/:orgId/video-upload", async (request, reply) => {
+  r.post("/strategy/:orgId/video-upload", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Upload campaign video (multipart)"),
+      params: StrategyParamsSchema,
+      // multipart body is not JSON; Scalar try-it is limited for this route
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { orgId: requestedOrgId } = StrategyParamsSchema.parse(request.params);
+    const { orgId: requestedOrgId } = request.params;
     if (requestedOrgId !== orgId) {
       throw new ForbiddenError();
     }
@@ -840,7 +882,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
-  app.post(
+  r.post(
     "/strategy/generate",
     {
       config: {
@@ -848,6 +890,9 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
           max: 5,
           timeWindow: "1 minute",
         },
+      },
+      schema: {
+        ...authenticatedRoute("Strategy", "Generate strategy from discovery scrape"),
       },
     },
     async (request, reply) => {

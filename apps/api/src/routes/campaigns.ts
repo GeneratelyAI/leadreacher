@@ -1,7 +1,13 @@
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import {
+  CampaignIdParamsSchema,
+  authenticatedRoute,
+  errorResponses,
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
@@ -26,38 +32,46 @@ const ALLOWED_CHANNELS = [
 const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 const PATCHABLE_STATUSES = ["active", "paused", "completed"] as const;
 
-const CampaignPatchSchema = z
-  .object({
-    name: z.string().trim().min(1).max(160).optional(),
-    status: z.enum(PATCHABLE_STATUSES).optional(),
-    sequence: z.unknown().optional(),
-    socialAccountId: z.string().trim().min(1).nullable().optional(),
-    channels: z.array(z.string()).min(1).optional(),
-    archived: z.boolean().optional(),
-  })
-  .refine(
-    (value) =>
-      value.name !== undefined ||
-      value.status !== undefined ||
-      value.sequence !== undefined ||
-      value.socialAccountId !== undefined ||
-      value.channels !== undefined ||
-      value.archived !== undefined,
-    { message: "At least one field is required" },
-  );
+const SequenceStepSchema = z.object({
+  type: z.string(),
+  message: z.string(),
+  delayHours: z.number(),
+});
+
+const CampaignPatchSchema = z.object({
+  name: z.string().trim().min(1).max(160).optional(),
+  status: z.enum(PATCHABLE_STATUSES).optional(),
+  sequence: z.array(SequenceStepSchema).optional(),
+  socialAccountId: z.string().trim().min(1).nullable().optional(),
+  channels: z.array(z.string()).min(1).optional(),
+  archived: z.boolean().optional(),
+});
 
 const BulkCampaignPatchSchema = z.object({
   campaignIds: z.array(z.string().trim().min(1)).min(1).max(50),
   status: z.enum(["paused", "active", "completed"]).optional(),
   archived: z.boolean().optional(),
-}).refine(
-  (value) => value.status !== undefined || value.archived !== undefined,
-  { message: "status or archived is required" },
-);
+});
 
-function isNonEmptyArray<T>(value: unknown): value is T[] {
-  return Array.isArray(value) && value.length > 0;
-}
+const CreateCampaignBodySchema = z.object({
+  name: z.string().trim().min(1),
+  channels: z.array(z.string()).min(1),
+  sequence: z.array(SequenceStepSchema).min(1),
+  socialAccountId: z.string().trim().min(1).optional(),
+});
+
+const ListCampaignsQuerySchema = z.object({
+  status: z.string().optional(),
+});
+
+const EnrollLeadsBodySchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1),
+});
+
+const CampaignLeadsQuerySchema = z.object({
+  status: z.string().optional(),
+});
+
 
 function validateChannels(channels: string[]): void {
   const invalid = channels.filter(
@@ -144,19 +158,16 @@ type CampaignLeadWithLead = Prisma.CampaignLeadGetPayload<{
 }>;
 
 export async function campaignRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/campaigns", async (request, reply) => {
-    const orgId = requireOrgId(request);
-    const { name, channels, sequence, socialAccountId } = request.body as {
-      name: string;
-      channels: string[];
-      sequence: unknown;
-      socialAccountId?: string;
-    };
+  const r = app.withTypeProvider<ZodTypeProvider>();
 
-    if (!name) throw new ValidationError("name is required");
-    if (!isNonEmptyArray<string>(channels)) {
-      throw new ValidationError("channels must be a non-empty array");
-    }
+  r.post("/campaigns", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Create campaign draft"),
+      body: CreateCampaignBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { name, channels, sequence, socialAccountId } = request.body;
     validateChannels(channels);
 
     const selectedSocialAccountId = await resolveLinkedInSender({
@@ -180,9 +191,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(campaign);
   });
 
-  app.get("/campaigns", async (request, reply) => {
+  r.get("/campaigns", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "List campaigns"),
+      querystring: ListCampaignsQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { status } = request.query as { status?: string };
+    const { status } = request.query;
 
     const campaigns = await prisma.campaign.findMany({
       where: {
@@ -197,9 +213,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.get("/campaigns/:campaignId", async (request, reply) => {
+  r.get("/campaigns/:campaignId", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Get campaign detail"),
+      params: CampaignIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
+    const { campaignId } = request.params;
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -329,9 +350,17 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.patch("/campaigns/bulk", async (request, reply) => {
+  r.patch("/campaigns/bulk", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Bulk update campaigns"),
+      body: BulkCampaignPatchSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const body = BulkCampaignPatchSchema.parse(request.body);
+    const body = request.body;
+    if (body.status === undefined && body.archived === undefined) {
+      throw new ValidationError("status or archived is required");
+    }
 
     const campaigns = await prisma.campaign.findMany({
       where: { orgId, id: { in: body.campaignIds } },
@@ -373,10 +402,26 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ updated: results.length, campaigns: results });
   });
 
-  app.patch("/campaigns/:campaignId", async (request, reply) => {
+  r.patch("/campaigns/:campaignId", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Update a campaign"),
+      params: CampaignIdParamsSchema,
+      body: CampaignPatchSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
-    const body = CampaignPatchSchema.parse(request.body);
+    const { campaignId } = request.params;
+    const body = request.body;
+    if (
+      body.name === undefined &&
+      body.status === undefined &&
+      body.sequence === undefined &&
+      body.socialAccountId === undefined &&
+      body.channels === undefined &&
+      body.archived === undefined
+    ) {
+      throw new ValidationError("At least one field is required");
+    }
     const campaign = await requireOrgCampaign(campaignId, orgId);
 
     const nextChannels = body.channels ?? campaign.channels;
@@ -441,9 +486,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post("/campaigns/:campaignId/duplicate", async (request, reply) => {
+  r.post("/campaigns/:campaignId/duplicate", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Duplicate a campaign as draft"),
+      params: CampaignIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
+    const { campaignId } = request.params;
     const source = await requireOrgCampaign(campaignId, orgId);
 
     const duplicate = await prisma.campaign.create({
@@ -461,14 +511,16 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(duplicate);
   });
 
-  app.post("/campaigns/:campaignId/leads", async (request, reply) => {
+  r.post("/campaigns/:campaignId/leads", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Enroll approved leads into a campaign"),
+      params: CampaignIdParamsSchema,
+      body: EnrollLeadsBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
-    const { leadIds } = request.body as { leadIds: string[] };
-
-    if (!isNonEmptyArray<string>(leadIds)) {
-      throw new ValidationError("leadIds must be a non-empty array");
-    }
+    const { campaignId } = request.params;
+    const { leadIds } = request.body;
 
     const campaign = await requireOrgCampaign(campaignId, orgId);
 
@@ -523,9 +575,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ enrolled: created.length, queued });
   });
 
-  app.post("/campaigns/:campaignId/launch", async (request, reply) => {
+  r.post("/campaigns/:campaignId/launch", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Launch a draft/review campaign"),
+      params: CampaignIdParamsSchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
+    const { campaignId } = request.params;
 
     const campaign = await prisma.campaign.findUnique({
       where: { id: campaignId },
@@ -583,10 +640,16 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ launched: true, jobCount });
   });
 
-  app.get("/campaigns/:campaignId/leads", async (request, reply) => {
+  r.get("/campaigns/:campaignId/leads", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "List campaign enrollments"),
+      params: CampaignIdParamsSchema,
+      querystring: CampaignLeadsQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { campaignId } = request.params as { campaignId: string };
-    const { status } = request.query as { status?: string };
+    const { campaignId } = request.params;
+    const { status } = request.query;
 
     await requireOrgCampaign(campaignId, orgId);
 

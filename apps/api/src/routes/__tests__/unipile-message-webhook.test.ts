@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -73,6 +74,7 @@ const sequence = [
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   await app.register(webhookRoutes);
   return app;
 }

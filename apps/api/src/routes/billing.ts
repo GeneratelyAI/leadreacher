@@ -1,5 +1,6 @@
 import type { Strategy } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { ValidationError } from "../lib/errors.js";
 import {
@@ -8,6 +9,11 @@ import {
   type CampaignType,
   type CatalogLineItem,
 } from "../lib/billing/pricing.js";
+import {
+  ErrorResponseSchema,
+  authenticatedRoute,
+  errorResponses,
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import {
@@ -69,49 +75,77 @@ async function getLatestStrategy(orgId: string): Promise<Strategy> {
   return strategy;
 }
 
+const UrlResponseSchema = z.object({ url: z.string().nullable() });
+
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/billing/pricing", async (request, reply) => {
-    const orgId = requireOrgId(request);
-    const strategy = await getLatestStrategy(orgId);
-    const { lineItems } = await buildLineItems(strategy);
-    return reply.send({ lineItems });
-  });
+  const r = app.withTypeProvider<ZodTypeProvider>();
 
-  app.post("/billing/checkout-session", async (request, reply) => {
-    const orgId = requireOrgId(request);
-    const strategy = await getLatestStrategy(orgId);
-    const { campaignType, videoEnabled, lineItems } = await buildLineItems(strategy);
-    const organization = await prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { stripeCustomerId: true },
-    });
-    if (!organization) {
-      throw new ValidationError("Organization not found");
-    }
+  r.get(
+    "/billing/pricing",
+    {
+      schema: {
+        ...authenticatedRoute("Billing", "List Stripe line items for current strategy"),
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const strategy = await getLatestStrategy(orgId);
+      const { lineItems } = await buildLineItems(strategy);
+      return reply.send({ lineItems });
+    },
+  );
 
-    const session = await createSubscriptionCheckoutSession({
-      orgId,
-      strategyId: strategy.id,
-      campaignType,
-      videoEnabled,
-      priceIds: lineItems.map((lineItem) => lineItem.priceId),
-      customerId: organization.stripeCustomerId,
-    });
+  r.post(
+    "/billing/checkout-session",
+    {
+      schema: {
+        ...authenticatedRoute("Billing", "Create Stripe checkout session"),
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const strategy = await getLatestStrategy(orgId);
+      const { campaignType, videoEnabled, lineItems } = await buildLineItems(strategy);
+      const organization = await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { stripeCustomerId: true },
+      });
+      if (!organization) {
+        throw new ValidationError("Organization not found");
+      }
 
-    return reply.send({ url: session.url });
-  });
+      const session = await createSubscriptionCheckoutSession({
+        orgId,
+        strategyId: strategy.id,
+        campaignType,
+        videoEnabled,
+        priceIds: lineItems.map((lineItem) => lineItem.priceId),
+        customerId: organization.stripeCustomerId,
+      });
 
-  app.post("/billing/portal-session", async (request, reply) => {
-    const orgId = requireOrgId(request);
-    const organization = await prisma.organization.findUnique({
-      where: { id: orgId },
-      select: { stripeCustomerId: true },
-    });
-    if (!organization?.stripeCustomerId) {
-      throw new ValidationError("No Stripe customer found for organization");
-    }
+      return reply.send({ url: session.url });
+    },
+  );
 
-    const session = await createBillingPortalSession(organization.stripeCustomerId);
-    return reply.send({ url: session.url });
-  });
+  r.post(
+    "/billing/portal-session",
+    {
+      schema: {
+        ...authenticatedRoute("Billing", "Create Stripe customer portal session"),
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const organization = await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { stripeCustomerId: true },
+      });
+      if (!organization?.stripeCustomerId) {
+        throw new ValidationError("No Stripe customer found for organization");
+      }
+
+      const session = await createBillingPortalSession(organization.stripeCustomerId);
+      return reply.send({ url: session.url });
+    },
+  );
 }

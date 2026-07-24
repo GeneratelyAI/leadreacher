@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../lib/errors.js";
 
@@ -100,6 +101,7 @@ import { buildPrimaryCampaignVideoSummary } from "../../lib/campaign-video-summa
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({ code: error.code, message: error.message });

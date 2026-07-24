@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import {
   encodeHostedAuthName,
@@ -7,6 +8,11 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { ValidationError } from "../lib/errors.js";
+import {
+  ErrorResponseSchema,
+  authenticatedRoute,
+  errorResponses
+} from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
@@ -84,9 +90,16 @@ function channelsRedirect(returnTo: "onboarding" | "home" | "dashboard", status:
 }
 
 export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/social-accounts", async (request, reply) => {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get("/social-accounts", {
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "List connected social accounts with channel metrics"),
+      querystring: SocialAccountsQuerySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const query = SocialAccountsQuerySchema.parse(request.query ?? {});
+    const query = request.query;
     const range = resolveOverviewDateRange({
       startDate: query.startDate,
       endDate: query.endDate,
@@ -190,9 +203,14 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
-  app.post("/social-accounts/connect", async (request, reply) => {
+  r.post("/social-accounts/connect", {
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Create Unipile hosted-auth connect link"),
+      body: ConnectSocialAccountBodySchema,
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { provider, returnTo } = ConnectSocialAccountBodySchema.parse(request.body ?? {});
+    const { provider, returnTo } = request.body;
     const adapter = new UnipileAdapter({
       dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
@@ -210,7 +228,11 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ url: link.url });
   });
 
-  app.post("/social-accounts/sync", async (request, reply) => {
+  r.post("/social-accounts/sync", {
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Sync Unipile accounts into SocialAccount rows"),
+    },
+  }, async (request, reply) => {
     const orgId = requireOrgId(request);
 
     const adapter = new UnipileAdapter({

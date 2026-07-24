@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { socialAccountUpsert } = vi.hoisted(() => ({
@@ -36,6 +37,7 @@ import { webhookRoutes } from "../webhooks.js";
 
 async function buildTestApp() {
   const app = Fastify();
+  applyZodCompilers(app);
   await app.register(webhookRoutes);
   return app;
 }
