@@ -37,6 +37,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -240,7 +248,7 @@ function SelectionActionBar({
         <Button
           size="sm"
           variant="primary"
-          className="h-8 shrink-0 px-3 font-medium"
+          className="h-10 shrink-0 px-3 font-medium sm:h-8"
           disabled={isUpdating || !enrollmentCampaignId || approvedCount === 0}
           onClick={onEnroll}
         >
@@ -304,6 +312,7 @@ export function ProspectsWorkspace() {
   const [error, setError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [scrapeOpen, setScrapeOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -379,19 +388,37 @@ export function ProspectsWorkspace() {
   const visibleIds = leads.map((lead) => lead.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const clearFilters = () => { setQuery(""); setReviewStatus("all"); setLifecycle(""); setSource(""); setCampaignFilter(""); };
+  const activeFilterCount = [lifecycle, source, campaignFilter].filter(Boolean).length;
+
+  const filterControls = (
+    <>
+      <Select value={lifecycle || null} onValueChange={(value) => setLifecycle(value === "__all" ? "" : value ?? "")}>
+        <SelectTrigger className="min-w-40 h-10 sm:h-9"><SelectValue placeholder="All lifecycle states" /></SelectTrigger>
+        <SelectContent><SelectItem value="__all">All lifecycle states</SelectItem>{lifecycleStates.map((state) => <SelectItem key={state} value={state}>{titleCase(state)}</SelectItem>)}</SelectContent>
+      </Select>
+      <Select value={source || null} onValueChange={(value) => setSource(value === "__all" ? "" : value ?? "")}>
+        <SelectTrigger className="min-w-32 h-10 sm:h-9"><SelectValue placeholder="All sources" /></SelectTrigger>
+        <SelectContent><SelectItem value="__all">All sources</SelectItem>{sourceOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
+      </Select>
+      <Select value={campaignFilter || null} onValueChange={(value) => setCampaignFilter(value === "__all" ? "" : value ?? "")}>
+        <SelectTrigger className="min-w-36 h-10 sm:h-9"><SelectValue placeholder="All campaigns" /></SelectTrigger>
+        <SelectContent><SelectItem value="__all">All campaigns</SelectItem>{campaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectContent>
+      </Select>
+    </>
+  );
 
   return (
-    <div className={cn("space-y-4", selected.size > 0 && "pb-28 sm:pb-32")}>
+    <div className={cn("space-y-4", selected.size > 0 && "pb-36 sm:pb-32")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl font-semibold tracking-tight">Prospects</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">Review real people before enrollment. Approval and exclusion are reversible and do not alter existing campaign delivery.</p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
+          <Button variant="secondary" className="min-h-10" onClick={() => setImportOpen(true)}>
             <Upload /> Import CSV
           </Button>
-          <Button variant="brand" onClick={() => setScrapeOpen(true)}>
+          <Button variant="brand" className="min-h-10" onClick={() => setScrapeOpen(true)}>
             <Search /> Find prospects
           </Button>
         </div>
@@ -420,41 +447,210 @@ export function ProspectsWorkspace() {
       <Card className="overflow-hidden">
         <div className="space-y-3 border-b border-border px-4 pt-4 pb-3">
           <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
-            <label className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-onboarding-neutral-0 px-3 dark:bg-onboarding-neutral-900">
+            <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-onboarding-neutral-0 px-3 dark:bg-onboarding-neutral-900 sm:h-9">
               <Search className="size-4 shrink-0 text-muted-foreground" />
               <span className="sr-only">Search prospects</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Search by name, company, title or keyword..." />
             </label>
-            <div className="flex flex-wrap gap-2">
-              <Select value={lifecycle || null} onValueChange={(value) => setLifecycle(value === "__all" ? "" : value ?? "")}>
-                <SelectTrigger className="min-w-40"><SelectValue placeholder="All lifecycle states" /></SelectTrigger>
-                <SelectContent><SelectItem value="__all">All lifecycle states</SelectItem>{lifecycleStates.map((state) => <SelectItem key={state} value={state}>{titleCase(state)}</SelectItem>)}</SelectContent>
-              </Select>
-              <Select value={source || null} onValueChange={(value) => setSource(value === "__all" ? "" : value ?? "")}>
-                <SelectTrigger className="min-w-32"><SelectValue placeholder="All sources" /></SelectTrigger>
-                <SelectContent><SelectItem value="__all">All sources</SelectItem>{sourceOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-              </Select>
-              <Select value={campaignFilter || null} onValueChange={(value) => setCampaignFilter(value === "__all" ? "" : value ?? "")}>
-                <SelectTrigger className="min-w-36"><SelectValue placeholder="All campaigns" /></SelectTrigger>
-                <SelectContent><SelectItem value="__all">All campaigns</SelectItem>{campaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectContent>
-              </Select>
-              <Button variant="secondary" size="sm" onClick={clearFilters}><Filter /> Clear</Button>
+            <div className="hidden flex-wrap gap-2 md:flex">
+              {filterControls}
+              <Button variant="secondary" size="sm" className="h-9" onClick={clearFilters}><Filter /> Clear</Button>
             </div>
+            <Button
+              variant="secondary"
+              className="h-10 md:hidden"
+              onClick={() => setFiltersOpen(true)}
+            >
+              <Filter /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
+            </Button>
           </div>
           <Tabs value={reviewStatus} onValueChange={(value) => setReviewStatus(value as ReviewStatus)}>
             <TabsList variant="line" className="w-full flex-wrap justify-start gap-1 rounded-none p-0">
-              <TabsTrigger value="all" className="flex-none px-3 py-2">All <span className="text-xs text-muted-foreground">{counts.all}</span></TabsTrigger>
-              <TabsTrigger value="pending" className="flex-none px-3 py-2">Pending <span className="text-xs text-muted-foreground">{counts.pending}</span></TabsTrigger>
-              <TabsTrigger value="approved" className="flex-none px-3 py-2">Approved <span className="text-xs text-muted-foreground">{counts.approved}</span></TabsTrigger>
-              <TabsTrigger value="excluded" className="flex-none px-3 py-2">Excluded <span className="text-xs text-muted-foreground">{counts.excluded}</span></TabsTrigger>
+              <TabsTrigger value="all" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">All <span className="text-xs text-muted-foreground">{counts.all}</span></TabsTrigger>
+              <TabsTrigger value="pending" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Pending <span className="text-xs text-muted-foreground">{counts.pending}</span></TabsTrigger>
+              <TabsTrigger value="approved" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Approved <span className="text-xs text-muted-foreground">{counts.approved}</span></TabsTrigger>
+              <TabsTrigger value="excluded" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Excluded <span className="text-xs text-muted-foreground">{counts.excluded}</span></TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        {isLoading ? <LoadingRows /> : leads.length === 0 ? <div className="px-6 py-16 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><h2 className="mt-3 font-semibold">No prospects match these filters</h2><p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Import a CSV or run an ICP search to begin reviewing prospects.</p><div className="mt-4 flex flex-wrap items-center justify-center gap-2"><Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button><Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button></div></div> : <Table><TableHeader><TableRow className="bg-muted/40"><TableHead className="w-12"><Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => setSelected(checked ? new Set(visibleIds) : new Set())} aria-label="Select visible prospects" /></TableHead><TableHead>Prospect</TableHead><TableHead>Company and location</TableHead><TableHead>Reachable</TableHead><TableHead>Review</TableHead><TableHead>Lifecycle</TableHead><TableHead>Campaigns</TableHead><TableHead>Last activity</TableHead><TableHead className="w-12"><span className="sr-only">Actions</span></TableHead></TableRow></TableHeader><TableBody>{leads.map((lead) => { const name = `${lead.firstName} ${lead.lastName}`.trim(); return <TableRow key={lead.id} className="cursor-pointer" onClick={() => void openDetail(lead.id)}><TableCell onClick={(event) => event.stopPropagation()}><Checkbox checked={selected.has(lead.id)} onCheckedChange={(checked) => setSelected((current) => { const next = new Set(current); if (checked) next.add(lead.id); else next.delete(lead.id); return next; })} aria-label={`Select ${name}`} /></TableCell><TableCell><div className="flex items-center gap-3"><ProspectAvatar name={name} url={lead.avatarUrl} /><div className="min-w-0"><p className="font-semibold">{name}</p><p className="max-w-40 truncate text-xs text-muted-foreground">{lead.title || "Title unavailable"}</p></div></div></TableCell><TableCell><p>{lead.company || "Company unavailable"}</p><p className="text-xs text-muted-foreground">{lead.location || "Location unavailable"}</p></TableCell><TableCell><ReachableSignals prospect={lead} /></TableCell><TableCell><ReviewBadge status={lead.reviewStatus} /></TableCell><TableCell><span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />{titleCase(lead.status)}</span></TableCell><TableCell><div className="max-w-48 truncate text-xs text-primary">{lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}</div></TableCell><TableCell className="text-xs text-muted-foreground">{relativeTime(lead.lastActivityAt)}</TableCell><TableCell onClick={(event) => event.stopPropagation()}><DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>{lead.reviewStatus !== "approved" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "approved")}>Approve</DropdownMenuItem> : null}{lead.reviewStatus !== "excluded" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "excluded")}>Exclude</DropdownMenuItem> : null}</DropdownMenuContent></DropdownMenu></TableCell></TableRow>; })}</TableBody></Table>}
+        {isLoading ? <LoadingRows /> : leads.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <Users className="mx-auto size-8 text-muted-foreground" />
+            <h2 className="mt-3 font-semibold">No prospects match these filters</h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Import a CSV or run an ICP search to begin reviewing prospects.</p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button>
+              <Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ul className="divide-y divide-border md:hidden">
+              {leads.map((lead) => {
+                const name = `${lead.firstName} ${lead.lastName}`.trim();
+                return (
+                  <li key={lead.id}>
+                    <div className="flex items-start gap-3 px-4 py-3.5">
+                      <div className="pt-1" onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={selected.has(lead.id)}
+                          onCheckedChange={(checked) => setSelected((current) => {
+                            const next = new Set(current);
+                            if (checked) next.add(lead.id);
+                            else next.delete(lead.id);
+                            return next;
+                          })}
+                          aria-label={`Select ${name}`}
+                          className="size-5"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => void openDetail(lead.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <ProspectAvatar name={name} url={lead.avatarUrl} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="font-semibold">{name}</p>
+                              <ReviewBadge status={lead.reviewStatus} />
+                            </div>
+                            <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                              {[lead.title, lead.company].filter(Boolean).join(" · ") || "Details unavailable"}
+                            </p>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <ReachableSignals prospect={lead} />
+                              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />
+                                {titleCase(lead.status)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 shrink-0" aria-label={`Actions for ${name}`} />}>
+                          <MoreHorizontal />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>
+                          {lead.reviewStatus !== "approved" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "approved")}>Approve</DropdownMenuItem> : null}
+                          {lead.reviewStatus !== "excluded" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "excluded")}>Exclude</DropdownMenuItem> : null}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
 
-        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span>Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()} prospects</span><div className="flex items-center gap-1"><Button variant="ghost" size="icon" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft /></Button><span className="px-2 text-xs font-medium text-foreground">Page {page} of {pageCount}</span><Button variant="ghost" size="icon" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page"><ChevronRight /></Button></div></div>
+            <div className="hidden md:block">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/40">
+                    <TableHead className="w-12">
+                      <Checkbox checked={allVisibleSelected} onCheckedChange={(checked) => setSelected(checked ? new Set(visibleIds) : new Set())} aria-label="Select visible prospects" />
+                    </TableHead>
+                    <TableHead>Prospect</TableHead>
+                    <TableHead>Company and location</TableHead>
+                    <TableHead>Reachable</TableHead>
+                    <TableHead>Review</TableHead>
+                    <TableHead>Lifecycle</TableHead>
+                    <TableHead>Campaigns</TableHead>
+                    <TableHead>Last activity</TableHead>
+                    <TableHead className="w-12"><span className="sr-only">Actions</span></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {leads.map((lead) => {
+                    const name = `${lead.firstName} ${lead.lastName}`.trim();
+                    return (
+                      <TableRow key={lead.id} className="cursor-pointer" onClick={() => void openDetail(lead.id)}>
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          <Checkbox
+                            checked={selected.has(lead.id)}
+                            onCheckedChange={(checked) => setSelected((current) => {
+                              const next = new Set(current);
+                              if (checked) next.add(lead.id);
+                              else next.delete(lead.id);
+                              return next;
+                            })}
+                            aria-label={`Select ${name}`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <ProspectAvatar name={name} url={lead.avatarUrl} />
+                            <div className="min-w-0">
+                              <p className="font-semibold">{name}</p>
+                              <p className="max-w-40 truncate text-xs text-muted-foreground">{lead.title || "Title unavailable"}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <p>{lead.company || "Company unavailable"}</p>
+                          <p className="text-xs text-muted-foreground">{lead.location || "Location unavailable"}</p>
+                        </TableCell>
+                        <TableCell><ReachableSignals prospect={lead} /></TableCell>
+                        <TableCell><ReviewBadge status={lead.reviewStatus} /></TableCell>
+                        <TableCell>
+                          <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />
+                            {titleCase(lead.status)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-48 truncate text-xs text-primary">
+                            {lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{relativeTime(lead.lastActivityAt)}</TableCell>
+                        <TableCell onClick={(event) => event.stopPropagation()}>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}>
+                              <MoreHorizontal />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>
+                              {lead.reviewStatus !== "approved" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "approved")}>Approve</DropdownMenuItem> : null}
+                              {lead.reviewStatus !== "excluded" ? <DropdownMenuItem onClick={() => void updateReview([lead.id], "excluded")}>Exclude</DropdownMenuItem> : null}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </>
+        )}
+
+        <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <span>Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()} prospects</span>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="size-10 sm:size-8" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft /></Button>
+            <span className="px-2 text-xs font-medium text-foreground">Page {page} of {pageCount}</span>
+            <Button variant="ghost" size="icon" className="size-10 sm:size-8" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page"><ChevronRight /></Button>
+          </div>
+        </div>
       </Card>
+
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="gap-4 rounded-t-2xl pb-[max(1rem,var(--safe-area-bottom))] md:hidden">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+            <SheetDescription>Narrow the prospect list by lifecycle, source, or campaign.</SheetDescription>
+          </SheetHeader>
+          <div className="grid gap-3 px-1">{filterControls}</div>
+          <SheetFooter className="flex-row gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => { clearFilters(); setFiltersOpen(false); }}>Clear</Button>
+            <Button variant="brand" className="flex-1" onClick={() => setFiltersOpen(false)}>Done</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <SelectionActionBar
         count={selected.size}

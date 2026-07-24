@@ -18,14 +18,15 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/Input";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ApiError, apiFetch } from "@/lib/api";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 type SequenceStep = { type: string; message: string; delayHours: number };
@@ -102,6 +103,7 @@ export function CampaignDetailSheet({
   onClose,
   onChanged,
 }: CampaignDetailSheetProps) {
+  const isMobile = useIsMobile();
   const [detail, setDetail] = useState<CampaignDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -197,63 +199,72 @@ export function CampaignDetailSheet({
   const sequenceLocked = detail?.status === "active";
 
   return (
-    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent className="flex max-h-[min(90dvh,56rem)] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0" showCloseButton>
+    <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        showCloseButton
+        className={cn(
+          "flex flex-col gap-0 overflow-hidden p-0",
+          isMobile
+            ? "h-[min(96dvh,100%)] max-h-[96dvh] w-full rounded-t-2xl sm:max-w-none"
+            : "h-full w-full max-w-3xl sm:max-w-3xl",
+        )}
+      >
         {isLoading || !detail ? (
           <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 size-4 animate-spin" /> Loading campaign
           </div>
         ) : (
           <>
-            <DialogHeader className="shrink-0 border-b border-border px-6 py-5 pr-14">
+            <SheetHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 text-left sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-xl">{detail.name}</DialogTitle>
+                <SheetTitle className="text-xl">{detail.name}</SheetTitle>
                 <Badge variant="outline">{detail.status === "active" ? "Running" : titleCase(detail.status)}</Badge>
                 {detail.archived ? <Badge variant="secondary">Archived</Badge> : null}
               </div>
-              <DialogDescription>
+              <SheetDescription>
                 {detail.channels.map((channel) => titleCase(channel)).join(" · ")} · Updated{" "}
                 {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(detail.updatedAt))}
-              </DialogDescription>
-            </DialogHeader>
+              </SheetDescription>
+            </SheetHeader>
 
             {error ? (
-              <p className="mx-6 mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+              <p className="mx-5 mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6">{error}</p>
             ) : null}
 
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
               <div className="flex flex-wrap gap-2">
                 {detail.status === "active" ? (
-                  <Button size="sm" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "paused" }, "Campaign paused")}>
+                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "paused" }, "Campaign paused")}>
                     <Pause /> Pause
                   </Button>
                 ) : null}
                 {detail.status === "paused" ? (
-                  <Button size="sm" variant="brand" disabled={isSaving} onClick={() => void patch({ status: "active" }, "Campaign resumed")}>
+                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving} onClick={() => void patch({ status: "active" }, "Campaign resumed")}>
                     <Play /> Resume
                   </Button>
                 ) : null}
                 {["draft", "review"].includes(detail.status) ? (
-                  <Button size="sm" variant="brand" disabled={isSaving || !canLaunch} onClick={() => void launch()}>
+                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving || !canLaunch} onClick={() => void launch()}>
                     {isSaving ? <Loader2 className="animate-spin" /> : <Play />} Launch
                   </Button>
                 ) : null}
                 {["active", "paused"].includes(detail.status) ? (
-                  <Button size="sm" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "completed" }, "Campaign completed")}>
+                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "completed" }, "Campaign completed")}>
                     <CheckCircle2 /> Complete
                   </Button>
                 ) : null}
-                <Button size="sm" variant="outline" asChild>
+                <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
                   <Link href={`/dashboard/prospects?enrollCampaignId=${detail.id}`}>
                     <Users /> {detail.prospectCount === 0 ? "Add prospects" : "Add more"}
                   </Link>
                 </Button>
-                <Button size="sm" variant="outline" asChild>
+                <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
                   <Link href={`/dashboard/messages?campaignId=${detail.id}`}>
                     <MessageSquare /> Messages
                   </Link>
                 </Button>
-                <Button size="sm" variant="outline" asChild>
+                <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
                   <Link href={`/dashboard/analytics?campaignId=${detail.id}`}>Analytics</Link>
                 </Button>
               </div>
@@ -449,12 +460,12 @@ export function CampaignDetailSheet({
               </section>
             </div>
 
-            <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
-              <Button variant="outline" onClick={onClose}>Close</Button>
-            </DialogFooter>
+            <SheetFooter className="shrink-0 border-t border-border px-5 py-4 pb-[max(1rem,var(--safe-area-bottom))] sm:px-6 sm:pb-4">
+              <Button variant="outline" className="min-h-10 w-full sm:min-h-8 sm:w-auto" onClick={onClose}>Close</Button>
+            </SheetFooter>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }

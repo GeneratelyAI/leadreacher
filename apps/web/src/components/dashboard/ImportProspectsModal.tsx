@@ -149,36 +149,38 @@ export function ImportProspectsModal({ open, onOpenChange, onImported }: ImportP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Import CSV</DialogTitle>
-          <DialogDescription>
-            Required columns: firstName, lastName. Optional: linkedinUrl, email, company, title, location.
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm transition-colors hover:bg-muted/40">
-          <Upload className="size-5 text-muted-foreground" aria-hidden />
-          <span className="font-medium">{fileName ?? "Choose a CSV file"}</span>
-          <span className="text-xs text-muted-foreground">
-            {rows.length > 0 ? `${rows.length} row${rows.length === 1 ? "" : "s"} ready` : "Up to a few hundred rows works best"}
-          </span>
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            className="sr-only"
-            onChange={(event) => void onFileChange(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+      <DialogContent className="flex max-h-[min(90dvh,36rem)] max-w-lg flex-col overflow-hidden p-0">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pt-6">
+          <DialogHeader>
+            <DialogTitle>Import CSV</DialogTitle>
+            <DialogDescription>
+              Required columns: firstName, lastName. Optional: linkedinUrl, email, company, title, location.
+            </DialogDescription>
+          </DialogHeader>
+          {error ? (
+            <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm transition-colors hover:bg-muted/40">
+            <Upload className="size-5 text-muted-foreground" aria-hidden />
+            <span className="font-medium">{fileName ?? "Choose a CSV file"}</span>
+            <span className="text-xs text-muted-foreground">
+              {rows.length > 0 ? `${rows.length} row${rows.length === 1 ? "" : "s"} ready` : "Up to a few hundred rows works best"}
+            </span>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              onChange={(event) => void onFileChange(event.target.files?.[0] ?? null)}
+            />
+          </label>
+        </div>
+        <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+          <Button type="button" variant="outline" className="min-h-10 sm:min-h-8" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" variant="brand" disabled={rows.length === 0 || isSaving} onClick={() => void submit()}>
+          <Button type="button" variant="brand" className="min-h-10 sm:min-h-8" disabled={rows.length === 0 || isSaving} onClick={() => void submit()}>
             {isSaving ? <Loader2 className="animate-spin" /> : null}
             Import {rows.length > 0 ? rows.length : ""} prospects
           </Button>
