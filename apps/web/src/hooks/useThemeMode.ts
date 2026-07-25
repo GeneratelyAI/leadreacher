@@ -2,7 +2,11 @@
 
 import { useCallback, useLayoutEffect, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
-import { THEME_STORAGE_KEY } from "@/lib/theme-init-script";
+import {
+  THEME_COLOR_DARK,
+  THEME_COLOR_LIGHT,
+  THEME_STORAGE_KEY,
+} from "@/lib/theme-init-script";
 
 const LEGACY_THEME_STORAGE_KEY = "lr-theme";
 
@@ -31,6 +35,8 @@ export function applyStoredTheme(): void {
 
 function applyTheme(isDark: boolean) {
   document.documentElement.classList.toggle("dark", isDark);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  meta?.setAttribute("content", isDark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT);
 }
 
 function readIsDarkFromDocument(): boolean {

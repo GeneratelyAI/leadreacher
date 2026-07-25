@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { geist } from "@/lib/fonts/geist";
-import { themeInitScript } from "@/lib/theme-init-script";
+import { THEME_COLOR_LIGHT, themeInitScript } from "@/lib/theme-init-script";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -28,6 +28,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <meta name="theme-color" content={THEME_COLOR_LIGHT} />
         <script
           id="lr-theme-init"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
