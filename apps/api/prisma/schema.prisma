@@ -9,6 +9,8 @@ datasource db {
 model Organization {
   id                   String               @id @default(cuid())
   name                 String
+  /// "individual" | "company"
+  accountType          String               @default("individual")
   supabaseOrgId        String               @unique
   plan                 String               @default("starter")
   onboardingData       Json?

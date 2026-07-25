@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  Building2,
   CheckCircle2,
   ChevronRight,
   Clock,
@@ -12,6 +13,7 @@ import {
   Lock,
   Mail,
   User,
+  Users,
 } from "lucide-react";
 import AuthMarketingPanel from "@/components/auth/AuthMarketingPanel";
 import MobileAuthView from "@/components/auth/MobileAuthView";
@@ -53,6 +55,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setPassword,
     fullName,
     setFullName,
+    accountType,
+    setAccountType,
+    companyName,
+    setCompanyName,
     showPassword,
     setShowPassword,
     error,
@@ -185,6 +191,41 @@ export default function AuthForm({ mode }: AuthFormProps) {
                 onSubmit={handleEmailSubmit}
               >
                 {isSignup ? (
+                  <div
+                    role="radiogroup"
+                    aria-label="Account type"
+                    className={cn(
+                      "auth-glass-control grid grid-cols-2 gap-1 rounded-lg p-1",
+                    )}
+                  >
+                    {(
+                      [
+                        { value: "individual", label: "Individual", Icon: User },
+                        { value: "company", label: "Company / Team", Icon: Users },
+                      ] as const
+                    ).map(({ value, label, Icon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="radio"
+                        aria-checked={accountType === value}
+                        onClick={() => setAccountType(value)}
+                        className={cn(
+                          "flex items-center justify-center gap-1.5 rounded-[7px] py-1.5 text-xs font-semibold transition-colors duration-fast ease-brand",
+                          "h-8 lg:h-9 lg:text-sm",
+                          accountType === value
+                            ? "bg-linear-to-r from-[#5842e3] to-[#4f46e5] text-white shadow-[0_4px_14px_rgba(88,66,227,0.28)]"
+                            : "text-neutral-500 hover:text-neutral-800 dark:text-white/60 dark:hover:text-white/90",
+                        )}
+                      >
+                        <Icon className="size-3.5 lg:size-4" aria-hidden />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+
+                {isSignup ? (
                   <div>
                     <Label htmlFor="auth-full-name" className="sr-only">
                       Full name
@@ -205,6 +246,33 @@ export default function AuthForm({ mode }: AuthFormProps) {
                         placeholder="Enter your full name"
                         value={fullName}
                         onChange={(event) => setFullName(event.target.value)}
+                        className={cn(inputClassName, "pl-9 pr-3 lg:pl-11 lg:pr-4")}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {isSignup && accountType === "company" ? (
+                  <div>
+                    <Label htmlFor="auth-company-name" className="sr-only">
+                      Company name
+                    </Label>
+                    <div className="relative">
+                      <Building2
+                        className={cn(
+                          "pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-neutral-400",
+                          "lg:left-4 lg:size-5 dark:text-white/55",
+                        )}
+                        aria-hidden
+                      />
+                      <Input
+                        id="auth-company-name"
+                        type="text"
+                        autoComplete="organization"
+                        required
+                        placeholder="Enter your company name"
+                        value={companyName}
+                        onChange={(event) => setCompanyName(event.target.value)}
                         className={cn(inputClassName, "pl-9 pr-3 lg:pl-11 lg:pr-4")}
                       />
                     </div>

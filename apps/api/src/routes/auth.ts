@@ -20,6 +20,7 @@ import { verifySupabaseJwt } from "../plugins/auth.js";
 
 const BootstrapBodySchema = z.object({
   name: z.string().trim().min(1),
+  accountType: z.enum(["individual", "company"]).optional().default("individual"),
   anonScrapeId: z.string().uuid().optional(),
 });
 
@@ -120,7 +121,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const { name, anonScrapeId } = request.body;
+      const { name, accountType, anonScrapeId } = request.body;
       const supabaseId = request.userId;
       if (!supabaseId) {
         throw new AuthError();
@@ -158,6 +159,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         const org = await tx.organization.create({
           data: {
             name,
+            accountType,
             supabaseOrgId: crypto.randomUUID(),
           },
         });
