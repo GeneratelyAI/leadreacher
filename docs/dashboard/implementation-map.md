@@ -6,10 +6,9 @@ real, organization-scoped operating data and make unavailable areas explicit.
 
 ## Current product boundary
 
-`/home` is the permanent destination for a completed organization. All sidebar
-views are operational through `?view=campaigns|prospects|messages|channels|analytics|settings`.
-
-The dashboard creates drafts and launches campaigns only after an explicit user
+`/dashboard` is the permanent destination for a completed organization, with
+real nested routes per section (no more `?view=` query-param switching). The
+dashboard creates drafts and launches campaigns only after an explicit user
 action. The operating workflow is:
 
 ```text
@@ -25,9 +24,11 @@ completed onboarding
 
 | Responsibility | Current file | Notes |
 | --- | --- | --- |
-| Authenticated `/home` server entry | `apps/web/src/app/home/page.tsx` | Redirects unauthenticated users to `/login`; redirects incomplete orgs to `/onboarding`; renders the client dashboard only for completed orgs. |
-| Overview UI and shell | `apps/web/src/components/dashboard/HomeDashboardClient.tsx` | Owns the Overview sidebar, header, responsive layout, API loading/error states, billing portal action, and actual social marks. |
-| Operational workspace views | `apps/web/src/components/dashboard/DashboardOperationsClient.tsx` | Owns Campaigns, Prospects, Messages, Channels, Analytics, and Settings behind the `view` query parameter. |
+| Authenticated `/dashboard` server entry | `apps/web/src/app/dashboard/layout.tsx` | Redirects unauthenticated users to `/login`; redirects incomplete orgs to `/onboarding`; renders the persistent shell for completed orgs. |
+| App shell | `apps/web/src/components/dashboard/DashboardShell.tsx` | Owns sidebar, top bar, and responsive layout shared by every `/dashboard/*` route. |
+| Overview UI | `apps/web/src/components/dashboard/DashboardOverviewClient.tsx` | Rendered from `apps/web/src/app/dashboard/page.tsx`. See `overview.md`. |
+| Other workspace views | `apps/web/src/components/dashboard/DashboardWorkspaceViews.tsx` | Owns Campaigns, Messages, Channels, Analytics, and Settings, each rendered from its own `apps/web/src/app/dashboard/<section>/page.tsx`. |
+| Prospects | `apps/web/src/app/dashboard/prospects/page.tsx`, `prospects/[id]/page.tsx`, `@modal/(.)prospects/[id]/page.tsx`, `ProspectDetailPanel.tsx` | Real routes with an intercepting route for the desktop detail drawer. |
 | Dashboard API | `apps/api/src/routes/dashboard.ts` | Owns organization-scoped aggregation and activity normalization. |
 | Protected route registration | `apps/api/src/plugins/protected-routes.ts` | Registers `dashboardRoutes` after JWT and organization middleware. |
 | API tests | `apps/api/src/routes/__tests__/dashboard.test.ts` | Covers aggregate data, activity order, and engine precedence. |
@@ -36,16 +37,17 @@ completed onboarding
 
 | Navigation item | Status | Current behavior |
 | --- | --- | --- |
-| Overview | Operational | `/home` uses `GET /dashboard/overview`. |
-| Campaigns | Operational | `/home?view=campaigns` uses existing `/campaigns` draft and launch endpoints. |
-| Prospects | Operational | `/home?view=prospects` uses existing `/leads` and campaign enrollment endpoints. |
-| Messages | Operational | `/home?view=messages` uses `GET /dashboard/messages`. It is read-only. |
-| Channels | Operational | `/home?view=channels` uses social-account list, sync, and hosted-auth endpoints. |
-| Analytics | Operational | `/home?view=analytics` uses `GET /dashboard/analytics`. |
-| Settings | Operational | `/home?view=settings` uses `GET/PATCH /dashboard/settings`. |
+| Overview | Operational | `/dashboard` uses `GET /dashboard/overview`. |
+| Campaigns | Operational | `/dashboard/campaigns` uses existing `/campaigns` draft and launch endpoints. |
+| Prospects | Operational | `/dashboard/prospects` (+ `/dashboard/prospects/[id]`) uses existing `/leads` and campaign enrollment endpoints, with review/approve/exclude states. |
+| Messages | Operational | `/dashboard/messages` (+ `/dashboard/messages/[campaignLeadId]`) uses `GET /dashboard/messages`. Reply is a real, idempotency-protected send, not read-only. |
+| Channels | Operational | `/dashboard/channels` uses social-account list, sync, and hosted-auth endpoints. |
+| Analytics | Operational | `/dashboard/analytics` uses `GET /dashboard/analytics`. |
+| Activity | Operational | `/dashboard/activity` uses the same activity data as Overview, unfiltered by campaign. |
+| Settings | Operational | `/dashboard/settings` uses `GET/PATCH /dashboard/settings`. |
 
-Each active view includes loading, empty, and error states. Do not add a new
-route merely because a navigation item is visible.
+Each route includes loading, empty, and error states. Do not add a new route
+merely because a navigation item is visible.
 
 ## Operational API contracts
 
@@ -69,12 +71,16 @@ Endpoint: `GET /dashboard/overview`
 Authentication: required. The API obtains `orgId` from `request.orgId`; every
 query must remain scoped to that organization.
 
-Response shape:
+Query params: `startDate`, `endDate` (defaults to the last 7 days vs. the
+preceding 7 days), `activityKind` (filters the `activity` list).
+
+Response shape (current):
 
 ```ts
 type DashboardOverview = {
   organization: {
     name: string;
+    plan: string;
     subscriptionStatus: string | null;
     hasBillingPortal: boolean;
   };
@@ -89,7 +95,15 @@ type DashboardOverview = {
     replies: number;
     meetingsBooked: number;
     outreachSent: number;
+    customers: number;
   };
+  trends: Partial<Record<keyof DashboardOverview["metrics"], {
+    direction: "up" | "down" | "flat" | "new";
+    percent: number | null;
+  }>>;
+  activityTrend: Array<{ date: string; sent: number; replies: number }>;
+  dateRange: { startDate: string; endDate: string };
+  unreadNotificationCount: number;
   primaryCampaign: {
     id: string;
     name: string;
@@ -98,6 +112,10 @@ type DashboardOverview = {
     prospectCount: number;
     createdAt: string;
     updatedAt: string;
+    startedAt: string;
+    stats?: { prospects: number; contacted: number; replies: number; meetings: number; customers: number };
+    channelSendCounts?: Record<string, number>;
+    video?: CampaignVideoSummary | null;
   } | null;
   channels: Array<{
     id: string;
@@ -117,22 +135,52 @@ type DashboardOverview = {
     title: string;
     detail: string;
     occurredAt: string;
+    avatarUrl?: string | null;
+    channel?: string;
+    action?: "reply" | "view";
+    href?: string;
   }>;
+  actions: {
+    needsReply: Array<{ campaignLeadId: string; prospectName: string; company: string | null; avatarUrl: string | null; campaignName: string; preview: string; occurredAt: string }>;
+    needsReplyCount: number;
+    reconnectAccounts: Array<{ id: string; platform: string; accountName: string; status: string }>;
+    failedSends: Array<{ id: string; kind: "automation" | "operator"; state: string; campaignLeadId: string; campaignName: string; prospectName: string; occurredAt: string }>;
+    failedSendCount: number;
+    stalled: Array<{ campaignLeadId: string; campaignId: string; campaignName: string; prospectName: string; company: string | null; currentStep: number; waitingSince: string }>;
+    stalledCount: number;
+  };
+  sendingHealth: {
+    senders: Array<{ id: string; accountName: string; status: string; invite: { limit: number; remaining: number; resetAt: string }; message: { limit: number; remaining: number; resetAt: string } }>;
+    unhealthyAccounts: Array<{ id: string; platform: string; accountName: string; status: string }>;
+    failedSendCount: number;
+    pendingInviteAcceptances: number;
+  };
 };
 ```
+
+`actions` and `sendingHealth` are new since the last verification pass, they
+drive the `TodayActionsPanel` triage list and `SendingHealthStrip` on
+Overview, plus two of the four `OverviewInsightCarousel` slides. See
+`overview.md` for how each is used.
 
 ### Data rules
 
 | UI value | Persisted source | Do not substitute with |
 | --- | --- | --- |
-| Prospects | `Lead` count for the organization | scraped estimate or sample data |
-| Outreach in progress | active `CampaignLead` count for organization campaigns | campaign capacity |
-| Replies | `Lead.status = replied` | sentiment estimate |
-| Meetings booked | `Lead.status = meeting` | calendar guess |
-| Sent outreach | outbound `Message` count | queued jobs |
+| Prospects | `Lead` count for the organization, scoped to the date range | scraped estimate or sample data |
+| Outreach in progress | active `CampaignLead` count for organization campaigns, scoped to the date range | campaign capacity |
+| Replies | inbound `Message` count, scoped to the date range | sentiment estimate |
+| Meetings booked | `Lead.status = meeting`, scoped to the date range | calendar guess |
+| Sent outreach | outbound `Message` count, scoped to the date range | queued jobs |
+| Customers | `Lead.status = converted`, scoped to the date range | any other conversion proxy |
+| Trends | current-range count vs. the immediately preceding range of equal length | a forecast, a target, or "vs your average" without a defined baseline |
+| Activity trend | outbound/inbound `Message` rows grouped by day for the date range | interpolated or invented daily points |
+| Channel send counts | outbound `Message` count per channel for the primary campaign | a fabricated deliverability percentage |
 | Primary campaign | active campaign, else most recently updated draft/review campaign | automatically-created campaign |
 | Channel health | persisted `SocialAccount.status` | a logo alone or provider availability |
-| Activity | persisted messages, leads, video assets, campaigns, sorted newest first | invented views, opens, or trend events |
+| Activity | persisted messages, leads, video assets, campaigns, sorted newest first, filterable by kind | invented views, opens, or trend events |
+| Needs-reply / stalled / failed-send counts | inbound `Message` rows without a handled reply, `CampaignLead` rows contacted but not connected, `Message`/`ManualDeliveryAttempt` rows in a failed or unknown state | an estimated backlog or a fixed placeholder count |
+| Sending health (messages/invites left) | the same daily rate-limit counters (`checkAndIncrementDailySendLimit`) that gate actual sends | a display-only limit that isn't the one actually enforced |
 
 ### Engine status precedence
 
@@ -148,16 +196,32 @@ channel prerequisite.
 
 ## UI composition and layout rules
 
-`HomeDashboardClient.tsx` has these stable regions:
+`DashboardShell.tsx` has these stable regions, shared by every `/dashboard/*`
+route:
 
 1. Fixed desktop sidebar and compact mobile navigation.
-2. Fixed top bar with search placeholder, workspace context, theme control, and
-   notifications placeholder.
-3. Overview header with engine copy and optional billing-portal action.
-4. Four metric cells.
-5. Primary campaign or ready-to-create state.
-6. Recent activity.
-7. Channel health and attention items.
+2. Fixed top bar. Search, date range picker, and notification bell are still
+   placeholder UI, the API already returns real search-able data and a real
+   `unreadNotificationCount`, only the top bar wiring is outstanding, see
+   `overview.md` → "Next work".
+3. Theme control.
+
+`DashboardOverviewClient.tsx` (Overview only) additionally has:
+
+4. Header ("Today" + engine status) with a real week-over-week trend badge
+   and "New campaign".
+5. `TodayActionsPanel`, real operator triage (needs-reply / reconnect /
+   failed-send / stalled counts, each linking to where it's resolved).
+6. `SendingHealthStrip`, real daily send-limit remaining, sourced from the
+   same rate limiter that enforces sends.
+7. Four metric cells with real trend deltas.
+8. Primary campaign card: status, video, real per-channel send counts, a
+   5-cell stat row, and a monotonic funnel stepper.
+9. Live activity, filterable by kind.
+10. Recommendations, real insights engine when ready (tagged "AI"), real
+    operator actions otherwise (tagged "Ops"), never fabricated.
+11. `OverviewInsightCarousel`, 4 real-data slides (insight chart, channel
+    connect status, action queue, sending health).
 
 ### Responsive scroll behavior
 
@@ -191,19 +255,46 @@ channel prerequisite.
 | Load overview | `apiFetch("/dashboard/overview")` | Redirect browser to `/login` only for an authenticated API 401. |
 | Open billing management | `POST /billing/portal-session` | Only render/enable when `hasBillingPortal` is true. |
 | Theme change | `useThemeMode()` | Preserve current light/dark state behavior. |
-| Workspace navigation | `HomeDashboardClient.tsx` and `DashboardOperationsClient.tsx` | Overview uses `/home`; each operational workspace view uses `/home?view=<section>`. |
+| Workspace navigation | `DashboardShell.tsx`, `DashboardOverviewClient.tsx`, `DashboardWorkspaceViews.tsx` | Overview uses `/dashboard`; each other section is a real nested route under `/dashboard/<section>`, no more `?view=` switching. |
+| Reply to a lead | `POST` a message with a client-generated `idempotencyKey` | Prevents double-send on retry/double-click; enforced by a unique constraint, not just client debouncing. |
 
 ## Next dashboard increment
 
-The next increment should add campaign sequence editing and confirmation,
-prospect filters and approval, threaded reply handling, deeper channel recovery,
-date-range analytics, and team settings. Each addition still needs a clear API
-contract, organization-isolation test, and a meaningful loading, empty, and
-failure state.
+Verified as of this pass (build + 205 API tests green, source-level
+confirmation against `apps/api/src/routes/dashboard.ts`):
+
+- Overview is on real, non-fabricated data end to end: week-over-week
+  trends, a real daily activity-trend chart, real per-channel send counts,
+  a real insights-engine-backed recommendations panel, and a monotonic
+  funnel stepper.
+- Routing is real nested paths, not query-param view switching.
+- Messages replies are idempotency-protected; Prospects has a real
+  review/approve/exclude workflow with a detail-drawer intercepting route.
+
+Still outstanding, in rough priority order:
+
+1. **Top bar wiring** (Overview and shell-wide): real search against
+   `GET /dashboard/prospects` / `GET /campaigns`, a functional `Popover`+
+   `Calendar` date range picker (the API already supports
+   `startDate`/`endDate`), and a notification bell reading the real
+   `unreadNotificationCount` the API already returns.
+2. **Sidebar Connected Channels block**: replace the current static status
+   block with a `Collapsible` + `Card` reading real `SocialAccount` rows,
+   no hardcoded channels (Email/Zapier are not real integrations, do not
+   list them until they are).
+3. **Dropdown consolidation**: replace remaining ad-hoc dropdown/menu JSX
+   across the dashboard with shadcn's `DropdownMenu` (for actions/menus)
+   or `Select` (for value pickers), preserving existing behavior exactly.
+4. **Onboarding shadcn migration**: separate, later effort, same
+   like-for-like constraint as the dashboard consolidation, no visual or
+   behavioral change, different components (`Form`, `Progress`,
+   `RadioGroup`), no shared files with the dashboard work.
+5. Team and workspace-security settings remain intentionally unbuilt, no
+   multi-user/team model exists yet to back them.
 
 ## Dashboard definition of done
 
-1. Server entry protects `/home` and obeys `onboardedAt`.
+1. Server entry protects `/dashboard` and obeys `onboardedAt`.
 2. Every endpoint query has organization scope.
 3. Numbers and labels come from documented persisted sources.
 4. Empty data is truthful and useful.
