@@ -124,7 +124,7 @@ describe("POST /webhooks/unipile message_received", () => {
     expect(recordInboundMessage).not.toHaveBeenCalled();
   });
 
-  it("marks inbound replies and removes only queued step-two-and-later jobs", async () => {
+  it("marks inbound replies and removes all queued sequence jobs", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/webhooks/unipile",
@@ -141,10 +141,12 @@ describe("POST /webhooks/unipile message_received", () => {
       where: { id: "campaign-lead-1" },
       data: { status: "replied" },
     });
-    expect(campaignSequenceJobId).toHaveBeenCalledTimes(2);
-    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(1, "campaign-lead-1", 2);
-    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(2, "campaign-lead-1", 3);
-    expect(remove).toHaveBeenCalledWith("campaign-lead-1:step:2");
+    expect(campaignSequenceJobId).toHaveBeenCalledTimes(4);
+    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(1, "campaign-lead-1", 0);
+    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(2, "campaign-lead-1", 1);
+    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(3, "campaign-lead-1", 2);
+    expect(campaignSequenceJobId).toHaveBeenNthCalledWith(4, "campaign-lead-1", 3);
+    expect(remove).toHaveBeenCalledWith("campaign-lead-1:step:0");
     expect(remove).toHaveBeenCalledWith("campaign-lead-1:step:3");
     expect(recordInboundMessage).toHaveBeenCalledWith(expect.objectContaining({
       campaignId: "campaign-1",

@@ -18,7 +18,7 @@ type WebhookHeader = { key: string; value: string };
 
 type CreateWebhookPayload = {
   request_url: string;
-  source: "messaging" | "users";
+  source: "messaging" | "users" | "email";
   name: string;
   events: string[];
   headers: WebhookHeader[];
@@ -138,6 +138,13 @@ async function main(): Promise<void> {
       request_url: WEBHOOK_URL,
       source: "users",
       events: ["new_relation"],
+      headers: authHeaders,
+    },
+    {
+      name: "leadreacher-email",
+      request_url: WEBHOOK_URL,
+      source: "email",
+      events: ["mail_received"],
       headers: authHeaders,
     },
   ];

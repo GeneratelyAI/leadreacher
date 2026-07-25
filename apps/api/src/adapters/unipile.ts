@@ -198,6 +198,34 @@ export class UnipileAdapter {
     );
   }
 
+  async sendEmail(input: {
+    accountId: string;
+    toEmail: string;
+    toName?: string;
+    subject: string;
+    body: string;
+  }): Promise<{ id?: string; email_id?: string; provider_id?: string }> {
+    const formData = new FormData();
+    formData.append("account_id", input.accountId);
+    formData.append("subject", input.subject);
+    formData.append("body", input.body);
+    formData.append(
+      "to",
+      JSON.stringify([
+        {
+          display_name: input.toName?.trim() || input.toEmail,
+          identifier: input.toEmail,
+        },
+      ]),
+    );
+
+    return this.request<{ id?: string; email_id?: string; provider_id?: string }>(
+      "POST",
+      "/emails",
+      formData,
+    );
+  }
+
   async getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
     return this.request<UnipileAccountStatus>("GET", `/accounts/${accountId}`);
   }

@@ -97,6 +97,14 @@ vi.mock("../../services/delivery-attempt.js", () => ({
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 }));
+vi.mock("../../services/campaign-channel-accounts.js", () => ({
+  getCampaignSenderForChannel: vi.fn(async () => ({
+    id: "account-1",
+    platform: "linkedin",
+    status: "active",
+    unipileId: "account-1",
+  })),
+}));
 
 import { startCampaignSequenceWorker } from "../campaign-sequence.js";
 
@@ -112,6 +120,7 @@ function campaignLead(step = 0) {
     campaignId: "campaign-1",
     leadId: "lead-1",
     linkedinChatId: step > 0 ? "chat-1" : null,
+    providerChatId: step > 0 ? "chat-1" : null,
     lead: {
       providerLinkedinId: "lead-provider-1",
       linkedinUrl: "https://www.linkedin.com/in/lead-one",

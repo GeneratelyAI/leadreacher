@@ -8,6 +8,7 @@ import {
   UnipileAdapter,
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
+import { normalizeUnipilePlatform } from "../lib/channels.js";
 import { ExternalServiceError } from "../lib/errors.js";
 import {
   errorResponses,
@@ -59,9 +60,27 @@ const UnipileNewRelationSchema = z.object({
   user_picture_url: z.string().optional(),
 });
 
+const UnipileMailReceivedSchema = z.object({
+  event: z.literal("mail_received"),
+  account_id: z.string(),
+  email_id: z.string().optional(),
+  message_id: z.string().optional(),
+  from_attendee: z
+    .object({
+      identifier: z.string().optional(),
+      display_name: z.string().optional(),
+    })
+    .optional(),
+  subject: z.string().optional(),
+  body: z.string().optional(),
+  body_plain: z.string().optional(),
+  timestamp: z.string().optional(),
+});
+
 const UnipileWebhookSchema = z.discriminatedUnion("event", [
   UnipileMessageReceivedSchema,
   UnipileNewRelationSchema,
+  UnipileMailReceivedSchema,
 ]);
 
 const UnipileHostedAuthCallbackSchema = z.object({
@@ -82,7 +101,7 @@ async function cancelPendingSequenceJobs(
   campaignLeadId: string,
   sequence: ReturnType<typeof parseSequence>,
 ): Promise<void> {
-  for (let step = 2; step < sequence.length; step++) {
+  for (let step = 0; step < sequence.length; step++) {
     try {
       await campaignSequenceQueue.remove(
         campaignSequenceJobId(campaignLeadId, step),
@@ -148,7 +167,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         hostedAuthCallback.data.account_id,
       );
       const status = isAccountHealthy(account) ? "active" : "reconnecting";
-      const platform = account.type.toLowerCase();
+      const platform = normalizeUnipilePlatform(account.type);
 
       await prisma.socialAccount.upsert({
         where: {
@@ -225,8 +244,11 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       const campaignLead = await prisma.campaignLead.findFirst({
         where: {
-          linkedinChatId: data.chat_id,
           campaign: { orgId: socialAccount.orgId },
+          OR: [
+            { providerChatId: data.chat_id },
+            { linkedinChatId: data.chat_id },
+          ],
         },
         include: { lead: true, campaign: true },
       });
@@ -239,6 +261,10 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         });
         return reply.send({ received: true, handled: false });
       }
+
+      const inboundChannel = normalizeUnipilePlatform(
+        socialAccount.platform || data.account_type,
+      );
 
       await prisma.lead.update({
         where: { id: campaignLead.leadId },
@@ -264,7 +290,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         campaignId: campaignLead.campaignId,
         leadId: campaignLead.leadId,
         orgId: socialAccount.orgId,
-        channel: "linkedin",
+        channel: typeof inboundChannel === "string" ? inboundChannel : "linkedin",
         content: { type: "text", message: data.message },
         direction: "inbound",
         status: STATUS_REPLIED,
@@ -278,7 +304,76 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         account_id: data.account_id,
         message_id: data.message_id,
         chat_id: data.chat_id,
+        channel: inboundChannel,
         inbound: true,
+      });
+    } else if (data.event === "mail_received") {
+      const externalId = data.email_id ?? data.message_id;
+      if (!externalId) {
+        return reply.send({ received: true, handled: false });
+      }
+      if (await isDuplicate(externalId)) {
+        return reply.send({ received: true, duplicate: true });
+      }
+
+      const socialAccount = await prisma.socialAccount.findFirst({
+        where: { unipileId: data.account_id, status: "active" },
+      });
+      if (!socialAccount) {
+        return reply.send({ received: true, handled: false });
+      }
+
+      const fromEmail = data.from_attendee?.identifier?.trim().toLowerCase();
+      if (!fromEmail) {
+        return reply.send({ received: true, handled: false });
+      }
+
+      const threadKey = `${data.account_id}:${fromEmail}`;
+      const campaignLead = await prisma.campaignLead.findFirst({
+        where: {
+          emailThreadKey: threadKey,
+          campaign: { orgId: socialAccount.orgId },
+          status: { in: ["active", "completed"] },
+        },
+        include: { campaign: true },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!campaignLead) {
+        return reply.send({ received: true, handled: false });
+      }
+
+      await prisma.lead.update({
+        where: { id: campaignLead.leadId },
+        data: { status: STATUS_REPLIED },
+      });
+      await prisma.campaignLead.update({
+        where: { id: campaignLead.id },
+        data: { status: STATUS_REPLIED },
+      });
+
+      try {
+        const sequence = parseSequence(campaignLead.campaign.sequence);
+        await cancelPendingSequenceJobs(app, campaignLead.id, sequence);
+      } catch (error) {
+        app.log.error(error);
+      }
+
+      await recordInboundMessage({
+        campaignId: campaignLead.campaignId,
+        leadId: campaignLead.leadId,
+        orgId: socialAccount.orgId,
+        channel: "email",
+        content: {
+          type: "email",
+          subject: data.subject,
+          body: data.body_plain ?? data.body ?? "",
+        },
+        direction: "inbound",
+        status: STATUS_REPLIED,
+        externalId,
+        stepIndex: campaignLead.currentStep,
+        sentAt: data.timestamp ? new Date(data.timestamp) : new Date(),
       });
     } else if (data.event === "new_relation") {
       const socialAccount = await prisma.socialAccount.findFirst({

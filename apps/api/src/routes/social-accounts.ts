@@ -7,6 +7,7 @@ import {
   UnipileAdapter,
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
+import { UNIPILE_CONNECT_PROVIDERS, normalizeUnipilePlatform } from "../lib/channels.js";
 import { ValidationError } from "../lib/errors.js";
 import {
   ErrorResponseSchema,
@@ -19,9 +20,7 @@ import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
 
 const ConnectSocialAccountBodySchema = z.object({
-  provider: z
-    .enum(["LINKEDIN", "WHATSAPP", "GOOGLE", "MICROSOFT", "IMAP"])
-    .default("LINKEDIN"),
+  provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
   returnTo: z.enum(["onboarding", "home", "dashboard"]).default("onboarding"),
 });
 
@@ -250,7 +249,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
         continue;
       }
 
-      const platform = account.type.toLowerCase();
+      const platform = normalizeUnipilePlatform(account.type);
       const accountStatus = await resolveAccountStatus(adapter, account.id);
 
       await prisma.socialAccount.upsert({

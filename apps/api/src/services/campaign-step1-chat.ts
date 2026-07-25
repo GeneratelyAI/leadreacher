@@ -111,6 +111,7 @@ export async function deliverSequenceStep1ViaChat(
         where: { id: campaignLeadId },
         data: {
           linkedinChatId: chat.chat_id,
+          providerChatId: chat.chat_id,
           currentStep: 2,
         },
       }),

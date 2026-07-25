@@ -13,6 +13,7 @@ import {
   LEAD_STATUS_CONNECTED,
   LEAD_STATUS_CONTACTED,
 } from "../lib/lead-status.js";
+import { channelForStepType } from "../lib/channels.js";
 import { parseSequence } from "../lib/sequence.js";
 import { resolveProviderId } from "../lib/provider-id.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
@@ -22,6 +23,11 @@ import {
   utcDay,
 } from "../lib/rate-limiter.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
+import { getCampaignSenderForChannel } from "../services/campaign-channel-accounts.js";
+import {
+  deliverEmailChannelStep,
+  deliverMessagingChannelStep,
+} from "../services/deliver-channel-step.js";
 import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
@@ -80,7 +86,14 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         return { completed: true };
       }
 
-      if (step === 0) {
+      const channel = channelForStepType(currentStep.type);
+      if (!channel) {
+        throw new Error(
+          `Unsupported sequence step type "${currentStep.type}" on CampaignLead ${campaignLeadId}`,
+        );
+      }
+
+      if (step === 0 && channel === "linkedin") {
         const personalizedVideo = await ensurePersonalizedVideoReady({
           orgId,
           campaignId: campaignLead.campaignId,
@@ -98,20 +111,57 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         }
       }
 
-      const socialAccount = campaignLead.campaign.senderAccount;
-      if (
-        !socialAccount ||
-        socialAccount.platform !== "linkedin" ||
-        socialAccount.status !== "active" ||
-        !socialAccount.unipileId
-      ) {
-        throw new Error(`Campaign ${campaignLead.campaignId} has no active LinkedIn sender`);
+      const socialAccount = await getCampaignSenderForChannel({
+        campaignId: campaignLead.campaignId,
+        channel,
+        legacyLinkedInAccount: campaignLead.campaign.senderAccount,
+      });
+
+      if (!socialAccount?.unipileId || socialAccount.status !== "active") {
+        throw new Error(
+          `Campaign ${campaignLead.campaignId} has no active ${channel} sender`,
+        );
       }
 
       const adapter = new UnipileAdapter({
         dsn: env.UNIPILE_DSN,
         apiKey: env.UNIPILE_API_KEY,
       });
+
+      const existingChatId =
+        campaignLead.providerChatId ?? campaignLead.linkedinChatId ?? null;
+
+      if (channel === "whatsapp" || channel === "facebook" || channel === "instagram") {
+        return deliverMessagingChannelStep({
+          adapter,
+          channel,
+          campaignLeadId,
+          orgId,
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+          lead: campaignLead.lead,
+          step,
+          sequence,
+          currentStep,
+          sender: socialAccount,
+          existingChatId,
+        });
+      }
+
+      if (channel === "email") {
+        return deliverEmailChannelStep({
+          adapter,
+          campaignLeadId,
+          orgId,
+          campaignId: campaignLead.campaignId,
+          leadId: campaignLead.leadId,
+          lead: campaignLead.lead,
+          step,
+          sequence,
+          currentStep,
+          sender: socialAccount,
+        });
+      }
 
       if (step === 0) {
         const identifier = leadLinkedinIdentifier(campaignLead.lead);
@@ -185,7 +235,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             attendeeProviderId,
             unipileAccountId: socialAccount.unipileId,
             sequence,
-            existingChatId: campaignLead.linkedinChatId,
+            existingChatId,
           });
 
           if (
@@ -311,7 +361,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         return { sent: true, step, path: "invite-sent" };
       }
 
-      const chatId = campaignLead.linkedinChatId;
+      const chatId = existingChatId;
       if (!chatId) {
         throw new Error(
           `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
