@@ -32,8 +32,8 @@ vi.mock("../../services/campaign-step1-chat.js", () => ({
 import { reconcilePendingConnections } from "../reconcile-relations.js";
 
 const SEQUENCE = [
-  { type: "connection", message: "hi", delayHours: 0 },
-  { type: "message", message: "step1", delayHours: 0 },
+  { type: "linkedin_invite", message: "hi", delayHours: 0 },
+  { type: "linkedin_message", message: "step1", delayHours: 0 },
 ];
 
 function candidate(id: string, providerLinkedinId: string) {

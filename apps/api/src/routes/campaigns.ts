@@ -8,6 +8,7 @@ import {
   authenticatedRoute,
   errorResponses,
 } from "../lib/openapi.js";
+import { OUTREACH_CHANNELS } from "../lib/channels.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
@@ -17,17 +18,15 @@ import {
   resumeCampaignSequenceJobs,
 } from "../services/campaign-sequence-control.js";
 import {
+  parseChannelAccountsBody,
+  resolveAndSyncCampaignChannelAccounts,
+} from "../services/campaign-channel-accounts.js";
+import {
   buildPrimaryCampaignVideoSummary,
   campaignVideoPaused,
 } from "../lib/campaign-video-summary.js";
 
-const ALLOWED_CHANNELS = [
-  "linkedin",
-  "whatsapp",
-  "instagram",
-  "facebook",
-  "email",
-] as const;
+const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
 const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 const PATCHABLE_STATUSES = ["active", "paused", "completed"] as const;
@@ -36,6 +35,7 @@ const SequenceStepSchema = z.object({
   type: z.string(),
   message: z.string(),
   delayHours: z.number(),
+  subject: z.string().optional(),
 });
 
 const CampaignPatchSchema = z.object({
@@ -43,6 +43,7 @@ const CampaignPatchSchema = z.object({
   status: z.enum(PATCHABLE_STATUSES).optional(),
   sequence: z.array(SequenceStepSchema).optional(),
   socialAccountId: z.string().trim().min(1).nullable().optional(),
+  channelAccounts: z.record(z.string(), z.string()).optional(),
   channels: z.array(z.string()).min(1).optional(),
   archived: z.boolean().optional(),
 });
@@ -58,6 +59,7 @@ const CreateCampaignBodySchema = z.object({
   channels: z.array(z.string()).min(1),
   sequence: z.array(SequenceStepSchema).min(1),
   socialAccountId: z.string().trim().min(1).optional(),
+  channelAccounts: z.record(z.string(), z.string()).optional(),
 });
 
 const ListCampaignsQuerySchema = z.object({
@@ -140,6 +142,25 @@ async function resolveLinkedInSender(input: {
   return sender.id;
 }
 
+async function resolveCampaignSenders(input: {
+  orgId: string;
+  campaignId?: string;
+  channels: string[];
+  sequence: unknown;
+  socialAccountId?: string | null;
+  channelAccounts?: Record<string, string> | null;
+}) {
+  const sequence = parseSequence(input.sequence);
+  return resolveAndSyncCampaignChannelAccounts({
+    orgId: input.orgId,
+    campaignId: input.campaignId,
+    channels: input.channels,
+    sequence,
+    socialAccountId: input.socialAccountId,
+    channelAccounts: parseChannelAccountsBody(input.channelAccounts ?? null),
+  });
+}
+
 type CampaignLeadWithLead = Prisma.CampaignLeadGetPayload<{
   include: {
     lead: {
@@ -167,15 +188,17 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { name, channels, sequence, socialAccountId } = request.body;
+    const { name, channels, sequence, socialAccountId, channelAccounts } = request.body;
     validateChannels(channels);
 
-    const selectedSocialAccountId = await resolveLinkedInSender({
-      orgId,
-      socialAccountId,
-      channels,
-    });
     const validatedSequence = parseSequenceOrThrow(sequence);
+    const senders = await resolveCampaignSenders({
+      orgId,
+      channels,
+      sequence: validatedSequence,
+      socialAccountId,
+      channelAccounts,
+    });
 
     const campaign = await prisma.campaign.create({
       data: {
@@ -184,8 +207,17 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         channels,
         sequence: validatedSequence,
         status: "draft",
-        socialAccountId: selectedSocialAccountId,
+        socialAccountId: senders.linkedInSocialAccountId,
       },
+    });
+
+    await resolveAndSyncCampaignChannelAccounts({
+      orgId,
+      campaignId: campaign.id,
+      channels,
+      sequence: parseSequence(validatedSequence),
+      socialAccountId: senders.linkedInSocialAccountId,
+      channelAccounts: senders.channelAccounts,
     });
 
     return reply.send(campaign);
@@ -417,6 +449,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       body.status === undefined &&
       body.sequence === undefined &&
       body.socialAccountId === undefined &&
+      body.channelAccounts === undefined &&
       body.channels === undefined &&
       body.archived === undefined
     ) {
@@ -427,16 +460,31 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const nextChannels = body.channels ?? campaign.channels;
     if (body.channels) validateChannels(body.channels);
 
-    let nextSocialAccountId = campaign.socialAccountId;
-    if (body.socialAccountId !== undefined) {
-      nextSocialAccountId = await resolveLinkedInSender({
-        orgId,
-        socialAccountId: body.socialAccountId,
-        channels: nextChannels,
-      });
-    } else if (body.channels && nextChannels.includes("linkedin") && !campaign.socialAccountId) {
-      throw new ValidationError("Select an active LinkedIn sender for this campaign");
-    }
+    const nextSequence =
+      body.sequence !== undefined ? parseSequenceOrThrow(body.sequence) : campaign.sequence;
+
+    // Pausing (or any metadata-only change) must not require a currently
+    // healthy sender, an unhealthy sender is often the reason to pause.
+    // Resuming, and any change that touches channel/sender config, still
+    // needs a real sender resolved.
+    const requiresSenderResolution =
+      body.channels !== undefined ||
+      body.sequence !== undefined ||
+      body.socialAccountId !== undefined ||
+      body.channelAccounts !== undefined ||
+      body.status === "active";
+
+    const senders = requiresSenderResolution
+      ? await resolveCampaignSenders({
+          orgId,
+          campaignId,
+          channels: nextChannels,
+          sequence: nextSequence,
+          socialAccountId:
+            body.socialAccountId !== undefined ? body.socialAccountId : campaign.socialAccountId,
+          channelAccounts: body.channelAccounts,
+        })
+      : null;
 
     if (body.status === "active" && !["paused", "active"].includes(campaign.status)) {
       throw new ValidationError(`Campaign cannot resume from status "${campaign.status}"`);
@@ -451,12 +499,12 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const data: Prisma.CampaignUpdateInput = {};
     if (body.name !== undefined) data.name = body.name;
     if (body.channels !== undefined) data.channels = body.channels;
-    if (body.socialAccountId !== undefined) {
-      data.senderAccount = nextSocialAccountId
-        ? { connect: { id: nextSocialAccountId } }
+    if (senders) {
+      data.senderAccount = senders.linkedInSocialAccountId
+        ? { connect: { id: senders.linkedInSocialAccountId } }
         : { disconnect: true };
     }
-    if (body.sequence !== undefined) data.sequence = parseSequenceOrThrow(body.sequence);
+    if (body.sequence !== undefined) data.sequence = nextSequence as Prisma.InputJsonValue;
     if (body.status !== undefined) data.status = body.status;
     if (body.archived !== undefined) {
       data.aiConfig = withArchivedFlag(campaign.aiConfig, body.archived);
@@ -608,16 +656,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (campaign.leads.length === 0) {
       throw new ValidationError("Campaign has no enrolled leads");
     }
-    if (campaign.channels.includes("linkedin")) {
-      if (
-        !campaign.senderAccount ||
-        campaign.senderAccount.platform !== "linkedin" ||
-        campaign.senderAccount.status !== "active" ||
-        !campaign.senderAccount.unipileId
-      ) {
-        throw new ValidationError("Select an active LinkedIn sender before launching this campaign");
-      }
-    }
+
+    await resolveCampaignSenders({
+      orgId,
+      campaignId,
+      channels: campaign.channels,
+      sequence: campaign.sequence,
+      socialAccountId: campaign.socialAccountId,
+    });
 
     await prisma.campaign.update({
       where: { id: campaignId },

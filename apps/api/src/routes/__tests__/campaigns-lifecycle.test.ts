@@ -14,6 +14,9 @@ const {
   messageFindMany,
   videoAssetFindMany,
   socialAccountFindFirst,
+  campaignChannelAccountUpsert,
+  campaignChannelAccountDeleteMany,
+  transaction,
   cancelCampaignPendingSequenceJobs,
   resumeCampaignSequenceJobs,
 } = vi.hoisted(() => ({
@@ -27,12 +30,23 @@ const {
   messageFindMany: vi.fn(),
   videoAssetFindMany: vi.fn(),
   socialAccountFindFirst: vi.fn(),
+  campaignChannelAccountUpsert: vi.fn(),
+  campaignChannelAccountDeleteMany: vi.fn(),
+  transaction: vi.fn(),
   cancelCampaignPendingSequenceJobs: vi.fn(),
   resumeCampaignSequenceJobs: vi.fn(),
 }));
 
+const channelAccountTx = {
+  campaignChannelAccount: {
+    upsert: campaignChannelAccountUpsert,
+    deleteMany: campaignChannelAccountDeleteMany,
+  },
+};
+
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
+    $transaction: transaction,
     campaign: {
       findUnique: campaignFindUnique,
       findFirst: campaignFindFirst,
@@ -87,6 +101,12 @@ beforeEach(async () => {
   messageFindMany.mockReset();
   videoAssetFindMany.mockReset();
   socialAccountFindFirst.mockReset();
+  campaignChannelAccountUpsert.mockReset();
+  campaignChannelAccountDeleteMany.mockReset();
+  transaction.mockReset().mockImplementation(async (operation) => {
+    if (typeof operation === "function") return operation(channelAccountTx);
+    return Promise.all(operation);
+  });
   cancelCampaignPendingSequenceJobs.mockReset().mockResolvedValue(1);
   resumeCampaignSequenceJobs.mockReset().mockResolvedValue(1);
   app = await buildTestApp();
@@ -107,6 +127,45 @@ describe("campaign lifecycle routes", () => {
       aiConfig: null,
       sequence: [{ type: "linkedin_invite", message: "Hi", delayHours: 0 }],
     });
+    socialAccountFindFirst.mockResolvedValue({ id: "sender-1", unipileId: "unipile-1" });
+    campaignUpdate.mockResolvedValue({
+      id: "campaign-1",
+      name: "Q3",
+      status: "paused",
+      channels: ["linkedin"],
+      socialAccountId: "sender-1",
+      aiConfig: null,
+      updatedAt: new Date("2026-07-23T12:00:00.000Z"),
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/campaigns/campaign-1",
+      payload: { status: "paused" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ id: "campaign-1", status: "paused" });
+    expect(cancelCampaignPendingSequenceJobs).toHaveBeenCalledWith({
+      campaignId: "campaign-1",
+      orgId: "org-1",
+    });
+    // A pure status change must not re-resolve senders.
+    expect(socialAccountFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("pauses a campaign even when its sender would fail resolution", async () => {
+    campaignFindUnique.mockResolvedValue({
+      id: "campaign-1",
+      orgId: "org-1",
+      status: "active",
+      channels: ["linkedin"],
+      socialAccountId: "sender-1",
+      aiConfig: null,
+      sequence: [{ type: "linkedin_invite", message: "Hi", delayHours: 0 }],
+    });
+    // Sender is gone/inactive, exactly the case pausing should still work for.
+    socialAccountFindFirst.mockResolvedValue(null);
     campaignUpdate.mockResolvedValue({
       id: "campaign-1",
       name: "Q3",
@@ -131,6 +190,29 @@ describe("campaign lifecycle routes", () => {
     });
   });
 
+  it("blocks resuming a campaign whose sender is no longer active", async () => {
+    campaignFindUnique.mockResolvedValue({
+      id: "campaign-1",
+      orgId: "org-1",
+      status: "paused",
+      channels: ["linkedin"],
+      socialAccountId: "sender-1",
+      aiConfig: null,
+      sequence: [{ type: "linkedin_invite", message: "Hi", delayHours: 0 }],
+    });
+    socialAccountFindFirst.mockResolvedValue(null);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/campaigns/campaign-1",
+      payload: { status: "active" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(campaignUpdate).not.toHaveBeenCalled();
+    expect(resumeCampaignSequenceJobs).not.toHaveBeenCalled();
+  });
+
   it("resumes a paused campaign and requeues jobs", async () => {
     campaignFindUnique.mockResolvedValue({
       id: "campaign-1",
@@ -141,6 +223,7 @@ describe("campaign lifecycle routes", () => {
       aiConfig: null,
       sequence: [{ type: "linkedin_invite", message: "Hi", delayHours: 0 }],
     });
+    socialAccountFindFirst.mockResolvedValue({ id: "sender-1", unipileId: "unipile-1" });
     campaignUpdate.mockResolvedValue({
       id: "campaign-1",
       name: "Q3",
