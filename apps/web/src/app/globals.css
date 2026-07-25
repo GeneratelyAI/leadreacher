@@ -876,7 +876,9 @@ body {
 }
 
 .strategy-preview__social-chip--linkedin {
-  background-color: var(--onboarding-linkedin);
+  background-color: transparent;
+  box-shadow: none;
+  color: inherit;
 }
 
 .strategy-preview__social-chip--whatsapp {
@@ -931,8 +933,8 @@ body {
 }
 
 .onboarding-channel-logo--linkedin {
-  background-color: var(--onboarding-linkedin);
-  color: var(--onboarding-neutral-0);
+  background-color: transparent;
+  color: inherit;
 }
 
 .onboarding-channel-logo--whatsapp {
@@ -2523,40 +2525,6 @@ html[data-page="discovery"].dark {
 
 .dark .auth-page .auth-theme-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
-}
-
-.auth-mobile-glass-input {
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.auth-mobile-glass-oauth {
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.dark .auth-page .auth-mobile-glass-input {
-  border-color: rgba(148, 163, 184, 0.3);
-  background: rgba(15, 23, 42, 0.88);
-  color: rgba(255, 255, 255, 0.95);
-}
-
-.dark .auth-page .auth-mobile-glass-input::placeholder {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.dark .auth-page .auth-mobile-glass-oauth {
-  border-color: rgba(148, 163, 184, 0.3);
-  background: rgba(15, 23, 42, 0.88);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.dark .auth-page .auth-mobile-glass-oauth:active {
-  background: rgba(30, 41, 59, 0.98);
 }
 
 /* Apple-style vibrancy glass — light surfaces (Discovery campaign panel) */
