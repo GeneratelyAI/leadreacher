@@ -156,22 +156,22 @@ function channelName(platform: string): string {
   return platform.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function isChannelLogoName(value: string): value is "linkedin" | "whatsapp" {
-  return value === "linkedin" || value === "whatsapp";
-}
-
 function ChannelMark({ platform }: { platform: string }) {
   const key = platform.toLowerCase();
-  if (isChannelLogoName(key)) {
+  if (key === "linkedin") {
+    return (
+      <span className="inline-flex size-8 shrink-0 items-center justify-center" aria-hidden>
+        <ChannelLogo name="linkedin" className="size-8" />
+      </span>
+    );
+  }
+  if (key === "whatsapp") {
     return (
       <span
-        className={cn(
-          "inline-flex size-8 shrink-0 items-center justify-center rounded-md text-white",
-          key === "linkedin" ? "bg-[#0A66C2]" : "bg-[#25D366]",
-        )}
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[#25D366] text-white"
         aria-hidden
       >
-        <ChannelLogo name={key} className="size-4" />
+        <ChannelLogo name="whatsapp" className="size-4" />
       </span>
     );
   }

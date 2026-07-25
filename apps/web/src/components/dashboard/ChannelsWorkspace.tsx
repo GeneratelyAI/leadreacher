@@ -20,7 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo, LINKEDIN_BRAND_LOGO_SRC } from "@/components/onboarding/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -77,7 +77,50 @@ type ChannelsResponse = {
   range: { startDate: string; endDate: string };
 };
 
-type ConnectProvider = "LINKEDIN" | "WHATSAPP" | "GOOGLE";
+type ConnectProvider = "LINKEDIN" | "WHATSAPP" | "MESSENGER" | "INSTAGRAM" | "GOOGLE" | "OUTLOOK" | "MAIL";
+
+const CONNECT_CHANNEL_OPTIONS: Array<{
+  provider: ConnectProvider;
+  label: string;
+  mark: "linkedin" | "whatsapp" | "instagram" | "gmail" | "outlook";
+}> = [
+  { provider: "LINKEDIN", label: "LinkedIn", mark: "linkedin" },
+  { provider: "WHATSAPP", label: "WhatsApp", mark: "whatsapp" },
+  { provider: "INSTAGRAM", label: "Instagram", mark: "instagram" },
+  { provider: "GOOGLE", label: "Gmail", mark: "gmail" },
+  { provider: "OUTLOOK", label: "Outlook", mark: "outlook" },
+];
+
+function ConnectChannelMark({ mark }: { mark: (typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"] }) {
+  const srcByMark: Record<(typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"], string | null> = {
+    linkedin: LINKEDIN_BRAND_LOGO_SRC,
+    instagram: "/dashboard/instagram-logo.png",
+    gmail: "/dashboard/gmail-logo.png",
+    outlook: "/dashboard/outlook-logo.png",
+    whatsapp: null,
+  };
+
+  const src = srcByMark[mark];
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- static brand assets
+      <img src={src} alt="" draggable={false} className="size-full object-contain" />
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 80 80" className="size-full" aria-hidden>
+      <path
+        fill="#25D366"
+        d="M40.1 8C23.2 8 9.5 21.7 9.5 38.6c0 5.4 1.4 10.5 3.9 14.9L10 70.5l17.5-4.6a30.8 30.8 0 0 0 12.6 2.7h.1c16.9 0 30.6-13.7 30.6-30.6S57 8 40.1 8Z"
+      />
+      <path
+        fill="#fff"
+        d="M54.8 48.6c-.8-.4-4.9-2.4-5.6-2.7-.8-.3-1.3-.4-1.9.4-.5.8-2.1 2.6-2.5 3.1-.5.5-1 .6-1.8.2-4.8-2.4-7.9-4.2-11.1-9.6-.8-1.4.8-1.3 2.4-4.3.3-.5.1-1-.1-1.4-.3-.4-1.9-4.5-2.6-6.1-.7-1.6-1.4-1.4-1.9-1.4h-1.6c-.6 0-1.4.2-2.2 1-.7.8-2.9 2.8-2.9 6.9s2.9 8 3.3 8.6c.4.6 5.8 8.9 14.1 12.4 1.9.8 3.5 1.3 4.7 1.7 1.9.6 3.7.5 5.1.3 1.6-.2 4.8-2 5.5-3.9.7-1.9.7-3.6.5-3.9-.2-.4-.8-.6-1.6-1Z"
+      />
+    </svg>
+  );
+}
 
 const KPI_CARDS: Array<{
   key: keyof Omit<ChannelsSummary, "trends">;
@@ -134,7 +177,7 @@ function channelName(platform: string): string {
   const key = platform.toLowerCase();
   if (key === "linkedin") return "LinkedIn";
   if (key === "whatsapp") return "WhatsApp";
-  if (key === "google" || key === "microsoft" || key === "imap" || key === "email") return "Email";
+  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") return "Email";
   return titleCase(platform);
 }
 
@@ -145,10 +188,6 @@ function initials(name: string): string {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("") || "?";
-}
-
-function isChannelLogoName(value: string): value is "linkedin" | "whatsapp" {
-  return value === "linkedin" || value === "whatsapp";
 }
 
 function statusTooltip(account: ChannelAccount): string {
@@ -194,20 +233,24 @@ function TrendLine({ trend, fallback }: { trend?: ChannelTrend; fallback: string
 
 function PlatformMark({ platform }: { platform: string }) {
   const key = platform.toLowerCase();
-  if (isChannelLogoName(key)) {
+  if (key === "linkedin") {
     return (
-      <span
-        className={cn(
-          "inline-flex size-10 shrink-0 items-center justify-center rounded-lg text-white",
-          key === "linkedin" ? "bg-[#0A66C2]" : "bg-[#25D366]",
-        )}
-        aria-hidden
-      >
-        <ChannelLogo name={key} className="size-5" />
+      <span className="inline-flex size-10 shrink-0 items-center justify-center" aria-hidden>
+        <ChannelLogo name="linkedin" className="size-10" />
       </span>
     );
   }
-  if (key === "google" || key === "microsoft" || key === "imap" || key === "email") {
+  if (key === "whatsapp") {
+    return (
+      <span
+        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
+        aria-hidden
+      >
+        <ChannelLogo name="whatsapp" className="size-5" />
+      </span>
+    );
+  }
+  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") {
     return (
       <span className="inline-flex size-10 shrink-0 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200" aria-hidden>
         <Mail className="size-5" strokeWidth={1.75} />
@@ -230,12 +273,17 @@ function ChannelAccountRow({
 }) {
   const statusLabel = titleCase(account.status);
   const healthy = account.health === "healthy";
+  const platform = account.platform.toLowerCase();
   const reconnectProvider: ConnectProvider =
-    account.platform.toLowerCase() === "whatsapp"
+    platform === "whatsapp"
       ? "WHATSAPP"
-      : account.platform.toLowerCase() === "google" || account.platform.toLowerCase() === "microsoft" || account.platform.toLowerCase() === "imap"
-        ? "GOOGLE"
-        : "LINKEDIN";
+      : platform === "facebook" || platform === "messenger"
+        ? "MESSENGER"
+        : platform === "instagram"
+          ? "INSTAGRAM"
+          : platform === "email" || platform === "google" || platform === "outlook" || platform === "microsoft" || platform === "imap" || platform === "mail"
+            ? "GOOGLE"
+            : "LINKEDIN";
 
   return (
     <li className="border-b border-border last:border-b-0">
@@ -508,22 +556,29 @@ export function ChannelsWorkspace() {
             <p className="mt-1 text-sm text-muted-foreground">
               Add more channels to expand your outreach capabilities.
             </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => void connect("LINKEDIN")} disabled={isConnecting}>
-                <ChannelLogo name="linkedin" className="size-3.5" /> LinkedIn
-              </Button>
-              <Button variant="outline" size="sm" disabled title="WhatsApp connection is coming soon">
-                <ChannelLogo name="whatsapp" className="size-3.5" /> WhatsApp
-                <Badge variant="secondary" className="ml-1">Soon</Badge>
-              </Button>
-              <Button variant="outline" size="sm" disabled title="Email connection is coming soon">
-                <Mail className="size-3.5" /> Email
-                <Badge variant="secondary" className="ml-1">Soon</Badge>
-              </Button>
-              <Button variant="outline" size="sm" disabled title="More integrations are coming soon">
-                <Plus className="size-3.5" /> More
-                <Badge variant="secondary" className="ml-1">Soon</Badge>
-              </Button>
+            <div className="mt-5 flex items-center justify-center gap-3 sm:gap-4">
+              {CONNECT_CHANNEL_OPTIONS.map((option) => (
+                <Tooltip key={option.provider}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label={`Connect ${option.label}`}
+                        disabled={isConnecting}
+                        onClick={() => void connect(option.provider)}
+                        className="inline-flex size-11 items-center justify-center rounded-2xl transition hover:-translate-y-0.5 hover:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 disabled:opacity-50 sm:size-12"
+                      />
+                    }
+                  >
+                    <span className={cn("block size-full", option.mark === "whatsapp" && "scale-[1.12]")}>
+                      <ConnectChannelMark mark={option.mark} />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={8}>
+                    {option.label}
+                  </TooltipContent>
+                </Tooltip>
+              ))}
             </div>
           </div>
         </div>

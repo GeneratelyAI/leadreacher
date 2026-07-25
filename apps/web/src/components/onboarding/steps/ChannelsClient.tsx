@@ -37,25 +37,28 @@ const CHANNELS = [
     key: "linkedin",
     title: "LinkedIn",
     description: "Connect your account to start outreach.",
-    icon: <ChannelLogo name="linkedin" className="size-5" />,
+    icon: <ChannelLogo name="linkedin" className="size-10" />,
     iconClassName: "onboarding-channel-logo--linkedin",
     available: true,
+    provider: "LINKEDIN" as const,
   },
   {
     key: "whatsapp",
-    title: "WhatsApp Business",
-    description: "Coming soon",
+    title: "WhatsApp",
+    description: "Message prospects on WhatsApp via Unipile.",
     icon: <ChannelLogo name="whatsapp" className="size-5" />,
     iconClassName: "onboarding-channel-logo--whatsapp",
-    available: false,
+    available: true,
+    provider: "WHATSAPP" as const,
   },
   {
     key: "email",
     title: "Email",
-    description: "Coming soon",
+    description: "Connect Gmail or Outlook via Unipile.",
     icon: <Mail className="size-5" aria-hidden />,
     iconClassName: "onboarding-channel-logo--email",
-    available: false,
+    available: true,
+    provider: "GOOGLE" as const,
   },
 ] as const;
 
@@ -103,7 +106,7 @@ export default function ChannelsClient() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
-  async function handleConnectLinkedIn() {
+  async function handleConnect(provider: "LINKEDIN" | "WHATSAPP" | "GOOGLE") {
     if (isConnecting) return;
 
     setIsConnecting(true);
@@ -111,12 +114,12 @@ export default function ChannelsClient() {
     try {
       const result = await apiFetch<{ url: string }>("/social-accounts/connect", {
         method: "POST",
-        body: JSON.stringify({ provider: "LINKEDIN" }),
+        body: JSON.stringify({ provider, returnTo: "onboarding" }),
       });
       window.location.assign(result.url);
     } catch (connectError) {
       setError(
-        connectError instanceof Error ? connectError.message : "Unable to start LinkedIn connection.",
+        connectError instanceof Error ? connectError.message : "Unable to start channel connection.",
       );
       setIsConnecting(false);
     }
@@ -207,7 +210,7 @@ export default function ChannelsClient() {
                         variant="brand"
                         size="sm"
                         disabled={isConnecting}
-                        onClick={() => void handleConnectLinkedIn()}
+                        onClick={() => void handleConnect(channel.provider)}
                       >
                         {isConnecting ? "Opening..." : "Connect"}
                       </Button>

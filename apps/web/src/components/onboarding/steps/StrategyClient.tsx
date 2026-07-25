@@ -341,7 +341,7 @@ function WorkCardPreview({ index }: { index: number }) {
     return (
       <div className="strategy-preview strategy-preview--channels">
         <span className="strategy-preview__social-chip strategy-preview__social-chip--linkedin">
-          <ChannelLogo name="linkedin" className="size-5" />
+          <ChannelLogo name="linkedin" className="size-10" />
         </span>
         <span className="strategy-preview__social-chip strategy-preview__social-chip--whatsapp">
           <ChannelLogo name="whatsapp" className="size-6" />
@@ -624,7 +624,7 @@ function percentageWidth(value: number, max: number): number {
 
 function channelIcon(channel: ChannelKey): React.ReactNode {
   if (channel === "linkedin") {
-    return <ChannelLogo name="linkedin" className="size-9" />;
+    return <ChannelLogo name="linkedin" className="size-14" />;
   }
   if (channel === "whatsapp") {
     return <ChannelLogo name="whatsapp" className="size-9" />;

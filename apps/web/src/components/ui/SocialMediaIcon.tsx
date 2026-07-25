@@ -9,6 +9,7 @@ import {
   siX,
   siYoutube,
 } from "simple-icons";
+import { cn } from "@/lib/utils";
 
 export type SocialMediaIconName =
   | "facebook"
@@ -26,13 +27,9 @@ type SocialMediaIconProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> 
   title?: string;
 };
 
-const LINKEDIN_PATH =
-  "M20.45 20.45h-3.56v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12Zm1.78 13.02H3.56V9h3.56v11.45Z";
-
-const SOCIAL_ICON_PATHS: Record<SocialMediaIconName, string> = {
+const SOCIAL_ICON_PATHS: Record<Exclude<SocialMediaIconName, "linkedin">, string> = {
   facebook: siFacebook.path,
   instagram: siInstagram.path,
-  linkedin: LINKEDIN_PATH,
   reddit: siReddit.path,
   telegram: siTelegram.path,
   tiktok: siTiktok.path,
@@ -41,18 +38,35 @@ const SOCIAL_ICON_PATHS: Record<SocialMediaIconName, string> = {
   youtube: siYoutube.path,
 };
 
-/** Canonical 24x24 social marks used anywhere a named channel is displayed. */
+export const LINKEDIN_BRAND_LOGO_SRC = "/dashboard/linkedin-logo.png";
+
+/** Canonical social marks used anywhere a named channel is displayed. */
 export function SocialMediaIcon({
   name,
   title,
+  className,
   ...props
 }: SocialMediaIconProps) {
+  if (name === "linkedin") {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- shared brand asset
+      <img
+        src={LINKEDIN_BRAND_LOGO_SRC}
+        alt={title ?? ""}
+        draggable={false}
+        className={cn("object-contain", className)}
+        aria-hidden={title ? undefined : true}
+      />
+    );
+  }
+
   return (
     <svg
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden={title ? undefined : true}
       role={title ? "img" : undefined}
+      className={className}
       {...props}
     >
       {title ? <title>{title}</title> : null}

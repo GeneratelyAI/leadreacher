@@ -26,24 +26,27 @@ function channelLabel(platform: string): string {
   return platform.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function isChannelLogoName(value: string): value is "linkedin" | "whatsapp" {
-  return value === "linkedin" || value === "whatsapp";
-}
-
 function ChannelMark({ platform }: { platform: string }) {
   const key = platform.toLowerCase();
-  if (isChannelLogoName(key)) {
+  if (key === "linkedin") {
     return (
       <span
         data-channel-mark
-        className={cn(
-          "pointer-events-none inline-flex size-5 shrink-0 items-center justify-center rounded-[0.3rem] text-white",
-          key === "linkedin" ? "bg-[#0A66C2]" : "bg-[#25D366]",
-        )}
+        className="pointer-events-none inline-flex size-5 shrink-0 items-center justify-center"
         aria-hidden
       >
-        {/* Hard fill so menu focus:**:text-* cannot recolor the mark. */}
-        <ChannelLogo name={key} className="size-3" fill="#fff" />
+        <ChannelLogo name="linkedin" className="size-5" />
+      </span>
+    );
+  }
+  if (key === "whatsapp") {
+    return (
+      <span
+        data-channel-mark
+        className="pointer-events-none inline-flex size-5 shrink-0 items-center justify-center rounded-[0.3rem] bg-[#25D366] text-white"
+        aria-hidden
+      >
+        <ChannelLogo name="whatsapp" className="size-3" fill="#fff" />
       </span>
     );
   }

@@ -18,7 +18,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { type SocialMediaIconName } from "@/components/ui/SocialMediaIcon";
+import { LINKEDIN_BRAND_LOGO_SRC } from "@/components/ui/SocialMediaIcon";
 import {
   Tooltip,
   TooltipContent,
@@ -83,21 +83,22 @@ const UPSELL_CHANNELS = [
   { id: "linkedin" as const, label: "LinkedIn", detail: "Connection notes + sequences" },
   { id: "whatsapp" as const, label: "WhatsApp", detail: "Direct follow-ups" },
   { id: "instagram" as const, label: "Instagram", detail: "Social outreach" },
-  { id: "facebook" as const, label: "Facebook", detail: "Messenger outreach" },
-] satisfies Array<{
-  id: SocialMediaIconName;
-  label: string;
-  detail: string;
-}>;
+  { id: "gmail" as const, label: "Gmail", detail: "Inbox outreach" },
+] as const;
 
 type UpsellChannelId = (typeof UPSELL_CHANNELS)[number]["id"];
+
+function isUpsellConnected(id: UpsellChannelId, platforms: Set<string>): boolean {
+  if (id === "gmail") return platforms.has("email") || platforms.has("google");
+  return platforms.has(id);
+}
 
 function clusterItemClass(index: number, total: number): string {
   if (total <= 1) return "z-30";
   if (total === 2) {
     return index === 0 ? "z-20 -rotate-[14deg]" : "z-30 -ml-3 rotate-[14deg]";
   }
-  // Instagram left, WhatsApp center (on top), Facebook right — tight fan like the reference
+  // Left / center (on top) / right — tight fan like the reference
   if (index === 0) return "z-10 -rotate-[14deg]";
   if (index === 1) return "z-30 -ml-3";
   return "z-20 -ml-3 rotate-[14deg]";
@@ -106,13 +107,13 @@ function clusterItemClass(index: number, total: number): string {
 function ChannelStickerMark({ name }: { name: UpsellChannelId }) {
   const reactId = useId().replace(/:/g, "");
 
-  if (name === "instagram" || name === "facebook" || name === "linkedin") {
+  if (name === "instagram" || name === "linkedin" || name === "gmail") {
     const src =
       name === "instagram"
         ? "/dashboard/instagram-logo.png"
-        : name === "facebook"
-          ? "/dashboard/facebook-logo.png"
-          : "/dashboard/linkedin-logo.png";
+        : name === "gmail"
+          ? "/dashboard/gmail-logo.png"
+          : LINKEDIN_BRAND_LOGO_SRC;
     return (
       // eslint-disable-next-line @next/next/no-img-element -- static brand sticker assets
       <img
@@ -194,9 +195,13 @@ export function OverviewInsightCarousel({
       .filter((channel) => channel.status === "active")
       .map((channel) => channel.platform.toLowerCase()),
   );
-  const connectedCount = UPSELL_CHANNELS.filter((channel) => connectedPlatforms.has(channel.id)).length;
-  const missingChannels = UPSELL_CHANNELS.filter((channel) => !connectedPlatforms.has(channel.id));
-  const stickerOrder: UpsellChannelId[] = ["instagram", "whatsapp", "facebook", "linkedin"];
+  const connectedCount = UPSELL_CHANNELS.filter((channel) =>
+    isUpsellConnected(channel.id, connectedPlatforms),
+  ).length;
+  const missingChannels = UPSELL_CHANNELS.filter(
+    (channel) => !isUpsellConnected(channel.id, connectedPlatforms),
+  );
+  const stickerOrder: UpsellChannelId[] = ["instagram", "whatsapp", "gmail", "linkedin"];
   const clusterChannels = [...missingChannels]
     .sort((a, b) => stickerOrder.indexOf(a.id) - stickerOrder.indexOf(b.id))
     .slice(0, 3);

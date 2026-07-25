@@ -795,7 +795,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                       {detail.prospect.linkedinUrl ? (
                         <Button variant="ghost" size="icon" className="size-10 lg:size-8" asChild aria-label="Open LinkedIn profile">
                           <a href={detail.prospect.linkedinUrl} target="_blank" rel="noreferrer">
-                            <ChannelLogo name="linkedin" className="size-4" />
+                            <ChannelLogo name="linkedin" className="size-5" />
                           </a>
                         </Button>
                       ) : null}

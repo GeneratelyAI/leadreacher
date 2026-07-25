@@ -137,17 +137,30 @@ function ChannelMark({
   size?: "default" | "badge";
   className?: string;
 }) {
-  if (platform === "linkedin" || platform === "whatsapp") {
+  if (platform === "linkedin") {
     return (
       <span
         className={cn(
-          "inline-flex shrink-0 items-center justify-center rounded-[0.35rem] text-white",
+          "inline-flex shrink-0 items-center justify-center",
           size === "badge" ? "size-4" : "size-9",
-          platform === "linkedin" ? "bg-[#0A66C2]" : "bg-[#25D366]",
           className,
         )}
       >
-        <ChannelLogo name={platform} className={size === "badge" ? "size-2.5" : "size-5"} />
+        <ChannelLogo name="linkedin" className="size-full" />
+      </span>
+    );
+  }
+
+  if (platform === "whatsapp") {
+    return (
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center justify-center rounded-[0.35rem] bg-[#25D366] text-white",
+          size === "badge" ? "size-4" : "size-9",
+          className,
+        )}
+      >
+        <ChannelLogo name="whatsapp" className={size === "badge" ? "size-2.5" : "size-5"} />
       </span>
     );
   }

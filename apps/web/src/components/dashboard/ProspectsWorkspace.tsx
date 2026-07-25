@@ -172,7 +172,7 @@ function ProspectAvatar({ name, url, size = "default" }: { name: string; url: st
 function ReachableSignals({ prospect }: { prospect: Prospect }) {
   return (
     <div className="flex items-center gap-1.5" aria-label="Available contact channels">
-      {prospect.linkedinUrl ? <span className="inline-flex size-7 items-center justify-center rounded-md bg-[#0A66C2] text-white" title="LinkedIn available"><ChannelLogo name="linkedin" className="size-4" /></span> : null}
+      {prospect.linkedinUrl ? <span className="inline-flex size-7 items-center justify-center" title="LinkedIn available"><ChannelLogo name="linkedin" className="size-7" /></span> : null}
       {prospect.email ? <span className="inline-flex size-7 items-center justify-center text-onboarding-success-500" title="Email available"><Mail className="size-4" /></span> : null}
       {prospect.phone ? <span className="inline-flex size-7 items-center justify-center text-onboarding-success-500" title="Phone available"><CheckCircle2 className="size-4" /></span> : null}
       {!prospect.linkedinUrl && !prospect.email && !prospect.phone ? <span className="text-xs text-muted-foreground">None</span> : null}

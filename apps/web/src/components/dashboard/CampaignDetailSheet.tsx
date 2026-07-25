@@ -407,8 +407,10 @@ export function CampaignDetailSheet({
                   <div className="mt-2 flex flex-wrap gap-2">
                     {detail.channels.map((channel) => (
                       <span key={channel} className="inline-flex items-center gap-1.5 text-xs font-medium">
-                        {channel === "linkedin" || channel === "whatsapp" ? (
-                          <ChannelLogo name={channel} className="size-3.5" />
+                        {channel === "linkedin" ? (
+                          <ChannelLogo name="linkedin" className="size-5" />
+                        ) : channel === "whatsapp" ? (
+                          <ChannelLogo name="whatsapp" className="size-3.5" />
                         ) : null}
                         {titleCase(channel)}
                       </span>

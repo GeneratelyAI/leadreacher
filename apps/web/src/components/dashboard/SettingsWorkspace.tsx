@@ -565,15 +565,18 @@ export function SettingsWorkspace() {
                         className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                       >
                         {row.logo ? (
-                          <span
-                            className={cn(
-                              "inline-flex size-8 items-center justify-center rounded-md text-white",
-                              row.logo === "linkedin" ? "bg-[#0A66C2]" : "bg-[#25D366]",
-                            )}
-                            aria-hidden
-                          >
-                            <ChannelLogo name={row.logo} className="size-4" />
-                          </span>
+                          row.logo === "linkedin" ? (
+                            <span className="inline-flex size-8 items-center justify-center" aria-hidden>
+                              <ChannelLogo name="linkedin" className="size-8" />
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex size-8 items-center justify-center rounded-md bg-[#25D366] text-white"
+                              aria-hidden
+                            >
+                              <ChannelLogo name={row.logo} className="size-4" />
+                            </span>
+                          )
                         ) : (
                           <span className="inline-flex size-8 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200">
                             <Mail className="size-5" strokeWidth={1.75} aria-hidden />

@@ -9,7 +9,17 @@ export type SequenceStepDraft = {
   type: string;
   message: string;
   delayHours: number;
+  subject?: string;
 };
+
+const STEP_TYPE_OPTIONS = [
+  { value: "linkedin_invite", label: "LinkedIn invite" },
+  { value: "linkedin_message", label: "LinkedIn message" },
+  { value: "whatsapp_message", label: "WhatsApp message" },
+  { value: "facebook_message", label: "Facebook message" },
+  { value: "instagram_message", label: "Instagram message" },
+  { value: "email", label: "Email" },
+] as const;
 
 export function defaultSequenceDraft(): SequenceStepDraft[] {
   return [
@@ -60,20 +70,16 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
   return (
     <div className={cn("space-y-3", className)}>
       {value.map((step, index) => {
-        const isInvite = index === 0;
+        const isFirst = index === 0;
+        const isEmail = step.type === "email";
         return (
           <div
             key={`${step.type}-${index}`}
             className="space-y-2 rounded-lg border border-border bg-muted/20 p-3"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-medium">
-                Step {index + 1}
-                <span className="ml-2 text-xs font-normal text-muted-foreground">
-                  {isInvite ? "LinkedIn invite" : "Follow-up message"}
-                </span>
-              </p>
-              {!isInvite && !disabled ? (
+              <p className="text-sm font-medium">Step {index + 1}</p>
+              {!isFirst && !disabled ? (
                 <Button
                   type="button"
                   size="sm"
@@ -87,12 +93,33 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
               ) : null}
             </div>
             <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+              Channel / action
+              <select
+                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
+                disabled={disabled}
+                value={step.type}
+                onChange={(event) => {
+                  const type = event.target.value;
+                  updateStep(index, {
+                    type,
+                    subject: type === "email" ? step.subject || "Quick note" : undefined,
+                  });
+                }}
+              >
+                {STEP_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
               Delay (hours before this step)
               <Input
                 type="number"
                 min={0}
                 step={1}
-                disabled={disabled || isInvite}
+                disabled={disabled || isFirst}
                 value={step.delayHours}
                 onChange={(event) =>
                   updateStep(index, {
@@ -101,14 +128,25 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
                 }
               />
             </label>
+            {isEmail ? (
+              <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
+                Subject
+                <Input
+                  disabled={disabled}
+                  value={step.subject ?? ""}
+                  onChange={(event) => updateStep(index, { subject: event.target.value })}
+                  placeholder="Email subject…"
+                />
+              </label>
+            ) : null}
             <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
-              Message
+              {isEmail ? "Body" : "Message"}
               <textarea
                 className="min-h-24 rounded-lg border border-input bg-transparent px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
                 disabled={disabled}
                 value={step.message}
                 onChange={(event) => updateStep(index, { message: event.target.value })}
-                placeholder={isInvite ? "Connection note…" : "Follow-up message…"}
+                placeholder={isEmail ? "Email body…" : "Message…"}
               />
             </label>
           </div>
@@ -117,7 +155,7 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
       {!disabled ? (
         <Button type="button" size="sm" variant="outline" onClick={addFollowUp}>
           <Plus className="size-3.5" />
-          Add follow-up
+          Add step
         </Button>
       ) : null}
     </div>

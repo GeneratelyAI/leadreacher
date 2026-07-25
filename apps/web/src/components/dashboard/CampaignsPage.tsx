@@ -194,7 +194,11 @@ function ChannelMarks({ channels }: { channels: string[] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm text-app-fg-muted">
       {channels.map((channel) => (
         <span key={channel} className="inline-flex items-center gap-1.5">
-          {channel === "linkedin" || channel === "whatsapp" ? <ChannelLogo name={channel} className="size-4" /> : null}
+          {channel === "linkedin" ? (
+            <ChannelLogo name="linkedin" className="size-5" />
+          ) : channel === "whatsapp" ? (
+            <ChannelLogo name="whatsapp" className="size-4" />
+          ) : null}
           {channelLabel(channel)}
         </span>
       ))}
