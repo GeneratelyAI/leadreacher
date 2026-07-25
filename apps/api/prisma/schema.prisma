@@ -97,6 +97,7 @@ model Campaign {
   orgId           String
   org             Organization   @relation(fields: [orgId], references: [id])
   strategyId      String?
+  /// Legacy LinkedIn sender mirror. Prefer CampaignChannelAccount for multi-channel.
   socialAccountId String?
   senderAccount   SocialAccount? @relation("CampaignSender", fields: [socialAccountId], references: [id], onDelete: SetNull)
   name            String
@@ -110,9 +111,25 @@ model Campaign {
   messages        Message[]
   videoAssets     VideoAsset[]
   videoTemplates CampaignVideoTemplate[]
+  channelAccounts CampaignChannelAccount[]
 
   @@index([orgId, status])
   @@index([orgId, socialAccountId])
+}
+
+/// One connected Unipile sender per outreach channel on a campaign.
+model CampaignChannelAccount {
+  id              String        @id @default(cuid())
+  campaignId      String
+  campaign        Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  channel         String // 'linkedin' | 'whatsapp' | 'facebook' | 'instagram' | 'email'
+  socialAccountId String
+  socialAccount   SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([campaignId, channel])
+  @@index([socialAccountId])
 }
 
 model Lead {
@@ -134,6 +151,9 @@ model Lead {
   location       String?
   enrichmentData     Json?
   providerLinkedinId String?
+  providerWhatsappId String?
+  providerFacebookId String?
+  providerInstagramId String?
   status             String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
   reviewStatus       String         @default("pending") // 'pending' | 'approved' | 'excluded'
   reviewedAt         DateTime?
@@ -148,6 +168,7 @@ model Lead {
   @@index([orgId, status])
   @@index([orgId, reviewStatus])
   @@index([orgId, email])
+  @@index([orgId, phone])
 }
 
 model CampaignLead {
@@ -157,13 +178,19 @@ model CampaignLead {
   leadId      String
   lead        Lead     @relation(fields: [leadId], references: [id])
   currentStep     Int      @default(0)
+  /// Legacy LinkedIn chat id. Prefer providerChatId for new multi-channel code.
   linkedinChatId  String?  @unique
+  /// Unipile chat/thread id for messaging channels (LinkedIn, WhatsApp, Messenger, Instagram).
+  providerChatId  String?  @unique
+  /// Soft key for email reply matching (accountId:normalizedEmail).
+  emailThreadKey  String?
   status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
   createdAt       DateTime @default(now())
   deliveryAttempts DeliveryAttempt[]
   manualDeliveryAttempts ManualDeliveryAttempt[]
 
   @@unique([campaignId, leadId])
+  @@index([emailThreadKey])
 }
 
 model DeliveryAttempt {
@@ -251,7 +278,7 @@ model SocialAccount {
   id             String       @id @default(cuid())
   orgId          String
   org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  platform       String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook'
+  platform       String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
   platformUserId String
   unipileId      String? // Unipile's internal account ID
   accountName    String
@@ -259,6 +286,7 @@ model SocialAccount {
   status         String       @default("active") // 'active' | 'disconnected' | 'error' | 'reconnecting'
   metadata       Json?
   senderCampaigns Campaign[] @relation("CampaignSender")
+  campaignChannelAccounts CampaignChannelAccount[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
