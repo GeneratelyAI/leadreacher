@@ -1,0 +1,21 @@
+{
+  "name": "leadreacher",
+  "short_name": "leadreacher",
+  "description": "Cold calls and emails are dead. AI + social + creative to drive fresh, qualified leads.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
