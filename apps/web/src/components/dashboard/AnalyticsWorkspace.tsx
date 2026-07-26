@@ -31,15 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { StatTable, type StatTableColumn } from "@/components/patterns/StatTable";
 import {
   Tooltip,
   TooltipContent,
@@ -361,6 +353,49 @@ export function AnalyticsWorkspace() {
     };
   }, [analytics]);
 
+  const channelColumns: StatTableColumn<ChannelRow>[] = [
+    {
+      key: "channel",
+      header: "Channel",
+      isLabel: true,
+      render: (row, { isFooter }) =>
+        isFooter ? (
+          "Total"
+        ) : (
+          <div className="flex items-center gap-2">
+            <ChannelMark platform={row.channel} />
+            <span className="font-medium">{channelName(row.channel)}</span>
+          </div>
+        ),
+    },
+    { key: "messagesSent", header: "Messages sent", align: "right", render: (row) => formatNumber(row.messagesSent) },
+    { key: "replies", header: "Replies", align: "right", render: (row) => formatNumber(row.replies) },
+    { key: "replyRate", header: "Reply rate", align: "right", render: (row) => `${row.replyRate}%` },
+    {
+      key: "meetingsBooked",
+      header: "Meetings booked",
+      render: (row) => <MiniBar value={row.meetingsBooked} max={maxChannelMeetings} tone="green" />,
+    },
+  ];
+
+  const campaignColumns: StatTableColumn<CampaignRow>[] = [
+    {
+      key: "name",
+      header: "Campaign",
+      isLabel: true,
+      className: "max-w-48 truncate",
+      render: (row) => row.name,
+    },
+    { key: "messagesSent", header: "Messages sent", align: "right", render: (row) => formatNumber(row.messagesSent) },
+    { key: "replies", header: "Replies", align: "right", render: (row) => formatNumber(row.replies) },
+    { key: "replyRate", header: "Reply rate", align: "right", render: (row) => `${row.replyRate}%` },
+    {
+      key: "meetingsBooked",
+      header: "Meetings booked",
+      render: (row) => <MiniBar value={row.meetingsBooked} max={maxCampaignMeetings} tone="purple" />,
+    },
+  ];
+
   function exportReport() {
     if (!analytics) return;
     const rows: string[][] = [
@@ -614,44 +649,12 @@ export function AnalyticsWorkspace() {
               {analytics.channels.length === 0 ? (
                 <div className="px-5 py-10 text-sm text-muted-foreground">No delivery data in this range.</div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Channel</TableHead>
-                      <TableHead className="text-right">Messages sent</TableHead>
-                      <TableHead className="text-right">Replies</TableHead>
-                      <TableHead className="text-right">Reply rate</TableHead>
-                      <TableHead>Meetings booked</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {analytics.channels.map((row) => (
-                      <TableRow key={row.channel}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <ChannelMark platform={row.channel} />
-                            <span className="font-medium">{channelName(row.channel)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">{formatNumber(row.messagesSent)}</TableCell>
-                        <TableCell className="text-right">{formatNumber(row.replies)}</TableCell>
-                        <TableCell className="text-right">{row.replyRate}%</TableCell>
-                        <TableCell>
-                          <MiniBar value={row.meetingsBooked} max={maxChannelMeetings} tone="green" />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell className="font-semibold">Total</TableCell>
-                      <TableCell className="text-right font-semibold">{formatNumber(channelTotals.messagesSent)}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatNumber(channelTotals.replies)}</TableCell>
-                      <TableCell className="text-right font-semibold">{channelTotals.replyRate}%</TableCell>
-                      <TableCell className="font-semibold">{formatNumber(channelTotals.meetingsBooked)}</TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
+                <StatTable
+                  columns={channelColumns}
+                  data={analytics.channels}
+                  getRowKey={(row) => row.channel}
+                  footer={{ channel: "", ...channelTotals }}
+                />
               )}
             </Card>
 
@@ -663,30 +666,11 @@ export function AnalyticsWorkspace() {
                 <div className="px-5 py-10 text-sm text-muted-foreground">No campaign activity in this range.</div>
               ) : (
                 <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Campaign</TableHead>
-                        <TableHead className="text-right">Messages sent</TableHead>
-                        <TableHead className="text-right">Replies</TableHead>
-                        <TableHead className="text-right">Reply rate</TableHead>
-                        <TableHead>Meetings booked</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {analytics.campaigns.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="max-w-48 truncate font-medium">{row.name}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.messagesSent)}</TableCell>
-                          <TableCell className="text-right">{formatNumber(row.replies)}</TableCell>
-                          <TableCell className="text-right">{row.replyRate}%</TableCell>
-                          <TableCell>
-                            <MiniBar value={row.meetingsBooked} max={maxCampaignMeetings} tone="purple" />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  <StatTable
+                    columns={campaignColumns}
+                    data={analytics.campaigns}
+                    getRowKey={(row) => row.id}
+                  />
                   <div className="border-t border-border px-5 py-3">
                     <Link
                       href="/dashboard/campaigns"
