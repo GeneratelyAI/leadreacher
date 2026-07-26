@@ -281,6 +281,30 @@ describe("campaign lifecycle routes", () => {
     );
   });
 
+  it("blocks an onboarding draft until its connection note is reviewed", async () => {
+    campaignFindUnique.mockResolvedValue({
+      id: "campaign-onboarding-1",
+      orgId: "org-1",
+      status: "review",
+      channels: ["linkedin"],
+      sequence: [{ type: "linkedin_invite", message: "Review this connection note before launch.", delayHours: 0 }],
+      aiConfig: { source: "onboarding", requiresSequenceReview: true },
+      leads: [{ id: "campaign-lead-1" }],
+      senderAccount: { id: "sender-1", platform: "linkedin", status: "active" },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/campaigns/campaign-onboarding-1/launch",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      message: "Review and save the connection note before launching",
+    });
+    expect(campaignUpdate).not.toHaveBeenCalled();
+  });
+
   it("bulk pauses matching campaigns", async () => {
     campaignFindMany.mockResolvedValue([
       { id: "campaign-1", status: "active", aiConfig: null },

@@ -9,6 +9,7 @@ const ORG_ID = "org-e2e";
 const state = {
   organization: {
     id: ORG_ID,
+    name: "Test Organization",
     stripeCustomerId: null as string | null,
     stripeSubscriptionId: null as string | null,
     subscriptionStatus: null as string | null,
@@ -22,6 +23,12 @@ const state = {
     orgId: ORG_ID,
     campaignType: "personalized_outreach",
     videoConfig: null as unknown,
+    positioning: { businessModel: "B2B lead generation software" },
+    icpDefinition: { idealCustomer: "B2B revenue teams" },
+    messagingAngles: {
+      outreachMessage:
+        "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",
+    },
   },
   socialAccounts: [] as Array<{
     orgId: string;
@@ -80,6 +87,7 @@ vi.mock("../../lib/prisma.js", () => ({
       }),
     },
     socialAccount: {
+      findFirst: vi.fn(async () => state.socialAccounts.find((account) => account.platform === "linkedin" && account.status === "active") ?? null),
       findMany: vi.fn(async () => state.socialAccounts),
       count: vi.fn(async () =>
         state.socialAccounts.filter((account) => account.status === "active").length,
@@ -105,7 +113,10 @@ vi.mock("../../lib/prisma.js", () => ({
         state.eventIds.delete(where.eventId);
       }),
     },
-    campaign: { findFirst: vi.fn(async () => null) },
+    campaign: {
+      findFirst: vi.fn(async () => null),
+      create: vi.fn(async () => ({ id: "campaign-onboarding-e2e" })),
+    },
     lead: { findFirst: vi.fn(async () => null) },
     message: { findFirst: vi.fn(), findMany: vi.fn(async () => []) },
   },
@@ -190,6 +201,12 @@ beforeEach(async () => {
     onboardedAt: null,
   });
   state.strategy.videoConfig = null;
+  state.strategy.positioning = { businessModel: "B2B lead generation software" };
+  state.strategy.icpDefinition = { idealCustomer: "B2B revenue teams" };
+  state.strategy.messagingAngles = {
+    outreachMessage:
+      "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",
+  };
   state.socialAccounts.splice(0);
   state.eventIds.clear();
   getStripePrice.mockReset();
@@ -292,7 +309,7 @@ describe("onboarding backend in Stripe mock mode", () => {
     expect(accounts.json()).toMatchObject({
       accounts: [expect.objectContaining({ platform: "linkedin", status: "active" })],
     });
-    expect(complete.json()).toEqual({ completed: true });
+    expect(complete.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-e2e" });
     expect(state.organization.onboardedAt).toBeInstanceOf(Date);
   });
 });

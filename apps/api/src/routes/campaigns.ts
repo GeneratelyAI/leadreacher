@@ -111,6 +111,11 @@ function withArchivedFlag(aiConfig: unknown, archived: boolean): Prisma.InputJso
   return { ...root, archived } as Prisma.InputJsonValue;
 }
 
+function withSequenceReviewComplete(aiConfig: unknown): Prisma.InputJsonValue {
+  const root = asRecord(aiConfig) ?? {};
+  return { ...root, requiresSequenceReview: false } as Prisma.InputJsonValue;
+}
+
 async function requireOrgCampaign(campaignId: string, orgId: string) {
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign) throw new NotFoundError("Campaign");
@@ -360,6 +365,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       })),
       launchReady: {
         hasLeads: leadCount > 0,
+        hasSequenceReview: asRecord(campaign.aiConfig)?.requiresSequenceReview !== true,
         hasSender:
           !campaign.channels.includes("linkedin") ||
           Boolean(
@@ -369,6 +375,9 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           ),
         reasons: [
           ...(leadCount === 0 ? ["Add at least one approved prospect before launching."] : []),
+          ...(asRecord(campaign.aiConfig)?.requiresSequenceReview === true
+            ? ["Review and save the connection note before launching."]
+            : []),
           ...(campaign.channels.includes("linkedin") &&
           !(
             campaign.senderAccount &&
@@ -505,10 +514,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         : { disconnect: true };
     }
     if (body.sequence !== undefined) data.sequence = nextSequence as Prisma.InputJsonValue;
-    if (body.status !== undefined) data.status = body.status;
-    if (body.archived !== undefined) {
-      data.aiConfig = withArchivedFlag(campaign.aiConfig, body.archived);
+    const completesSequenceReview =
+      body.sequence !== undefined && asRecord(campaign.aiConfig)?.requiresSequenceReview === true;
+    if (completesSequenceReview || body.archived !== undefined) {
+      const nextAiConfig = completesSequenceReview
+        ? withSequenceReviewComplete(campaign.aiConfig)
+        : (campaign.aiConfig as Prisma.InputJsonValue);
+      data.aiConfig =
+        body.archived !== undefined
+          ? withArchivedFlag(nextAiConfig, body.archived)
+          : nextAiConfig;
     }
+    if (body.status !== undefined) data.status = body.status;
 
     const updated = await prisma.campaign.update({
       where: { id: campaignId },
@@ -655,6 +672,10 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     if (campaign.leads.length === 0) {
       throw new ValidationError("Campaign has no enrolled leads");
+    }
+
+    if (asRecord(campaign.aiConfig)?.requiresSequenceReview === true) {
+      throw new ValidationError("Review and save the connection note before launching");
     }
 
     await resolveCampaignSenders({

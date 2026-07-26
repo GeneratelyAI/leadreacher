@@ -108,7 +108,6 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
       {
         orgId,
         campaignId: campaign.id,
-        prompt: `Generate the shared personalized B2B outreach video template for ${campaign.name}.`,
         pipeline,
         jobType: "template-orchestrate",
       },
@@ -134,7 +133,6 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
       orgId,
       campaignId: campaign.id,
       leadId: lead.id,
-      prompt: `Generate a standardized B2B campaign video for ${campaign.name}.`,
       pipeline,
       jobType: "orchestrate",
     },

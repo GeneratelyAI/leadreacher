@@ -6,15 +6,25 @@ import { AppError } from "../../lib/errors.js";
 const {
   socialAccountFindMany,
   socialAccountCount,
+  socialAccountFindFirst,
   messageFindMany,
   organizationFindUnique,
   organizationUpdate,
+  strategyFindFirst,
+  strategyUpdate,
+  campaignFindFirst,
+  campaignCreate,
 } = vi.hoisted(() => ({
   socialAccountFindMany: vi.fn(),
   socialAccountCount: vi.fn(),
+  socialAccountFindFirst: vi.fn(),
   messageFindMany: vi.fn(),
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
+  strategyFindFirst: vi.fn(),
+  strategyUpdate: vi.fn(),
+  campaignFindFirst: vi.fn(),
+  campaignCreate: vi.fn(),
 }));
 const { createHostedAuthLink } = vi.hoisted(() => ({
   createHostedAuthLink: vi.fn(),
@@ -34,6 +44,7 @@ vi.mock("../../lib/prisma.js", () => ({
     socialAccount: {
       findMany: socialAccountFindMany,
       count: socialAccountCount,
+      findFirst: socialAccountFindFirst,
     },
     message: {
       findMany: messageFindMany,
@@ -41,6 +52,14 @@ vi.mock("../../lib/prisma.js", () => ({
     organization: {
       findUnique: organizationFindUnique,
       update: organizationUpdate,
+    },
+    strategy: {
+      findFirst: strategyFindFirst,
+      update: strategyUpdate,
+    },
+    campaign: {
+      findFirst: campaignFindFirst,
+      create: campaignCreate,
     },
   },
 }));
@@ -79,9 +98,14 @@ let app: Awaited<ReturnType<typeof buildTestApp>>;
 beforeEach(async () => {
   socialAccountFindMany.mockReset();
   socialAccountCount.mockReset();
+  socialAccountFindFirst.mockReset();
   messageFindMany.mockReset();
   organizationFindUnique.mockReset();
   organizationUpdate.mockReset();
+  strategyFindFirst.mockReset();
+  strategyUpdate.mockReset();
+  campaignFindFirst.mockReset();
+  campaignCreate.mockReset();
   createHostedAuthLink.mockReset();
 
   socialAccountFindMany.mockResolvedValue([
@@ -101,14 +125,28 @@ beforeEach(async () => {
     { channel: "linkedin", leadId: "lead-2" },
   ]);
   socialAccountCount.mockResolvedValue(1);
+  socialAccountFindFirst.mockResolvedValue({ id: "sa-1" });
   organizationFindUnique.mockResolvedValue({
     id: "org-1",
+    name: "Ada's workspace",
     subscriptionStatus: "active",
   });
   organizationUpdate.mockResolvedValue({
     id: "org-1",
     onboardedAt: new Date("2026-07-13T00:00:00.000Z"),
   });
+  strategyFindFirst.mockResolvedValue({
+    id: "strategy-1",
+    positioning: { businessModel: "B2B lead generation" },
+    icpDefinition: { idealCustomer: "Revenue leaders" },
+    messagingAngles: {
+      outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
+    },
+    videoConfig: { tone: "professional" },
+  });
+  strategyUpdate.mockResolvedValue({});
+  campaignFindFirst.mockResolvedValue(null);
+  campaignCreate.mockResolvedValue({ id: "campaign-onboarding-1" });
   createHostedAuthLink.mockResolvedValue({
     url: "https://account.unipile.com/hosted-auth-link",
   });
@@ -173,19 +211,30 @@ describe("channel connection and onboarding completion", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ completed: true });
+    expect(response.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-1" });
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org-1" },
       data: { onboardedAt: expect.any(Date) },
     });
+    expect(campaignCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          strategyId: "strategy-1",
+          status: "review",
+          socialAccountId: "sa-1",
+        }),
+      }),
+    );
   });
 
   it("is idempotent when onboarding was already completed", async () => {
     organizationFindUnique.mockResolvedValue({
       id: "org-1",
+      name: "Ada's workspace",
       subscriptionStatus: "active",
       onboardedAt: new Date("2026-07-13T00:00:00.000Z"),
     });
+    campaignFindFirst.mockResolvedValue({ id: "campaign-onboarding-1" });
 
     const response = await app.inject({
       method: "POST",
@@ -194,7 +243,7 @@ describe("channel connection and onboarding completion", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ completed: true });
+    expect(response.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-1" });
     expect(organizationUpdate).not.toHaveBeenCalled();
   });
 
