@@ -194,18 +194,18 @@ body {
 
 .onboarding-root {
   --radius: var(--onboarding-radius);
-  background-color: var(--onboarding-neutral-50);
+  background-color: #ffffff;
   color: var(--onboarding-ink);
   font-family: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
 }
 
 .dark .onboarding-root {
-  background-color: var(--onboarding-neutral-950);
+  background-color: var(--app-canvas);
   color: var(--onboarding-neutral-0);
 }
 
 .onboarding-page {
-  background-color: var(--onboarding-neutral-50);
+  background-color: #ffffff;
   color: var(--onboarding-ink);
 }
 
@@ -276,7 +276,7 @@ body {
 }
 
 .dark .onboarding-page {
-  background-color: #0e141d;
+  background-color: var(--app-canvas);
   color: var(--onboarding-neutral-0);
 }
 
@@ -1143,21 +1143,33 @@ html[data-page="auth"] body {
 }
 
 html[data-page="auth"].dark {
-  --page-bg: #0c1017;
-  --background: #0c1017;
+  --page-bg: var(--app-canvas);
+  --background: var(--app-canvas);
 }
 
 html[data-page="auth"].dark,
 html[data-page="auth"].dark body {
-  background-color: #0c1017;
+  background-color: var(--app-canvas);
 }
 
 html[data-page="discovery"] {
-  --page-bg: #fafaf9;
+  --page-bg: #ffffff;
+  --background: #ffffff;
+}
+
+html[data-page="discovery"],
+html[data-page="discovery"] body {
+  background-color: #ffffff;
 }
 
 html[data-page="discovery"].dark {
-  --page-bg: #0a0a1a;
+  --page-bg: var(--app-canvas);
+  --background: var(--app-canvas);
+}
+
+html[data-page="discovery"].dark,
+html[data-page="discovery"].dark body {
+  background-color: var(--app-canvas);
 }
 
 .hero-bottom-fade {

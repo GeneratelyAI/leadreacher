@@ -30,13 +30,27 @@ export function applyStoredTheme(): void {
     }
   }
 
-  applyTheme(stored === "dark");
+  // No explicit choice yet: follow the system's own appearance instead of
+  // defaulting to light. This keeps Safari's resting toolbar chrome (which
+  // tracks system Light/Dark, not our theme-color meta) in sync with the
+  // page for anyone who hasn't manually overridden it.
+  const isDark =
+    stored === "dark" || stored === "light"
+      ? stored === "dark"
+      : window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  applyTheme(isDark);
 }
 
 function applyTheme(isDark: boolean) {
   document.documentElement.classList.toggle("dark", isDark);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  meta?.setAttribute("content", isDark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT);
+  const metas = document.querySelectorAll('meta[name="theme-color"]');
+  metas.forEach((meta) => meta.remove());
+
+  const meta = document.createElement("meta");
+  meta.name = "theme-color";
+  meta.content = isDark ? THEME_COLOR_DARK : THEME_COLOR_LIGHT;
+  document.head.appendChild(meta);
 }
 
 function readIsDarkFromDocument(): boolean {

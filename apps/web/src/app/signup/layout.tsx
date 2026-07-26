@@ -8,7 +8,7 @@ export default function SignupLayout({
   return (
     <>
       <PageSurface surface="auth" />
-      <div className="flex min-h-dvh flex-1 flex-col bg-slate-100 dark:bg-slate-950">
+      <div className="flex min-h-dvh flex-1 flex-col bg-white dark:bg-[#0a0e14]">
         {children}
       </div>
     </>

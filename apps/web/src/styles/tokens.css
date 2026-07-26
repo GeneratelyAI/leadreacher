@@ -7,6 +7,7 @@
  */
 
 :root {
+  color-scheme: light;
   --page-bg: #ffffff;
   --safe-area-top: env(safe-area-inset-top, 0px);
   --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -149,8 +150,12 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* Cool charcoal stack — canvas < chrome < elevated */
   --app-canvas: #0a0e14;
+  /* Every dark-mode surface (auth, onboarding, dashboard) shares this canvas
+     so the app doesn't visibly change background color between them. */
+  --page-bg: var(--app-canvas);
   --app-chrome: #121820;
   --app-elevated: #1a222d;
   --app-muted-surface: #141b24;

@@ -14,7 +14,7 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
         "auth-page relative flex w-full flex-1 flex-col font-sans font-normal",
         "min-h-dvh",
         "overflow-x-hidden lg:overflow-hidden",
-        "bg-slate-100 dark:bg-slate-950",
+        "bg-white dark:bg-[var(--app-canvas)]",
         "px-0 py-0 lg:flex lg:h-dvh lg:max-h-dvh lg:items-center lg:justify-center lg:px-6 lg:py-6 xl:px-8 xl:py-8",
       )}
     >
