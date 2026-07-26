@@ -7,8 +7,9 @@ import { CampaignSummaryPanel } from "@/components/onboarding/CampaignSummaryPan
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
-import { OnboardingField } from "@/components/onboarding/OnboardingField";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Label } from "@/components/ui/label";
 import {
   EMPTY_DISCOVERY_SUMMARY,
   type ChatMessage,
@@ -250,27 +251,38 @@ export default function DiscoveryClient({
               We&apos;ll use it to personalize your outreach strategy.
             </p>
             <form onSubmit={handleWebsiteSubmit} className="mt-8 w-full">
-              <OnboardingField
-                id="discovery-website-url"
-                label="Company website"
-                value={websiteInput}
-                onChange={(event) => setWebsiteInput(event.target.value)}
-                disabled={isScrapeLoading}
-                error={websiteInputError}
-                leading={<Globe className="size-5" aria-hidden />}
-                trailing={
-                  <Button
-                    type="submit"
-                    variant="brand"
-                    size="icon"
-                    disabled={isScrapeLoading || !websiteInput.trim()}
-                    className="rounded-onboarding-pill"
-                    aria-label="Analyze website"
-                  >
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Button>
-                }
-              />
+              <Label htmlFor="discovery-website-url" className="sr-only">
+                Company website
+              </Label>
+              <div className="relative">
+                <Globe
+                  className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-onboarding-purple-500"
+                  aria-hidden
+                />
+                <Input
+                  id="discovery-website-url"
+                  type="text"
+                  placeholder="Company website"
+                  value={websiteInput}
+                  onChange={(event) => setWebsiteInput(event.target.value)}
+                  disabled={isScrapeLoading}
+                  aria-invalid={Boolean(websiteInputError)}
+                  className="h-14 rounded-onboarding pr-14 pl-12 text-base shadow-onboarding-small"
+                />
+                <Button
+                  type="submit"
+                  variant="brand"
+                  size="icon"
+                  disabled={isScrapeLoading || !websiteInput.trim()}
+                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded-onboarding-pill"
+                  aria-label="Analyze website"
+                >
+                  <ArrowRight className="size-4" aria-hidden />
+                </Button>
+              </div>
+              {websiteInputError ? (
+                <p className="mt-1.5 text-[0.8125rem] text-onboarding-error-500">{websiteInputError}</p>
+              ) : null}
             </form>
             <p className="mt-8 flex items-center justify-center gap-2 text-sm text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
               <Lock className="size-4" aria-hidden />
@@ -290,26 +302,34 @@ export default function DiscoveryClient({
               business different.
             </p>
             <form onSubmit={handleSubmit} className="mt-10 w-full max-w-2xl">
-              <OnboardingField
-                id="competitive-advantage"
-                label="Describe your competitive advantage"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                disabled={isCompleting}
-                error={completionError}
-                trailing={
-                  <Button
-                    type="submit"
-                    variant="brand"
-                    size="icon"
-                    disabled={isCompleting || !input.trim()}
-                    className="rounded-onboarding-pill"
-                    aria-label="Submit competitive advantage"
-                  >
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Button>
-                }
-              />
+              <Label htmlFor="competitive-advantage" className="sr-only">
+                Describe your competitive advantage
+              </Label>
+              <div className="relative">
+                <Input
+                  id="competitive-advantage"
+                  type="text"
+                  placeholder="Describe your competitive advantage"
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  disabled={isCompleting}
+                  aria-invalid={Boolean(completionError)}
+                  className="h-14 rounded-onboarding pr-14 pl-4 text-base shadow-onboarding-small"
+                />
+                <Button
+                  type="submit"
+                  variant="brand"
+                  size="icon"
+                  disabled={isCompleting || !input.trim()}
+                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded-onboarding-pill"
+                  aria-label="Submit competitive advantage"
+                >
+                  <ArrowRight className="size-4" aria-hidden />
+                </Button>
+              </div>
+              {completionError ? (
+                <p className="mt-1.5 text-[0.8125rem] text-onboarding-error-500">{completionError}</p>
+              ) : null}
             </form>
             <p className="mt-8 flex items-center justify-center gap-2 text-sm text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
               <Lock className="size-4" aria-hidden />

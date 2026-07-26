@@ -340,7 +340,7 @@ body {
 }
 
 .onboarding-stepper__connector--pending {
-  background-color: var(--onboarding-neutral-200);
+  background-color: var(--app-border);
 }
 
 .onboarding-stepper__connector--complete {
@@ -355,9 +355,9 @@ body {
   height: 2rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--onboarding-neutral-200);
+  border: 1px solid var(--app-border);
   border-radius: var(--onboarding-radius-pill);
-  background-color: var(--onboarding-neutral-0);
+  background-color: var(--app-elevated);
   color: var(--onboarding-neutral-600);
   box-shadow: var(--onboarding-shadow-small);
   font-size: 0.8125rem;
@@ -414,9 +414,9 @@ body {
 }
 
 .dark .onboarding-stepper__number {
-  border-color: #465466;
-  background-color: #1d2733;
-  color: #d7dee8;
+  border-color: var(--app-border);
+  background-color: var(--app-elevated);
+  color: var(--app-fg-muted);
 }
 
 .dark .onboarding-stepper__number--active {
@@ -432,11 +432,11 @@ body {
 }
 
 .dark .onboarding-stepper__connector--pending {
-  background-color: #465466;
+  background-color: var(--app-border);
 }
 
 .dark .onboarding-stepper__label {
-  color: #c0cad7;
+  color: var(--app-fg-subtle);
 }
 
 .dark .onboarding-stepper__label--active {
@@ -515,118 +515,6 @@ body {
   border-color: var(--app-border-strong);
 }
 
-.onboarding-field {
-  width: 100%;
-}
-
-.onboarding-field__control {
-  position: relative;
-  display: flex;
-  min-height: 3.5rem;
-  align-items: center;
-  border: 1px solid var(--onboarding-neutral-300);
-  border-radius: var(--onboarding-radius);
-  background-color: var(--onboarding-neutral-0);
-  box-shadow: var(--onboarding-shadow-small);
-  transition:
-    border-color var(--onboarding-motion-base) var(--onboarding-ease-standard),
-    box-shadow var(--onboarding-motion-base) var(--onboarding-ease-standard);
-}
-
-.onboarding-field__control--focused {
-  border-color: var(--onboarding-purple-500);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--onboarding-purple-100), transparent 10%);
-}
-
-.onboarding-field__control--error {
-  border-color: var(--onboarding-error-500);
-}
-
-.onboarding-field__control--success {
-  border-color: var(--onboarding-success-500);
-}
-
-.onboarding-field__input {
-  width: 100%;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  padding: 1.25rem 1rem 0.375rem;
-  color: var(--onboarding-ink);
-  font: inherit;
-  font-size: 1rem;
-  outline: none;
-}
-
-.onboarding-field__leading + .onboarding-field__input {
-  padding-left: 0.5rem;
-}
-
-.onboarding-field__input::placeholder {
-  color: transparent;
-}
-
-.onboarding-field__label {
-  position: absolute;
-  top: 50%;
-  left: 1rem;
-  max-width: calc(100% - 2rem);
-  transform: translateY(-50%);
-  color: var(--onboarding-neutral-500);
-  font-size: 1rem;
-  line-height: 1;
-  pointer-events: none;
-  transition:
-    transform var(--onboarding-motion-fast) var(--onboarding-ease-standard),
-    color var(--onboarding-motion-fast) var(--onboarding-ease-standard),
-    font-size var(--onboarding-motion-fast) var(--onboarding-ease-standard);
-}
-
-.onboarding-field__leading ~ .onboarding-field__label {
-  left: 3rem;
-}
-
-.onboarding-field__label--floating {
-  transform: translateY(-0.75rem);
-  color: var(--onboarding-neutral-600);
-  font-size: 0.6875rem;
-  font-weight: 600;
-}
-
-.onboarding-field__leading,
-.onboarding-field__trailing {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-}
-
-.onboarding-field__leading {
-  margin-left: 1rem;
-  color: var(--onboarding-purple-500);
-}
-
-.onboarding-field__trailing {
-  margin-right: 0.5rem;
-}
-
-.onboarding-field__message {
-  margin: var(--onboarding-space-1) 0 0;
-  font-size: 0.8125rem;
-}
-
-.onboarding-field__message--error {
-  color: var(--onboarding-error-500);
-}
-
-.onboarding-field__message--success {
-  color: var(--onboarding-success-500);
-}
-
-.dark .onboarding-field__control {
-  border-color: #465466;
-  background-color: #1c2632;
-}
 
 .dark .onboarding-field__input {
   color: var(--onboarding-neutral-0);
