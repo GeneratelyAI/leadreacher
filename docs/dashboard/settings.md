@@ -7,7 +7,7 @@ outreach workflow.
 
 ## Current implementation
 
-`/home?view=settings` updates the persisted organization name and exposes
+`/dashboard/settings` updates the persisted organization name and exposes
 Stripe Billing Portal for eligible organizations. Plan and subscription state
 are displayed from the server-authoritative Organization record.
 

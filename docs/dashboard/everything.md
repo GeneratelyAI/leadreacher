@@ -10,34 +10,43 @@
 6. Analytics
 7. Settings
 
+An unlisted `/dashboard/activity` view (same data as Overview's live activity,
+unfiltered by campaign) is also operational but not in the sidebar.
+
 This follows the operating sequence: understand the workspace, configure and
 run campaigns, work prospects, handle replies, manage delivery accounts, review
 results, then administer the organization.
 
 ## Route and access model
 
-- `/home` is the dashboard entry route.
+- `/dashboard` is the dashboard entry route, with real nested routes per
+  section (`/dashboard/campaigns`, `/dashboard/prospects`, ...), not
+  query-param view switching.
 - Unauthenticated visitors are redirected to `/login`.
 - Organizations without `onboardedAt` are redirected to the correct onboarding
   resume step.
-- Completed organizations are redirected from `/onboarding` to `/home`.
+- Completed organizations are redirected from `/onboarding` to `/dashboard`.
 - All dashboard API queries must scope through the authenticated organization.
 
 ## Current section capabilities
 
-All sidebar sections are operational through the `view` query parameter on
-`/home`. Each keeps a narrow, explicit first-release scope:
+All sidebar sections are operational through real nested `/dashboard/<section>`
+routes. Each keeps a narrow, explicit scope:
 
 - **Overview** shows engine health, counts, activity, channel health, and
   attention items.
 - **Campaigns** creates a reviewed LinkedIn draft with user-provided invite and
-  first-message copy, lists drafts, and calls the explicit launch endpoint.
-- **Prospects** lists records, updates their lifecycle status, and enrolls
+  first-message copy, lists drafts, calls the explicit launch endpoint, and
+  supports pausing/resuming a running campaign.
+- **Prospects** lists records, supports client-side search and
+  lifecycle/source/campaign filters, updates lifecycle status, and enrolls
   selected prospects in a chosen campaign.
-- **Messages** lists persisted inbound and outbound records. It does not yet
-  provide reply composition or read-state management.
-- **Channels** lists accounts, syncs their provider state, and starts LinkedIn
-  hosted authorization. It does not send outreach.
+- **Messages** lists persisted inbound and outbound records and supports a
+  real reply flow: generate an AI draft, edit it, send — LinkedIn-only today,
+  requires an inbound message first, idempotency- and rate-limit-protected.
+- **Channels** lists accounts, syncs their provider state, and starts hosted
+  authorization for LinkedIn, WhatsApp, Instagram, Gmail, and Outlook. It does
+  not send outreach.
 - **Analytics** reports persisted message and lifecycle totals without trends or
   inferred performance.
 - **Settings** updates workspace name and exposes Billing Portal when eligible.

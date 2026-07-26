@@ -62,7 +62,7 @@ organization ID from the browser as a substitute for that scope.
 | Campaigns | `GET /campaigns`, `GET /social-accounts` | `POST /campaigns`, `POST /campaigns/:id/launch` | Creating a draft sends nothing. Launch is explicit and existing API validation requires enrolled leads. |
 | Prospects | `GET /leads?limit=100`, `GET /campaigns` | `PATCH /leads/:id`, `POST /campaigns/:id/leads` | Do not fabricate approval data. A selected record is only enrolled after the user chooses a campaign. |
 | Messages | `GET /dashboard/messages` | None in this release | Read-only persisted delivery and inbound-reply timeline. Do not add a reply control without a channel-specific delivery design. |
-| Channels | `GET /social-accounts` | `POST /social-accounts/sync`, `POST /social-accounts/connect` | Hosted authorization can return to `/home?view=channels`; it authorizes/syncs an account and does not send messages. |
+| Channels | `GET /social-accounts` | `POST /social-accounts/sync`, `POST /social-accounts/connect` | Hosted authorization can return to `/dashboard/channels`; it authorizes/syncs an account and does not send messages. |
 | Analytics | `GET /dashboard/analytics` | None | Show factual totals only. No forecasts, response rates, or trend deltas unless a persisted source is added. |
 | Settings | `GET/PATCH /dashboard/settings` | `POST /billing/portal-session` | The first-release editable setting is the organization name. Open Billing Portal only when the API says it is available. |
 

@@ -73,10 +73,10 @@ After editing:
   middleware. Never trust an organization ID supplied only by the browser.
 - `Organization.onboardedAt` is the durable boundary:
   - no value: the organization resumes onboarding;
-  - value present: the user belongs in `/home`.
-- `/home` redirects unauthenticated visitors to `/login` and incomplete
+  - value present: the user belongs in `/dashboard`.
+- `/dashboard` redirects unauthenticated visitors to `/login` and incomplete
   organizations to `/onboarding`.
-- `/onboarding` redirects completed organizations to `/home`.
+- `/onboarding` redirects completed organizations to `/dashboard`.
 
 ### URL state
 

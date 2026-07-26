@@ -1,8 +1,8 @@
 # Dashboard
 
-`/home` is the permanent workspace for completed organizations. It is protected
-by authentication and redirects incomplete organizations back to their computed
-onboarding resume step.
+`/dashboard` is the permanent workspace for completed organizations. It is
+protected by authentication and redirects incomplete organizations back to
+their computed onboarding resume step.
 
 ## Sections
 
@@ -18,21 +18,29 @@ onboarding resume step.
 
 ## Current status
 
-All seven sections are available through `/home?view=<section>` and use
-organization-scoped API data. Current scope is intentionally focused:
+All seven listed sections, plus an unlisted `/dashboard/activity` view (same
+data as Overview's live activity, unfiltered by campaign — see
+implementation-map.md), are available through real nested
+`/dashboard/<section>` routes and use organization-scoped API data. Current
+scope is intentionally focused:
 
 - Completing onboarding creates one reviewable LinkedIn campaign draft from the
   saved strategy and opens it in Campaigns. Campaigns still require prospect
   enrollment, connection-note review, and an explicit launch confirmation.
-- Prospects updates lifecycle status and enrolls selected records in a campaign.
-- Messages is a read-only timeline of persisted inbound and outbound records.
-- Channels lists, syncs, and starts hosted authorization for accounts.
+  A running campaign can be paused and resumed.
+- Prospects updates lifecycle status, enrolls selected records in a campaign,
+  and supports client-side search and lifecycle/source/campaign filters.
+- Messages is an operator inbox: an AI-drafted reply can be edited and sent,
+  LinkedIn-only today, gated on an inbound message and the daily send limit.
+- Channels lists, syncs, and starts hosted authorization for LinkedIn,
+  WhatsApp, Instagram, Gmail, and Outlook accounts.
 - Analytics exposes factual aggregate delivery and lifecycle counts.
 - Settings updates the organization name and opens Stripe Billing Portal where
   available.
 
-Threaded reply composition, advanced campaign editing, filters, team controls,
-and trend reporting remain future work rather than implied capabilities.
+Advanced campaign sequence editing, team controls, and period-over-period
+trend reporting beyond Overview's own week-over-week deltas remain future work
+rather than implied capabilities.
 
 ## Product rule
 

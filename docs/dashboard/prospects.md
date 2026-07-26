@@ -7,13 +7,14 @@ and supports deliberate lifecycle updates and campaign enrollment.
 
 ## Current implementation
 
-`/home?view=prospects` lists up to 100 organization-scoped records, updates the
+`/dashboard/prospects` lists up to 100 organization-scoped records, updates the
 persisted Lead status, and enrolls selected prospects in a chosen campaign.
+Search (name/company/title/keyword) and lifecycle/source/campaign filters are
+real, client-side over the loaded page of records.
 
 ## Required capabilities
 
-- Search, filters, detailed enrichment, and campaign-membership inspection are
-  future work.
+- Detailed enrichment and campaign-membership inspection remain future work.
 - Review reachable contact/channel data as available.
 - Approve, exclude, or enroll prospects deliberately before launch.
 - Explain missing or incomplete enrichment rather than fabricating it.

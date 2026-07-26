@@ -6,7 +6,7 @@ Context file for Cursor and AI agents. Read this before touching any file in the
 
 ## What this project is
 
-LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via Apify LinkedIn scraper), writes personalized connection notes and follow-up sequences (via Claude API), and sends them across LinkedIn, WhatsApp, Instagram, and email (via Unipile). Campaigns run on a BullMQ job queue: send invite → wait for acceptance → send follow-up message. Replies come back via Unipile webhooks.
+LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via Apify LinkedIn scraper), writes personalized connection notes and follow-up sequences (via Groq's Llama models), and sends them across LinkedIn, WhatsApp, Instagram, and email (via Unipile). Campaigns run on a BullMQ job queue: send invite → wait for acceptance → send follow-up message. Replies come back via Unipile webhooks.
 
 **Co-founders:** Samo Ayoub (business), Nicolas Cantanhede (CTO).
 **Backend intern:** Kai ([kaiyue.wei@outlook.com](mailto:kaiyue.wei@outlook.com)) — assigned tasks listed below.
@@ -21,9 +21,16 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 ├── apps/
 │   ├── api/                          # Fastify backend (Node.js + TypeScript)
 │   │   ├── src/
-│   │   │   ├── adapters/
+│   │   │   ├── adapters/              # 10 files as of 2026-07-26, not the 3 below
 │   │   │   │   ├── apify.ts          # ApifyAdapter — LinkedIn scraper
-│   │   │   │   ├── unipile.ts        # UnipileAdapter — all social channel I/O
+│   │   │   │   ├── google-ai.ts      # Veo video generation (submit/poll/fetch)
+│   │   │   │   ├── google-omni.ts    # Gemini Omni video generation (alt provider)
+│   │   │   │   ├── google-tts.ts     # Text-to-speech for video audio
+│   │   │   │   ├── video-provider.ts # Picks veo/omni via VIDEO_GENERATION_PROVIDER
+│   │   │   │   ├── r2.ts             # Cloudflare R2 storage
+│   │   │   │   ├── linkedin-company-size-codes.ts
+│   │   │   │   ├── linkedin-industry-codes.ts
+│   │   │   │   ├── unipile.ts        # UnipileAdapter — all social channel I/O, incl. email
 │   │   │   │   └── types.ts          # Shared adapter types (UnipileProfile, etc.)
 │   │   │   ├── config/
 │   │   │   │   └── env.ts            # Zod-validated env schema
@@ -38,24 +45,48 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 │   │   │   │   ├── auth.ts           # Supabase JWT verification, sets request.orgId
 │   │   │   │   ├── prisma.ts         # Fastify Prisma plugin
 │   │   │   │   └── protected-routes.ts
-│   │   │   ├── routes/
+│   │   │   ├── routes/                # 13 route files as of 2026-07-26, not the 6 below —
+│   │   │   │   │                      # check apps/api/src/routes/ for the current list
 │   │   │   │   ├── auth.ts           # POST /auth/signup, /auth/login
+│   │   │   │   ├── billing.ts        # Stripe checkout session, billing portal, pricing
 │   │   │   │   ├── campaigns.ts      # CRUD + /launch + /leads enrollment
+│   │   │   │   ├── dashboard.ts      # /dashboard/* — overview, campaigns, prospects,
+│   │   │   │   │                      # messages/conversations/replies, channels, analytics, settings
+│   │   │   │   ├── discovery.ts      # /discovery/scrape, scrape-status, summary, complete
 │   │   │   │   ├── health.ts         # GET /health
 │   │   │   │   ├── leads.ts          # /leads/scrape, /leads/import/csv, CRUD
+│   │   │   │   ├── onboarding.ts     # POST /onboarding/complete
 │   │   │   │   ├── social-accounts.ts
+│   │   │   │   ├── strategy.ts       # /strategy/:orgId, /strategy/generate, campaign-type,
+│   │   │   │   │                      # video-decision, outreach-message
+│   │   │   │   ├── strategy-filters.ts
+│   │   │   │   ├── stripe-webhook.ts # Stripe subscription lifecycle events
 │   │   │   │   └── webhooks.ts       # POST /webhooks/unipile
 │   │   │   ├── scripts/
 │   │   │   │   ├── get-test-token.ts
 │   │   │   │   ├── recreate-unipile-webhooks.ts  # Run to reset webhooks
 │   │   │   │   └── test-unipile.ts
-│   │   │   ├── services/
+│   │   │   ├── services/              # 10 files as of 2026-07-26, not the 2 below
+│   │   │   │   ├── analytics-insights.ts
+│   │   │   │   ├── campaign-channel-accounts.ts
+│   │   │   │   ├── campaign-sequence-control.ts
+│   │   │   │   ├── campaign-step0-queue.ts
 │   │   │   │   ├── campaign-step1-chat.ts  # deliverSequenceStep1ViaChat()
-│   │   │   │   └── lead-import.ts          # importFromCSV(), importScrapedProfiles()
+│   │   │   │   ├── deliver-channel-step.ts # per-channel outreach delivery, incl. email via Unipile
+│   │   │   │   ├── delivery-attempt.ts
+│   │   │   │   ├── lead-import.ts          # importFromCSV(), importScrapedProfiles()
+│   │   │   │   ├── operator-message-delivery.ts  # dashboard operator reply send
+│   │   │   │   └── personalized-video.ts
 │   │   │   ├── types/
 │   │   │   │   └── fastify.d.ts      # Adds orgId to FastifyRequest
-│   │   │   ├── workers/
-│   │   │   │   └── campaign-sequence.ts  # BullMQ worker — runs campaign steps
+│   │   │   ├── workers/               # 7 files as of 2026-07-26, not the 1 below
+│   │   │   │   ├── analytics-insights.ts
+│   │   │   │   ├── campaign-sequence.ts  # BullMQ worker — runs campaign steps
+│   │   │   │   ├── reconcile-campaign-enrollments.ts
+│   │   │   │   ├── reconcile-delivery-attempts.ts
+│   │   │   │   ├── reconcile-maintenance.ts
+│   │   │   │   ├── reconcile-relations.ts
+│   │   │   │   └── video-generation.ts
 │   │   │   ├── index.ts              # Entry point
 │   │   │   └── server.ts             # Fastify server setup
 │   │   └── prisma/
@@ -91,14 +122,13 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 | Backend                   | Fastify, TypeScript                                                    |
 | Database                  | Supabase (Postgres) + Prisma ORM                                       |
 | Queue                     | BullMQ + Upstash Redis                                                 |
-| Outreach channels         | Unipile (LinkedIn, WhatsApp, Instagram, Facebook)                      |
-| Email outreach            | Smartlead                                                              |
+| Outreach channels         | Unipile (LinkedIn, WhatsApp, Instagram, Facebook, email)               |
 | Lead scraping             | Apify actor `harvestapi~linkedin-profile-search`                       |
-| Lead enrichment           | Firecrawl (planned — company website → markdown for Claude)            |
-| AI (sequences + strategy) | Anthropic Claude API (`claude-sonnet-4-6`)                             |
-| AI video                  | Google Veo via Google AI Studio                                        |
+| Lead enrichment           | Firecrawl — company website → markdown, feeds Discovery and enrichment (`apps/api/src/lib/firecrawl.ts`) |
+| AI (sequences + strategy) | Groq (`llama-3.1-8b-instant` text, `meta-llama/llama-4-scout-17b-16e-instruct` vision) — see `apps/api/src/lib/groq.ts`. No Anthropic SDK dependency exists in the API. |
+| AI video                  | Google, configurable via `VIDEO_GENERATION_PROVIDER`: Veo (`google-ai.ts`) or Gemini Omni (`google-omni.ts`), plus `google-tts.ts` for audio |
 | Video storage             | Cloudflare R2                                                          |
-| Payments                  | Stripe (not yet integrated)                                            |
+| Payments                  | Stripe — fully integrated (checkout sessions, billing portal, webhook-driven subscription sync, full pricing catalog, mock mode) |
 | Frontend hosting          | Vercel                                                                 |
 | Backend hosting           | Railway                                                                |
 | Tunnel (dev)              | ngrok stable domain: `https://antler-concert-unluckily.ngrok-free.dev` |
@@ -289,15 +319,22 @@ ANIMATION_BOUNCE_LOOP_START_INDEX = 115  // 0-indexed → frame 116
 
 ---
 
-## Pricing model (in flux — do not hardcode in UI)
+## Pricing model (Stripe-integrated — do not hardcode amounts in UI)
 
-Modular à la carte:
+Superseded the earlier "modular à la carte" plan. Stripe is fully integrated
+(`apps/api/src/routes/billing.ts`, `stripe-webhook.ts`,
+`apps/api/src/lib/billing/pricing.ts`, mock mode via `STRIPE_MOCK_MODE`).
+Pricing is now per campaign type, not per channel:
 
-- **Base:** $200/mo — platform, scraper, dashboard, queue, up to 500 leads/mo
-- **Per channel:** +$49/mo each (LinkedIn, WhatsApp, Instagram, Facebook)
-- **Video personalization:** +$100/mo (Veo, stored to R2)
-- **Annual toggle:** 20% discount across all
-- No Stripe integration started yet — waiting on pricing finalization with Samo
+- One line item selected by `Strategy.campaignType`: `personalized_outreach`,
+  `ai_video_ad`, or `uploaded_video` — each maps to its own Stripe Price ID via
+  a `STRIPE_PRICE_*` env var.
+- A `video_addon` line item is always added on top.
+- Actual monetary amounts are Stripe's source of truth (configured in the
+  Stripe dashboard), never hardcoded here or in the UI — see
+  `buildPricingCatalog()` in `pricing.ts`.
+- Entitlement (`Organization.subscriptionStatus`) is finalized by verified
+  Stripe webhook events, never by a frontend callback.
 
 ---
 
@@ -307,7 +344,7 @@ Modular à la carte:
 - Do not add `timestamp` or `provider_id` to `UnipileNewRelationSchema` — not in payload
 - Do not commit `.env` files
 - Do not use `any` in TypeScript without a comment explaining why
-- Do not start Stripe integration until pricing is finalized
+- Do not hardcode price amounts in the UI — Stripe is the source of truth (see Pricing model above)
 - Do not use Claude's browsing for Discovery agent — always Firecrawl first
 - Do not push directly to `main` — all work goes to `develop` (last commit: `22f47b0`)
 - Do not call `campaignSequenceQueue.remove()` with a job that doesn't exist — it throws, catch it (already handled in `cancelPendingSequenceJobs`)

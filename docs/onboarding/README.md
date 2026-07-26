@@ -23,7 +23,8 @@ that have not completed onboarding.
 - Strategy has internal substeps: `how-it-works`, `targeting`, and `channels`.
 - Checkout success moves the user to Channels.
 - Completing channel setup records `Organization.onboardedAt` and sends the user
-  to `/home`.
+  to `/dashboard/campaigns?reviewCampaignId=...`, the review draft created at
+  completion.
 - Returning users with `onboardedAt` are redirected away from `/onboarding` to
   the dashboard.
 

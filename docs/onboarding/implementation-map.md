@@ -10,8 +10,9 @@ Onboarding configures a workspace. It does **not** launch outreach.
 
 Completing the flow means the organization has strategy, a campaign type,
 mandatory video configuration, an active Stripe subscription, and at least one
-connected delivery channel. It then enters `/home`, where a future explicit
-campaign-creation and launch workflow will operate.
+connected delivery channel. It then enters `/dashboard`, landing on
+`/dashboard/campaigns?reviewCampaignId=...` for the review draft created at
+completion.
 
 Connecting LinkedIn does not send a connection invite, chat message, or video.
 
@@ -19,7 +20,7 @@ Connecting LinkedIn does not send a connection invite, chat message, or video.
 
 | Responsibility | Current file | Notes |
 | --- | --- | --- |
-| Protected server entry and canonical resume redirect | `apps/web/src/app/onboarding/page.tsx` | Reads `step` and `substep`, bootstraps the organization, redirects completed orgs to `/home`. |
+| Protected server entry and canonical resume redirect | `apps/web/src/app/onboarding/page.tsx` | Reads `step` and `substep`, bootstraps the organization, redirects completed orgs to `/dashboard`. |
 | Client step switcher | `apps/web/src/components/onboarding/OnboardingFlowClient.tsx` | Renders exactly one step component. Do not add a second route per step. |
 | Shared chrome | `apps/web/src/components/onboarding/OnboardingChrome.tsx` | Logo, six-step progress, theme toggle only. |
 | Stepper state | `apps/web/src/components/onboarding/OnboardingStepper.tsx` | Reads the same step value as the rendered step. |
@@ -63,7 +64,7 @@ The server will redirect malformed or stale URLs to a canonical safe location.
 | Campaign type set, no video config | Video Decision |
 | Video config set, subscription not active | Checkout |
 | Subscription active | Channels |
-| `Organization.onboardedAt` set | `/home`, never onboarding |
+| `Organization.onboardedAt` set | `/dashboard`, never onboarding |
 
 The implementation is `resolveOnboardingResumeTarget()` in
 `apps/web/src/lib/onboarding-progress.ts`. Extend this function and its tests
@@ -147,10 +148,18 @@ not authorization by itself.
 
 ### Channels and completion
 
-- LinkedIn uses hosted Unipile authorization. The connection action only opens
-  the provider flow and records/syncs an account.
-- Do not imply that WhatsApp or Email are available until they have real account
-  and delivery paths.
+- All five channels (LinkedIn, WhatsApp, Instagram, Gmail, Outlook) use hosted
+  Unipile authorization; the connection action only opens the provider flow
+  and records/syncs an account. LinkedIn is the only required channel.
+- Gmail and Outlook are shown as separate rows to match the dashboard's
+  connect picker, but Unipile normalizes both to the same `email` platform
+  server-side — there is no way to tell them apart once connected, so
+  connecting either marks both rows "Connected." This is intentional; do not
+  "fix" it by inventing a client-side distinction the backend doesn't have.
+- A channel shows a "Recommended" badge when the Strategy generated earlier in
+  onboarding recommends it (via `getChannelRecommendations` in
+  `apps/web/src/lib/onboarding/channel-recommendations.ts`). Instagram is
+  never recommended since the current strategy model doesn't score it.
 - `POST /onboarding/complete` should only be called when the required channel
   condition is satisfied. On success, it idempotently creates one Strategy-linked
   review draft, sets `Organization.onboardedAt`, and navigates to

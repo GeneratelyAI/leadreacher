@@ -20,8 +20,8 @@ The full setup sequence is documented in [Onboarding](../onboarding/README.md).
 After completion, `Organization.onboardedAt` is the durable boundary between
 first-time setup and daily product use:
 
-- Completed users go to `/home` after login.
-- Visiting `/onboarding` after completion redirects to `/home`.
+- Completed users go to `/dashboard` after login.
+- Visiting `/onboarding` after completion redirects to `/dashboard`.
 - Incomplete organizations resume onboarding at the server-calculated safe step.
 
 ## What onboarding establishes

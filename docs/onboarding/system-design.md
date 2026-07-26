@@ -16,7 +16,7 @@ store.
 
 The route requires a Supabase user. Bootstrap resolves or creates the
 organization and supplies its organization ID to the API. A completed
-organization is redirected to `/home`; an incomplete one can resume setup.
+organization is redirected to `/dashboard`; an incomplete one can resume setup.
 
 ## State ownership
 

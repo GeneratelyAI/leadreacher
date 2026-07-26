@@ -7,10 +7,12 @@ outreach campaigns.
 
 ## Current implementation
 
-`/home?view=campaigns` lists persisted campaigns and creates a draft only after
+`/dashboard/campaigns` lists persisted campaigns and creates a draft only after
 the operator enters a campaign name, connection note, and first post-connection
 message. An active LinkedIn account is required. Launch remains an explicit API
-action and does not occur when creating a draft.
+action and does not occur when creating a draft. A running campaign can be
+paused and resumed from its row menu (`status: "paused"` is a real, persisted
+campaign state, not just a video-generation flag).
 
 ## Required capabilities
 
@@ -19,7 +21,7 @@ action and does not occur when creating a draft.
 - Add and approve prospects before launch.
 - Show draft, review, active, paused, and completed states.
 - Require an explicit final launch confirmation before external delivery begins.
-- Pause/resume and richer sequence editing remain future work.
+- Richer sequence editing remains future work.
 
 ## System-design constraints
 

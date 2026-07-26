@@ -7,7 +7,7 @@ outreach activity.
 
 ## Current implementation
 
-`/home?view=analytics` reports sent, received, delivered, replied, and meeting
+`/dashboard/analytics` reports sent, received, delivered, replied, and meeting
 totals from persisted Message and Lead records, plus per-channel send/receive
 counts and campaign prospect coverage.
 

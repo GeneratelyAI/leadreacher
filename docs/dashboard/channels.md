@@ -6,10 +6,17 @@ Channels manages the account and health state used for outreach.
 
 ## Current implementation
 
-`/home?view=channels` lists persisted accounts, syncs account status from
-Unipile, and starts LinkedIn hosted authorization. A hosted-auth return lands
-back on the Channels view. Connecting an account does not create or send a
-campaign.
+`/dashboard/channels` lists persisted accounts, syncs account status from
+Unipile, and starts hosted authorization. A hosted-auth return lands back on
+the Channels view. Connecting an account does not create or send a campaign.
+
+A "Connect a new channel" picker offers five providers with their real brand
+logos: LinkedIn, WhatsApp, Instagram, Gmail, and Outlook
+(`ConnectChannelMark` / `CONNECT_CHANNEL_OPTIONS` in `ChannelsWorkspace.tsx`).
+Gmail and Outlook both normalize to the same `email` platform server-side
+(`apps/api/src/lib/channels.ts`), so a connected account's list entry always
+reads "Email" regardless of which of the two the user picked — there is no
+persisted distinction between them.
 
 ## Required capabilities
 
