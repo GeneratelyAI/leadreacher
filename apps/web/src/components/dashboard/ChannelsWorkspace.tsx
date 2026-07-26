@@ -435,7 +435,7 @@ export function ChannelsWorkspace() {
     try {
       await apiFetch("/social-accounts/sync", { method: "POST", body: JSON.stringify({}) });
       await load();
-      setNotice("Accounts synced from Unipile.");
+      setNotice("Accounts synced.");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to sync channels.");
     } finally {

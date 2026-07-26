@@ -384,7 +384,7 @@ export function SettingsWorkspace() {
                 </div>
                 <div>
                   <dt className="text-xs font-medium text-muted-foreground">Amount</dt>
-                  <dd className="mt-1.5 text-sm font-medium text-muted-foreground">Managed in Stripe</dd>
+                  <dd className="mt-1.5 text-sm font-medium text-muted-foreground">Managed via billing portal</dd>
                 </div>
               </dl>
               {organization?.hasBillingPortal ? (
@@ -393,7 +393,7 @@ export function SettingsWorkspace() {
                 </Button>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  Billing portal unlocks after an active Stripe subscription is linked to this workspace.
+                  Billing portal unlocks after an active subscription is linked to this workspace.
                 </p>
               )}
             </SettingsSectionCard>

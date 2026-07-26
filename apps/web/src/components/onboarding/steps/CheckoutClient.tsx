@@ -160,7 +160,7 @@ export default function CheckoutClient() {
             Review your plan
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            Your campaign setup is ready. Stripe handles payment on its secure hosted page.
+            Your campaign setup is ready. Payment is handled on a secure hosted page.
           </p>
         </div>
 
@@ -180,7 +180,7 @@ export default function CheckoutClient() {
                 Checkout completed
               </p>
               <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                Your subscription will be activated as soon as Stripe confirms the payment.
+                Your subscription will be activated as soon as payment is confirmed.
               </p>
             </div>
           </OnboardingCard>
@@ -203,7 +203,7 @@ export default function CheckoutClient() {
             {isLoading ? (
               <div className="flex items-center gap-3 py-10 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                 <Loader2 className="size-5 animate-spin text-onboarding-purple-500" aria-hidden />
-                Loading Stripe pricing
+                Loading pricing
               </div>
             ) : (
               <div className="mt-6 divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
@@ -214,7 +214,7 @@ export default function CheckoutClient() {
                         {item.label}
                       </p>
                       <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-                        {item.interval ? `Billed ${item.interval}ly` : "Pricing managed by Stripe"}
+                        {item.interval ? `Billed ${item.interval}ly` : "Pricing managed externally"}
                       </p>
                     </div>
                     <span className="status-badge bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-200">
@@ -227,7 +227,7 @@ export default function CheckoutClient() {
 
             <div className="mt-5 flex items-center gap-3 border-t border-onboarding-neutral-150 pt-5 text-sm text-onboarding-neutral-600 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-400">
               <ShieldCheck className="size-5 shrink-0 text-onboarding-success-500" aria-hidden />
-              Payment details are entered only on Stripe&apos;s secure checkout page.
+              Payment details are entered only on a secure checkout page.
             </div>
           </OnboardingCard>
 

@@ -11,7 +11,7 @@ const sections = [
   },
   {
     title: "Third-party providers",
-    body: "LeadReacher relies on service providers to operate the product, including Unipile for social-channel authorization and delivery, Stripe for payments, cloud infrastructure and storage providers, and AI providers for content and video generation. These providers process information only as needed to provide their services under their own applicable terms and privacy practices.",
+    body: "LeadReacher relies on service providers to operate the product, including providers for social-channel authorization and delivery, payment processing, cloud infrastructure and storage, and AI content and video generation. These providers process information only as needed to provide their services under their own applicable terms and privacy practices.",
   },
   {
     title: "Public web and professional data",

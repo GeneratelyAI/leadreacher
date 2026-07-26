@@ -7,7 +7,7 @@ const sections = [
   },
   {
     title: "Your accounts and connected services",
-    body: "You are responsible for keeping your account credentials secure and for maintaining the permissions needed to connect third-party services. Social accounts are connected through Unipile-hosted authorization. Your use of LinkedIn, WhatsApp, Instagram, and other connected services must also comply with their applicable terms and policies.",
+    body: "You are responsible for keeping your account credentials secure and for maintaining the permissions needed to connect third-party services. Social accounts are connected through a secure, hosted authorization flow. Your use of LinkedIn, WhatsApp, Instagram, and other connected services must also comply with their applicable terms and policies.",
   },
   {
     title: "Data and outreach",
@@ -19,7 +19,7 @@ const sections = [
   },
   {
     title: "Billing",
-    body: "Paid plans and usage charges are processed by Stripe. Pricing, billing intervals, and any applicable usage charges are presented at checkout or in your account. Unless stated otherwise, fees are non-refundable to the extent permitted by law. You may cancel future renewal through the billing tools available to you.",
+    body: "Paid plans and usage charges are processed by our payment processor. Pricing, billing intervals, and any applicable usage charges are presented at checkout or in your account. Unless stated otherwise, fees are non-refundable to the extent permitted by law. You may cancel future renewal through the billing tools available to you.",
   },
   {
     title: "Availability and changes",

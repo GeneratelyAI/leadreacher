@@ -427,7 +427,7 @@ function LoadingStrategy() {
         Running your audience analysis
       </h2>
       <p className="mt-3 max-w-md text-sm leading-6 text-neutral-600">
-        We&apos;re querying Apify for matching companies and decision makers. This can take several seconds.
+        We&apos;re searching for matching companies and decision makers. This can take several seconds.
       </p>
     </OnboardingCard>
   );
