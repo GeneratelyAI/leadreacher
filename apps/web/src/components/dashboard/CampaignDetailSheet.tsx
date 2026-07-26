@@ -16,6 +16,14 @@ import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/Input";
 import {
   Sheet,
@@ -69,6 +77,7 @@ export type CampaignDetail = {
   }>;
   launchReady: {
     hasLeads: boolean;
+    hasSequenceReview: boolean;
     hasSender: boolean;
     reasons: string[];
   };
@@ -112,6 +121,7 @@ export function CampaignDetailSheet({
   const [sequence, setSequence] = useState<SequenceStep[]>([]);
   const [senderAccountId, setSenderAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirmLaunchOpen, setConfirmLaunchOpen] = useState(false);
 
   const load = useCallback(async (id: string) => {
     setIsLoading(true);
@@ -194,6 +204,7 @@ export function CampaignDetailSheet({
     detail &&
     ["draft", "review"].includes(detail.status) &&
     detail.launchReady.hasLeads &&
+    detail.launchReady.hasSequenceReview &&
     detail.launchReady.hasSender;
   const sequenceEditable = detail ? ["draft", "review", "paused"].includes(detail.status) : false;
   const sequenceLocked = detail?.status === "active";
@@ -245,7 +256,7 @@ export function CampaignDetailSheet({
                   </Button>
                 ) : null}
                 {["draft", "review"].includes(detail.status) ? (
-                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving || !canLaunch} onClick={() => void launch()}>
+                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving || !canLaunch} onClick={() => setConfirmLaunchOpen(true)}>
                     {isSaving ? <Loader2 className="animate-spin" /> : <Play />} Launch
                   </Button>
                 ) : null}
@@ -468,6 +479,29 @@ export function CampaignDetailSheet({
           </>
         )}
       </SheetContent>
+      <Dialog open={confirmLaunchOpen} onOpenChange={setConfirmLaunchOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Launch this campaign?</DialogTitle>
+            <DialogDescription>
+              This will begin outreach to {detail?.prospectCount ?? 0} enrolled prospect{detail?.prospectCount === 1 ? "" : "s"} using the selected sender. Messages cannot be recalled after they are sent.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmLaunchOpen(false)}>Cancel</Button>
+            <Button
+              variant="brand"
+              disabled={isSaving || !canLaunch}
+              onClick={() => {
+                setConfirmLaunchOpen(false);
+                void launch();
+              }}
+            >
+              <Play /> Launch campaign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
