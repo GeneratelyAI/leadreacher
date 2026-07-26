@@ -9,4 +9,7 @@ export default defineConfig({
       "@": srcDir,
     },
   },
+  test: {
+    exclude: ["**/node_modules/**", "e2e/**"],
+  },
 });
