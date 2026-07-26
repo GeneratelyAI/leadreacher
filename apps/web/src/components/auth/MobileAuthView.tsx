@@ -69,7 +69,10 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
   const alternateLinkLabel = isSignup ? "Log in" : "Sign up";
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col items-center px-4 lg:hidden">
+    <div
+      data-testid="mobile-auth-view"
+      className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col items-center px-4 lg:hidden"
+    >
       <Link
         href="/"
         className="flex shrink-0 justify-center pt-[max(4.5rem,env(safe-area-inset-top))] pb-6"
@@ -174,6 +177,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                       id="mobile-auth-full-name"
                       type="text"
                       autoComplete="name"
+                      enterKeyHint="next"
                       required
                       placeholder="Enter your full name"
                       value={fullName}
@@ -198,7 +202,8 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                       id="mobile-auth-company-name"
                       type="text"
                       autoComplete="organization"
-                      required
+                      enterKeyHint="next"
+                      aria-required="true"
                       placeholder="Enter your company name"
                       value={companyName}
                       onChange={(event) => setCompanyName(event.target.value)}
@@ -221,6 +226,10 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                     id="mobile-auth-email"
                     type="email"
                     autoComplete="email"
+                    enterKeyHint="next"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     required
                     placeholder="Enter your work email"
                     value={email}
@@ -243,6 +252,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                     id="mobile-auth-password"
                     type={showPassword ? "text" : "password"}
                     autoComplete={isSignup ? "new-password" : "current-password"}
+                    enterKeyHint="go"
                     required
                     minLength={6}
                     placeholder={
@@ -255,7 +265,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                   <button
                     type="button"
                     onClick={() => setShowPassword((current) => !current)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
+                    className="tap-target absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? (
@@ -269,7 +279,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                   <div className="mt-1.5 flex items-center justify-end">
                     <Link
                       href="#"
-                      className="text-xs font-medium text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
+                      className="tap-target relative text-xs font-medium text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
                     >
                       Forgot password?
                     </Link>
@@ -307,7 +317,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
               {alternatePrompt}{" "}
               <Link
                 href={alternateHref}
-                className="font-semibold text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
+                className="tap-target relative font-semibold text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
               >
                 {alternateLinkLabel}
               </Link>

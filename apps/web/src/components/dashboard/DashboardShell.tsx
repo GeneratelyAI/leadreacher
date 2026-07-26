@@ -609,7 +609,7 @@ export function DashboardShell({
         </Sheet>
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="relative flex min-h-[4.75rem] shrink-0 items-center border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)] pt-[var(--safe-area-top)]">
+          <header className="relative flex min-h-[4.75rem] shrink-0 items-center border-b-0 lg:border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)] pt-[var(--safe-area-top)]">
             <button type="button" onClick={() => setMobileSidebarOpen(true)} className="mr-1 inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden" aria-label="Open menu" aria-expanded={mobileSidebarOpen}><Menu className="size-5" aria-hidden /></button>
             <button type="button" onClick={toggleDesktopSidebar} className="mr-3 hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:inline-flex" aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"} aria-expanded={sidebarOpen} title={sidebarOpen ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}>{sidebarOpen ? <PanelLeftClose className="size-4" aria-hidden /> : <PanelLeftOpen className="size-4" aria-hidden />}</button>
             <div className="relative hidden min-w-0 w-full max-w-[29rem] flex-1 lg:block">
@@ -709,7 +709,7 @@ export function DashboardShell({
           {modal}
 
           <nav
-            className="fixed inset-x-0 bottom-0 z-40 border-t border-app-border bg-app-chrome/95 pb-[var(--safe-area-bottom)] backdrop-blur-md lg:hidden"
+            className="fixed inset-x-0 bottom-0 z-40 border-t-0 bg-app-chrome/95 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] pb-[var(--safe-area-bottom)] backdrop-blur-md lg:hidden"
             aria-label="Primary destinations"
           >
             <ul className="grid h-[3.75rem] grid-cols-5">

@@ -82,6 +82,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
       </div>
 
       <div
+        data-testid="desktop-auth-view"
         className={cn(
           "hidden w-full flex-col items-stretch justify-center gap-8 lg:flex",
           showMarketingPanel
@@ -242,6 +243,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                         id="auth-full-name"
                         type="text"
                         autoComplete="name"
+                        enterKeyHint="next"
                         required
                         placeholder="Enter your full name"
                         value={fullName}
@@ -269,7 +271,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
                         id="auth-company-name"
                         type="text"
                         autoComplete="organization"
-                        required
+                        enterKeyHint="next"
+                        aria-required="true"
                         placeholder="Enter your company name"
                         value={companyName}
                         onChange={(event) => setCompanyName(event.target.value)}
@@ -295,6 +298,10 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       id="auth-email"
                       type="email"
                       autoComplete="email"
+                      enterKeyHint="next"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       required
                       placeholder="Enter your work email"
                       value={email}
@@ -320,6 +327,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       id="auth-password"
                       type={showPassword ? "text" : "password"}
                       autoComplete={isSignup ? "new-password" : "current-password"}
+                      enterKeyHint="go"
                       required
                       minLength={6}
                       placeholder={
@@ -332,7 +340,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     <button
                       type="button"
                       onClick={() => setShowPassword((current) => !current)}
-                      className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
+                      className="tap-target absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-0.5 text-neutral-400 transition-colors duration-fast ease-brand hover:text-neutral-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5842e3]/30 lg:right-4 dark:text-white/55 dark:hover:text-white/80 dark:focus-visible:ring-[#c4b5f0]/30"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (

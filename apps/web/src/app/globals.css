@@ -1020,6 +1020,37 @@ body {
   min-height: 100dvh;
 }
 
+/* iOS Safari force-zooms the viewport whenever a focused form control renders
+   below 16px, and never zooms back out. Guarantee the 16px floor below `lg`
+   regardless of which utility classes a component applies; components remain
+   free to size down at `lg` and up, where no touch keyboard is involved.
+   Unlayered so it wins over Tailwind's utility layer. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Expands a control's touch area to the 44x44 minimum (Apple HIG) without
+   changing its visual size or disturbing surrounding layout. Apply to controls
+   whose icon must stay visually small, e.g. an in-field password reveal.
+   Requires the element to already be a positioning context (`relative`,
+   `absolute`, etc.) — deliberately does not set `position` itself, since this
+   rule is unlayered and would otherwise beat Tailwind's layered `absolute`/
+   `relative` utilities regardless of source order, breaking any element that
+   relies on Tailwind for its own positioning. */
+.tap-target::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  translate: -50% -50%;
+}
+
 html[data-page="auth"] {
   --page-bg: #ffffff;
   --background: #ffffff;
