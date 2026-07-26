@@ -452,13 +452,13 @@ export function ProspectsWorkspace() {
               <span className="sr-only">Search prospects</span>
               <input value={query} onChange={(event) => setQuery(event.target.value)} className="min-w-0 flex-1 bg-transparent text-sm outline-none" placeholder="Search by name, company, title or keyword..." />
             </label>
-            <div className="hidden flex-wrap gap-2 md:flex">
+            <div className="hidden flex-wrap gap-2 lg:flex">
               {filterControls}
               <Button variant="secondary" size="sm" className="h-9" onClick={clearFilters}><Filter /> Clear</Button>
             </div>
             <Button
               variant="secondary"
-              className="h-10 md:hidden"
+              className="h-10 lg:hidden"
               onClick={() => setFiltersOpen(true)}
             >
               <Filter /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
@@ -486,7 +486,7 @@ export function ProspectsWorkspace() {
           </div>
         ) : (
           <>
-            <ul className="divide-y divide-border md:hidden">
+            <ul className="divide-y divide-border lg:hidden">
               {leads.map((lead) => {
                 const name = `${lead.firstName} ${lead.lastName}`.trim();
                 return (
@@ -546,7 +546,7 @@ export function ProspectsWorkspace() {
               })}
             </ul>
 
-            <div className="hidden md:block">
+            <div className="hidden lg:block">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40">
@@ -639,7 +639,7 @@ export function ProspectsWorkspace() {
       </Card>
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-        <SheetContent side="bottom" className="gap-4 rounded-t-2xl pb-[max(1rem,var(--safe-area-bottom))] md:hidden">
+        <SheetContent side="bottom" className="gap-4 rounded-t-2xl pb-[max(1rem,var(--safe-area-bottom))] lg:hidden">
           <SheetHeader>
             <SheetTitle>Filters</SheetTitle>
             <SheetDescription>Narrow the prospect list by lifecycle, source, or campaign.</SheetDescription>

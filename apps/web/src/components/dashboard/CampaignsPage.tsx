@@ -734,7 +734,7 @@ export function CampaignsPage() {
       <div>
       <Tabs value={status} onValueChange={(value) => setStatus(value as FilterStatus)} className="gap-4">
         <div className="flex flex-col gap-3 border-b border-app-border pb-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Select value={status} onValueChange={(value) => setStatus(value as FilterStatus)}>
               <SelectTrigger className="h-10 w-full" aria-label="Campaign status filter">
                 <SelectValue />
@@ -749,7 +749,7 @@ export function CampaignsPage() {
               </SelectContent>
             </Select>
           </div>
-          <TabsList variant="line" className="hidden w-full flex-wrap justify-start md:flex lg:w-auto">
+          <TabsList variant="line" className="hidden w-full flex-wrap justify-start lg:flex lg:w-auto">
             <TabsTrigger value="all">All Campaigns</TabsTrigger>
             <TabsTrigger value="drafts">
               Drafts <Badge variant="secondary">{summary?.drafts ?? 0}</Badge>
