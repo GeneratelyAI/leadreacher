@@ -7,9 +7,9 @@ import {
   Check,
   Link2,
   Loader2,
-  Mail,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
@@ -18,7 +18,12 @@ import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
+import {
+  getChannelRecommendations,
+  type ChannelRecommendationKey,
+  type JsonValue,
+} from "@/lib/onboarding/channel-recommendations";
 import { onboardingHref } from "./steps";
 
 type SocialAccount = {
@@ -32,6 +37,12 @@ type SocialAccountsResponse = {
   accounts: SocialAccount[];
 };
 
+// Any of these Unipile providers collapse to the same normalized "email"
+// platform server-side (see apps/api/src/lib/channels.ts), so Gmail and
+// Outlook can't be distinguished once connected — both rows below share
+// this match list and will flip to "Connected" together.
+const EMAIL_MATCH_PLATFORMS = ["email", "google", "microsoft", "outlook", "imap", "mail"] as const;
+
 const CHANNELS = [
   {
     key: "linkedin",
@@ -41,31 +52,66 @@ const CHANNELS = [
     iconClassName: "onboarding-channel-logo--linkedin",
     available: true,
     provider: "LINKEDIN" as const,
+    matchPlatforms: ["linkedin"] as const,
+    recommendationKey: "linkedin" as const,
   },
   {
     key: "whatsapp",
     title: "WhatsApp",
-    description: "Message prospects on WhatsApp via Unipile.",
-    icon: <ChannelLogo name="whatsapp" className="size-5" />,
-    iconClassName: "onboarding-channel-logo--whatsapp",
+    description: "Message prospects directly on WhatsApp.",
+    icon: <ChannelLogo name="whatsapp-mark" className="size-10 scale-[1.12]" />,
+    iconClassName: "onboarding-channel-logo--whatsapp-mark",
     available: true,
     provider: "WHATSAPP" as const,
+    matchPlatforms: ["whatsapp"] as const,
+    recommendationKey: "whatsapp" as const,
   },
   {
-    key: "email",
-    title: "Email",
-    description: "Connect Gmail or Outlook via Unipile.",
-    icon: <Mail className="size-5" aria-hidden />,
-    iconClassName: "onboarding-channel-logo--email",
+    key: "instagram",
+    title: "Instagram",
+    description: "Message prospects directly on Instagram.",
+    icon: <ChannelLogo name="instagram" className="size-10" />,
+    iconClassName: "onboarding-channel-logo--instagram",
+    available: true,
+    provider: "INSTAGRAM" as const,
+    matchPlatforms: ["instagram"] as const,
+    recommendationKey: null,
+  },
+  {
+    key: "gmail",
+    title: "Gmail",
+    description: "Connect your Gmail account.",
+    icon: <ChannelLogo name="gmail" className="size-10" />,
+    iconClassName: "onboarding-channel-logo--gmail",
     available: true,
     provider: "GOOGLE" as const,
+    matchPlatforms: EMAIL_MATCH_PLATFORMS,
+    recommendationKey: "email" as const,
+  },
+  {
+    key: "outlook",
+    title: "Outlook",
+    description: "Connect your Outlook account.",
+    icon: <ChannelLogo name="outlook" className="size-10" />,
+    iconClassName: "onboarding-channel-logo--outlook",
+    available: true,
+    provider: "OUTLOOK" as const,
+    matchPlatforms: EMAIL_MATCH_PLATFORMS,
+    recommendationKey: "email" as const,
   },
 ] as const;
 
-function hasActiveAccount(accounts: SocialAccount[], platform: string): boolean {
+function hasActiveAccount(accounts: SocialAccount[], platforms: readonly string[]): boolean {
   return accounts.some(
-    (account) => account.platform.toLowerCase() === platform && account.status === "active",
+    (account) => platforms.includes(account.platform.toLowerCase()) && account.status === "active",
   );
+}
+
+function findAccountForChannel(
+  accounts: SocialAccount[],
+  platforms: readonly string[],
+): SocialAccount | undefined {
+  return accounts.find((account) => platforms.includes(account.platform.toLowerCase()));
 }
 
 export default function ChannelsClient() {
@@ -80,6 +126,9 @@ export default function ChannelsClient() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recommendedChannels, setRecommendedChannels] = useState<Set<ChannelRecommendationKey>>(
+    new Set(),
+  );
   const connectionFailed = searchParams.get("status") === "failed";
   const connectionReturned = searchParams.get("status") === "connected";
 
@@ -106,7 +155,31 @@ export default function ChannelsClient() {
     return () => window.clearTimeout(timer);
   }, [loadAccounts]);
 
-  async function handleConnect(provider: "LINKEDIN" | "WHATSAPP" | "GOOGLE") {
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { orgId } = await bootstrapOrganization("LeadReacher");
+        const strategy = await apiFetch<{ channels: JsonValue }>(`/strategy/${orgId}`);
+        if (cancelled) return;
+        const recommendations = getChannelRecommendations(strategy.channels);
+        setRecommendedChannels(new Set(recommendations.map((item) => item.channel)));
+      } catch (loadError) {
+        // "Recommended" tags are a decorative enhancement layered on top of
+        // the strategy generated earlier in onboarding — a missing or failed
+        // strategy (e.g. 404 before it's generated) should never block the
+        // actual channel-connection flow, so this fails silently.
+        if (loadError instanceof ApiError && loadError.status === 404) return;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleConnect(provider: "LINKEDIN" | "WHATSAPP" | "INSTAGRAM" | "GOOGLE" | "OUTLOOK") {
     if (isConnecting) return;
 
     setIsConnecting(true);
@@ -142,7 +215,7 @@ export default function ChannelsClient() {
     }
   }
 
-  const linkedInConnected = hasActiveAccount(accounts, "linkedin");
+  const linkedInConnected = hasActiveAccount(accounts, ["linkedin"]);
 
   return (
     <div className="onboarding-page relative flex h-dvh min-h-dvh w-full flex-col overflow-y-auto">
@@ -183,20 +256,32 @@ export default function ChannelsClient() {
           ) : (
             <div className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
               {CHANNELS.map((channel) => {
-                const connected = hasActiveAccount(accounts, channel.key);
+                const connected = hasActiveAccount(accounts, channel.matchPlatforms);
+                const connectedAccountName = connected
+                  ? findAccountForChannel(accounts, channel.matchPlatforms)?.accountName
+                  : null;
+                const isRecommended =
+                  channel.recommendationKey !== null &&
+                  recommendedChannels.has(channel.recommendationKey);
                 return (
                   <article key={channel.key} className="flex items-center gap-4 px-5 py-5 sm:px-6">
                     <span className={`inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding ${channel.iconClassName}`}>
                       {channel.icon}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                        {channel.title}
-                      </h2>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
+                          {channel.title}
+                        </h2>
+                        {isRecommended ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-onboarding-purple-50 px-2 py-0.5 text-xs font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
+                            <Sparkles className="size-3" aria-hidden />
+                            Recommended
+                          </span>
+                        ) : null}
+                      </div>
                       <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                        {connected && accounts.find((account) => account.platform.toLowerCase() === channel.key)?.accountName
-                          ? accounts.find((account) => account.platform.toLowerCase() === channel.key)?.accountName
-                          : channel.description}
+                        {connectedAccountName ?? channel.description}
                       </p>
                     </div>
                     {connected ? (

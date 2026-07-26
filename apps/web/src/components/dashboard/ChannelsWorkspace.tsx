@@ -20,7 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { ChannelLogo, LINKEDIN_BRAND_LOGO_SRC } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -92,34 +92,7 @@ const CONNECT_CHANNEL_OPTIONS: Array<{
 ];
 
 function ConnectChannelMark({ mark }: { mark: (typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"] }) {
-  const srcByMark: Record<(typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"], string | null> = {
-    linkedin: LINKEDIN_BRAND_LOGO_SRC,
-    instagram: "/dashboard/instagram-logo.png",
-    gmail: "/dashboard/gmail-logo.png",
-    outlook: "/dashboard/outlook-logo.png",
-    whatsapp: null,
-  };
-
-  const src = srcByMark[mark];
-  if (src) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element -- static brand assets
-      <img src={src} alt="" draggable={false} className="size-full object-contain" />
-    );
-  }
-
-  return (
-    <svg viewBox="0 0 80 80" className="size-full" aria-hidden>
-      <path
-        fill="#25D366"
-        d="M40.1 8C23.2 8 9.5 21.7 9.5 38.6c0 5.4 1.4 10.5 3.9 14.9L10 70.5l17.5-4.6a30.8 30.8 0 0 0 12.6 2.7h.1c16.9 0 30.6-13.7 30.6-30.6S57 8 40.1 8Z"
-      />
-      <path
-        fill="#fff"
-        d="M54.8 48.6c-.8-.4-4.9-2.4-5.6-2.7-.8-.3-1.3-.4-1.9.4-.5.8-2.1 2.6-2.5 3.1-.5.5-1 .6-1.8.2-4.8-2.4-7.9-4.2-11.1-9.6-.8-1.4.8-1.3 2.4-4.3.3-.5.1-1-.1-1.4-.3-.4-1.9-4.5-2.6-6.1-.7-1.6-1.4-1.4-1.9-1.4h-1.6c-.6 0-1.4.2-2.2 1-.7.8-2.9 2.8-2.9 6.9s2.9 8 3.3 8.6c.4.6 5.8 8.9 14.1 12.4 1.9.8 3.5 1.3 4.7 1.7 1.9.6 3.7.5 5.1.3 1.6-.2 4.8-2 5.5-3.9.7-1.9.7-3.6.5-3.9-.2-.4-.8-.6-1.6-1Z"
-      />
-    </svg>
-  );
+  return <ChannelLogo name={mark === "whatsapp" ? "whatsapp-mark" : mark} className="size-full object-contain" />;
 }
 
 const KPI_CARDS: Array<{

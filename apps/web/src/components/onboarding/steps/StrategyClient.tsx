@@ -31,6 +31,10 @@ import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
+import {
+  getChannelRecommendations,
+  type ChannelRecommendation,
+} from "@/lib/onboarding/channel-recommendations";
 import { cn } from "@/lib/utils";
 import {
   onboardingHref,
@@ -78,16 +82,6 @@ type AudienceAnalysis = {
     title: string;
     count: number;
   }>;
-};
-
-type ChannelRecommendation = {
-  channel: ChannelKey;
-  label: string;
-  confidence: number;
-  signalCount: number;
-  totalProfiles: number;
-  tag: string;
-  description: string;
 };
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -162,31 +156,6 @@ function getAudienceAnalysis(strategy: StrategyResponse | null): AudienceAnalysi
     topIndustries,
     topBuyerPersonas,
   };
-}
-
-function getChannelRecommendations(strategy: StrategyResponse | null): ChannelRecommendation[] {
-  const channels = getRecord(strategy?.channels);
-  if (!Array.isArray(channels.recommendations)) {
-    return [];
-  }
-
-  return channels.recommendations.flatMap((item) => {
-    if (!isRecord(item)) return [];
-    const channel = toStringValue(item.channel);
-    if (channel !== "linkedin" && channel !== "email" && channel !== "whatsapp") {
-      return [];
-    }
-
-    return [{
-      channel,
-      label: toStringValue(item.label) || channel,
-      confidence: toNumber(item.confidence),
-      signalCount: toNumber(item.signalCount),
-      totalProfiles: toNumber(item.totalProfiles),
-      tag: toStringValue(item.tag),
-      description: toStringValue(item.description),
-    }];
-  });
 }
 
 function ShellActions({
@@ -740,7 +709,7 @@ export default function StrategyClient({
   const generationStartedRef = useRef(false);
 
   const analysis = useMemo(() => getAudienceAnalysis(strategy), [strategy]);
-  const recommendations = useMemo(() => getChannelRecommendations(strategy), [strategy]);
+  const recommendations = useMemo(() => getChannelRecommendations(strategy?.channels), [strategy]);
 
   const loadStrategy = useCallback(async (forceGenerate: boolean, allowGenerate = true) => {
     setIsLoadingStrategy(true);

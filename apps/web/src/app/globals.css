@@ -820,7 +820,11 @@ body {
   color: var(--onboarding-purple-500);
 }
 
-.onboarding-channel-logo--linkedin {
+.onboarding-channel-logo--linkedin,
+.onboarding-channel-logo--instagram,
+.onboarding-channel-logo--gmail,
+.onboarding-channel-logo--outlook,
+.onboarding-channel-logo--whatsapp-mark {
   background-color: transparent;
   color: inherit;
 }
