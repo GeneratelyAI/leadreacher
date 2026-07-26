@@ -155,6 +155,8 @@ export async function runVideoPromptAgent(
 
 INITIAL CREATIVE DIRECTION: ${validated.seedPrompt}
 
+Treat the initial creative direction as a production brief. Carry its creative brief, narration direction, transition direction, logo instruction, audience, and timing into the storyboard and videoPrompt. Do not replace those instructions with generic ad copy.
+
 PRODUCT / BUSINESS: ${validated.product}
 TARGET AUDIENCE: ${validated.audience}
 TONE: ${validated.tone}

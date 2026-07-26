@@ -30,6 +30,12 @@ const MAX_VALIDATION_RETRIES = 2;
 
 const SYSTEM_PROMPT = `You direct premium B2B personalized-video templates. The final delivery is ten seconds, but this prompt creates the shared template only and must never mention a specific lead, name, company, or title.
 
+HARD OUTPUT CONSTRAINTS:
+- storyboard must contain exactly four objects, never three or five
+- sceneNumber must be exactly 1, 2, 3, 4 in that order
+- beat must be exactly hook, problem, solution, payoff in that order
+- every storyboard imagePrompt must be at least 40 characters
+
 Timing:
 1. 0-1.5s: a silent direct-to-camera opening with the consistent spokesperson. This slot is reserved for a lead-specific “Hey {firstName},” audio overlay added later.
 2. 1.5-6.5s: visual business pitch. The separate sharedNarration plays here.
@@ -50,7 +56,7 @@ Return exactly this JSON shape:
   "ctaDescription": "<logo-only ending>"
 }
 
-Output only JSON.`;
+Output only valid json.`;
 
 function errorText(error: unknown): string {
   if (error instanceof z.ZodError) return JSON.stringify(error.issues);
@@ -62,9 +68,12 @@ export function buildPersonalizedVideoTemplatePromptMessage(input: Input): strin
     ? `\nPREVIOUS ATTEMPT FAILED:\n${input.feedbackHints.map((hint) => `- ${hint}`).join("\n")}`
     : "";
 
-  return `Create a shared personalized-video template. Do not include lead-specific details.
+  return `Create a shared personalized-video template. Do not include lead-specific details. Return valid json.
+
+Return exactly four storyboard scenes. Do not add a fifth scene or any fields outside the requested JSON shape. Use scene numbers 1, 2, 3, and 4 and beats hook, problem, solution, and payoff in that order. Each imagePrompt must be a detailed still-frame prompt of at least 40 characters.
 
 INITIAL CREATIVE DIRECTION: ${input.seedPrompt}
+Treat the initial creative direction as a production brief. Carry its narration direction, transition direction, logo instruction, audience, and timing into the storyboard and shared narration. Do not replace those instructions with generic ad copy.
 PRODUCT / BUSINESS: ${input.product}
 TARGET AUDIENCE: ${input.audience}
 TONE: ${input.tone}
