@@ -204,8 +204,15 @@ export default function ChannelsClient() {
     setIsCompleting(true);
     setError(null);
     try {
-      await apiFetch<{ completed: boolean }>("/onboarding/complete", { method: "POST" });
-      router.push("/dashboard");
+      const result = await apiFetch<{ completed: boolean; campaignId: string | null }>(
+        "/onboarding/complete",
+        { method: "POST" },
+      );
+      router.push(
+        result.campaignId
+          ? `/dashboard/campaigns?reviewCampaignId=${encodeURIComponent(result.campaignId)}`
+          : "/dashboard",
+      );
     } catch (completeError) {
       setError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",

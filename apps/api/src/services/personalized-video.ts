@@ -127,7 +127,6 @@ export async function ensurePersonalizedVideoReady(input: {
       {
         orgId: input.orgId,
         campaignId: campaign.id,
-        prompt: `Generate the shared personalized B2B outreach video template for ${campaign.name}.`,
         pipeline: "personalized",
         jobType: "template-orchestrate",
       },

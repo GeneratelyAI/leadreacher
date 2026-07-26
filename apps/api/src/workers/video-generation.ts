@@ -9,11 +9,15 @@ import {
 import {
   generateImageFromPrompt,
   generateImageWithAssets,
-  getJobResult,
-  pollJobStatus,
-  submitVideoJob,
   type VideoJobStatus,
 } from "../adapters/google-ai.js";
+import {
+  getConfiguredVideoProvider,
+  getVideoJobResult,
+  pollVideoJobStatus,
+  submitVideoJobForProvider,
+  type VideoProvider,
+} from "../adapters/video-provider.js";
 import { R2Adapter } from "../adapters/r2.js";
 import { synthesizeSpeech } from "../adapters/google-tts.js";
 import { prisma } from "../lib/prisma.js";
@@ -33,6 +37,10 @@ import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js"
 import { runPersonalizedVideoTemplateCritic } from "../modules/critics/personalized-video-prompt-critic.js";
 import { runVideoPromptCritic } from "../modules/critics/video-prompt-critic.js";
 import { composePersonalizedVideoAsset } from "../services/personalized-video.js";
+import {
+  buildPersonalizedVideoSeedPrompt,
+  buildStandardVideoSeedPrompt,
+} from "../lib/video-prompt-brief.js";
 
 const POLL_INTERVAL_MS = 10_000;
 const MAX_PROMPT_ATTEMPTS = 3;
@@ -172,6 +180,16 @@ function collectUrls(value: unknown): string[] {
   });
 }
 
+function resolveSeedPrompt(
+  providedPrompt: string | undefined,
+  generatedPrompt: string,
+  legacyPrompt: string,
+): string {
+  return providedPrompt && providedPrompt !== legacyPrompt
+    ? providedPrompt
+    : generatedPrompt;
+}
+
 function buildVideoContext(
   job: VideoGenerationJob,
   campaign: CampaignRecord,
@@ -180,6 +198,7 @@ function buildVideoContext(
 ): VideoContext {
   const aiConfig = asRecord(campaign.aiConfig);
   const videoConfig = asRecord(aiConfig?.["video"]);
+  const strategyVideoConfig = asRecord(strategy?.videoConfig);
   const positioning = asRecord(strategy?.positioning);
   const icpDefinition = asRecord(strategy?.icpDefinition);
   const creativeAssets = asRecord(strategy?.creativeAssets);
@@ -201,6 +220,7 @@ function buildVideoContext(
       firstString(
         job.tone,
         recordString(videoConfig, "tone"),
+        recordString(strategyVideoConfig, "tone"),
         recordString(aiConfig, "tone"),
         "professional",
       ) ?? "professional",
@@ -208,6 +228,7 @@ function buildVideoContext(
       firstString(
         job.avatar,
         recordString(videoConfig, "avatar"),
+        recordString(strategyVideoConfig, "avatar"),
         recordString(aiConfig, "avatar"),
         "professional spokesperson",
       ) ?? "professional spokesperson",
@@ -215,6 +236,7 @@ function buildVideoContext(
       firstString(
         job.setting,
         recordString(videoConfig, "setting"),
+        recordString(strategyVideoConfig, "setting"),
         recordString(aiConfig, "setting"),
         "clean professional workspace",
       ) ?? "clean professional workspace",
@@ -227,6 +249,7 @@ function buildVideoContext(
         ...(logoUrl ? [logoUrl] : []),
         ...collectUrls(job.referenceUrls),
         ...collectUrls(videoConfig?.["referenceUrls"]),
+        ...collectUrls(strategyVideoConfig?.["referenceUrls"]),
         ...collectUrls(creativeAssets?.["referenceUrls"]),
       ]),
     ],
@@ -240,6 +263,7 @@ function buildTemplateVideoContext(
 ): TemplateVideoContext {
   const aiConfig = asRecord(campaign.aiConfig);
   const videoConfig = asRecord(aiConfig?.["video"]);
+  const strategyVideoConfig = asRecord(strategy?.videoConfig);
   const positioning = asRecord(strategy?.positioning);
   const icpDefinition = asRecord(strategy?.icpDefinition);
   const creativeAssets = asRecord(strategy?.creativeAssets);
@@ -256,13 +280,31 @@ function buildTemplateVideoContext(
       firstString(recordString(icpDefinition, "idealCustomer"), "the campaign's target audience") ??
       "the campaign's target audience",
     tone:
-      firstString(job.tone, recordString(videoConfig, "tone"), recordString(aiConfig, "tone"), "professional") ??
+      firstString(
+        job.tone,
+        recordString(videoConfig, "tone"),
+        recordString(strategyVideoConfig, "tone"),
+        recordString(aiConfig, "tone"),
+        "professional",
+      ) ??
       "professional",
     avatar:
-      firstString(job.avatar, recordString(videoConfig, "avatar"), recordString(aiConfig, "avatar"), "professional spokesperson") ??
+      firstString(
+        job.avatar,
+        recordString(videoConfig, "avatar"),
+        recordString(strategyVideoConfig, "avatar"),
+        recordString(aiConfig, "avatar"),
+        "professional spokesperson",
+      ) ??
       "professional spokesperson",
     setting:
-      firstString(job.setting, recordString(videoConfig, "setting"), recordString(aiConfig, "setting"), "clean professional workspace") ??
+      firstString(
+        job.setting,
+        recordString(videoConfig, "setting"),
+        recordString(strategyVideoConfig, "setting"),
+        recordString(aiConfig, "setting"),
+        "clean professional workspace",
+      ) ??
       "clean professional workspace",
     hasLogoReference: Boolean(logoUrl),
     referenceUrls: [
@@ -270,6 +312,7 @@ function buildTemplateVideoContext(
         ...(logoUrl ? [logoUrl] : []),
         ...collectUrls(job.referenceUrls),
         ...collectUrls(videoConfig?.["referenceUrls"]),
+        ...collectUrls(strategyVideoConfig?.["referenceUrls"]),
         ...collectUrls(creativeAssets?.["referenceUrls"]),
       ]),
     ],
@@ -398,6 +441,7 @@ async function reserveOrLoadVeoOperation(
   seedImageUrl: string,
   videoPrompt: string,
   referenceUrls: string[],
+  videoProvider: VideoProvider,
 ): Promise<string | null> {
   const existing = await prisma.videoAsset.findUnique({
     where: { id: videoAssetId },
@@ -467,7 +511,8 @@ async function reserveOrLoadVeoOperation(
   }
 
   try {
-    const { jobId } = await submitVideoJob(
+    const { jobId } = await submitVideoJobForProvider(
+      videoProvider,
       seedImageUrl,
       videoPrompt,
       referenceUrls,
@@ -558,7 +603,20 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
   if (claimed.count === 0) return;
 
   const context = buildTemplateVideoContext(job.data, campaign, strategy);
-  const prompt = job.data.prompt ?? `Generate the shared personalized B2B outreach video template for ${campaign.name}.`;
+  const prompt = resolveSeedPrompt(
+    job.data.prompt,
+    buildPersonalizedVideoSeedPrompt({
+      campaignName: campaign.name,
+      strategy,
+      product: context.product,
+      audience: context.audience,
+      tone: context.tone,
+      avatar: context.avatar,
+      setting: context.setting,
+      hasLogoReference: context.hasLogoReference,
+    }),
+    `Generate the shared personalized B2B outreach video template for ${campaign.name}.`,
+  );
 
   try {
     const approved = await generateApprovedPersonalizedTemplatePrompts(
@@ -612,6 +670,7 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
         avatar: context.avatar,
         setting: context.setting,
         referenceUrls: context.referenceUrls,
+        videoProvider: getConfiguredVideoProvider(),
       },
       { jobId: `personalized-template-veo:${template.id}`, attempts: 1 },
     );
@@ -622,7 +681,14 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
 }
 
 async function processTemplateVeo(job: Job<VideoGenerationJob>): Promise<void> {
-  const { orgId, templateId, seedImageUrl, videoPrompt, referenceUrls = [] } = job.data;
+  const {
+    orgId,
+    templateId,
+    seedImageUrl,
+    videoPrompt,
+    referenceUrls = [],
+    videoProvider = getConfiguredVideoProvider(),
+  } = job.data;
   if (!templateId || !seedImageUrl || !videoPrompt) {
     throw new Error("Template Veo job is missing templateId, seedImageUrl, or videoPrompt");
   }
@@ -659,7 +725,13 @@ async function processTemplateVeo(job: Job<VideoGenerationJob>): Promise<void> {
     });
     if (claimed.count === 0) return;
     try {
-      const submitted = await submitVideoJob(seedImageUrl, videoPrompt, referenceUrls, "9:16");
+      const submitted = await submitVideoJobForProvider(
+        videoProvider,
+        seedImageUrl,
+        videoPrompt,
+        referenceUrls,
+        "9:16",
+      );
       operationId = submitted.jobId;
       await prisma.campaignVideoTemplate.update({
         where: { id: template.id },
@@ -675,7 +747,7 @@ async function processTemplateVeo(job: Job<VideoGenerationJob>): Promise<void> {
     }
   }
 
-  const status = await pollJobStatus(operationId);
+  const status = await pollVideoJobStatus(operationId);
   if (status.status === "pending") {
     await job.moveToDelayed(Date.now() + POLL_INTERVAL_MS, job.token);
     throw new DelayedError();
@@ -704,7 +776,7 @@ async function finalizeTemplateVeoOperation(input: {
 }): Promise<boolean> {
   const { template, operationId, setting } = input;
   try {
-    const generated = await getJobResult(operationId);
+    const generated = await getVideoJobResult(operationId);
     const normalized = await normalizeVideoDuration(generated.videoBuffer, generated.durationMs);
     const r2 = new R2Adapter();
     const { url: masterVideoUrl } = await r2.uploadBuffer(
@@ -769,10 +841,10 @@ async function processPersonalizedCompose(job: Job<VideoGenerationJob>): Promise
 async function processOrchestrate(
   job: Job<VideoGenerationJob>,
 ): Promise<void> {
-  const { orgId, campaignId, leadId, prompt } = job.data;
+  const { orgId, campaignId, leadId, prompt: providedPrompt } = job.data;
 
-  if (!leadId || !prompt) {
-    throw new Error("Standard video orchestration requires leadId and prompt");
+  if (!leadId) {
+    throw new Error("Standard video orchestration requires leadId");
   }
 
   const [campaign, lead] = await Promise.all([
@@ -796,6 +868,20 @@ async function processOrchestrate(
 
   const context = buildVideoContext(job.data, campaign, lead, strategy);
   const pipeline: VideoGenerationPipeline = "standard";
+  const prompt = resolveSeedPrompt(
+    providedPrompt,
+    buildStandardVideoSeedPrompt({
+      campaignName: campaign.name,
+      strategy,
+      product: context.product,
+      audience: context.audience,
+      tone: context.tone,
+      avatar: context.avatar,
+      setting: context.setting,
+      hasLogoReference: context.hasLogoReference,
+    }),
+    `Generate a standardized B2B campaign video for ${campaign.name}.`,
+  );
 
   const existingVideoAsset = job.data.videoAssetId
     ? await prisma.videoAsset.findFirst({
@@ -913,6 +999,7 @@ async function processOrchestrate(
       avatar: context.avatar,
       setting: context.setting,
       referenceUrls: context.referenceUrls,
+      videoProvider: getConfiguredVideoProvider(),
     });
 
     await Promise.all(
@@ -956,6 +1043,7 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
     tone = "professional",
     setting = "clean professional workspace",
     referenceUrls = [],
+    videoProvider = getConfiguredVideoProvider(),
   } = job.data;
 
   if (!videoAssetId || !seedImageUrl || !videoPrompt) {
@@ -969,6 +1057,7 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
       seedImageUrl,
       videoPrompt,
       referenceUrls,
+      videoProvider,
     );
     if (!jobId) return;
 
@@ -988,7 +1077,7 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
 
     // One poll per BullMQ execution keeps a slow Veo operation from occupying
     // a worker slot. Pending work moves this exact job back to delayed.
-    const jobStatus: VideoJobStatus = await pollJobStatus(jobId);
+    const jobStatus: VideoJobStatus = await pollVideoJobStatus(jobId);
 
     if (jobStatus.status === "pending") {
       await job.moveToDelayed(Date.now() + POLL_INTERVAL_MS, job.token);
@@ -1022,7 +1111,7 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
     }
 
     const r2 = new R2Adapter();
-    const generatedVideo = await getJobResult(jobId);
+    const generatedVideo = await getVideoJobResult(jobId);
     const { videoBuffer, durationMs } = await normalizeVideoDuration(
       generatedVideo.videoBuffer,
       generatedVideo.durationMs,
@@ -1185,7 +1274,7 @@ async function recoverUnknownVeoOperation(asset: {
   }
 
   try {
-    const jobStatus = await pollJobStatus(operationId);
+    const jobStatus = await pollVideoJobStatus(operationId);
     if (jobStatus.status === "pending") {
       await prisma.videoAsset.updateMany({
         where: { id: asset.id, veoOperationState: "recovering" },
@@ -1226,7 +1315,7 @@ async function recoverUnknownVeoOperation(asset: {
     // A completed operation is positive provider evidence. Re-run the normal
     // post-processing gate before exposing its output to the application.
     const r2 = new R2Adapter();
-    const generatedVideo = await getJobResult(operationId);
+    const generatedVideo = await getVideoJobResult(operationId);
     const { videoBuffer, durationMs } = await normalizeVideoDuration(
       generatedVideo.videoBuffer,
       generatedVideo.durationMs,
@@ -1390,7 +1479,7 @@ async function recoverUnknownTemplateVeoOperation(template: {
   if (claimed.count === 0) return false;
 
   try {
-    const jobStatus = await pollJobStatus(operationId);
+    const jobStatus = await pollVideoJobStatus(operationId);
     if (jobStatus.status === "pending") {
       await prisma.campaignVideoTemplate.updateMany({
         where: { id: template.id, veoOperationState: "recovering" },

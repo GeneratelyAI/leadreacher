@@ -78,7 +78,7 @@ when a new persisted completion requirement is introduced.
 | Campaign Type | `steps/CampaignTypeClient.tsx` | `PATCH /strategy/:orgId/campaign-type` | `Strategy.campaignType` | Video Decision |
 | Video Decision | `steps/VideoDecisionClient.tsx` plus `steps/video-decision/*` | `PATCH /strategy/:orgId/video-decision`, outreach-message and upload endpoints | `Strategy.videoConfig`, message or uploaded-media selection | Checkout |
 | Checkout | `steps/CheckoutClient.tsx` | `GET /billing/pricing`, `POST /billing/checkout-session` | Stripe checkout session. Entitlement is finalized by webhook. | Channels after verified active state |
-| Channels | `steps/ChannelsClient.tsx` | `GET /social-accounts`, `POST /social-accounts/connect`, `POST /social-accounts/sync`, `POST /onboarding/complete` | Active `SocialAccount`, then `Organization.onboardedAt` | `/home` |
+| Channels | `steps/ChannelsClient.tsx` | `GET /social-accounts`, `POST /social-accounts/connect`, `POST /social-accounts/sync`, `POST /onboarding/complete` | Active `SocialAccount`, one Strategy-linked review campaign draft, then `Organization.onboardedAt` | `/dashboard/campaigns?reviewCampaignId=...` |
 
 All of these API routes are protected and must derive ownership from the JWT
 organization. An `orgId` in a route parameter is a scoped lookup constraint,
@@ -152,7 +152,10 @@ not authorization by itself.
 - Do not imply that WhatsApp or Email are available until they have real account
   and delivery paths.
 - `POST /onboarding/complete` should only be called when the required channel
-  condition is satisfied. On success, navigate to `/home`.
+  condition is satisfied. On success, it idempotently creates one Strategy-linked
+  review draft, sets `Organization.onboardedAt`, and navigates to
+  `/dashboard/campaigns?reviewCampaignId=...`. It must not enroll prospects or
+  enqueue outreach.
 
 ## API request discipline
 

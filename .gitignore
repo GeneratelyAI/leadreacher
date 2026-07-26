@@ -62,3 +62,5 @@ CLAUDE.local.md
 
 # playwright mcp artifacts
 .playwright-mcp/
+docs/architecture/architecture-map.html
+docs/architecture/architecture-map.json

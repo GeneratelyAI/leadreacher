@@ -55,7 +55,8 @@ All sidebar sections are operational through the `view` query parameter on
 
 ## Campaign launch boundary
 
-Onboarding configures strategy, billing, video choices, and a channel. It does
-not create or launch a Campaign record. The dashboard flow is: create a draft
-with reviewed copy, add approved prospects, explicitly launch, then monitor
-delivery. The draft form does not synthesize messaging; it requires user input.
+Onboarding configures strategy, billing, video choices, and a channel. When the
+user finishes onboarding, the API creates one reviewable LinkedIn Campaign
+draft from the saved strategy and routes the user to that draft. It does not
+enroll prospects or send outreach. The user must edit and save the connection
+note, add approved prospects, and confirm the launch before delivery begins.

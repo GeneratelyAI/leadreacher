@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Archive,
   BarChart3,
@@ -555,6 +556,7 @@ function CampaignSelectionActionBar({
 }
 
 export function CampaignsPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = useState<CampaignResponse | null>(null);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [status, setStatus] = useState<FilterStatus>("all");
@@ -591,6 +593,11 @@ export function CampaignsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const reviewCampaignId = searchParams.get("reviewCampaignId");
+    if (reviewCampaignId) setSelectedId(reviewCampaignId);
+  }, [searchParams]);
 
   useEffect(() => {
     setSelectedIds(new Set());

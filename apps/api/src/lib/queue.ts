@@ -55,6 +55,7 @@ export type VideoGenerationJob = {
   avatar?: string;
   setting?: string;
   referenceUrls?: string[];
+  videoProvider?: "veo" | "omni";
 };
 
 export type AnalyticsInsightsJob = {

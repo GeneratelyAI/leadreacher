@@ -13,10 +13,12 @@ action. The operating workflow is:
 
 ```text
 completed onboarding
-  -> create a reviewed campaign draft
+  -> automatically create one reviewed campaign draft from Strategy
+  -> open the draft in Campaigns
   -> add and approve prospects
+  -> edit and save the connection note
   -> review first outreach and channels
-  -> user confirms launch
+  -> user confirms launch in the launch dialog
   -> existing sequence worker delivers outreach
 ```
 
