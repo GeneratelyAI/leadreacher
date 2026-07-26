@@ -21,7 +21,9 @@ onboarding resume step.
 All seven sections are available through `/home?view=<section>` and use
 organization-scoped API data. Current scope is intentionally focused:
 
-- Campaigns creates reviewed LinkedIn drafts and explicitly launches them.
+- Completing onboarding creates one reviewable LinkedIn campaign draft from the
+  saved strategy and opens it in Campaigns. Campaigns still require prospect
+  enrollment, connection-note review, and an explicit launch confirmation.
 - Prospects updates lifecycle status and enrolls selected records in a campaign.
 - Messages is a read-only timeline of persisted inbound and outbound records.
 - Channels lists, syncs, and starts hosted authorization for accounts.
