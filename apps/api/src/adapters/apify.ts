@@ -158,6 +158,17 @@ type FetchResultsResult<T> = {
   totalFound: number;
 };
 
+function isApifyQuotaMessage(message: string): boolean {
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes("free user") ||
+    normalized.includes("quota") ||
+    normalized.includes("credit") ||
+    normalized.includes("usage limit") ||
+    normalized.includes("run limit")
+  );
+}
+
 function hasCompanySearchCriteria(input: CompanyActorRunInput): boolean {
   return Boolean(
     input.industryIds?.length ||
@@ -279,11 +290,23 @@ export class ApifyAdapter {
   private async waitForRun(actorId: string, runId: string): Promise<void> {
     const start = Date.now();
     while (Date.now() - start < POLL_TIMEOUT_MS) {
-      const response = await this.request<{ data: { status: string } }>(
+      const response = await this.request<{
+        data: {
+          status: string;
+          statusMessage?: string;
+          isStatusMessageTerminal?: boolean;
+        };
+      }>(
         "GET",
         `/acts/${actorId}/runs/${runId}`,
       );
-      const { status } = response.data;
+      const { status, statusMessage } = response.data;
+      if (statusMessage && isApifyQuotaMessage(statusMessage)) {
+        throw new ExternalServiceError(
+          "Apify",
+          `Actor run could not execute: ${statusMessage}`,
+        );
+      }
       if (status === "SUCCEEDED") return;
       if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
         throw new ExternalServiceError("Apify", `Actor run ${status}: ${runId}`);

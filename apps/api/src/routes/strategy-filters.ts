@@ -129,16 +129,19 @@ function inferJobTitlesFromAudience(audience: string): string[] {
   const lower = audience.toLowerCase();
   const titles = new Set<string>();
 
-  if (/\bfounders?\b/.test(lower)) titles.add("Founder");
+  if (/\bfounders?\b|\bbusiness leaders?\b|\bdecision[- ]makers?\b/.test(lower)) {
+    titles.add("Founder");
+    titles.add("CEO");
+  }
   if (/\bceos?\b|\bchief executive\b/.test(lower)) titles.add("CEO");
-  if (/\bowners?\b/.test(lower)) titles.add("Owner");
+  if (/\bowners?\b|\bbusiness owners?\b/.test(lower)) titles.add("Owner");
   if (/\bfinance\b|\bcfos?\b|\bcontroller\b/.test(lower)) {
     titles.add("CFO");
     titles.add("VP Finance");
     titles.add("Head of Finance");
     titles.add("Controller");
   }
-  if (/\bmarketing\b|\bcmos?\b/.test(lower)) {
+  if (/\bmarket(?:ing|ers?)\b|\bcmos?\b/.test(lower)) {
     titles.add("CMO");
     titles.add("VP Marketing");
     titles.add("Head of Marketing");
@@ -166,6 +169,12 @@ function inferJobTitlesFromAudience(audience: string): string[] {
   return [...titles].slice(0, 8);
 }
 
+function isBroadAudience(audience: string): boolean {
+  return /\bbusiness leaders?\b|\bdecision[- ]makers?\b|\bgrowing businesses?\b|\bcompanies? looking to\b|\borganizations?\b/i.test(
+    audience,
+  );
+}
+
 export function buildStrategyFilters(input: {
   market: string;
   audience: string;
@@ -174,7 +183,12 @@ export function buildStrategyFilters(input: {
 }): ICPFilters {
   const jobTitles = inferJobTitlesFromAudience(input.audience);
   const market = input.market.trim();
-  const industries = market && resolveIndustryIds([market]).length > 0 ? [market] : [];
+  const industries =
+    !isBroadAudience(input.audience) &&
+    market &&
+    resolveIndustryIds([market]).length > 0
+      ? [market]
+      : [];
   const demographicText = [
     input.market,
     input.audience,

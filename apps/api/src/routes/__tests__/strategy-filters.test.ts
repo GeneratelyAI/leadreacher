@@ -25,6 +25,21 @@ describe("Strategy filter construction", () => {
     expect(filters.keywords).toBeUndefined();
   });
 
+  it("uses cross-industry leadership roles for broad business audiences", () => {
+    const filters = buildStrategyFilters({
+      market: "Social Networking Platforms",
+      audience: "Business leaders and marketers seeking to expand their reach and drive conversions",
+      offer: "AI-powered social and web tools for scalable growth and lead conversion",
+    });
+
+    expect(filters).toMatchObject({
+      industries: [],
+      jobTitles: ["Founder", "CEO", "CMO", "VP Marketing", "Head of Marketing"],
+      locations: [],
+    });
+    expect(filters.keywords).toBeUndefined();
+  });
+
   it("retains a market only when it resolves to a LinkedIn industry", () => {
     const filters = buildStrategyFilters({
       market: "Accounting",

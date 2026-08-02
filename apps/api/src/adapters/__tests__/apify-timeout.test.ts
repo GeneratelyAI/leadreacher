@@ -37,4 +37,29 @@ describe("Apify adapter timeouts", () => {
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("surfaces Apify free-run limits instead of treating the run as empty", async () => {
+    const fetchMock = vi.fn(async (): Promise<Response> =>
+      jsonResponse({
+        data: {
+          status: "SUCCEEDED",
+          statusMessage: "free user run limit reached",
+          isStatusMessageTerminal: true,
+        },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new ApifyAdapter({ apiKey: "test-token" });
+    const waitForRun = (
+      adapter as unknown as {
+        waitForRun: (actorId: string, runId: string) => Promise<void>;
+      }
+    ).waitForRun.bind(adapter);
+
+    await expect(
+      waitForRun("harvestapi~linkedin-profile-search", "quota-run"),
+    ).rejects.toThrow("free user run limit reached");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
