@@ -20,6 +20,7 @@ import {
   Send,
   Sparkles,
 } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
@@ -55,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, apiFetch } from "@/lib/api";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
 type ConversationState = "all" | "unread" | "needs_reply";
@@ -281,13 +283,9 @@ function buildFeedItems(
 export function MessagesWorkspace({ conversationId }: { conversationId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [conversations, setConversations] = useState<ConversationRow[]>([]);
-  const [counts, setCounts] = useState({ all: 0, unread: 0, needsReply: 0 });
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(conversationId ?? null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
-  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [message, setMessage] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
   const [query, setQuery] = useState("");
@@ -299,15 +297,53 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   const [sortMode, setSortMode] = useState<SortMode>("last_activity");
   const [composerTab, setComposerTab] = useState<"reply" | "draft">("reply");
   const [draftSeen, setDraftSeen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [limitError, setLimitError] = useState<string | null>(null);
   const [listSidebarOpen, setListSidebarOpen] = useState(true);
   const [amplified, setAmplified] = useState(false);
   const listOpenBeforeAmplify = useRef(true);
+  const queryClient = useQueryClient();
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
+
+  const conversationParams = useMemo(() => {
+    const params = new URLSearchParams({
+      state,
+      limit: String(PAGE_SIZE),
+      offset: String((page - 1) * PAGE_SIZE),
+    });
+    if (debouncedQuery) params.set("query", debouncedQuery);
+    if (campaignFilter) params.set("campaignId", campaignFilter);
+    return params.toString();
+  }, [campaignFilter, debouncedQuery, page, state]);
+
+  const conversationsQuery = useQuery({
+    queryKey: ["dashboard", "conversations", conversationParams],
+    queryFn: () => apiFetch<ConversationListResponse>(`/dashboard/conversations?${conversationParams}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const campaignsQuery = useQuery({
+    queryKey: ["campaigns", "options"],
+    queryFn: () => apiFetch<{ campaigns: CampaignOption[] }>("/campaigns"),
+    staleTime: 60_000,
+  });
+
+  const conversations = useMemo(() => {
+    const rows = conversationsQuery.data?.conversations ?? [];
+    if (sortMode !== "unread_first") return rows;
+    return [...rows].sort((left, right) => {
+      if (right.unreadCount !== left.unreadCount) return right.unreadCount - left.unreadCount;
+      return new Date(right.latestMessage.occurredAt).getTime() - new Date(left.latestMessage.occurredAt).getTime();
+    });
+  }, [conversationsQuery.data?.conversations, sortMode]);
+  const counts = conversationsQuery.data?.counts ?? { all: 0, unread: 0, needsReply: 0 };
+  const total = conversationsQuery.data?.total ?? 0;
+  const campaigns = campaignsQuery.data?.campaigns ?? [];
+  const isLoading = conversationsQuery.isLoading && !conversationsQuery.data;
+  const error = actionError ?? (conversationsQuery.error instanceof Error ? conversationsQuery.error.message : null);
 
   useEffect(() => {
     const savedState = window.localStorage.getItem("leadreacher-messages-sidebar-open");
@@ -355,53 +391,20 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
 
   const showListSidebar = listSidebarOpen && !amplified;
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    const params = new URLSearchParams({
-      state,
-      limit: String(PAGE_SIZE),
-      offset: String((page - 1) * PAGE_SIZE),
-    });
-    if (query.trim()) params.set("query", query.trim());
-    if (campaignFilter) params.set("campaignId", campaignFilter);
-    try {
-      const [list, campaignResponse] = await Promise.all([
-        apiFetch<ConversationListResponse>(`/dashboard/conversations?${params.toString()}`),
-        apiFetch<{ campaigns: CampaignOption[] }>("/campaigns"),
-      ]);
-      let rows = list.conversations;
-      if (sortMode === "unread_first") {
-        rows = [...rows].sort((left, right) => {
-          if (right.unreadCount !== left.unreadCount) return right.unreadCount - left.unreadCount;
-          return new Date(right.latestMessage.occurredAt).getTime() - new Date(left.latestMessage.occurredAt).getTime();
-        });
-      }
-      setConversations(rows);
-      setCounts(list.counts);
-      setTotal(list.total);
-      setCampaigns(campaignResponse.campaigns);
-      setSelectedId((current) => {
-        if (conversationId) return conversationId;
-        if (current && rows.some((row) => row.id === current)) return current;
-        // Keep list-first on phones/tablets; desktop can auto-open the first thread.
-        if (typeof window !== "undefined" && window.innerWidth < 1024) return null;
-        return rows[0]?.id ?? null;
-      });
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load conversations.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [campaignFilter, conversationId, page, query, sortMode, state]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (!conversationsQuery.data) return;
+    setSelectedId((current) => {
+      if (conversationId) return conversationId;
+      if (current && conversations.some((row) => row.id === current)) return current;
+      // Keep list-first on phones/tablets; desktop can auto-open the first thread.
+      if (typeof window !== "undefined" && window.innerWidth < 1024) return null;
+      return conversations[0]?.id ?? null;
+    });
+  }, [conversationId, conversations, conversationsQuery.data]);
 
   useEffect(() => {
     setPage(1);
-  }, [campaignFilter, query, state]);
+  }, [campaignFilter, debouncedQuery, state]);
 
   useEffect(() => {
     setSelectedId(conversationId ?? null);
@@ -418,7 +421,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       setDraftSeen(false);
       setIdempotencyKey(crypto.randomUUID());
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load conversation.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to load conversation.");
     } finally {
       setIsDetailLoading(false);
     }
@@ -441,7 +444,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       setMessage(result.drafts[0] ?? "");
       setDraftSeen(true);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to generate a draft.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to generate a draft.");
     } finally {
       setIsDrafting(false);
     }
@@ -459,12 +462,16 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       setMessage("");
       setIdempotencyKey(crypto.randomUUID());
       setComposerTab("reply");
-      await Promise.all([load(), loadDetail(detail.id)]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "conversations"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
+        loadDetail(detail.id),
+      ]);
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.code === "daily_message_limit") {
         setLimitError(requestError.message);
       } else {
-        setError(requestError instanceof Error ? requestError.message : "Unable to send reply.");
+        setActionError(requestError instanceof Error ? requestError.message : "Unable to send reply.");
       }
     } finally {
       setIsSending(false);

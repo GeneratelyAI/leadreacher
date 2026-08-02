@@ -19,7 +19,8 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -368,49 +369,45 @@ export function ChannelsWorkspace() {
   const endDate = searchParams.get("endDate") ?? "";
   const connectStatus = searchParams.get("status");
 
-  const [accounts, setAccounts] = useState<ChannelAccount[]>([]);
-  const [summary, setSummary] = useState<ChannelsSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
-    const suffix = params.toString() ? `?${params.toString()}` : "";
-    try {
-      const result = await apiFetch<ChannelsResponse>(`/social-accounts${suffix}`);
-      setAccounts(result.accounts);
-      setSummary(result.summary);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load channels.");
-    } finally {
-      setIsLoading(false);
-    }
+    return params.toString();
   }, [endDate, startDate]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const channelsQuery = useQuery({
+    queryKey: ["dashboard", "channels", queryString],
+    queryFn: () => apiFetch<ChannelsResponse>(`/social-accounts${queryString ? `?${queryString}` : ""}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const accounts = channelsQuery.data?.accounts ?? [];
+  const summary = channelsQuery.data?.summary ?? null;
+  const isLoading = channelsQuery.isLoading && !channelsQuery.data;
+  const error = actionError ?? (channelsQuery.error instanceof Error ? channelsQuery.error.message : null);
 
   useEffect(() => {
     if (connectStatus === "connected") setNotice("Channel connected successfully.");
-    if (connectStatus === "failed") setError("Channel connection failed. Try again.");
+    if (connectStatus === "failed") setActionError("Channel connection failed. Try again.");
   }, [connectStatus]);
 
   async function sync() {
     setIsSyncing(true);
     try {
       await apiFetch("/social-accounts/sync", { method: "POST", body: JSON.stringify({}) });
-      await load();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "channels"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
+      ]);
       setNotice("Accounts synced.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to sync channels.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to sync channels.");
     } finally {
       setIsSyncing(false);
     }
@@ -425,7 +422,7 @@ export function ChannelsWorkspace() {
       });
       window.location.assign(result.url);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to start channel connection.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to start channel connection.");
       setIsConnecting(false);
     }
   }

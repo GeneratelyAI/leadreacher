@@ -17,6 +17,7 @@ import {
   Send,
   UserPlus,
 } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChannelFilterMenu } from "@/components/dashboard/ChannelFilterMenu";
@@ -269,12 +270,8 @@ export function AnalyticsWorkspace() {
     [channelsParam],
   );
 
-  const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
-  const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
   const [campaignFilter, setCampaignFilter] = useState(campaignIdParam);
   const [granularity, setGranularity] = useState<"day" | "week">("day");
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setCampaignFilter(campaignIdParam);
@@ -303,33 +300,32 @@ export function AnalyticsWorkspace() {
     [router, searchParams],
   );
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const analyticsParams = useMemo(() => {
     const params = new URLSearchParams({ granularity });
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     if (campaignFilter) params.set("campaignId", campaignFilter);
     if (selectedChannels.length === 1) params.set("channels", selectedChannels[0] ?? "");
     else if (selectedChannels.length > 1) params.set("channels", selectedChannels.join(","));
-
-    try {
-      const [analyticsResult, insightsResult] = await Promise.all([
-        apiFetch<AnalyticsResponse>(`/dashboard/analytics?${params.toString()}`),
-        apiFetch<AnalyticsInsights>("/dashboard/analytics/insights").catch(() => null),
-      ]);
-      setAnalytics(analyticsResult);
-      setInsights(insightsResult);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load analytics.");
-    } finally {
-      setIsLoading(false);
-    }
+    return params.toString();
   }, [campaignFilter, endDate, granularity, selectedChannels, startDate]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const analyticsQuery = useQuery({
+    queryKey: ["dashboard", "analytics", analyticsParams],
+    queryFn: () => apiFetch<AnalyticsResponse>(`/dashboard/analytics?${analyticsParams}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const insightsQuery = useQuery({
+    queryKey: ["dashboard", "analytics-insights"],
+    queryFn: () => apiFetch<AnalyticsInsights>("/dashboard/analytics/insights"),
+    staleTime: 30_000,
+    refetchInterval: (query) => query.state.data?.status === "aggregating" ? 2_500 : false,
+  });
+  const analytics = analyticsQuery.data ?? null;
+  const insights = insightsQuery.data ?? null;
+  const isLoading = analyticsQuery.isLoading && !analyticsQuery.data;
+  const isRefreshing = analyticsQuery.isFetching && !!analyticsQuery.data;
+  const error = analyticsQuery.error instanceof Error ? analyticsQuery.error.message : null;
 
   const maxChannelMeetings = useMemo(
     () => Math.max(0, ...(analytics?.channels.map((row) => row.meetingsBooked) ?? [0])),
@@ -480,6 +476,7 @@ export function AnalyticsWorkspace() {
       </section>
 
       <div className="flex flex-wrap items-end gap-3">
+        {isRefreshing ? <span className="text-xs text-muted-foreground" aria-live="polite">Updating analytics…</span> : null}
         <div className="flex min-w-44 flex-col gap-1.5">
           <span className="text-xs font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
             Campaign

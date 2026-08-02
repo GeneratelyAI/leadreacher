@@ -25,6 +25,7 @@ import {
   Users,
   Video,
 } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { CampaignDetailSheet } from "@/components/dashboard/CampaignDetailSheet";
@@ -56,6 +57,7 @@ import { Input } from "@/components/ui/Input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiError, apiFetch } from "@/lib/api";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
 type CampaignStatus = "draft" | "review" | "active" | "paused" | "completed";
@@ -210,7 +212,9 @@ function ChannelMarks({ channels }: { channels: string[] }) {
 function VideoChip({ video }: { video?: CampaignVideoSummary | null }) {
   if (!video || video.status === "unused") return null;
   const label =
-    video.status === "pending" || video.status === "generating"
+    video.needsReview
+      ? "Review required"
+      : video.status === "pending" || video.status === "generating"
       ? "Generating"
       : video.status === "failed" || video.status === "rejected"
         ? "Failed"
@@ -557,42 +561,45 @@ function CampaignSelectionActionBar({
 
 export function CampaignsPage() {
   const searchParams = useSearchParams();
-  const [data, setData] = useState<CampaignResponse | null>(null);
-  const [accounts, setAccounts] = useState<SocialAccount[]>([]);
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<FilterStatus>("all");
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const [channel, setChannel] = useState("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
   const [isActing, setIsActing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
+  const campaignParams = useMemo(() => new URLSearchParams({
+    status,
+    ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    ...(channel !== "all" ? { channel } : {}),
+  }).toString(), [channel, debouncedSearch, status]);
+  const campaignQuery = useQuery({
+    queryKey: ["dashboard", "campaigns", campaignParams],
+    queryFn: () => apiFetch<CampaignResponse>(`/dashboard/campaigns?${campaignParams}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const accountsQuery = useQuery({
+    queryKey: ["social-accounts"],
+    queryFn: () => apiFetch<{ accounts: SocialAccount[] }>("/social-accounts"),
+    staleTime: 60_000,
+  });
+  const data = campaignQuery.data ?? null;
+  const accounts = accountsQuery.data?.accounts ?? [];
+  const isLoading = campaignQuery.isLoading && !campaignQuery.data;
+  const isRefreshing = campaignQuery.isFetching && !!campaignQuery.data;
+  const error = actionError ?? (campaignQuery.error instanceof Error ? campaignQuery.error.message : accountsQuery.error instanceof Error ? accountsQuery.error.message : null);
   const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams({
-        status,
-        ...(search ? { search } : {}),
-        ...(channel !== "all" ? { channel } : {}),
-      });
-      const [campaignResponse, accountResponse] = await Promise.all([
-        apiFetch<CampaignResponse>(`/dashboard/campaigns?${params.toString()}`),
-        apiFetch<{ accounts: SocialAccount[] }>("/social-accounts"),
-      ]);
-      setData(campaignResponse);
-      setAccounts(accountResponse.accounts);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load campaigns.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [channel, search, status]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "campaigns"] }),
+      queryClient.invalidateQueries({ queryKey: ["social-accounts"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] }),
+    ]);
+  }, [queryClient]);
 
   useEffect(() => {
     const reviewCampaignId = searchParams.get("reviewCampaignId");
@@ -601,7 +608,7 @@ export function CampaignsPage() {
 
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [status, search, channel]);
+  }, [status, debouncedSearch, channel]);
 
   async function patchCampaign(id: string, body: Record<string, unknown>, success: string) {
     setIsActing(true);
@@ -611,7 +618,7 @@ export function CampaignsPage() {
       await load();
     } catch (requestError) {
       const message = requestError instanceof ApiError ? requestError.message : "Unable to update campaign.";
-      setError(message);
+      setActionError(message);
       toast.error(message);
     } finally {
       setIsActing(false);
@@ -798,6 +805,7 @@ export function CampaignsPage() {
                 ))}
               </SelectContent>
             </Select>
+            {isRefreshing ? <span className="self-center text-xs text-muted-foreground" aria-live="polite">Updating…</span> : null}
           </div>
         </div>
 

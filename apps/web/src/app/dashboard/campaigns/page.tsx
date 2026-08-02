@@ -1,5 +1,6 @@
-import { CampaignsView, DashboardPageFrame } from "@/components/dashboard/DashboardWorkspaceViews";
+import { CampaignsPage as CampaignsWorkspace } from "@/components/dashboard/CampaignsPage";
+import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
 
 export default function CampaignsPage() {
-  return <DashboardPageFrame><CampaignsView /></DashboardPageFrame>;
+  return <DashboardPageFrame><CampaignsWorkspace /></DashboardPageFrame>;
 }

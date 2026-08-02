@@ -405,14 +405,22 @@ function LoadingStrategy() {
 function StrategyError({
   message,
   onRetry,
+  inProgress = false,
 }: {
   message: string;
   onRetry: () => void;
+  inProgress?: boolean;
 }) {
   return (
     <OnboardingCard className="mx-auto mt-8 w-full max-w-3xl px-6 py-8 text-center sm:px-8">
-      <Info className="mx-auto size-9 text-red-500" aria-hidden />
-      <h2 className="mt-4 text-xl font-bold text-neutral-950">Audience analysis failed</h2>
+      {inProgress ? (
+        <Loader2 className="mx-auto size-9 text-brand-purple" aria-hidden />
+      ) : (
+        <Info className="mx-auto size-9 text-red-500" aria-hidden />
+      )}
+      <h2 className="mt-4 text-xl font-bold text-neutral-950">
+        {inProgress ? "Audience analysis in progress" : "Audience analysis failed"}
+      </h2>
       <p className="mt-3 text-sm leading-6 text-neutral-600">{message}</p>
       <Button
         type="button"
@@ -421,7 +429,7 @@ function StrategyError({
         className="mt-6"
       >
         <RefreshCw className="size-4" aria-hidden />
-        Retry analysis
+        {inProgress ? "Check again" : "Retry analysis"}
       </Button>
     </OnboardingCard>
   );
@@ -431,11 +439,13 @@ function TargetingScreen({
   analysis,
   isLoading,
   error,
+  errorInProgress,
   onRetry,
 }: {
   analysis: AudienceAnalysis | null;
   isLoading: boolean;
   error: string | null;
+  errorInProgress: boolean;
   onRetry: () => void;
 }) {
   if (isLoading) {
@@ -461,6 +471,7 @@ function TargetingScreen({
         />
         <StrategyError
           message={error ?? analysis?.error ?? "No completed audience analysis is available yet."}
+          inProgress={errorInProgress}
           onRetry={onRetry}
         />
       </section>
@@ -706,6 +717,7 @@ export default function StrategyClient({
   const [strategy, setStrategy] = useState<StrategyResponse | null>(null);
   const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
   const [strategyError, setStrategyError] = useState<string | null>(null);
+  const [strategyErrorInProgress, setStrategyErrorInProgress] = useState(false);
   const generationStartedRef = useRef(false);
 
   const analysis = useMemo(() => getAudienceAnalysis(strategy), [strategy]);
@@ -714,6 +726,7 @@ export default function StrategyClient({
   const loadStrategy = useCallback(async (forceGenerate: boolean, allowGenerate = true) => {
     setIsLoadingStrategy(true);
     setStrategyError(null);
+    setStrategyErrorInProgress(false);
     try {
       const { orgId } = await bootstrapOrganization("LeadReacher");
       let current: StrategyResponse | null = null;
@@ -753,6 +766,13 @@ export default function StrategyClient({
         setStrategyError(generatedAnalysis.error ?? "Audience analysis failed.");
       }
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        setStrategyErrorInProgress(true);
+        setStrategyError(
+          "Another audience analysis is still running for this workspace. Wait a moment, then check again.",
+        );
+        return;
+      }
       setStrategyError(
         error instanceof Error
           ? error.message
@@ -817,6 +837,7 @@ export default function StrategyClient({
         analysis={analysis}
         isLoading={isLoadingStrategy}
         error={strategyError}
+        errorInProgress={strategyErrorInProgress}
         onRetry={handleRetry}
       />
     );

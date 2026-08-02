@@ -9,8 +9,11 @@ const {
   uploadBuffer,
   extractFrames,
   normalizeDuration,
+  inspectMedia,
+  assertMaster,
   runOutputCritic,
   templateFindMany,
+  templateFindUnique,
   templateUpdateMany,
   templateUpdate,
 } = vi.hoisted(() => ({
@@ -22,8 +25,11 @@ const {
   uploadBuffer: vi.fn(),
   extractFrames: vi.fn(),
   normalizeDuration: vi.fn(),
+  inspectMedia: vi.fn(),
+  assertMaster: vi.fn(),
   runOutputCritic: vi.fn(),
   templateFindMany: vi.fn(),
+  templateFindUnique: vi.fn(),
   templateUpdateMany: vi.fn(),
   templateUpdate: vi.fn(),
 }));
@@ -57,6 +63,7 @@ vi.mock("../../lib/prisma.js", () => ({
     videoAsset: { findMany, updateMany },
     campaignVideoTemplate: {
       findMany: templateFindMany,
+      findUnique: templateFindUnique,
       updateMany: templateUpdateMany,
       update: templateUpdate,
     },
@@ -71,6 +78,8 @@ vi.mock("../../lib/queue.js", () => ({
 vi.mock("../../lib/video-frames.js", () => ({
   extractRepresentativeFrames: extractFrames,
   normalizeVideoDuration: normalizeDuration,
+  inspectVideoMedia: inspectMedia,
+  assertPersonalizedMasterVideo: assertMaster,
 }));
 vi.mock("../../modules/agents/video-prompt-agent.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../modules/agents/video-prompt-agent.js")>();
@@ -108,6 +117,8 @@ beforeEach(() => {
   uploadBuffer.mockReset();
   extractFrames.mockReset();
   normalizeDuration.mockReset();
+  inspectMedia.mockReset();
+  assertMaster.mockReset();
   runOutputCritic.mockReset();
   templateFindMany.mockReset();
   templateUpdateMany.mockReset();
@@ -120,6 +131,14 @@ beforeEach(() => {
     videoBuffer,
     durationMs: 10_000,
   }));
+  inspectMedia.mockResolvedValue({
+    durationMs: 10_000,
+    width: 90,
+    height: 160,
+    videoStreams: 1,
+    audioStreams: 0,
+  });
+  templateFindUnique.mockResolvedValue({ renderManifest: null });
 });
 
 describe("reconcileUnknownTemplateVeoOperations", () => {

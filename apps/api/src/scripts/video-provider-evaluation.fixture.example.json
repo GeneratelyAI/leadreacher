@@ -1,0 +1,5 @@
+{
+  "seedImageUrl": "https://cdn.example.com/approved-seed-image.png",
+  "videoPrompt": "Create a silent, vertical 9:16 B2B video. Keep the spokesperson visually consistent. Do not generate speech, captions, text, numbers, metrics, or logos. Leave clean visual space for a source-logo end card that the application will composite later.",
+  "referenceUrls": []
+}

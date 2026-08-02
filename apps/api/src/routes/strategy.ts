@@ -433,6 +433,34 @@ async function markStrategyGenerationFailed(
   });
 }
 
+async function scrapeDecisionMakersWithFallback(
+  adapter: ApifyAdapter,
+  filters: ICPFilters,
+): Promise<{
+  profiles: ScrapedProfile[];
+  totalFound: number;
+  filtersUsed: ICPFilters;
+}> {
+  const primary = await adapter.scrapeLeadsWithTotal(filters, 50);
+  if (primary.profiles.length > 0 || filters.jobTitles.length === 0) {
+    return { ...primary, filtersUsed: filters };
+  }
+
+  // HarvestAPI can return zero rows for exact currentJobTitles while the same
+  // role language works as a profile keyword query. Keep the fallback bounded
+  // to the inferred roles so we never silently run an unfiltered scrape.
+  const keywordFallback: ICPFilters = {
+    ...filters,
+    jobTitles: [],
+    keywords: filters.jobTitles,
+  };
+  const fallback = await adapter.scrapeLeadsWithTotal(keywordFallback, 50);
+  return {
+    ...fallback,
+    filtersUsed: fallback.profiles.length > 0 ? keywordFallback : filters,
+  };
+}
+
 function getDiscoveryInputs(
   strategy: Strategy,
   scrapeStatus: DiscoveryScrapeStatus | null,
@@ -513,16 +541,25 @@ export async function generateStrategy(
             reason:
               companySearchPlan.reason ?? COMPANY_SEARCH_UNAVAILABLE_REASON,
           });
+    const profileSearchPromise = scrapeDecisionMakersWithFallback(adapter, filters);
     const [companyResult, profileResult] = await Promise.allSettled([
       companySearchPromise,
-      adapter.scrapeLeadsWithTotal(filters, 50),
+      profileSearchPromise,
     ]);
     if (profileResult.status === "rejected") {
       throw profileResult.reason instanceof Error
         ? profileResult.reason
         : new Error(String(profileResult.reason));
     }
-    const { profiles, totalFound: profileTotalFound } = profileResult.value;
+    const {
+      profiles,
+      totalFound: profileTotalFound,
+      filtersUsed: profileFilters,
+    } = profileResult.value;
+    const profileIndustryIds = resolveIndustryIds(profileFilters.industries);
+    const profileCompanyHeadcount = resolveCompanyHeadcountCodes(
+      profileFilters.companySizes,
+    );
 
     if (companyResult.status === "rejected") {
       console.error(
@@ -545,7 +582,7 @@ export async function generateStrategy(
       companyTotalFound === 0;
     if (profiles.length === 0) {
       throw new ValidationError(
-        "We couldn't complete your audience analysis because Apify returned zero decision makers. Try refining your discovery inputs and retry.",
+        "We couldn't find decision makers with the current audience filters. Broaden the market or target roles, add a location, then retry the analysis.",
       );
     }
 
@@ -594,9 +631,9 @@ export async function generateStrategy(
             topIndustries: companyDataUnavailable ? [] : topIndustries(companies),
             topBuyerPersonas: topBuyerPersonas(profiles),
             filters: {
-              ...filters,
-              resolvedIndustryIds,
-              resolvedCompanyHeadcount,
+              ...profileFilters,
+              resolvedIndustryIds: profileIndustryIds,
+              resolvedCompanyHeadcount: profileCompanyHeadcount,
             },
           },
         }),
@@ -901,7 +938,8 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       const acquired = await redis.set(lockKey, "1", "PX", 300000, "NX");
       if (acquired !== "OK") {
         return reply.code(409).send({
-          error: "Strategy generation is already in progress for this organization.",
+          code: "STRATEGY_GENERATION_IN_PROGRESS",
+          message: "Strategy generation is already in progress for this organization.",
         });
       }
 

@@ -22,7 +22,7 @@ export type PersonalizedVideoTemplateCriticResult = z.infer<typeof Output>;
 
 const SYSTEM_PROMPT = `You quality-gate a shared B2B personalized-video template before paid generation. Score 0-10. Return valid json.
 
-Check: silent first 1.5 seconds reserved for a later greeting; no lead-specific language; credible shared narration for seconds 1.5-8; consistent spokesperson and setting; logo-only end card; no invented metrics or claims. The final frame holds for seconds 8-10. Pass at 7 or higher. Output only {"score": number, "feedback": string[]}.`;
+Check: silent first 1.5 seconds reserved for a later greeting; no lead-specific language; credible shared narration for seconds 1.5-8; consistent spokesperson and setting; clean visual space for an original-logo end card; no invented metrics or claims. The worker, not the model, composites the logo for seconds 8-10. Pass at 7 or higher. Output only {"score": number, "feedback": string[]}.`;
 
 export function normalizePersonalizedVideoTemplateCriticOutput(raw: unknown): PersonalizedVideoTemplateCriticResult {
   const parsed = RawOutput.parse(raw);

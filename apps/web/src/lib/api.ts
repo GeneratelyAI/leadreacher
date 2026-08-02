@@ -1,5 +1,10 @@
 import { createClient } from "@/lib/supabase/client";
 
+const TOKEN_CACHE_TTL_MS = 45_000;
+
+let tokenCache: { value: string; expiresAt: number } | null = null;
+let tokenRequest: Promise<string | null> | null = null;
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -20,24 +25,36 @@ function getApiBaseUrl(): string {
 }
 
 export async function getAccessToken(): Promise<string | null> {
-  const supabase = createClient();
-
-  // Validate with Supabase Auth (and refresh if needed). getSession() alone can
-  // return a stale or non-Supabase token from browser storage.
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return null;
+  if (tokenCache && tokenCache.expiresAt > Date.now()) {
+    return tokenCache.value;
   }
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  if (tokenRequest) return tokenRequest;
 
-  return session?.access_token ?? null;
+  tokenRequest = (async () => {
+    const supabase = createClient();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token ?? null;
+
+    tokenCache = token
+      ? { value: token, expiresAt: Date.now() + TOKEN_CACHE_TTL_MS }
+      : null;
+    return token;
+  })();
+
+  try {
+    return await tokenRequest;
+  } finally {
+    tokenRequest = null;
+  }
+}
+
+/** Reset cached browser auth after an explicit authentication state change. */
+export function clearAccessTokenCache(): void {
+  tokenCache = null;
+  tokenRequest = null;
 }
 
 export async function apiFetch<T>(
@@ -80,13 +97,19 @@ export async function apiFetch<T>(
     | null;
 
   if (!response.ok) {
-    const message =
+    const payloadMessage =
       payload &&
       typeof payload === "object" &&
       "message" in payload &&
       typeof payload.message === "string"
         ? payload.message
-        : response.statusText;
+        : payload &&
+            typeof payload === "object" &&
+            "error" in payload &&
+            typeof payload.error === "string"
+          ? payload.error
+          : null;
+    const message = payloadMessage ?? response.statusText;
     const code =
       payload &&
       typeof payload === "object" &&

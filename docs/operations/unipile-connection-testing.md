@@ -10,8 +10,9 @@ The test proves three things, in order:
 3. **Authenticated call** — we can perform a real LinkedIn action on that
    account's behalf.
 
-> Scope: read-only verification — the test only calls read endpoints and never
-> takes an action on the LinkedIn account (no invites or messages).
+> Default scope: read-only verification. The script only calls read endpoints
+> unless you explicitly pass `--send` for a dedicated test account. Live
+> delivery is never the default.
 
 ---
 
@@ -73,6 +74,9 @@ pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts
 
 # optionally target a specific account / public profile slug
 pnpm exec tsx src/scripts/test-unipile.ts <accountId> <publicId>
+
+# only with a dedicated test account: run the opt-in delivery check
+pnpm exec tsx src/scripts/test-unipile.ts <accountId> <publicId> --send
 ```
 
 By default it uses the **first connected account** and the slug **`williamhgates`**.
@@ -117,6 +121,14 @@ const profile = await adapter.getProfile(accountId, "williamhgates");
 - [ ] **T3** — `getProfile` returns a populated profile for a known public slug.
 
 `Result: 3/3 passed` ⇒ the Unipile ↔ LinkedIn connection works.
+
+## Optional delivery check
+
+`--send` unlocks the script's explicit T4/T5 delivery tests. It may create an
+invite or send a message through the selected account. Run it only after all
+read-only checks pass, only with a dedicated account, and only to a consenting
+test profile. This opt-in is deliberately separate from the normal smoke test
+so routine operations never change LinkedIn state.
 
 ---
 

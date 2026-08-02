@@ -13,6 +13,12 @@ const {
   campaignLeadCount,
   messageFindMany,
   videoAssetFindMany,
+  videoAssetFindFirst,
+  videoAssetUpdateMany,
+  campaignVideoTemplateFindFirst,
+  campaignVideoTemplateUpdate,
+  videoGenerationQueueAdd,
+  strategyFindFirst,
   socialAccountFindFirst,
   campaignChannelAccountUpsert,
   campaignChannelAccountDeleteMany,
@@ -29,6 +35,12 @@ const {
   campaignLeadCount: vi.fn(),
   messageFindMany: vi.fn(),
   videoAssetFindMany: vi.fn(),
+  videoAssetFindFirst: vi.fn(),
+  videoAssetUpdateMany: vi.fn(),
+  campaignVideoTemplateFindFirst: vi.fn(),
+  campaignVideoTemplateUpdate: vi.fn(),
+  videoGenerationQueueAdd: vi.fn(),
+  strategyFindFirst: vi.fn(),
   socialAccountFindFirst: vi.fn(),
   campaignChannelAccountUpsert: vi.fn(),
   campaignChannelAccountDeleteMany: vi.fn(),
@@ -56,9 +68,22 @@ vi.mock("../../lib/prisma.js", () => ({
     },
     campaignLead: { findMany: campaignLeadFindMany, count: campaignLeadCount },
     message: { findMany: messageFindMany },
-    videoAsset: { findMany: videoAssetFindMany },
+    videoAsset: {
+      findMany: videoAssetFindMany,
+      findFirst: videoAssetFindFirst,
+      updateMany: videoAssetUpdateMany,
+    },
+    campaignVideoTemplate: {
+      findFirst: campaignVideoTemplateFindFirst,
+      update: campaignVideoTemplateUpdate,
+    },
+    strategy: { findFirst: strategyFindFirst },
     socialAccount: { findFirst: socialAccountFindFirst },
   },
+}));
+
+vi.mock("../../lib/queue.js", () => ({
+  videoGenerationQueue: { add: videoGenerationQueueAdd },
 }));
 
 vi.mock("../../services/campaign-step0-queue.js", () => ({
@@ -100,6 +125,12 @@ beforeEach(async () => {
   campaignLeadCount.mockReset();
   messageFindMany.mockReset();
   videoAssetFindMany.mockReset();
+  videoAssetFindFirst.mockReset();
+  videoAssetUpdateMany.mockReset();
+  campaignVideoTemplateFindFirst.mockReset();
+  campaignVideoTemplateUpdate.mockReset();
+  videoGenerationQueueAdd.mockReset();
+  strategyFindFirst.mockReset();
   socialAccountFindFirst.mockReset();
   campaignChannelAccountUpsert.mockReset();
   campaignChannelAccountDeleteMany.mockReset();
@@ -325,5 +356,54 @@ describe("campaign lifecycle routes", () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ updated: 1 });
     expect(campaignUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("queues a retry only for a standard video that failed quality review", async () => {
+    campaignFindFirst.mockResolvedValueOnce({
+        id: "campaign-1",
+        strategyId: "strategy-1",
+        leads: [{ leadId: "lead-1" }],
+      });
+    strategyFindFirst.mockResolvedValue({
+        campaignType: "ai_video_ad",
+        videoConfig: { enabled: true, source: "generated", mode: "standard" },
+      });
+    videoAssetFindFirst.mockResolvedValue({ id: "video-1" });
+    videoGenerationQueueAdd.mockResolvedValue(undefined);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/campaigns/campaign-1/video/retry",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ queued: true, pipeline: "standard", scope: "campaign" });
+    expect(videoGenerationQueueAdd).toHaveBeenCalledWith(
+      "retry-standard-video",
+      expect.objectContaining({ campaignId: "campaign-1", leadId: "lead-1", pipeline: "standard" }),
+      expect.objectContaining({ attempts: 1 }),
+    );
+  });
+
+  it("does not enqueue a retry when a standard video is already usable", async () => {
+    campaignFindFirst.mockResolvedValueOnce({
+        id: "campaign-1",
+        strategyId: "strategy-1",
+        leads: [{ leadId: "lead-1" }],
+      });
+    strategyFindFirst.mockResolvedValue({
+        campaignType: "ai_video_ad",
+        videoConfig: { enabled: true, source: "generated", mode: "standard" },
+      });
+    videoAssetFindFirst.mockResolvedValue(null);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/campaigns/campaign-1/video/retry",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ message: "There is no failed or review-required video to retry" });
+    expect(videoGenerationQueueAdd).not.toHaveBeenCalled();
   });
 });

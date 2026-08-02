@@ -169,6 +169,8 @@ model Lead {
 
   @@index([orgId, status])
   @@index([orgId, reviewStatus])
+  @@index([orgId, createdAt])
+  @@index([orgId, updatedAt])
   @@index([orgId, email])
   @@index([orgId, phone])
 }
@@ -193,6 +195,7 @@ model CampaignLead {
 
   @@unique([campaignId, leadId])
   @@index([emailThreadKey])
+  @@index([campaignId, status, createdAt])
 }
 
 model DeliveryAttempt {
@@ -242,6 +245,9 @@ model Message {
   @@index([externalId])
   @@index([status])
   @@index([orgId, direction, readAt])
+  @@index([orgId, createdAt])
+  @@index([orgId, direction, createdAt])
+  @@index([campaignId, createdAt])
 }
 
 model ManualDeliveryAttempt {
@@ -320,10 +326,12 @@ model VideoAsset {
   veoSubmitLeaseAt DateTime?  // Submission, active-poll, or recovery lease.
   approvedBy      String?
   approvedAt      DateTime?
+  renderManifest  Json?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   @@index([orgId, status])
+  @@index([orgId, updatedAt])
   @@index([campaignId])
   @@index([leadId])
   @@index([templateId])
@@ -346,6 +354,7 @@ model CampaignVideoTemplate {
   imagePrompt        String?
   videoPrompt        String?
   sharedNarration    String?
+  logoUrl            String?
   selectedTone       String?
   voice              String
   criticScore        Int?
@@ -353,6 +362,7 @@ model CampaignVideoTemplate {
   veoOperationId     String?      @unique
   veoOperationState  String?      // 'submitting' | 'active' | 'completed' | 'failed'
   veoSubmitLeaseAt   DateTime?
+  renderManifest     Json?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   videoAssets        VideoAsset[]

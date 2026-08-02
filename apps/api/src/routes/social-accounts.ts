@@ -15,6 +15,7 @@ import {
   errorResponses
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
+import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
@@ -293,6 +294,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    await invalidateDashboardChrome(orgId);
     return reply.send({ synced });
   });
 }

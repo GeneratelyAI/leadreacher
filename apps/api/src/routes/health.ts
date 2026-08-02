@@ -26,6 +26,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
   r.get(
     "/ready",
     {
+      config: { rateLimit: false },
       schema: {
         ...publicRoute("Health", "Readiness probe (database + Redis)"),
       },
@@ -33,6 +34,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
     async (_request, reply) => {
       try {
         await Promise.all([prisma.$queryRaw`SELECT 1`, redis.ping()]);
+        reply.header("Cache-Control", "no-store");
         return { status: "ok" as const, timestamp: new Date().toISOString() };
       } catch (error) {
         app.log.error({ err: error }, "Readiness check failed");

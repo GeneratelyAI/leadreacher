@@ -43,6 +43,11 @@ RUBRIC (each criterion worth up to 2 points):
 4. SCENE COHERENCE - Compare the frames. Does the setting and subject remain coherent without sudden scene changes or incoherent backgrounds?
 5. PROFESSIONAL QUALITY - Does the video feel premium enough to represent a brand in a paid ad context?
 
+HARD FAILS:
+- Any generated captions, subtitles, metrics, unsupported claims, or visible text intended as an end card.
+- A missing or unstable direct-to-camera opening when the first two frames should show the spokesperson.
+- A distorted brand mark or invented branding. The application overlays the source logo after this master-video check, so evaluate the generated closing frame only for clean end-card space.
+
 SCORING:
 - Score 0-6 (< 7): FAIL - video must be regenerated
 - Score 7-10: PASS - approved for client review

@@ -28,9 +28,16 @@ import {
   videoGenerationQueue,
 } from "../lib/queue.js";
 import {
+  assertPersonalizedMasterVideo,
   extractRepresentativeFrames,
+  inspectVideoMedia,
   normalizeVideoDuration,
 } from "../lib/video-frames.js";
+import {
+  createPersonalizedTemplateManifest,
+  sha256,
+  updatePersonalizedTemplateManifest,
+} from "../lib/personalized-video-manifest.js";
 import { runVideoPromptAgent } from "../modules/agents/video-prompt-agent.js";
 import { runPersonalizedVideoTemplatePromptAgent } from "../modules/agents/personalized-video-prompt-agent.js";
 import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js";
@@ -69,7 +76,7 @@ type VideoContext = {
 type TemplateVideoContext = Omit<
   VideoContext,
   "leadFirstName" | "leadCompany" | "leadTitle"
->;
+> & { logoUrl: string | null };
 
 export type VideoGenerationPipeline = "standard" | "personalized";
 
@@ -307,9 +314,9 @@ function buildTemplateVideoContext(
       ) ??
       "clean professional workspace",
     hasLogoReference: Boolean(logoUrl),
+    logoUrl: logoUrl ?? null,
     referenceUrls: [
       ...new Set([
-        ...(logoUrl ? [logoUrl] : []),
         ...collectUrls(job.referenceUrls),
         ...collectUrls(videoConfig?.["referenceUrls"]),
         ...collectUrls(strategyVideoConfig?.["referenceUrls"]),
@@ -384,7 +391,12 @@ async function generateApprovedPersonalizedTemplatePrompts(
   templateId: string,
   seedPrompt: string,
   context: TemplateVideoContext,
-): Promise<{ imagePrompt: string; videoPrompt: string; sharedNarration: string }> {
+): Promise<{
+  storyboard: Awaited<ReturnType<typeof runPersonalizedVideoTemplatePromptAgent>>["storyboard"];
+  imagePrompt: string;
+  videoPrompt: string;
+  sharedNarration: string;
+}> {
   let feedbackHints: string[] = [];
 
   for (let attempt = 1; attempt <= MAX_PROMPT_ATTEMPTS; attempt++) {
@@ -415,6 +427,7 @@ async function generateApprovedPersonalizedTemplatePrompts(
 
     if (criticResult.passed) {
       return {
+        storyboard: promptResult.storyboard,
         imagePrompt: promptResult.imagePrompt,
         videoPrompt: promptResult.videoPrompt,
         sharedNarration: promptResult.sharedNarration,
@@ -614,6 +627,7 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
       avatar: context.avatar,
       setting: context.setting,
       hasLogoReference: context.hasLogoReference,
+      logoUrl: context.logoUrl,
     }),
     `Generate the shared personalized B2B outreach video template for ${campaign.name}.`,
   );
@@ -625,6 +639,9 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
       prompt,
       context,
     );
+    // The provider renders one continuous shared master. The four-scene
+    // storyboard is retained in the manifest as the approved creative brief,
+    // rather than implying that the worker stitches generated scenes together.
     const [narration, image] = await Promise.all([
       synthesizeSpeech(approved.sharedNarration),
       context.referenceUrls.length > 0
@@ -645,6 +662,18 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
         image.mimeType,
       ),
     ]);
+    const renderManifest = createPersonalizedTemplateManifest({
+      storyboard: approved.storyboard,
+      imagePrompt: approved.imagePrompt,
+      videoPrompt: approved.videoPrompt,
+      sharedNarration: approved.sharedNarration,
+      seedImageUrl,
+      seedImage: image.buffer,
+      sharedNarrationUrl,
+      sharedNarrationAudio: narration,
+      logoUrl: context.logoUrl,
+      provider: getConfiguredVideoProvider(),
+    });
     await prisma.campaignVideoTemplate.update({
       where: { id: template.id },
       data: {
@@ -653,7 +682,9 @@ async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise
         imagePrompt: approved.imagePrompt,
         videoPrompt: approved.videoPrompt,
         sharedNarration: approved.sharedNarration,
+        logoUrl: context.logoUrl,
         selectedTone: context.tone,
+        renderManifest,
       },
     });
     await videoGenerationQueue.add(
@@ -777,7 +808,13 @@ async function finalizeTemplateVeoOperation(input: {
   const { template, operationId, setting } = input;
   try {
     const generated = await getVideoJobResult(operationId);
-    const normalized = await normalizeVideoDuration(generated.videoBuffer, generated.durationMs);
+    const normalized = await normalizeVideoDuration(
+      generated.videoBuffer,
+      generated.durationMs,
+      { stripAudio: true },
+    );
+    const masterMedia = await inspectVideoMedia(normalized.videoBuffer);
+    assertPersonalizedMasterVideo(masterMedia);
     const r2 = new R2Adapter();
     const { url: masterVideoUrl } = await r2.uploadBuffer(
       `video-templates/${template.orgId}/${template.id}/${randomUUID()}.mp4`,
@@ -794,6 +831,27 @@ async function finalizeTemplateVeoOperation(input: {
       setting,
       attempt: 1,
     });
+    const templateMetadata = await prisma.campaignVideoTemplate.findUnique({
+      where: { id: template.id },
+      select: { renderManifest: true },
+    });
+    const renderManifest = templateMetadata?.renderManifest
+      ? updatePersonalizedTemplateManifest(templateMetadata.renderManifest, {
+        assets: {
+          masterVideoUrl,
+          masterVideoSha256: sha256(normalized.videoBuffer),
+        },
+        provider: { operationId },
+        quality: {
+          durationMs: masterMedia.durationMs,
+          width: masterMedia.width,
+          height: masterMedia.height,
+          sourceAudioStreams: masterMedia.audioStreams,
+          criticScore: critic.score,
+          criticPassed: critic.passed,
+        },
+      })
+      : null;
     await prisma.campaignVideoTemplate.update({
       where: { id: template.id },
       data: {
@@ -803,6 +861,7 @@ async function finalizeTemplateVeoOperation(input: {
         needsReview: !critic.passed,
         veoOperationState: critic.passed ? "completed" : "failed",
         veoSubmitLeaseAt: null,
+        ...(renderManifest ? { renderManifest } : {}),
       },
     });
     if (!critic.passed) {

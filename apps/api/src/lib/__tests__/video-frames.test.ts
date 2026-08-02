@@ -6,7 +6,9 @@ import { promisify } from "node:util";
 import ffmpegPath from "ffmpeg-static";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  assertPersonalizedMasterVideo,
   composePersonalizedVideo,
+  inspectVideoMedia,
   normalizeVideoDuration,
   TARGET_VIDEO_DURATION_MS,
 } from "../video-frames.js";
@@ -74,6 +76,31 @@ describe("normalizeVideoDuration", () => {
     expect(normalized.durationMs).toBe(TARGET_VIDEO_DURATION_MS);
     expect(stderr).toContain("Duration: 00:00:10.00");
   });
+
+  it("strips provider audio from a personalized template master", async () => {
+    if (!ffmpegPath) throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-video-test-"));
+    tempDirs.push(tempDir);
+    const sourcePath = path.join(tempDir, "source-with-audio.mp4");
+    await execFileAsync(ffmpegPath, [
+      "-hide_banner", "-loglevel", "error", "-y",
+      "-f", "lavfi", "-i", "color=c=black:s=90x160:r=24:d=8",
+      "-f", "lavfi", "-i", "sine=frequency=440:duration=8",
+      "-shortest", "-c:v", "libx264", "-c:a", "aac", sourcePath,
+    ]);
+
+    const normalized = await normalizeVideoDuration(
+      await readFile(sourcePath),
+      8_000,
+      { stripAudio: true },
+    );
+    const media = await inspectVideoMedia(normalized.videoBuffer);
+
+    expect(media.audioStreams).toBe(0);
+    expect(media.durationMs).toBe(TARGET_VIDEO_DURATION_MS);
+    expect(() => assertPersonalizedMasterVideo(media)).not.toThrow();
+  });
 });
 
 describe("composePersonalizedVideo", () => {
@@ -92,7 +119,7 @@ describe("composePersonalizedVideo", () => {
     await Promise.all([
       execFileAsync(ffmpegPath, [
         "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-        "color=c=black:s=16x16:r=24:d=10", "-an", "-c:v", "libx264", masterPath,
+        "color=c=black:s=90x160:r=24:d=10", "-an", "-c:v", "libx264", masterPath,
       ]),
       execFileAsync(ffmpegPath, [
         "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
@@ -119,5 +146,55 @@ describe("composePersonalizedVideo", () => {
     await expect(maxVolumeForSegment(outputPath, 0, 0.5)).resolves.toBeGreaterThan(-80);
     await expect(maxVolumeForSegment(outputPath, 0.8, 0.4)).resolves.toBeLessThan(-80);
     await expect(maxVolumeForSegment(outputPath, 1.5, 0.5)).resolves.toBeGreaterThan(-80);
+    await expect(maxVolumeForSegment(outputPath, 8.2, 0.5)).resolves.toBeLessThan(-80);
+    await expect(inspectVideoMedia(composed.videoBuffer)).resolves.toMatchObject({
+      audioStreams: 1,
+      width: 90,
+      height: 160,
+    });
   });
+
+  it("uses the supplied source logo for the final end card", async () => {
+    if (!ffmpegPath) throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-compose-logo-test-"));
+    tempDirs.push(tempDir);
+    const masterPath = path.join(tempDir, "master.mp4");
+    const greetingPath = path.join(tempDir, "greeting.mp3");
+    const narrationPath = path.join(tempDir, "narration.mp3");
+    const logoPath = path.join(tempDir, "logo.svg");
+
+    await Promise.all([
+      execFileAsync(ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+        "color=c=black:s=90x160:r=24:d=10", "-an", "-c:v", "libx264", masterPath,
+      ]),
+      execFileAsync(ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=400:duration=0.3", "-q:a", "9", greetingPath,
+      ]),
+      execFileAsync(ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=800:duration=0.5", "-q:a", "9", narrationPath,
+      ]),
+      writeFile(
+        logoPath,
+        '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><rect width="120" height="60" fill="#5326b7"/></svg>',
+      ),
+    ]);
+
+    const composed = await composePersonalizedVideo(
+      await readFile(masterPath),
+      await readFile(greetingPath),
+      await readFile(narrationPath),
+      { buffer: await readFile(logoPath), extension: "svg" },
+    );
+
+    await expect(inspectVideoMedia(composed.videoBuffer)).resolves.toMatchObject({
+      durationMs: TARGET_VIDEO_DURATION_MS,
+      audioStreams: 1,
+      width: 90,
+      height: 160,
+    });
+  }, 20_000);
 });

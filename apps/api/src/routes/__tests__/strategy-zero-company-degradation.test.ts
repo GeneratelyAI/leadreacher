@@ -114,10 +114,35 @@ describe("Strategy company-search degradation", () => {
       totalFound: 0,
       skipped: false,
     });
-    scrapeLeadsWithTotal.mockResolvedValue({ profiles: [], totalFound: 0 });
+    scrapeLeadsWithTotal
+      .mockResolvedValueOnce({ profiles: [], totalFound: 0 })
+      .mockResolvedValueOnce({ profiles: [], totalFound: 0 });
 
     await expect(generateStrategy(strategy, "org-1")).rejects.toBeInstanceOf(
       ValidationError,
+    );
+    expect(scrapeLeadsWithTotal).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses a bounded role-keyword fallback when exact title filtering returns no rows", async () => {
+    searchCompanies.mockResolvedValue({
+      companies: [],
+      totalFound: 0,
+      skipped: false,
+    });
+    scrapeLeadsWithTotal
+      .mockResolvedValueOnce({ profiles: [], totalFound: 0 })
+      .mockResolvedValueOnce({ profiles: [profile], totalFound: 1 });
+
+    await expect(generateStrategy(strategy, "org-1")).resolves.toBeDefined();
+
+    expect(scrapeLeadsWithTotal).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        jobTitles: [],
+        keywords: ["Founder", "CEO"],
+      }),
+      50,
     );
   });
 });

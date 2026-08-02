@@ -114,7 +114,7 @@ function strategyBrief(input: VideoPromptBriefInput): {
 
   const logoUrl = firstString(input.logoUrl, strategy?.logoUrl, recordString(creativeAssets, "logoUrl"));
   const logoInstruction = input.hasLogoReference && logoUrl
-    ? `Use the supplied logo reference (${clip(logoUrl, 300)}) for the final end card. Preserve its shape, colors, and proportions exactly. Do not add any other end-card text, numbers, metrics, or claims.`
+    ? `Use the supplied logo reference (${clip(logoUrl, 300)}) for the final end card. Preserve its shape, colors, and proportions; do not add any other end-card text, numbers, metrics, or claims.`
     : "No logo reference is available. Do not invent a logo or add written end-card text.";
 
   return {
@@ -152,8 +152,8 @@ ${sharedContext(input, brief)}
 PERSONALIZED VIDEO STRUCTURE:
 1. 0-1.5s: hold on the consistent spokesperson in a silent direct-to-camera opening. Leave this exact slot for a lead-specific TTS greeting added later, such as "Hey {firstName},". Do not speak the greeting in the shared narration and do not show lead-specific text on screen.
 2. 1.5-6.5s: deliver the shared narration as the visual business pitch. Show the audience context and the product or service value using only the strategy facts above.
-3. 6.5-8s: follow the transition direction and resolve to the supplied logo as a clean end card.
-4. 8-10s: hold the final logo frame. Do not add visual text, numbers, metrics, fabricated claims, or extra branding.
+3. 6.5-8s: follow the transition direction and resolve into clean visual space for the end card. Do not recreate the logo in generated pixels.
+4. 8-10s: the worker overlays the original supplied logo as the final card. Do not add visual text, numbers, metrics, fabricated claims, or extra branding.
 
 Treat this as a production creative brief, not a generic prompt. Return the required four-scene storyboard, visual-only video direction, and shared narration while preserving the timing and the logo instruction exactly.`;
 }

@@ -7,5 +7,6 @@ if (dsn) {
     dsn,
     environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT ?? process.env.NODE_ENV,
     sendDefaultPii: false,
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1,
   });
 }

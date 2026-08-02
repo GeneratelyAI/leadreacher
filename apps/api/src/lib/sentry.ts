@@ -12,6 +12,7 @@ export function initializeSentry(): void {
     dsn: env.SENTRY_DSN,
     environment: env.SENTRY_ENVIRONMENT,
     sendDefaultPii: false,
+    tracesSampleRate: process.env.NODE_ENV === "production" ? 0.1 : 1,
   });
   initialized = true;
 }

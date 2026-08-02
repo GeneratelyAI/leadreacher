@@ -24,7 +24,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
 import { LiveActivityTable } from "@/components/dashboard/LiveActivityTable";
@@ -582,73 +582,40 @@ function ProgressStage({
 export function DashboardOverviewClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [insights, setInsights] = useState<AnalyticsInsights | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const overviewQuery = searchParams.toString();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadOverview() {
-      try {
-        const query = new URLSearchParams();
-        const currentParams = new URLSearchParams(overviewQuery);
-        const startDate = currentParams.get("startDate");
-        const endDate = currentParams.get("endDate");
-        const activityKind = currentParams.get("activityKind");
-        if (startDate && endDate) {
-          query.set("startDate", startDate);
-          query.set("endDate", endDate);
-        }
-        if (activityKind) query.set("activityKind", activityKind);
-        const nextOverview = await apiFetch<DashboardOverview>(`/dashboard/overview?${query.toString()}`);
-        if (!cancelled) {
-          setOverview(nextOverview);
-          setError(null);
-        }
-      } catch (loadError) {
-        if (cancelled) return;
-        if (loadError instanceof ApiError && loadError.status === 401) {
-          window.location.assign("/login");
-          return;
-        }
-        setError(loadError instanceof Error ? loadError.message : "Unable to load your workspace.");
-      } finally {
-        if (!cancelled) setIsLoading(false);
+  const { data: overview, error: overviewError, isLoading } = useQuery({
+    queryKey: ["dashboard", "overview", overviewQuery],
+    queryFn: () => {
+      const query = new URLSearchParams();
+      const currentParams = new URLSearchParams(overviewQuery);
+      const startDate = currentParams.get("startDate");
+      const endDate = currentParams.get("endDate");
+      const activityKind = currentParams.get("activityKind");
+      if (startDate && endDate) {
+        query.set("startDate", startDate);
+        query.set("endDate", endDate);
       }
-    }
+      if (activityKind) query.set("activityKind", activityKind);
+      return apiFetch<DashboardOverview>(`/dashboard/overview?${query.toString()}`);
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const { data: insights } = useQuery({
+    queryKey: ["dashboard", "analytics-insights"],
+    queryFn: () => apiFetch<AnalyticsInsights>("/dashboard/analytics/insights"),
+    staleTime: 30_000,
+    refetchInterval: (query) => query.state.data?.status === "aggregating" ? 2_500 : false,
+    refetchIntervalInBackground: false,
+  });
+  const error = overviewError instanceof ApiError && overviewError.status === 401
+    ? "Your session has expired. Please sign in again."
+    : overviewError instanceof Error
+      ? overviewError.message
+      : null;
 
-    void loadOverview();
-
-    let cancelledInsights = false;
-    let pollTimer: ReturnType<typeof setTimeout> | undefined;
-
-    async function loadInsights(attempt = 0) {
-      try {
-        const nextInsights = await apiFetch<AnalyticsInsights>("/dashboard/analytics/insights");
-        if (cancelledInsights) return;
-        setInsights(nextInsights);
-        if (nextInsights.status === "aggregating" && attempt < 6) {
-          pollTimer = setTimeout(() => {
-            void loadInsights(attempt + 1);
-          }, 2500);
-        }
-      } catch {
-        // Overview data remains useful if the optional recommendation preview is unavailable.
-      }
-    }
-
-    void loadInsights();
-    return () => {
-      cancelled = true;
-      cancelledInsights = true;
-      if (pollTimer) clearTimeout(pollTimer);
-    };
-  }, [overviewQuery]);
-
-  const recommendationItems = buildRecommendationItems(overview, insights);
+  const recommendationItems = buildRecommendationItems(overview ?? null, insights ?? null);
   const featuredInsight = insights?.status === "ready"
     ? insights.whatToDoNext[0]
       ? { title: insights.whatToDoNext[0].action, detail: insights.whatToDoNext[0].reason }
@@ -725,7 +692,7 @@ export function DashboardOverviewClient() {
               </div>
             </section>
 
-            {isLoading ? (
+            {isLoading && !overview ? (
               <div className="flex min-h-96 items-center justify-center text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> Loading workspace
               </div>
@@ -790,7 +757,7 @@ export function DashboardOverviewClient() {
                             campaignId={overview.primaryCampaign.id}
                             video={overview.primaryCampaign.video}
                             onVideoChange={(next) => {
-                              setOverview((current) => {
+                              queryClient.setQueryData<DashboardOverview>(["dashboard", "overview", overviewQuery], (current) => {
                                 if (!current?.primaryCampaign) return current;
                                 return {
                                   ...current,

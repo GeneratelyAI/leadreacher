@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardQueryProvider } from "@/components/providers/DashboardQueryProvider";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
 import { createClient } from "@/lib/supabase/server";
@@ -49,5 +50,9 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  return <DashboardShell memberName={displayName(user)} modal={modal}>{children}</DashboardShell>;
+  return (
+    <DashboardQueryProvider>
+      <DashboardShell memberName={displayName(user)} modal={modal}>{children}</DashboardShell>
+    </DashboardQueryProvider>
+  );
 }

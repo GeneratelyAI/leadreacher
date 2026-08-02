@@ -20,7 +20,8 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -277,16 +278,7 @@ export function ActivityWorkspace() {
   const [page, setPage] = useState(1);
   const [channelFilter, setChannelFilter] = useState("");
   const [campaignFilter, setCampaignFilter] = useState(() => searchParams.get("campaignId") ?? "");
-  const [activity, setActivity] = useState<ActivityItem[]>([]);
-  const [total, setTotal] = useState(0);
-  const [summary, setSummary] = useState<ActivitySummary | null>(null);
-  const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string }>>([]);
-  const [channels, setChannels] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const activityParams = useMemo(() => {
     const params = new URLSearchParams({
       kind,
       limit: String(PAGE_SIZE),
@@ -296,25 +288,22 @@ export function ActivityWorkspace() {
     if (endDate) params.set("endDate", endDate);
     if (channelFilter) params.set("channel", channelFilter);
     if (campaignFilter) params.set("campaignId", campaignFilter);
-
-    try {
-      const result = await apiFetch<ActivityResponse>(`/dashboard/activity?${params.toString()}`);
-      setActivity(result.activity);
-      setTotal(result.total);
-      setSummary(result.summary);
-      setCampaigns(result.filters.campaigns);
-      setChannels(result.filters.channels);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load activity.");
-    } finally {
-      setIsLoading(false);
-    }
+    return params.toString();
   }, [campaignFilter, channelFilter, endDate, kind, page, startDate]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const activityQuery = useQuery({
+    queryKey: ["dashboard", "activity", activityParams],
+    queryFn: () => apiFetch<ActivityResponse>(`/dashboard/activity?${activityParams}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const activity = activityQuery.data?.activity ?? [];
+  const total = activityQuery.data?.total ?? 0;
+  const summary = activityQuery.data?.summary ?? null;
+  const campaigns = activityQuery.data?.filters.campaigns ?? [];
+  const channels = activityQuery.data?.filters.channels ?? [];
+  const isLoading = activityQuery.isLoading && !activityQuery.data;
+  const isRefreshing = activityQuery.isFetching && !!activityQuery.data;
+  const error = activityQuery.error instanceof Error ? activityQuery.error.message : null;
 
   useEffect(() => {
     setPage(1);
@@ -393,7 +382,7 @@ export function ActivityWorkspace() {
 
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
-          <h2 className="text-sm font-semibold">{dayGroups[0]?.label ?? "Activity"}</h2>
+          <div className="flex items-center gap-2"><h2 className="text-sm font-semibold">{dayGroups[0]?.label ?? "Activity"}</h2>{isRefreshing ? <span className="text-xs text-muted-foreground">Updating…</span> : null}</div>
           <DropdownMenu>
             <DropdownMenuTrigger render={<Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2.5" />}>
               <Filter className="size-3.5" />

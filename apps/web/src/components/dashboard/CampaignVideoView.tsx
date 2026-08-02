@@ -10,6 +10,7 @@ import {
   Play,
   RefreshCw,
   Replace,
+  TriangleAlert,
   Video,
 } from "lucide-react";
 import { useState } from "react";
@@ -39,6 +40,8 @@ export type CampaignVideoSummary = {
   thumbnailUrl: string | null;
   videosSent: number;
   paused: boolean;
+  needsReview: boolean;
+  criticScore: number | null;
 };
 
 type CampaignVideoViewProps = {
@@ -53,6 +56,7 @@ function formatCount(value: number): string {
 
 function isPreviewable(video: CampaignVideoSummary | null | undefined): boolean {
   if (!video) return false;
+  if (video.needsReview) return false;
   if (!["ready", "approved"].includes(video.status)) return false;
   return Boolean(video.thumbnailUrl || video.videoUrl);
 }
@@ -65,6 +69,7 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
   const [failedThumbId, setFailedThumbId] = useState<string | null>(null);
   const [playOpen, setPlayOpen] = useState(false);
   const [pausing, setPausing] = useState(false);
+  const [retrying, setRetrying] = useState(false);
 
   const resolved: CampaignVideoSummary = video ?? {
     id: null,
@@ -73,6 +78,8 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
     thumbnailUrl: null,
     videosSent: 0,
     paused: false,
+    needsReview: false,
+    criticScore: null,
   };
 
   const hasThumb =
@@ -112,6 +119,19 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
     }
   }
 
+  async function retryVideo() {
+    setRetrying(true);
+    try {
+      await apiFetch<{ queued: boolean }>(`/campaigns/${campaignId}/video/retry`, { method: "POST", body: JSON.stringify({}) });
+      onVideoChange?.({ ...resolved, status: "generating", needsReview: false, criticScore: null });
+      toast.success("Video retry queued. Outreach remains unchanged.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Unable to retry video generation");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
   return (
     <>
       <AspectRatio
@@ -128,8 +148,14 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
         ) : null}
 
         {resolved.paused && isPreviewable(resolved) ? (
-          <span className="absolute top-3 left-3 z-10 inline-flex items-center rounded-md bg-onboarding-neutral-0/95 px-2 py-1 text-[11px] font-semibold text-onboarding-ink shadow-sm dark:bg-onboarding-neutral-900/95 dark:text-onboarding-neutral-0">
+          <span className="absolute top-3 right-14 z-10 inline-flex items-center rounded-md bg-onboarding-neutral-0/95 px-2 py-1 text-[11px] font-semibold text-onboarding-ink shadow-sm dark:bg-onboarding-neutral-900/95 dark:text-onboarding-neutral-0">
             Paused
+          </span>
+        ) : null}
+
+        {resolved.needsReview ? (
+          <span className="absolute top-3 left-3 z-10 inline-flex items-center gap-1 rounded-md bg-onboarding-warning-50/95 px-2 py-1 text-[11px] font-semibold text-onboarding-warning-800 shadow-sm dark:bg-onboarding-warning-900/90 dark:text-onboarding-warning-100">
+            <TriangleAlert className="size-3" aria-hidden /> Review required
           </span>
         ) : null}
 
@@ -210,16 +236,17 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
             <Loader2 className="size-5 animate-spin text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
             Generating…
           </span>
-        ) : resolved.status === "failed" || resolved.status === "rejected" ? (
+        ) : resolved.status === "failed" || resolved.status === "rejected" || resolved.needsReview ? (
           <span className="relative z-[1] flex flex-col items-center gap-2 px-4 text-center">
             <span className="text-xs font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              Video failed
+              {resolved.needsReview ? "Quality review required" : "Video failed"}
             </span>
-            <Button asChild size="sm" variant="outline" className="h-8 gap-1.5 px-2.5 text-xs">
-              <Link href={campaignsHref}>
-                <RefreshCw className="size-3.5" aria-hidden />
-                Retry
-              </Link>
+            <span className="max-w-52 text-[11px] leading-4 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
+              Automated checks prevented this video from being used. Retry generation before sending outreach.
+            </span>
+            <Button size="sm" variant="outline" disabled={retrying || !canManage} className="h-8 gap-1.5 px-2.5 text-xs" onClick={() => void retryVideo()}>
+              {retrying ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <RefreshCw className="size-3.5" aria-hidden />}
+              Retry generation
             </Button>
           </span>
         ) : (

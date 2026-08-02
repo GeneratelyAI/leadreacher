@@ -15,6 +15,7 @@ import {
   unipileSecurity,
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
+import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import {
   campaignSequenceJobId,
   campaignSequenceQueue,
@@ -298,6 +299,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         stepIndex: campaignLead.currentStep,
         sentAt: new Date(data.timestamp),
       });
+      await invalidateDashboardChrome(socialAccount.orgId);
 
       app.log.info({
         event: data.event,

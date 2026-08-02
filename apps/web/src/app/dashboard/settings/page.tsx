@@ -1,5 +1,6 @@
-import { DashboardPageFrame, SettingsView } from "@/components/dashboard/DashboardWorkspaceViews";
+import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
+import { SettingsWorkspace } from "@/components/dashboard/SettingsWorkspace";
 
 export default function SettingsPage() {
-  return <DashboardPageFrame><SettingsView /></DashboardPageFrame>;
+  return <DashboardPageFrame><SettingsWorkspace /></DashboardPageFrame>;
 }
