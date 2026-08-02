@@ -300,15 +300,27 @@ export class ApifyAdapter {
         "GET",
         `/acts/${actorId}/runs/${runId}`,
       );
-      const { status, statusMessage } = response.data;
-      if (statusMessage && isApifyQuotaMessage(statusMessage)) {
+      const { status, statusMessage, isStatusMessageTerminal } = response.data;
+      const isTerminalStatus =
+        status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT";
+      // Apify attaches informational statusMessages throughout a run (e.g. a
+      // free-tier queuing notice) long before the run actually finishes.
+      // isStatusMessageTerminal (or the run status itself reaching a terminal
+      // state) is what tells us the message is the final word, not a
+      // transient one the run may still recover from — without this check we
+      // aborted runs that went on to succeed moments later.
+      if (
+        statusMessage &&
+        isApifyQuotaMessage(statusMessage) &&
+        (isStatusMessageTerminal || isTerminalStatus)
+      ) {
         throw new ExternalServiceError(
           "Apify",
           `Actor run could not execute: ${statusMessage}`,
         );
       }
       if (status === "SUCCEEDED") return;
-      if (status === "FAILED" || status === "ABORTED" || status === "TIMED-OUT") {
+      if (isTerminalStatus) {
         throw new ExternalServiceError("Apify", `Actor run ${status}: ${runId}`);
       }
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
