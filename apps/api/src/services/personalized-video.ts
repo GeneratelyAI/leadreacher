@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { R2Adapter } from "../adapters/r2.js";
 import { synthesizeSpeech } from "../adapters/google-tts.js";
-import { composePersonalizedVideo } from "../lib/video-frames.js";
+import {
+  assertPersonalizedDeliveryVideo,
+  composePersonalizedVideo,
+  inspectVideoMedia,
+} from "../lib/video-frames.js";
+import {
+  sha256,
+  updatePersonalizedTemplateManifest,
+} from "../lib/personalized-video-manifest.js";
 import { prisma } from "../lib/prisma.js";
 import {
   QUEUE_VIDEO_GENERATION,
@@ -223,10 +231,29 @@ export async function getReadyPersonalizedVideoForDelivery(input: {
   };
 }
 
-async function fetchPublicMedia(url: string, label: string): Promise<Buffer> {
+async function fetchPublicMedia(url: string, label: string): Promise<{
+  buffer: Buffer;
+  mimeType: string;
+}> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${label} download failed: ${response.status}`);
-  return Buffer.from(await response.arrayBuffer());
+  return {
+    buffer: Buffer.from(await response.arrayBuffer()),
+    mimeType: (response.headers.get("content-type") ?? "application/octet-stream")
+      .split(";")[0]
+      .trim()
+      .toLowerCase(),
+  };
+}
+
+function imageExtension(mimeType: string): string {
+  switch (mimeType) {
+    case "image/png": return "png";
+    case "image/jpeg": return "jpg";
+    case "image/webp": return "webp";
+    case "image/svg+xml": return "svg";
+    default: throw new Error(`Unsupported logo format for personalized end card: ${mimeType}`);
+  }
 }
 
 export async function composePersonalizedVideoAsset(input: {
@@ -250,25 +277,52 @@ export async function composePersonalizedVideoAsset(input: {
   });
 
   try {
-    const [masterVideo, sharedNarration, greeting] = await Promise.all([
+    const [masterVideo, sharedNarration, greeting, logo] = await Promise.all([
       fetchPublicMedia(asset.template.masterVideoUrl, "Template video"),
       fetchPublicMedia(asset.template.sharedNarrationUrl, "Template narration"),
       synthesizeSpeech(`Hey ${asset.lead.firstName},`),
+      asset.template.logoUrl
+        ? fetchPublicMedia(asset.template.logoUrl, "Template logo")
+        : Promise.resolve(null),
     ]);
     const composed = await composePersonalizedVideo(
-      masterVideo,
+      masterVideo.buffer,
       greeting,
-      sharedNarration,
+      sharedNarration.buffer,
+      logo
+        ? { buffer: logo.buffer, extension: imageExtension(logo.mimeType) }
+        : undefined,
     );
+    const deliveryMedia = await inspectVideoMedia(composed.videoBuffer);
+    assertPersonalizedDeliveryVideo(deliveryMedia);
     const r2 = new R2Adapter();
     const { url } = await r2.uploadBuffer(
       `personalized-videos/${input.orgId}/${asset.template.id}/${asset.leadId}/${randomUUID()}.mp4`,
       composed.videoBuffer,
       "video/mp4",
     );
+    const renderManifest = asset.template.renderManifest
+      ? updatePersonalizedTemplateManifest(asset.template.renderManifest, {
+        assets: {
+          ...(logo ? { logoSha256: sha256(logo.buffer) } : {}),
+          deliveryVideoSha256: sha256(composed.videoBuffer),
+        },
+        quality: {
+          outputAudioStreams: deliveryMedia.audioStreams,
+          durationMs: deliveryMedia.durationMs,
+          width: deliveryMedia.width,
+          height: deliveryMedia.height,
+        },
+      })
+      : null;
     await prisma.videoAsset.update({
       where: { id: asset.id },
-      data: { status: "ready", videoUrl: url, needsReview: false },
+      data: {
+        status: "ready",
+        videoUrl: url,
+        needsReview: false,
+        ...(renderManifest ? { renderManifest } : {}),
+      },
     });
   } catch (error) {
     await prisma.videoAsset.update({

@@ -10,6 +10,7 @@ import {
 } from "../lib/openapi.js";
 import { OUTREACH_CHANNELS } from "../lib/channels.js";
 import { prisma } from "../lib/prisma.js";
+import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
 import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
@@ -25,6 +26,7 @@ import {
   buildPrimaryCampaignVideoSummary,
   campaignVideoPaused,
 } from "../lib/campaign-video-summary.js";
+import { videoGenerationQueue } from "../lib/queue.js";
 
 const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
@@ -114,6 +116,24 @@ function withArchivedFlag(aiConfig: unknown, archived: boolean): Prisma.InputJso
 function withSequenceReviewComplete(aiConfig: unknown): Prisma.InputJsonValue {
   const root = asRecord(aiConfig) ?? {};
   return { ...root, requiresSequenceReview: false } as Prisma.InputJsonValue;
+}
+
+function isGeneratedPersonalizedVideo(strategy: {
+  campaignType: string | null;
+  videoConfig: unknown;
+} | null): boolean {
+  const videoConfig = asRecord(strategy?.videoConfig);
+  return strategy?.campaignType === "personalized_outreach" &&
+    videoConfig?.enabled === true &&
+    videoConfig.source === "generated" &&
+    videoConfig.mode === "personalized";
+}
+
+function isGeneratedStandardVideo(strategy: {
+  videoConfig: unknown;
+} | null): boolean {
+  const videoConfig = asRecord(strategy?.videoConfig);
+  return videoConfig?.enabled === true && videoConfig.source === "generated";
 }
 
 async function requireOrgCampaign(campaignId: string, orgId: string) {
@@ -225,6 +245,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       channelAccounts: senders.channelAccounts,
     });
 
+    await invalidateDashboardChrome(orgId);
     return reply.send(campaign);
   });
 
@@ -295,7 +316,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (!campaign) throw new NotFoundError("Campaign");
     if (campaign.orgId !== orgId) throw new ForbiddenError();
 
-    const [leadCount, messages, videoAssets, videoMessages] = await Promise.all([
+    const [leadCount, messages, videoAssets, videoTemplate, videoMessages] = await Promise.all([
       prisma.campaignLead.count({ where: { campaignId } }),
       prisma.message.findMany({
         where: { campaignId },
@@ -305,7 +326,19 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         where: { orgId, campaignId },
         orderBy: { updatedAt: "desc" },
         take: 12,
-        select: { id: true, status: true, videoUrl: true, thumbnailUrl: true },
+        select: {
+          id: true,
+          status: true,
+          videoUrl: true,
+          thumbnailUrl: true,
+          needsReview: true,
+          criticScore: true,
+        },
+      }),
+      prisma.campaignVideoTemplate.findFirst({
+        where: { orgId, campaignId },
+        orderBy: { version: "desc" },
+        select: { id: true, status: true, needsReview: true, criticScore: true },
       }),
       prisma.message.findMany({
         where: { campaignId, direction: "outbound" },
@@ -349,6 +382,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       video: buildPrimaryCampaignVideoSummary({
         aiConfig: campaign.aiConfig,
         assets: videoAssets,
+        template: videoTemplate,
         outboundContents: videoMessages.map((message) => message.content),
       }),
       leads: campaign.leads.map((campaignLead: CampaignLeadWithLead) => ({
@@ -389,6 +423,144 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         ],
       },
     });
+  });
+
+  r.post("/campaigns/:campaignId/video/retry", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Retry failed campaign video generation"),
+      params: CampaignIdParamsSchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { campaignId } = request.params;
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, orgId },
+      select: {
+        id: true,
+        strategyId: true,
+        leads: { select: { leadId: true }, orderBy: { createdAt: "asc" }, take: 1 },
+      },
+    });
+    if (!campaign) throw new NotFoundError("Campaign");
+
+    const strategy = campaign.strategyId
+      ? await prisma.strategy.findFirst({
+          where: { id: campaign.strategyId, orgId },
+          select: { campaignType: true, videoConfig: true },
+        })
+      : null;
+    if (!isGeneratedStandardVideo(strategy)) {
+      throw new ValidationError("This campaign does not use a generated video");
+    }
+
+    if (isGeneratedPersonalizedVideo(strategy)) {
+      const template = await prisma.campaignVideoTemplate.findFirst({
+        where: { orgId, campaignId },
+        orderBy: { version: "desc" },
+        select: { id: true, status: true, needsReview: true },
+      });
+
+      if (!template || template.status === "failed" || template.needsReview) {
+        if (template) {
+          await prisma.campaignVideoTemplate.update({
+            where: { id: template.id },
+            data: {
+              status: "pending",
+              needsReview: false,
+              criticScore: null,
+              veoOperationId: null,
+              veoOperationState: null,
+              veoSubmitLeaseAt: null,
+            },
+          });
+        }
+        await videoGenerationQueue.add(
+          "retry-personalized-template",
+          {
+            orgId,
+            campaignId,
+            pipeline: "personalized",
+            jobType: "template-orchestrate",
+          },
+          { jobId: `retry-personalized-template:${campaignId}:${Date.now()}`, attempts: 1 },
+        );
+        return reply.send({ queued: true, pipeline: "personalized", scope: "template" });
+      }
+
+      if (template.status !== "ready") {
+        throw new ValidationError("The personalized video template is already generating");
+      }
+
+      const failedAssets = await prisma.videoAsset.findMany({
+        where: {
+          orgId,
+          campaignId,
+          templateId: template.id,
+          OR: [
+            { status: { in: ["failed", "rejected"] } },
+            { needsReview: true },
+          ],
+        },
+        select: { id: true, leadId: true },
+        take: 25,
+      });
+      const retryableAssets = failedAssets.filter((asset) => Boolean(asset.leadId));
+      if (retryableAssets.length === 0) {
+        throw new ValidationError("There are no failed personalized videos to retry");
+      }
+      await prisma.videoAsset.updateMany({
+        where: { id: { in: retryableAssets.map((asset) => asset.id) } },
+        data: {
+          status: "pending",
+          needsReview: false,
+          criticScore: null,
+          veoOperationId: null,
+          veoOperationState: null,
+          veoSubmitLeaseAt: null,
+        },
+      });
+      await Promise.all(retryableAssets.map((asset) => videoGenerationQueue.add(
+        "retry-personalized-video",
+        {
+          orgId,
+          campaignId,
+          leadId: asset.leadId,
+          pipeline: "personalized",
+          jobType: "personalized-compose",
+          videoAssetId: asset.id,
+          templateId: template.id,
+        },
+        { jobId: `retry-personalized-compose:${asset.id}:${Date.now()}`, attempts: 3 },
+      )));
+      return reply.send({ queued: true, pipeline: "personalized", scope: "lead-assets", count: retryableAssets.length });
+    }
+
+    const retryableStandardVideo = await prisma.videoAsset.findFirst({
+      where: {
+        orgId,
+        campaignId,
+        OR: [
+          { status: { in: ["failed", "rejected"] } },
+          { needsReview: true },
+        ],
+      },
+      select: { id: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!retryableStandardVideo) {
+      throw new ValidationError("There is no failed or review-required video to retry");
+    }
+
+    const leadId = campaign.leads[0]?.leadId;
+    if (!leadId) {
+      throw new ValidationError("Add a prospect before retrying a standard campaign video");
+    }
+    await videoGenerationQueue.add(
+      "retry-standard-video",
+      { orgId, campaignId, leadId, pipeline: "standard", jobType: "orchestrate" },
+      { jobId: `retry-standard-video:${campaignId}:${Date.now()}`, attempts: 1 },
+    );
+    return reply.send({ queued: true, pipeline: "standard", scope: "campaign" });
   });
 
   r.patch("/campaigns/bulk", {
@@ -637,6 +809,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    await invalidateDashboardChrome(orgId);
     return reply.send({ enrolled: created.length, queued });
   });
 
@@ -704,6 +877,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    await invalidateDashboardChrome(orgId);
     return reply.send({ launched: true, jobCount });
   });
 

@@ -109,7 +109,7 @@ describe("Personalized video template prompt pipeline", () => {
     });
 
     expect(message).toContain("first 1.5 seconds must contain no spoken dialogue");
-    expect(message).toContain("LOGO REFERENCE AVAILABLE: yes - preserve it exactly");
+    expect(message).toContain("LOGO REFERENCE AVAILABLE: yes - the worker, not the model, overlays it exactly");
     expect(message).not.toContain("LEAD COMPANY:");
   });
 

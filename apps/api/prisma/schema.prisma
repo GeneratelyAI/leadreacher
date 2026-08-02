@@ -326,10 +326,12 @@ model VideoAsset {
   veoSubmitLeaseAt DateTime?  // Submission, active-poll, or recovery lease.
   approvedBy      String?
   approvedAt      DateTime?
+  renderManifest  Json?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   @@index([orgId, status])
+  @@index([orgId, updatedAt])
   @@index([campaignId])
   @@index([leadId])
   @@index([templateId])
@@ -352,6 +354,7 @@ model CampaignVideoTemplate {
   imagePrompt        String?
   videoPrompt        String?
   sharedNarration    String?
+  logoUrl            String?
   selectedTone       String?
   voice              String
   criticScore        Int?
@@ -359,6 +362,7 @@ model CampaignVideoTemplate {
   veoOperationId     String?      @unique
   veoOperationState  String?      // 'submitting' | 'active' | 'completed' | 'failed'
   veoSubmitLeaseAt   DateTime?
+  renderManifest     Json?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
   videoAssets        VideoAsset[]

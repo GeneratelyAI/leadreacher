@@ -39,21 +39,21 @@ HARD OUTPUT CONSTRAINTS:
 Timing:
 1. 0-1.5s: a silent direct-to-camera opening with the consistent spokesperson. This slot is reserved for a lead-specific “Hey {firstName},” audio overlay added later.
 2. 1.5-6.5s: visual business pitch. The separate sharedNarration plays here.
-3. 6.5-8s: resolve to the supplied logo as a clean end card.
-4. 8-10s: the worker holds the final logo frame. Do not add any visual text, numbers, metrics, or invented claims.
+3. 6.5-8s: resolve the visual pitch into clean negative space for the end card.
+4. 8-10s: the worker composites the original supplied logo over that end card. Do not ask the video model to recreate any logo, visual text, numbers, metrics, or claims.
 
 Return exactly this JSON shape:
 {
   "storyboard": [
-    { "sceneNumber": 1, "timeRange": "0-2s", "beat": "hook", "imagePrompt": "<silent direct-to-camera opening still>", "motionNote": "<silent greeting slot, then transition into pitch>" },
-    { "sceneNumber": 2, "timeRange": "2-4s", "beat": "problem", "imagePrompt": "<business context>", "motionNote": "<continuous movement>" },
-    { "sceneNumber": 3, "timeRange": "4-6s", "beat": "solution", "imagePrompt": "<credible product value>", "motionNote": "<transition to logo>" },
-    { "sceneNumber": 4, "timeRange": "6-8s", "beat": "payoff", "imagePrompt": "<clean logo end card>", "motionNote": "<settle on final frame for the 8-10s hold>" }
+    { "sceneNumber": 1, "timeRange": "0-1.5s", "beat": "hook", "imagePrompt": "<silent direct-to-camera opening still>", "motionNote": "<silent greeting slot, then transition into pitch>" },
+    { "sceneNumber": 2, "timeRange": "1.5-4s", "beat": "problem", "imagePrompt": "<business context>", "motionNote": "<continuous movement>" },
+    { "sceneNumber": 3, "timeRange": "4-6.5s", "beat": "solution", "imagePrompt": "<credible product value>", "motionNote": "<transition toward clean end-card space>" },
+    { "sceneNumber": 4, "timeRange": "6.5-8s", "beat": "payoff", "imagePrompt": "<clean negative-space end-card background>", "motionNote": "<settle before the worker overlays the source logo for the 8-10s hold>" }
   ],
   "videoPrompt": "<visual-only Veo direction for the shared 8-second sequence; no spoken dialogue>",
   "sharedNarration": "<6.5-second spoken campaign pitch for seconds 1.5-8; no greeting, no lead-specific language>",
   "hookDescription": "<silent direct-to-camera opening>",
-  "ctaDescription": "<logo-only ending>"
+  "ctaDescription": "<source-logo-only ending composited by the worker>"
 }
 
 Output only valid json.`;
@@ -79,7 +79,7 @@ TARGET AUDIENCE: ${input.audience}
 TONE: ${input.tone}
 AVATAR: ${input.avatar}
 SETTING: ${input.setting}
-LOGO REFERENCE AVAILABLE: ${input.hasLogoReference ? "yes - preserve it exactly for the final end card" : "no - use no written end-card text"}
+LOGO REFERENCE AVAILABLE: ${input.hasLogoReference ? "yes - the worker, not the model, overlays it exactly at the end" : "no - use no written end-card text"}
 ${feedback}
 
 The first 1.5 seconds must contain no spoken dialogue. Return JSON only.`;
