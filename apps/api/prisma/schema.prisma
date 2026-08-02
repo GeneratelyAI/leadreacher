@@ -169,6 +169,8 @@ model Lead {
 
   @@index([orgId, status])
   @@index([orgId, reviewStatus])
+  @@index([orgId, createdAt])
+  @@index([orgId, updatedAt])
   @@index([orgId, email])
   @@index([orgId, phone])
 }
@@ -193,6 +195,7 @@ model CampaignLead {
 
   @@unique([campaignId, leadId])
   @@index([emailThreadKey])
+  @@index([campaignId, status, createdAt])
 }
 
 model DeliveryAttempt {
@@ -242,6 +245,9 @@ model Message {
   @@index([externalId])
   @@index([status])
   @@index([orgId, direction, readAt])
+  @@index([orgId, createdAt])
+  @@index([orgId, direction, createdAt])
+  @@index([campaignId, createdAt])
 }
 
 model ManualDeliveryAttempt {

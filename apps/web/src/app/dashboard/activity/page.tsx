@@ -1,12 +1,17 @@
 import { Suspense } from "react";
-import { ActivityView, DashboardPageFrame } from "@/components/dashboard/DashboardWorkspaceViews";
+import { ActivityWorkspace } from "@/components/dashboard/ActivityWorkspace";
+import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
 
 export default function ActivityPage() {
   return (
     <DashboardPageFrame>
-      <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">Loading activity…</div>}>
-        <ActivityView />
+      <Suspense fallback={<DashboardRouteSkeleton />}>
+        <ActivityWorkspace />
       </Suspense>
     </DashboardPageFrame>
   );
+}
+
+function DashboardRouteSkeleton() {
+  return <div className="h-96 animate-pulse rounded-lg border border-app-border bg-app-elevated" aria-label="Loading activity" />;
 }

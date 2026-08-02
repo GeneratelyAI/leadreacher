@@ -28,7 +28,8 @@ import {
   X,
   BarChart3,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import {
   DropdownMenu,
@@ -60,7 +61,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Input } from "@/components/ui/Input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, clearAccessTokenCache } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { cn } from "@/lib/utils";
@@ -166,12 +167,14 @@ function WorkspaceSidebar({
   overview,
   collapsed = false,
   onSignOut,
+  onPrefetch,
 }: {
   pathname: string;
   memberName: string;
   overview: ShellOverview | null;
   collapsed?: boolean;
   onSignOut: () => void;
+  onPrefetch: (href: string) => void;
 }) {
   return (
     <aside
@@ -202,6 +205,8 @@ function WorkspaceSidebar({
             <Link
               key={href}
               href={href}
+              onMouseEnter={() => onPrefetch(href)}
+              onFocus={() => onPrefetch(href)}
               className={cn(
                 "group flex h-10 items-center rounded-lg text-sm transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
                 collapsed ? "mb-1 justify-center px-0" : "gap-3 px-3.5",
@@ -297,9 +302,15 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { isDark, toggle } = useThemeMode();
-  const [overview, setOverview] = useState<ShellOverview | null>(null);
+  const { data: overview = null } = useQuery({
+    queryKey: ["dashboard", "chrome"],
+    queryFn: () => apiFetch<ShellOverview>("/dashboard/chrome"),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -310,9 +321,37 @@ export function DashboardShell({
   async function handleSignOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    clearAccessTokenCache();
     router.replace("/login");
     router.refresh();
   }
+
+  const prefetchWorkspace = useCallback((href: string) => {
+    router.prefetch(href);
+    const request = href === "/dashboard"
+      ? { key: ["dashboard", "overview", ""], url: "/dashboard/overview" }
+      : href === "/dashboard/campaigns"
+        ? { key: ["dashboard", "campaigns", "status=all"], url: "/dashboard/campaigns?status=all" }
+        : href === "/dashboard/prospects"
+          ? { key: ["dashboard", "prospects", "limit=10&offset=0"], url: "/dashboard/prospects?limit=10&offset=0" }
+          : href === "/dashboard/messages"
+            ? { key: ["dashboard", "conversations", "state=all&limit=20&offset=0"], url: "/dashboard/conversations?state=all&limit=20&offset=0" }
+            : href === "/dashboard/activity"
+              ? { key: ["dashboard", "activity", "kind=all&limit=20&offset=0"], url: "/dashboard/activity?kind=all&limit=20&offset=0" }
+              : href === "/dashboard/channels"
+                ? { key: ["dashboard", "channels", ""], url: "/social-accounts" }
+                : href === "/dashboard/analytics"
+                  ? { key: ["dashboard", "analytics", "granularity=day"], url: "/dashboard/analytics?granularity=day" }
+                  : href === "/dashboard/settings"
+                    ? { key: ["dashboard", "settings"], url: "/dashboard/settings" }
+                    : null;
+    if (!request) return;
+    void queryClient.prefetchQuery({
+      queryKey: request.key,
+      queryFn: () => apiFetch(request.url),
+      staleTime: 30_000,
+    });
+  }, [queryClient, router]);
 
   useEffect(() => {
     const savedState = window.localStorage.getItem("leadreacher-sidebar-open");
@@ -353,27 +392,6 @@ export function DashboardShell({
       return next;
     });
   }
-
-  const overviewQuery = useMemo(() => {
-    if (pathname !== "/dashboard") return "";
-    const params = new URLSearchParams(searchParams.toString());
-    return params.toString();
-  }, [pathname, searchParams]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const suffix = overviewQuery ? `?${overviewQuery}` : "";
-    void apiFetch<ShellOverview>(`/dashboard/overview${suffix}`)
-      .then((data) => {
-        if (!cancelled) setOverview(data);
-      })
-      .catch(() => {
-        if (!cancelled) setOverview(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [overviewQuery]);
 
   useEffect(() => {
     if (!searchOpen) {
@@ -446,7 +464,7 @@ export function DashboardShell({
       >
       <div className="flex h-full w-full">
         <div className={cn("relative hidden h-full shrink-0 transition-[width] duration-200 ease-out lg:block", sidebarOpen ? "w-[17.75rem]" : "w-[4.5rem]")}>
-          <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} />
+          <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} onPrefetch={prefetchWorkspace} />
         </div>
 
         <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>

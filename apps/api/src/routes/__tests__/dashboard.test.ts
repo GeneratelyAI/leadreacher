@@ -19,8 +19,10 @@ const {
   campaignFindFirst,
   campaignUpdate,
   socialAccountFindMany,
+  socialAccountCount,
   videoAssetCount,
   videoAssetFindMany,
+  campaignVideoTemplateFindFirst,
   campaignLeadFindMany,
   campaignLeadFindFirst,
   leadFindFirst,
@@ -36,6 +38,9 @@ const {
   runReplyDraftAgent,
   readCachedAnalyticsInsights,
   analyticsInsightsQueueAdd,
+  readDashboardChrome,
+  cacheDashboardChrome,
+  invalidateDashboardChrome,
 } = vi.hoisted(() => ({
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
@@ -52,8 +57,10 @@ const {
   campaignFindFirst: vi.fn(),
   campaignUpdate: vi.fn(),
   socialAccountFindMany: vi.fn(),
+  socialAccountCount: vi.fn(),
   videoAssetCount: vi.fn(),
   videoAssetFindMany: vi.fn(),
+  campaignVideoTemplateFindFirst: vi.fn(),
   campaignLeadFindMany: vi.fn(),
   campaignLeadFindFirst: vi.fn(),
   leadFindFirst: vi.fn(),
@@ -69,6 +76,9 @@ const {
   runReplyDraftAgent: vi.fn(),
   readCachedAnalyticsInsights: vi.fn(),
   analyticsInsightsQueueAdd: vi.fn(),
+  readDashboardChrome: vi.fn(),
+  cacheDashboardChrome: vi.fn(),
+  invalidateDashboardChrome: vi.fn(),
 }));
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -79,8 +89,9 @@ vi.mock("../../lib/prisma.js", () => ({
     campaignLead: { count: campaignLeadCount, findMany: campaignLeadFindMany, findFirst: campaignLeadFindFirst },
     message: { count: messageCount, findMany: messageFindMany, findFirst: messageFindFirst, updateMany: messageUpdateMany },
     campaign: { count: campaignCount, findMany: campaignFindMany, findFirst: campaignFindFirst, update: campaignUpdate },
-    socialAccount: { findMany: socialAccountFindMany },
+    socialAccount: { findMany: socialAccountFindMany, count: socialAccountCount },
     videoAsset: { count: videoAssetCount, findMany: videoAssetFindMany },
+    campaignVideoTemplate: { findFirst: campaignVideoTemplateFindFirst },
     deliveryAttempt: { findMany: deliveryAttemptFindMany, count: deliveryAttemptCount },
     manualDeliveryAttempt: { findMany: manualDeliveryAttemptFindMany, count: manualDeliveryAttemptCount },
   },
@@ -88,6 +99,11 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_ANALYTICS_INSIGHTS: "analytics-insights",
   analyticsInsightsQueue: { add: analyticsInsightsQueueAdd },
+}));
+vi.mock("../../lib/dashboard-cache.js", () => ({
+  readDashboardChrome,
+  cacheDashboardChrome,
+  invalidateDashboardChrome,
 }));
 vi.mock("../../services/analytics-insights.js", () => ({
   readCachedAnalyticsInsights,
@@ -203,6 +219,10 @@ beforeEach(async () => {
       unipileId: null,
     },
   ]);
+  socialAccountCount.mockReset().mockResolvedValue(1);
+  readDashboardChrome.mockReset().mockResolvedValue(null);
+  cacheDashboardChrome.mockReset().mockResolvedValue(undefined);
+  invalidateDashboardChrome.mockReset().mockResolvedValue(undefined);
   videoAssetCount
     .mockReset()
     .mockResolvedValueOnce(1)
@@ -259,6 +279,7 @@ beforeEach(async () => {
       lead: null,
     },
   ]);
+  campaignVideoTemplateFindFirst.mockReset().mockResolvedValue(null);
   campaignLeadFindMany.mockReset().mockImplementation(async (input) => {
     if (input?.where?.lead?.status === "contacted" || input?.select?.currentStep) {
       return [];
@@ -290,6 +311,23 @@ afterEach(async () => {
 });
 
 describe("dashboard overview", () => {
+  it("returns a lightweight org-scoped chrome response and records timing", async () => {
+    const response = await app.inject({ method: "GET", url: "/dashboard/chrome" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.headers["server-timing"]).toMatch(/^app;dur=/);
+    expect(response.json()).toMatchObject({
+      organization: { name: "Acme", plan: "starter" },
+      engine: { status: "running" },
+      unreadNotificationCount: 1,
+      channels: expect.arrayContaining([expect.objectContaining({ id: "account-1", platform: "linkedin" })]),
+      activity: expect.arrayContaining([expect.objectContaining({ id: "message:message-1", channel: "linkedin" })]),
+    });
+    expect(readDashboardChrome).toHaveBeenCalledWith("org-1");
+    expect(cacheDashboardChrome).toHaveBeenCalledWith("org-1", expect.any(Object));
+    expect(socialAccountCount).toHaveBeenCalledWith({ where: { orgId: "org-1", status: "active" } });
+  });
+
   it("returns org-scoped operational data and orders activity by recency", async () => {
     const response = await app.inject({ method: "GET", url: "/dashboard/overview" });
 
@@ -401,6 +439,8 @@ describe("dashboard overview", () => {
       thumbnailUrl: null,
       videosSent: 0,
       paused: false,
+      needsReview: false,
+      criticScore: null,
     });
 
     expect(
@@ -426,6 +466,8 @@ describe("dashboard overview", () => {
       thumbnailUrl: "https://cdn.example/thumb.jpg",
       videosSent: 1,
       paused: true,
+      needsReview: false,
+      criticScore: null,
     });
   });
 
@@ -493,6 +535,7 @@ describe("dashboard overview", () => {
           { direction: "inbound", status: "replied", content: { message: "thanks" } },
         ],
         videoAssets: [],
+        videoTemplates: [],
       },
     ]);
 

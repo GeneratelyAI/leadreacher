@@ -31,7 +31,20 @@ export function pickPrimaryCampaignVideo<T extends { status: string; videoUrl: s
 
 export function buildPrimaryCampaignVideoSummary(input: {
   aiConfig: unknown;
-  assets: Array<{ id: string; status: string; videoUrl: string | null; thumbnailUrl: string | null }>;
+  assets: Array<{
+    id: string;
+    status: string;
+    videoUrl: string | null;
+    thumbnailUrl: string | null;
+    needsReview?: boolean;
+    criticScore?: number | null;
+  }>;
+  template?: {
+    id: string;
+    status: string;
+    needsReview?: boolean;
+    criticScore?: number | null;
+  } | null;
   outboundContents: unknown[];
 }): {
   id: string | null;
@@ -40,15 +53,20 @@ export function buildPrimaryCampaignVideoSummary(input: {
   thumbnailUrl: string | null;
   videosSent: number;
   paused: boolean;
+  needsReview: boolean;
+  criticScore: number | null;
 } {
   const asset = pickPrimaryCampaignVideo(input.assets);
+  const template = input.template ?? null;
   const videosSent = input.outboundContents.filter((content) => messageHasVideoAttachment(content)).length;
   return {
-    id: asset?.id ?? null,
-    status: asset?.status ?? "unused",
+    id: asset?.id ?? template?.id ?? null,
+    status: asset?.status ?? template?.status ?? "unused",
     videoUrl: asset?.videoUrl ?? null,
     thumbnailUrl: asset?.thumbnailUrl ?? null,
     videosSent,
     paused: campaignVideoPaused(input.aiConfig),
+    needsReview: asset?.needsReview ?? template?.needsReview ?? false,
+    criticScore: asset?.criticScore ?? template?.criticScore ?? null,
   };
 }

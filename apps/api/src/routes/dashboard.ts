@@ -14,6 +14,7 @@ import {
   errorResponses
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
+import { cacheDashboardChrome, invalidateDashboardChrome, readDashboardChrome } from "../lib/dashboard-cache.js";
 import { checkAndIncrementDailySendLimit, getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import {
   analyticsInsightsQueue,
@@ -122,6 +123,24 @@ const CampaignVideoPatchSchema = z.object({
 });
 
 const SENT_MESSAGE_STATUSES = ["sent", "delivered", "opened", "replied"];
+
+type DashboardChrome = {
+  organization: { name: string; plan: string };
+  engine: { status: EngineStatus; label: string; detail: string };
+  unreadNotificationCount: number;
+  channels: Array<{ id: string; platform: string; accountName: string; status: string }>;
+  activity: Array<{
+    id: string;
+    kind: "message";
+    title: string;
+    detail: string;
+    occurredAt: Date;
+    avatarUrl: string | null;
+    channel: string;
+    action: "reply" | "view";
+    href: string;
+  }>;
+};
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -529,6 +548,96 @@ function inDateRange(value: Date, start: Date, end: Date): boolean {
 
 export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
+  const dashboardRequestTimes = new WeakMap<object, number>();
+
+  app.addHook("onRequest", async (request) => {
+    dashboardRequestTimes.set(request, performance.now());
+  });
+  app.addHook("onSend", async (request, reply, payload) => {
+    const startedAt = dashboardRequestTimes.get(request);
+    if (startedAt !== undefined) {
+      reply.header("Server-Timing", `app;dur=${(performance.now() - startedAt).toFixed(1)}`);
+    }
+    return payload;
+  });
+  app.addHook("onResponse", async (request, reply) => {
+    const startedAt = dashboardRequestTimes.get(request);
+    const elapsed = startedAt === undefined ? null : performance.now() - startedAt;
+    if (elapsed !== null && elapsed >= 250) {
+      request.log.info({ dashboardRoute: request.routeOptions.url, statusCode: reply.statusCode, durationMs: Math.round(elapsed) }, "slow dashboard request");
+    }
+  });
+
+  r.get("/dashboard/chrome", {
+    schema: { ...authenticatedRoute("Dashboard", "Lightweight dashboard shell data") },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const cached = await readDashboardChrome<DashboardChrome>(orgId);
+    if (cached) {
+      reply.header("Cache-Control", "private, max-age=0");
+      return reply.send(cached);
+    }
+
+    const [organization, activeChannelCount, activeCampaignCount, channels, unreadNotificationCount, messages] = await Promise.all([
+      prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { name: true, plan: true, subscriptionStatus: true },
+      }),
+      prisma.socialAccount.count({ where: { orgId, status: "active" } }),
+      prisma.campaign.count({ where: { orgId, status: "active" } }),
+      prisma.socialAccount.findMany({
+        where: { orgId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, platform: true, accountName: true, status: true },
+      }),
+      prisma.message.count({
+        where: { orgId, direction: "inbound", OR: [{ readAt: null }, { handledAt: null }] },
+      }),
+      prisma.message.findMany({
+        where: { orgId },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        select: {
+          id: true,
+          direction: true,
+          channel: true,
+          createdAt: true,
+          lead: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+          campaign: { select: { name: true } },
+        },
+      }),
+    ]);
+
+    const value: DashboardChrome = {
+      organization: { name: organization?.name ?? "Workspace", plan: organization?.plan ?? "starter" },
+      engine: resolveDashboardEngine({
+        subscriptionStatus: organization?.subscriptionStatus ?? null,
+        activeChannelCount,
+        activeCampaignCount,
+      }),
+      unreadNotificationCount,
+      channels,
+      activity: messages.map((message) => {
+        const name = leadName(message.lead);
+        const inbound = message.direction === "inbound";
+        return {
+          id: `message:${message.id}`,
+          kind: "message" as const,
+          title: `${inbound ? "Reply received from" : "Outreach sent to"} ${name}`,
+          detail: `${message.channel} · ${message.campaign.name}`,
+          occurredAt: message.createdAt,
+          avatarUrl: message.lead.avatarUrl,
+          channel: message.channel,
+          action: inbound ? "reply" as const : "view" as const,
+          href: inbound ? "/dashboard/messages?state=needs_reply" : `/dashboard/prospects/${message.lead.id}`,
+        };
+      }),
+    };
+
+    await cacheDashboardChrome(orgId, value);
+    reply.header("Cache-Control", "private, max-age=0");
+    return reply.send(value);
+  });
 
   r.get("/dashboard/campaigns", {
     schema: {
@@ -566,7 +675,19 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         videoAssets: {
           orderBy: { updatedAt: "desc" },
           take: 4,
-          select: { id: true, status: true, videoUrl: true, thumbnailUrl: true },
+          select: {
+            id: true,
+            status: true,
+            videoUrl: true,
+            thumbnailUrl: true,
+            needsReview: true,
+            criticScore: true,
+          },
+        },
+        videoTemplates: {
+          orderBy: { version: "desc" },
+          take: 1,
+          select: { id: true, status: true, needsReview: true, criticScore: true },
         },
       },
     });
@@ -590,6 +711,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         const video = buildPrimaryCampaignVideoSummary({
           aiConfig: campaign.aiConfig,
           assets: campaign.videoAssets,
+          template: campaign.videoTemplates[0] ?? null,
           outboundContents: campaign.messages
             .filter((message) => message.direction === "outbound")
             .map((message) => message.content),
@@ -899,7 +1021,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     ) as Record<OverviewMetricKey, OverviewMetricTrend>;
     const activityTrend = buildOverviewActivityTrend(range.start, range.end, activityMessages);
 
-    const [primaryCampaignStats, primaryCampaignMessages, primaryCampaignVideoAssets, primaryCampaignVideoMessages] =
+    const [primaryCampaignStats, primaryCampaignMessages, primaryCampaignVideoAssets, primaryCampaignVideoTemplate, primaryCampaignVideoMessages] =
       primaryCampaign
         ? await Promise.all([
             prisma.campaignLead.findMany({
@@ -919,14 +1041,21 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
                 status: true,
                 videoUrl: true,
                 thumbnailUrl: true,
+                needsReview: true,
+                criticScore: true,
               },
+            }),
+            prisma.campaignVideoTemplate.findFirst({
+              where: { orgId, campaignId: primaryCampaign.id },
+              orderBy: { version: "desc" },
+              select: { id: true, status: true, needsReview: true, criticScore: true },
             }),
             prisma.message.findMany({
               where: { campaignId: primaryCampaign.id, direction: "outbound" },
               select: { content: true },
             }),
           ])
-        : [[], [], [], []];
+        : [[], [], [], null, []];
     const primaryCampaignChannelSendCounts = primaryCampaignMessages.reduce<Record<string, number>>((counts, message) => {
       if (message.direction === "outbound") {
         counts[message.channel] = (counts[message.channel] ?? 0) + 1;
@@ -946,6 +1075,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       ? buildPrimaryCampaignVideoSummary({
           aiConfig: primaryCampaign.aiConfig,
           assets: primaryCampaignVideoAssets,
+          template: primaryCampaignVideoTemplate,
           outboundContents: primaryCampaignVideoMessages.map((message) => message.content),
         })
       : null;
@@ -1282,7 +1412,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
     const currentDateWhere = { gte: range.start, lte: range.end };
     const previousDateWhere = { gte: range.previousStart, lte: range.previousEnd };
-    const sourceLimit = Math.min(250, Math.max(100, query.limit + query.offset + 50));
+    // We only need enough candidates from each source to fill this page after
+    // the unified activity feed is sorted. The previous fixed 100-row floor
+    // made a 10-row activity page scan far more history than it could render.
+    const sourceLimit = Math.min(100, Math.max(20, query.limit + query.offset + 12));
     const messageWhere = {
       orgId,
       ...(hasExplicitRange ? { createdAt: currentDateWhere } : {}),
@@ -1382,12 +1515,12 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       prisma.message.findMany({
         where: { orgId, direction: "outbound", createdAt: currentDateWhere },
         select: { content: true },
-        take: 500,
+        take: 100,
       }),
       prisma.message.findMany({
         where: { orgId, direction: "outbound", createdAt: previousDateWhere },
         select: { content: true },
-        take: 500,
+        take: 100,
       }),
       prisma.campaign.findMany({
         where: { orgId },
@@ -1711,6 +1844,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       data: { reviewStatus: body.reviewStatus, reviewedAt: new Date() },
       select: { id: true, reviewStatus: true, reviewedAt: true },
     });
+    await invalidateDashboardChrome(orgId);
     return reply.send({ lead });
   });
 
@@ -1726,6 +1860,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       where: { id: { in: [...new Set(body.leadIds)] }, orgId },
       data: { reviewStatus: body.reviewStatus, reviewedAt: new Date() },
     });
+    await invalidateDashboardChrome(orgId);
     return reply.send({ updated: result.count, reviewStatus: body.reviewStatus });
   });
 
@@ -1925,6 +2060,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId, direction: "inbound", readAt: null },
       data: { readAt: new Date() },
     });
+    await invalidateDashboardChrome(orgId);
 
     const sender = campaignLead.campaign.senderAccount;
     const senderLimit = sender?.unipileId
@@ -2050,6 +2186,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       message: body.message,
       idempotencyKey: body.idempotencyKey,
     });
+    await invalidateDashboardChrome(orgId);
     return reply.status(201).send(result);
   });
 

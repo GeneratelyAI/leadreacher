@@ -18,7 +18,8 @@ import {
   X,
   Clock3,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
 import { ImportProspectsModal } from "@/components/dashboard/ImportProspectsModal";
 import { ScrapeProspectsModal } from "@/components/dashboard/ScrapeProspectsModal";
@@ -55,6 +56,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
 type ReviewStatus = "all" | "pending" | "approved" | "excluded";
@@ -290,16 +292,14 @@ function SelectionActionBar({
 }
 
 export function ProspectsWorkspace() {
-  const [leads, setLeads] = useState<Prospect[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [counts, setCounts] = useState<ProspectListResponse["counts"]>({ all: 0, pending: 0, approved: 0, excluded: 0, reached: 0 });
-  const [total, setTotal] = useState(0);
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectedDetail, setSelectedDetail] = useState<ProspectDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const debouncedQuery = useDebouncedValue(query.trim(), 300);
   const [reviewStatus, setReviewStatus] = useState<ReviewStatus>("all");
   const [lifecycle, setLifecycle] = useState("");
   const [source, setSource] = useState("");
@@ -307,40 +307,47 @@ export function ProspectsWorkspace() {
   const [enrollmentCampaignId, setEnrollmentCampaignId] = useState(
     () => searchParams.get("enrollCampaignId") ?? "",
   );
-  const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [scrapeOpen, setScrapeOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
+  const prospectParams = useMemo(() => {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
-    if (query.trim()) params.set("query", query.trim());
+    if (debouncedQuery) params.set("query", debouncedQuery);
     if (reviewStatus !== "all") params.set("reviewStatus", reviewStatus);
     if (lifecycle) params.set("status", lifecycle);
     if (source) params.set("source", source);
     if (campaignFilter) params.set("campaignId", campaignFilter);
-    try {
-      const [prospectResponse, campaignResponse] = await Promise.all([
-        apiFetch<ProspectListResponse>(`/dashboard/prospects?${params.toString()}`),
-        apiFetch<{ campaigns: Campaign[] }>("/campaigns"),
-      ]);
-      setLeads(prospectResponse.leads);
-      setCounts(prospectResponse.counts);
-      setTotal(prospectResponse.total);
-      setCampaigns(campaignResponse.campaigns);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load prospects.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [campaignFilter, lifecycle, page, query, reviewStatus, source]);
+    return params.toString();
+  }, [campaignFilter, debouncedQuery, lifecycle, page, reviewStatus, source]);
+  const prospectsQuery = useQuery({
+    queryKey: ["dashboard", "prospects", prospectParams],
+    queryFn: () => apiFetch<ProspectListResponse>(`/dashboard/prospects?${prospectParams}`),
+    placeholderData: keepPreviousData,
+    staleTime: 30_000,
+  });
+  const campaignsQuery = useQuery({
+    queryKey: ["campaigns", "options"],
+    queryFn: () => apiFetch<{ campaigns: Campaign[] }>("/campaigns"),
+    staleTime: 60_000,
+  });
+  const leads = prospectsQuery.data?.leads ?? [];
+  const campaigns = campaignsQuery.data?.campaigns ?? [];
+  const counts = prospectsQuery.data?.counts ?? { all: 0, pending: 0, approved: 0, excluded: 0, reached: 0 };
+  const total = prospectsQuery.data?.total ?? 0;
+  const isLoading = prospectsQuery.isLoading && !prospectsQuery.data;
+  const isRefreshing = prospectsQuery.isFetching && !!prospectsQuery.data;
+  const error = actionError ?? (prospectsQuery.error instanceof Error ? prospectsQuery.error.message : campaignsQuery.error instanceof Error ? campaignsQuery.error.message : null);
+  const load = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "prospects"] }),
+      queryClient.invalidateQueries({ queryKey: ["campaigns", "options"] }),
+    ]);
+  };
 
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, lifecycle, query, reviewStatus, source]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, debouncedQuery, lifecycle, reviewStatus, source]);
 
   async function openDetail(id: string) {
     try {
@@ -348,7 +355,7 @@ export function ProspectsWorkspace() {
       setSelectedDetail(response.lead);
       setDetailOpen(true);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load prospect details.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to load prospect details.");
     }
   }
 
@@ -365,7 +372,7 @@ export function ProspectsWorkspace() {
       setSelected(new Set());
       await load();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to update prospect review.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to update prospect review.");
     } finally {
       setIsUpdating(false);
     }
@@ -379,7 +386,7 @@ export function ProspectsWorkspace() {
       setSelected(new Set());
       await load();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to add prospects to campaign.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to add prospects to campaign.");
     }
   }
 
@@ -463,6 +470,7 @@ export function ProspectsWorkspace() {
             >
               <Filter /> Filters{activeFilterCount ? ` (${activeFilterCount})` : ""}
             </Button>
+            {isRefreshing ? <span className="text-xs text-muted-foreground" aria-live="polite">Updating…</span> : null}
           </div>
           <Tabs value={reviewStatus} onValueChange={(value) => setReviewStatus(value as ReviewStatus)}>
             <TabsList variant="line" className="w-full flex-wrap justify-start gap-1 rounded-none p-0">

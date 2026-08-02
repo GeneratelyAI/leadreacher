@@ -11,6 +11,7 @@ const {
   remove,
   campaignSequenceJobId,
   recordInboundMessage,
+  invalidateDashboardChrome,
 } = vi.hoisted(() => ({
   messageFindFirst: vi.fn(),
   socialAccountFindFirst: vi.fn(),
@@ -20,6 +21,7 @@ const {
   remove: vi.fn(),
   campaignSequenceJobId: vi.fn((campaignLeadId: string, step: number) => `${campaignLeadId}:step:${step}`),
   recordInboundMessage: vi.fn(),
+  invalidateDashboardChrome: vi.fn(),
 }));
 
 vi.mock("../../config/env.js", () => ({
@@ -43,6 +45,7 @@ vi.mock("../../lib/queue.js", () => ({
   campaignSequenceQueue: { remove },
 }));
 vi.mock("../../lib/inbound-message.js", () => ({ recordInboundMessage }));
+vi.mock("../../lib/dashboard-cache.js", () => ({ invalidateDashboardChrome }));
 vi.mock("../../services/campaign-step1-chat.js", () => ({
   deliverSequenceStep1ViaChat: vi.fn(),
 }));
@@ -96,6 +99,7 @@ beforeEach(async () => {
   remove.mockReset().mockResolvedValue(undefined);
   campaignSequenceJobId.mockClear();
   recordInboundMessage.mockReset().mockResolvedValue({});
+  invalidateDashboardChrome.mockReset().mockResolvedValue(undefined);
   app = await buildTestApp();
 });
 

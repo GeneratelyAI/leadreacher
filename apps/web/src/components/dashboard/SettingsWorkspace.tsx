@@ -15,7 +15,8 @@ import {
   SlidersHorizontal,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -223,39 +224,34 @@ function ComingSoonButton({ label }: { label: string }) {
 }
 
 export function SettingsWorkspace() {
-  const [settings, setSettings] = useState<WorkspaceSettings | null>(null);
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
-  const [accounts, setAccounts] = useState<SocialAccount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
-  const load = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const [settingsResult, accountsResult] = await Promise.all([
-        apiFetch<WorkspaceSettings>("/dashboard/settings"),
-        apiFetch<{ accounts: SocialAccount[] }>("/social-accounts").catch(() => ({ accounts: [] as SocialAccount[] })),
-      ]);
-      setSettings(settingsResult);
-      setName(settingsResult.organization?.name ?? "");
-      if (settingsResult.organization?.id) {
-        setPreferences(readPreferences(settingsResult.organization.id));
-      }
-      setAccounts(accountsResult.accounts);
-      setError(null);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load settings.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const settingsQuery = useQuery({
+    queryKey: ["dashboard", "settings"],
+    queryFn: () => apiFetch<WorkspaceSettings>("/dashboard/settings"),
+    staleTime: 60_000,
+  });
+  const accountsQuery = useQuery({
+    queryKey: ["dashboard", "settings", "accounts"],
+    queryFn: () => apiFetch<{ accounts: SocialAccount[] }>("/social-accounts").catch(() => ({ accounts: [] as SocialAccount[] })),
+    staleTime: 60_000,
+  });
+  const settings = settingsQuery.data ?? null;
+  const accounts = accountsQuery.data?.accounts ?? [];
+  const isLoading = settingsQuery.isLoading && !settingsQuery.data;
+  const error = actionError ?? (settingsQuery.error instanceof Error ? settingsQuery.error.message : null);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    const organization = settingsQuery.data?.organization;
+    if (!organization?.id) return;
+    setName(organization.name ?? "");
+    setPreferences(readPreferences(organization.id));
+  }, [settingsQuery.data?.organization?.id]);
 
   function updatePreference<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPreferences((current) => {
@@ -273,11 +269,11 @@ export function SettingsWorkspace() {
         method: "PATCH",
         body: JSON.stringify({ organizationName: name }),
       });
-      setSettings(result);
+      queryClient.setQueryData<WorkspaceSettings>(["dashboard", "settings"], result);
       setName(result.organization?.name ?? name);
-      setError(null);
+      setActionError(null);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to save settings.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to save settings.");
     } finally {
       setIsSaving(false);
     }
@@ -291,7 +287,7 @@ export function SettingsWorkspace() {
       });
       window.location.assign(session.url);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Unable to open billing portal.");
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to open billing portal.");
     }
   }
 

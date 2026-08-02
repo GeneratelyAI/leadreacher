@@ -1,12 +1,17 @@
 import { Suspense } from "react";
-import { ChannelsView, DashboardPageFrame } from "@/components/dashboard/DashboardWorkspaceViews";
+import { ChannelsWorkspace } from "@/components/dashboard/ChannelsWorkspace";
+import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
 
 export default function ChannelsPage() {
   return (
     <DashboardPageFrame>
-      <Suspense fallback={<div className="py-16 text-center text-sm text-muted-foreground">Loading channels…</div>}>
-        <ChannelsView />
+      <Suspense fallback={<DashboardRouteSkeleton />}>
+        <ChannelsWorkspace />
       </Suspense>
     </DashboardPageFrame>
   );
+}
+
+function DashboardRouteSkeleton() {
+  return <div className="h-96 animate-pulse rounded-lg border border-app-border bg-app-elevated" aria-label="Loading channels" />;
 }
