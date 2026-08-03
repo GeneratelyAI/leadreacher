@@ -1,63 +1,67 @@
 # Railway Production Deployment
 
-LeadReacher runs as two Railway services from the same repository. The API
-accepts HTTP traffic. The worker consumes BullMQ jobs and must not expose a
-public endpoint.
+LeadReacher deploys the web application and API as separate Railway services
+from the same pnpm monorepo. Each service must use its own config-as-code file.
+Do not add a repository-root `railway.toml`: Railway applies a root config to
+every service and it will override the service-specific dashboard settings.
+
+## Web service
+
+Configure `@leadreacher/web` with:
+
+- Root directory: repository root (leave unset)
+- Railway config file: `/apps/web/railway.toml`
+- Watch path: `/apps/web/**`
+
+The service builds and starts through the root pnpm workspace. Configure the
+public frontend environment variables on this service only.
 
 ## API service
 
-Use the repository-level [`railway.toml`](../../railway.toml). Configure the
-service with the standard API environment variables from
-[`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts), plus:
+Configure `@leadreacher/api` with:
 
-```dotenv
-NODE_ENV=production
-ENABLE_CAMPAIGN_WORKER=false
-ENABLE_RECONCILE_WORKER=false
-ENABLE_VIDEO_WORKER=false
-ENABLE_ANALYTICS_INSIGHTS_WORKER=false
-```
+- Root directory: `/apps/api`
+- Railway config file: `/apps/api/railway.toml`
+- Watch paths: `/apps/api/**` and `/package.json`
 
-Set Railway health checks to `GET /ready`. This probe verifies Postgres and
-Redis; it is intentionally not rate-limited and is never cached.
+Because Railway isolates this root directory, the API config uses `npm` rather
+than root-workspace `pnpm --filter` commands. Configure the API environment
+variables from [`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts)
+on this service. Set `NODE_ENV=production`.
 
-## Worker service
+The pre-deploy command runs `prisma migrate deploy`. Every directory under
+`apps/api/prisma/migrations` must contain a committed `migration.sql`; an empty
+migration directory makes Prisma reject the deployment.
 
-Create a second service from the same repository. Reuse the API service’s
-secrets, then override its start command and worker flags:
+Railway checks `GET /ready`, which verifies Postgres and Redis. `GET /health`
+is the process liveness endpoint.
+
+## Optional worker service
+
+If background processing is split from the API later, create a third service
+from the API package and use this start command:
 
 ```text
-pnpm --filter @leadreacher/api worker
+node dist/worker.js
 ```
 
-```dotenv
-NODE_ENV=production
-ENABLE_CAMPAIGN_WORKER=true
-ENABLE_RECONCILE_WORKER=true
-ENABLE_VIDEO_WORKER=true
-ENABLE_ANALYTICS_INSIGHTS_WORKER=true
-```
-
-The worker uses the same `buildServer()` lifecycle but never calls
-`listen()`. Better Stack heartbeats and Sentry queue-failure events are active
-when their existing environment variables are configured.
+Disable worker flags on the API service and enable them only on the worker.
+Never run two consumers for the same queues unintentionally.
 
 ## Video prerequisites
 
 Before enabling the video worker, provide the selected provider credential,
 the TTS credential for personalized videos, and all Cloudflare R2 credentials.
-Keep `VIDEO_MOCK_MODE=false` in production. Do not enable a video worker until
-the provider key, TTS key, and R2 bucket have been tested in a non-production
-environment.
+Keep `VIDEO_MOCK_MODE=false` in production. Test the provider, TTS, and storage
+integration in a non-production environment first.
 
 ## Rollout checks
 
-1. Deploy the API with all worker flags disabled.
-2. Confirm `GET /health` and `GET /ready` return `200`.
-3. Deploy the worker and confirm its startup log says `Background workers started`.
-4. Check Better Stack heartbeats and Sentry for queue failures.
-5. Run the safe checks in [`production-e2e-runbook.md`](production-e2e-runbook.md).
-
-Never run API and worker services with the same worker flag enabled. That would
-cause duplicate queue consumers and makes production behavior harder to reason
-about.
+1. Confirm the deployment details show the expected service-specific config
+   path and commands.
+2. Confirm the web deployment starts with `@leadreacher/web`.
+3. Confirm API pre-deploy migrations complete successfully.
+4. Confirm API `GET /health` and `GET /ready` return `200`.
+5. Check runtime logs and Sentry for startup or queue failures.
+6. Run the safe checks in
+   [`production-e2e-runbook.md`](production-e2e-runbook.md).

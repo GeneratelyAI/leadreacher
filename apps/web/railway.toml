@@ -1,0 +1,7 @@
+[build]
+buildCommand = "pnpm --filter @leadreacher/web build"
+
+[deploy]
+startCommand = "pnpm --filter @leadreacher/web start"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
