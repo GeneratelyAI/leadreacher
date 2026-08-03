@@ -214,7 +214,7 @@ export function OverviewChannelUpsellCarousel({
       <Carousel
         setApi={setApi}
         opts={{ loop: slides.length > 1, align: "start" }}
-        className="w-full overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+        className="w-full min-w-0 max-w-full overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
       >
         <CarouselContent className="-ml-0">
           {slides.map((channel) => {
@@ -283,8 +283,8 @@ function SlideShell({
   footerLabel: string;
 }) {
   return (
-    <div className="flex h-full min-h-[22rem] flex-col">
-      <div className="flex-1 px-4 pt-4">{children}</div>
+    <div className="flex h-full min-w-0 max-w-full min-h-[22rem] flex-col">
+      <div className="min-w-0 flex-1 px-4 pt-4">{children}</div>
       <div className="mt-auto flex justify-center border-t border-onboarding-neutral-150 px-4 py-2.5 dark:border-onboarding-neutral-750">
         <Link
           href={footerHref}
@@ -309,7 +309,7 @@ export function OverviewInsightCarousel({
 
   return (
     <section
-      className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+      className="min-w-0 max-w-full overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
       aria-labelledby="today-insight-heading"
     >
       <SlideShell footerHref="/dashboard/analytics" footerLabel="View full report">
@@ -331,7 +331,7 @@ export function OverviewInsightCarousel({
           </>
         )}
         <div className="pt-3">
-          <ChartContainer config={CHART_CONFIG} className="h-36 w-full aspect-auto">
+          <ChartContainer config={CHART_CONFIG} className="h-36 w-full min-w-0 max-w-full aspect-auto">
             <AreaChart data={activityTrend} margin={{ top: 8, right: 2, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="insight-sent-fill" x1="0" y1="0" x2="0" y2="1">

@@ -26,6 +26,7 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
 import { LiveActivityTable } from "@/components/dashboard/LiveActivityTable";
 import {
   OverviewChannelUpsellCarousel,
@@ -643,7 +644,7 @@ export function DashboardOverviewClient() {
       ? { title: recommendationItems[0].title, detail: recommendationItems[0].detail }
       : null;
   return (
-    <div className="mx-auto flex w-full max-w-[104rem] flex-col px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]">
+    <DashboardPageFrame className="flex min-w-0 flex-col">
             {error ? (
               <div className="mb-6 flex items-start gap-3 rounded-onboarding border border-onboarding-error-500/30 bg-onboarding-error-50 p-4 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
                 <CircleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />
@@ -710,7 +711,7 @@ export function DashboardOverviewClient() {
                 <Loader2 className="mr-2 size-4 animate-spin" aria-hidden /> Loading workspace
               </div>
             ) : overview ? (
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_23rem]">
+              <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_23rem]">
                 <div className="order-1 flex min-h-0 min-w-0 flex-col gap-4">
                   <TodayActionsPanel overview={overview} />
 
@@ -858,12 +859,12 @@ export function DashboardOverviewClient() {
 
                 </div>
 
-                <section className="order-4 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small xl:col-span-2 xl:row-start-3 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="activity-heading">
-                    <div className="flex items-center justify-between border-b border-onboarding-neutral-150 px-5 py-3 dark:border-onboarding-neutral-750">
-                      <div className="flex items-center gap-2.5">
+                <section className="order-4 min-w-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small xl:col-span-2 xl:row-start-3 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="activity-heading">
+                    <div className="flex flex-col gap-3 border-b border-onboarding-neutral-150 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5 dark:border-onboarding-neutral-750">
+                      <div className="flex min-w-0 items-center gap-2.5">
                         <h2 id="activity-heading" className="font-semibold">Live activity</h2>
                         <span className="size-1.5 rounded-full bg-onboarding-success-500" aria-hidden />
-                        <p className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Latest updates from your workspace</p>
+                        <p className="min-w-0 truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Latest updates from your workspace</p>
                       </div>
                       <Select
                         value={searchParams.get("activityKind") ?? "all"}
@@ -874,7 +875,7 @@ export function DashboardOverviewClient() {
                             router.replace(`/dashboard?${params.toString()}`);
                           }}
                       >
-                        <SelectTrigger aria-label="Filter activity" className="h-8 w-auto min-w-28 border-onboarding-neutral-150 bg-onboarding-neutral-0 px-2 text-xs font-semibold text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0"><span>{searchParams.get("activityKind") === "message" ? "Messages" : searchParams.get("activityKind") === "prospect" ? "Prospects" : searchParams.get("activityKind") === "video" ? "Videos" : searchParams.get("activityKind") === "campaign" ? "Campaigns" : "All activity"}</span></SelectTrigger>
+                        <SelectTrigger aria-label="Filter activity" className="h-8 w-full min-w-0 border-onboarding-neutral-150 bg-onboarding-neutral-0 px-2 text-xs font-semibold text-onboarding-ink sm:w-auto sm:min-w-28 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0"><span>{searchParams.get("activityKind") === "message" ? "Messages" : searchParams.get("activityKind") === "prospect" ? "Prospects" : searchParams.get("activityKind") === "video" ? "Videos" : searchParams.get("activityKind") === "campaign" ? "Campaigns" : "All activity"}</span></SelectTrigger>
                         <SelectContent align="end" className="w-36 border border-onboarding-neutral-150 bg-onboarding-neutral-0 text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0">
                           <SelectItem value="all" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">All activity</SelectItem>
                           <SelectItem value="message" className="text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">Messages</SelectItem>
@@ -899,7 +900,7 @@ export function DashboardOverviewClient() {
                     </div>
                 </section>
 
-                <aside className="order-3 flex flex-col gap-4 xl:col-start-2" aria-label="Workspace insights">
+                <aside className="order-3 flex w-full min-w-0 max-w-full flex-col gap-4 xl:col-start-2" aria-label="Workspace insights">
                   <OverviewChannelUpsellCarousel channels={overview.channels} />
 
                   <OverviewInsightCarousel overview={overview} featuredInsight={featuredInsight} />
@@ -908,6 +909,6 @@ export function DashboardOverviewClient() {
                 </aside>
               </div>
             ) : null}
-    </div>
+    </DashboardPageFrame>
   );
 }
