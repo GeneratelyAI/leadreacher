@@ -20,7 +20,6 @@ import {
   MessageSquare,
   Plus,
   Send,
-  Sparkles,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -28,7 +27,10 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
 import { LiveActivityTable } from "@/components/dashboard/LiveActivityTable";
-import { OverviewInsightCarousel } from "@/components/dashboard/OverviewInsightCarousel";
+import {
+  OverviewChannelUpsellCarousel,
+  OverviewInsightCarousel,
+} from "@/components/dashboard/OverviewInsightCarousel";
 import { Button } from "@/components/ui/Button";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { ApiError, apiFetch } from "@/lib/api";
@@ -342,9 +344,9 @@ function TodayActionsPanel({ overview }: { overview: DashboardOverview }) {
       <div className="flex items-center justify-between gap-3 border-b border-onboarding-neutral-150 px-5 py-3 dark:border-onboarding-neutral-750 sm:px-6">
         <div>
           <h2 id="today-heading" className="text-sm font-semibold tracking-tight">
-            Today
+            Hotlist
           </h2>
-          <p className="text-xs text-muted-foreground">What to do in the next 15 minutes</p>
+          <p className="text-xs text-muted-foreground">Your latest activity updates</p>
         </div>
         <Button asChild size="sm" variant="outline">
           <Link href="/dashboard/messages?state=needs_reply">
@@ -393,46 +395,59 @@ function SendingHealthStrip({ overview }: { overview: DashboardOverview }) {
 
   return (
     <section
-      className="grid gap-3 rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 p-4 shadow-onboarding-small sm:grid-cols-2 lg:grid-cols-4 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+      className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
       aria-label="Sending health"
     >
-      <div>
-        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Messages left</p>
-        <p className="mt-1 text-lg font-semibold">
-          {primarySender ? `${primarySender.message.remaining}/${primarySender.message.limit}` : "—"}
-        </p>
-        <p className="text-xs text-muted-foreground">{primarySender?.accountName ?? "No LinkedIn sender"}</p>
+      <div className="px-4 py-3">
+        <h2 className="text-sm font-semibold">Sending health</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">Daily capacity and delivery status</p>
       </div>
-      <div>
-        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Invites left</p>
-        <p className="mt-1 text-lg font-semibold">
-          {primarySender ? `${primarySender.invite.remaining}/${primarySender.invite.limit}` : "—"}
-        </p>
-        <p className="text-xs text-muted-foreground">Resets daily (UTC)</p>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Awaiting accept</p>
-        <p className="mt-1 text-lg font-semibold">{health.pendingInviteAcceptances}</p>
-        <p className="text-xs text-muted-foreground">Contacted, not connected</p>
-      </div>
-      <div>
-        <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase">Health flags</p>
-        <p className="mt-1 text-lg font-semibold">
-          {health.unhealthyAccounts.length + health.failedSendCount}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {health.unhealthyAccounts.length > 0 ? (
-            <Link href="/dashboard/channels" className="font-medium text-onboarding-purple-600 underline-offset-2 hover:underline dark:text-onboarding-purple-200">
-              Reconnect channels
-            </Link>
-          ) : health.failedSendCount > 0 ? (
-            <Link href="/dashboard/activity" className="font-medium text-onboarding-purple-600 underline-offset-2 hover:underline dark:text-onboarding-purple-200">
-              Review failed sends
-            </Link>
-          ) : (
-            "All clear"
-          )}
-        </p>
+      <div className="relative grid grid-cols-2 px-2 pb-2 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
+        {[
+          {
+            label: "Messages left",
+            value: primarySender ? `${primarySender.message.remaining}/${primarySender.message.limit}` : "—",
+            detail: primarySender?.accountName ?? "No sender",
+          },
+          {
+            label: "Invites left",
+            value: primarySender ? `${primarySender.invite.remaining}/${primarySender.invite.limit}` : "—",
+            detail: "Resets daily (UTC)",
+          },
+          {
+            label: "Awaiting accept",
+            value: String(health.pendingInviteAcceptances),
+            detail: "Not connected",
+          },
+          {
+            label: "Health flags",
+            value: String(health.unhealthyAccounts.length + health.failedSendCount),
+            detail: health.unhealthyAccounts.length > 0 ? "Reconnect channels" : health.failedSendCount > 0 ? "Review failed sends" : "All clear",
+          },
+        ].map((item, index) => (
+          <div
+            key={item.label}
+            className={cn(
+              "relative min-w-0 px-2 py-3",
+              index % 2 === 0 && "after:absolute after:inset-y-3 after:right-0 after:w-px after:bg-onboarding-neutral-150 dark:after:bg-onboarding-neutral-750",
+              index < 2 && "before:absolute before:right-2 before:bottom-0 before:left-2 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750",
+            )}
+          >
+            <p className="truncate text-[10px] font-semibold tracking-[0.07em] text-muted-foreground uppercase">{item.label}</p>
+            <p className="mt-1 text-lg font-semibold leading-none">{item.value}</p>
+            {item.label === "Health flags" && health.unhealthyAccounts.length > 0 ? (
+              <Link href="/dashboard/channels" className="mt-1 block truncate text-[11px] font-medium text-onboarding-purple-600 hover:underline dark:text-onboarding-purple-200">
+                {item.detail}
+              </Link>
+            ) : item.label === "Health flags" && health.failedSendCount > 0 ? (
+              <Link href="/dashboard/activity" className="mt-1 block truncate text-[11px] font-medium text-onboarding-purple-600 hover:underline dark:text-onboarding-purple-200">
+                {item.detail}
+              </Link>
+            ) : (
+              <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.detail}</p>
+            )}
+          </div>
+        ))}
       </div>
     </section>
   );
@@ -627,8 +642,6 @@ export function DashboardOverviewClient() {
     : recommendationItems[0]
       ? { title: recommendationItems[0].title, detail: recommendationItems[0].detail }
       : null;
-  const recommendationsAreAi = insights?.status === "ready" && (insights.whatToDoNext.length ?? 0) > 0;
-
   return (
     <div className="mx-auto flex w-full max-w-[104rem] flex-col px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]">
             {error ? (
@@ -700,7 +713,6 @@ export function DashboardOverviewClient() {
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_23rem]">
                 <div className="order-1 flex min-h-0 min-w-0 flex-col gap-4">
                   <TodayActionsPanel overview={overview} />
-                  <SendingHealthStrip overview={overview} />
 
                   <section className="shrink-0 overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-label="Campaign metrics">
                     <div className="flex items-center justify-end px-5 pt-2 pb-0 sm:px-6">
@@ -887,63 +899,12 @@ export function DashboardOverviewClient() {
                     </div>
                 </section>
 
-                <aside className="order-3 grid gap-4 xl:col-start-2 xl:grid-rows-2 xl:self-stretch" aria-label="Workspace insights">
-                  <section className="overflow-hidden rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 shadow-onboarding-small dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900" aria-labelledby="recommendations-heading">
-                    <div className="relative px-4 py-3 before:absolute before:right-4 before:bottom-0 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
-                      <div className="flex items-center gap-2">
-                        <h2 id="recommendations-heading" className="font-semibold">Recommendations</h2>
-                        <span className="rounded bg-onboarding-purple-50 px-1.5 py-0.5 text-[10px] font-semibold text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
-                          {recommendationsAreAi ? "AI" : "Ops"}
-                        </span>
-                        {insights?.status === "aggregating" ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-                            <Loader2 className="size-3 animate-spin" aria-hidden />
-                            Generating
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                        {recommendationsAreAi
-                          ? "Prioritized from recorded workspace data."
-                          : "Actionable next steps from your live workspace."}
-                      </p>
-                    </div>
-                    {recommendationItems.length ? (
-                      <ul>
-                        {recommendationItems.map((item, index) => (
-                          <li key={`${item.title}-${index}`} className="relative flex items-start gap-3 px-4 py-3 after:absolute after:right-4 after:bottom-0 after:left-4 after:h-px after:bg-onboarding-neutral-150 last:after:hidden dark:after:bg-onboarding-neutral-750">
-                            <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden>
-                              {index === 0 ? <TrendingUp className="size-4" /> : index === 1 ? <Sparkles className="size-4" /> : <CircleAlert className="size-4" />}
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold leading-5">{item.title}</p>
-                              <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.detail}</p>
-                            </div>
-                            <Link href={item.href} className="mt-1 inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
-                              Open <ArrowRight className="size-3" aria-hidden />
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="flex items-start gap-3 px-4 py-5">
-                        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-onboarding-success-500" aria-hidden />
-                        <div>
-                          <p className="text-sm font-medium">You&apos;re clear for now</p>
-                          <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                            No replies waiting and channels look healthy. AI recommendations appear after more outreach data lands.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    <div className="relative flex justify-center px-4 py-2.5 before:absolute before:top-0 before:right-4 before:left-4 before:h-px before:bg-onboarding-neutral-150 dark:before:bg-onboarding-neutral-750">
-                      <Link href="/dashboard/analytics" className="inline-flex items-center gap-1.5 text-xs font-semibold text-onboarding-purple-600 hover:text-onboarding-purple-700 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-purple-200">
-                        View analytics <ArrowRight className="size-3" aria-hidden />
-                      </Link>
-                    </div>
-                  </section>
+                <aside className="order-3 flex flex-col gap-4 xl:col-start-2" aria-label="Workspace insights">
+                  <OverviewChannelUpsellCarousel channels={overview.channels} />
 
                   <OverviewInsightCarousel overview={overview} featuredInsight={featuredInsight} />
+
+                  <SendingHealthStrip overview={overview} />
                 </aside>
               </div>
             ) : null}
