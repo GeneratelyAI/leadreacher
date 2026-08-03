@@ -153,6 +153,10 @@ function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function lifecycleLabel(value: string): string {
+  return value === "meeting" ? "Booked" : titleCase(value);
+}
+
 function relativeTime(value: string): string {
   const minutes = Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60_000));
   if (minutes < 1) return "Just now";
@@ -401,7 +405,7 @@ export function ProspectsWorkspace() {
     <>
       <Select value={lifecycle || null} onValueChange={(value) => setLifecycle(value === "__all" ? "" : value ?? "")}>
         <SelectTrigger className="min-w-40 h-10 sm:h-9"><SelectValue placeholder="All lifecycle states" /></SelectTrigger>
-        <SelectContent><SelectItem value="__all">All lifecycle states</SelectItem>{lifecycleStates.map((state) => <SelectItem key={state} value={state}>{titleCase(state)}</SelectItem>)}</SelectContent>
+        <SelectContent><SelectItem value="__all">All lifecycle states</SelectItem>{lifecycleStates.map((state) => <SelectItem key={state} value={state}>{lifecycleLabel(state)}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={source || null} onValueChange={(value) => setSource(value === "__all" ? "" : value ?? "")}>
         <SelectTrigger className="min-w-32 h-10 sm:h-9"><SelectValue placeholder="All sources" /></SelectTrigger>
@@ -532,7 +536,7 @@ export function ProspectsWorkspace() {
                               <ReachableSignals prospect={lead} />
                               <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                                 <span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />
-                                {titleCase(lead.status)}
+                                {lifecycleLabel(lead.status)}
                               </span>
                             </div>
                           </div>
@@ -606,7 +610,7 @@ export function ProspectsWorkspace() {
                         <TableCell>
                           <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                             <span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />
-                            {titleCase(lead.status)}
+                            {lifecycleLabel(lead.status)}
                           </span>
                         </TableCell>
                         <TableCell>
