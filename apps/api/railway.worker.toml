@@ -1,0 +1,10 @@
+[build]
+buildCommand = "npm run build"
+
+[deploy]
+startCommand = "node dist/worker.js"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+# Configure this Railway service with RUNTIME_ROLE=worker. Keep migrations on
+# the API service so two deploys never race the same migration set.

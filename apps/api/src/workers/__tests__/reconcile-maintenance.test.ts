@@ -22,6 +22,7 @@ vi.mock("bullmq", () => ({
   },
 }));
 vi.mock("../../config/env.js", () => ({
+  env: { RESEND_API_KEY: "" },
   getBullMqIdleDrainDelaySeconds: () => 60,
 }));
 vi.mock("../../lib/queue.js", () => ({
@@ -41,6 +42,9 @@ vi.mock("../video-generation.js", () => ({
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
 }));
+vi.mock("../../services/product-email-outbox.js", () => ({ processProductEmailOutbox: vi.fn() }));
+vi.mock("../../services/organization-export.js", () => ({ processOrganizationExports: vi.fn() }));
+vi.mock("../../services/organization-lifecycle.js", () => ({ purgeExpiredOrganizations: vi.fn() }));
 
 import {
   isMaintenanceTaskDue,

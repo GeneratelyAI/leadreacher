@@ -13,6 +13,9 @@ import {
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
 } from "./video-generation.js";
+import { processProductEmailOutbox } from "../services/product-email-outbox.js";
+import { processOrganizationExports } from "../services/organization-export.js";
+import { purgeExpiredOrganizations } from "../services/organization-lifecycle.js";
 
 const DELIVERY_ATTEMPT_INTERVAL_MS = 5 * 60 * 1000;
 const RELATION_INTERVAL_MS = 10 * 60 * 1000;
@@ -21,6 +24,7 @@ const VEO_OPERATION_INTERVAL_MS = 5 * 60 * 1000;
 export type ReconciliationMaintenanceOptions = {
   reconcileEnabled: boolean;
   videoEnabled: boolean;
+  lifecycleEnabled?: boolean;
 };
 
 /**
@@ -71,6 +75,15 @@ export async function runReconciliationMaintenance(
       ]),
     );
     names.push("veo-operations");
+  }
+
+  if (options.lifecycleEnabled) {
+    work.push(processProductEmailOutbox());
+    names.push("product-email-outbox");
+    work.push(processOrganizationExports());
+    names.push("organization-exports");
+    work.push(purgeExpiredOrganizations());
+    names.push("organization-purge");
   }
 
   const results = await Promise.all(work);

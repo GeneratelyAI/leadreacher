@@ -1,5 +1,6 @@
 import { captureException, initializeSentry } from "./lib/sentry.js";
 import { buildServer } from "./server.js";
+import { env } from "./config/env.js";
 
 /**
  * Railway worker entry point. It registers the same Fastify lifecycle as the
@@ -7,6 +8,9 @@ import { buildServer } from "./server.js";
  * dedicated worker service so jobs are never consumed twice.
  */
 async function main() {
+  if (env.RUNTIME_ROLE !== "worker") {
+    throw new Error('The worker entry point requires RUNTIME_ROLE="worker"');
+  }
   initializeSentry();
   const app = await buildServer();
   await app.ready();

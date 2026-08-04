@@ -21,6 +21,7 @@ import {
 import { R2Adapter } from "../adapters/r2.js";
 import { synthesizeSpeech } from "../adapters/google-tts.js";
 import { prisma } from "../lib/prisma.js";
+import { enqueueOrganizationEmail } from "../services/product-email-outbox.js";
 import { redis } from "../lib/redis.js";
 import {
   type VideoGenerationJob,
@@ -136,6 +137,17 @@ async function markVideoAssetFailed(
       },
     },
   });
+  try {
+    await enqueueOrganizationEmail({
+      orgId,
+      idempotencyKey: `video-failed:${videoAssetId}`,
+      template: "video_generation_failed",
+      subject: "A LeadReacher video needs attention",
+      text: "Video generation did not complete. Open the campaign in LeadReacher to review the failure and retry safely.",
+    });
+  } catch (notificationError) {
+    logError({ path: "video-failure-notification", videoAssetId, error: errorMessage(notificationError) });
+  }
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -586,6 +598,17 @@ async function markTemplateFailed(
       metadata: { path, error: errorMessage(error) },
     },
   });
+  try {
+    await enqueueOrganizationEmail({
+      orgId,
+      idempotencyKey: `video-template-failed:${templateId}`,
+      template: "video_generation_failed",
+      subject: "A LeadReacher campaign video needs attention",
+      text: "The shared campaign video could not be generated. Open the campaign in LeadReacher to review the failure and retry safely.",
+    });
+  } catch (notificationError) {
+    logError({ path: "template-failure-notification", templateId, error: errorMessage(notificationError) });
+  }
 }
 
 async function processTemplateOrchestrate(job: Job<VideoGenerationJob>): Promise<void> {
@@ -1144,28 +1167,7 @@ async function processVeo(job: Job<VideoGenerationJob>): Promise<void> {
     }
 
     if (jobStatus.status === "failed") {
-      await prisma.videoAsset.update({
-        where: { id: videoAssetId },
-        data: {
-          status: "failed",
-          needsReview: true,
-          veoOperationState: "failed",
-          veoSubmitLeaseAt: null,
-        },
-      });
-      await prisma.auditLog.create({
-        data: {
-          orgId,
-          action: "video.generate.failed",
-          resource: "VideoAsset",
-          resourceId: videoAssetId,
-          metadata: {
-            path: "veo-terminal-failure",
-            veoJobId: jobId,
-            error: toAuditMetadataValue(jobStatus.error),
-          },
-        },
-      });
+      await markVideoAssetFailed(orgId, videoAssetId, "veo-terminal-failure", jobStatus.error);
       return;
     }
 
