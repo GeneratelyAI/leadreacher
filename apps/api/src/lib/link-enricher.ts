@@ -1,5 +1,6 @@
 import { env } from "../config/env.js";
 import { normalizeWebsiteUrl, scrapeWebsiteMarkdown } from "./firecrawl.js";
+import { resolvePublicUrl } from "./public-url.js";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const POLL_INTERVAL_MS = 3000;
@@ -453,6 +454,7 @@ async function enrichUrlByKind(url: string, kind: LinkKind): Promise<string> {
 
 export async function enrichFromUrl(url: string): Promise<string> {
   const normalized = normalizeWebsiteUrl(url);
+  await resolvePublicUrl(normalized);
 
   const cached = enrichmentCache.get(normalized);
   if (cached !== undefined) {

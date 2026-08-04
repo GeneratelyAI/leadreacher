@@ -2,6 +2,8 @@ import { env } from "../config/env.js";
 import { ExternalServiceError } from "./errors.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_TIMEOUT_MS = 30_000;
+const GROQ_MAX_ATTEMPTS = 3;
 
 // Default text model for structured onboarding and video prompt/critic calls.
 export const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
@@ -34,26 +36,55 @@ type CallGroqOptions = {
   jsonObject?: boolean;
 };
 
+function transientStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+async function waitBeforeRetry(attempt: number): Promise<void> {
+  const jitterMs = Math.floor(Math.random() * 150);
+  await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempt - 1) + jitterMs));
+}
+
+async function groqRequest(body: Record<string, unknown>): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= GROQ_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${env.GROQ_API_KEY}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
+      });
+      if (!transientStatus(response.status) || attempt === GROQ_MAX_ATTEMPTS) return response;
+      await response.body?.cancel();
+    } catch (error) {
+      lastError = error;
+      if (attempt === GROQ_MAX_ATTEMPTS) break;
+    }
+    await waitBeforeRetry(attempt);
+  }
+  throw new ExternalServiceError(
+    "Groq",
+    lastError instanceof Error ? lastError.message : "Request timed out",
+  );
+}
+
 export async function callGroq(
   system: string,
   messages: GroqMessage[],
   maxTokens: number,
   options: CallGroqOptions = {},
 ): Promise<string> {
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_TEXT_MODEL,
-      max_tokens: maxTokens,
-      ...(options.jsonObject
-        ? { response_format: { type: "json_object" } }
-        : {}),
-      messages: [{ role: "system", content: system }, ...messages],
-    }),
+  const response = await groqRequest({
+    model: GROQ_TEXT_MODEL,
+    max_tokens: maxTokens,
+    ...(options.jsonObject
+      ? { response_format: { type: "json_object" } }
+      : {}),
+    messages: [{ role: "system", content: system }, ...messages],
   });
 
   if (!response.ok) {
@@ -112,23 +143,16 @@ export async function callGroqVision(
   maxTokens: number,
   options: CallGroqOptions = {},
 ): Promise<string> {
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${env.GROQ_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: GROQ_VISION_MODEL,
-      max_tokens: maxTokens,
-      ...(options.jsonObject
-        ? { response_format: { type: "json_object" } }
-        : {}),
-      messages: [
-        { role: "system", content: system },
-        ...messages.map(toGroqVisionMessage),
-      ],
-    }),
+  const response = await groqRequest({
+    model: GROQ_VISION_MODEL,
+    max_tokens: maxTokens,
+    ...(options.jsonObject
+      ? { response_format: { type: "json_object" } }
+      : {}),
+    messages: [
+      { role: "system", content: system },
+      ...messages.map(toGroqVisionMessage),
+    ],
   });
 
   if (!response.ok) {

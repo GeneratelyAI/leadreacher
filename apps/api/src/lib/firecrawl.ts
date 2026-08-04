@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import { resolvePublicUrl } from "./public-url.js";
 import { fetchWebsitePreviewImage } from "./website-text.js";
 
 const SCRAPE_TIMEOUT_MS = 8_000;
@@ -38,6 +39,7 @@ export async function scrapeWebsiteContent(
   url: string,
 ): Promise<WebsiteScrapeResult> {
   const normalized = normalizeWebsiteUrl(url);
+  await resolvePublicUrl(normalized);
 
   const cached = scrapedContentByUrl.get(normalized);
   if (cached !== undefined) {

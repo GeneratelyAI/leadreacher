@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const API_VERSION = "/api/v1";
+const UNIPILE_TIMEOUT_MS = 30_000;
 
 // Shape of GET /accounts/{id}, confirmed empirically against a live LinkedIn
 // account (the docs page does not render the response schema):
@@ -122,10 +123,35 @@ export class UnipileAdapter {
       }
     }
 
-    const res = await fetch(url, init);
+    const maxAttempts = method === "GET" ? 3 : 1;
+    let res: Response | null = null;
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        res = await fetch(url, {
+          ...init,
+          signal: AbortSignal.timeout(UNIPILE_TIMEOUT_MS),
+        });
+        if (![408, 429].includes(res.status) && res.status < 500) break;
+        if (attempt === maxAttempts) break;
+        await res.body?.cancel();
+      } catch (error) {
+        lastError = error;
+        if (attempt === maxAttempts) break;
+      }
+      const jitterMs = Math.floor(Math.random() * 150);
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempt - 1) + jitterMs));
+    }
+
+    if (!res) {
+      throw new ExternalServiceError(
+        "Unipile",
+        lastError instanceof Error ? lastError.message : "Request timed out",
+      );
+    }
 
     if (!res.ok) {
-      const text = await res.text();
+      const text = (await res.text()).slice(0, 4_000);
       throw new ExternalServiceError("Unipile", text);
     }
 

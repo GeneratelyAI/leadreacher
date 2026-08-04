@@ -1,17 +1,17 @@
+import { fetchPublicText } from "./public-url.js";
+
 export async function fetchWebsiteText(url: string): Promise<string> {
-  const response = await fetch(url, {
-    headers: {
-      "User-Agent": "LeadReacher/1.0 (+https://leadreacher.com)",
-      Accept: "text/html,application/xhtml+xml",
-    },
-    signal: AbortSignal.timeout(10_000),
+  const response = await fetchPublicText(url, {
+    maxBytes: 1_000_000,
+    timeoutMs: 10_000,
+    allowedContentTypes: ["text/html", "application/xhtml+xml"],
   });
 
-  if (!response.ok) {
+  if (response.status < 200 || response.status >= 300) {
     throw new Error(`Failed to fetch website (${response.status})`);
   }
 
-  const html = await response.text();
+  const html = response.body;
   const withoutScripts = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ");
@@ -59,21 +59,17 @@ export async function fetchWebsitePreviewImage(
   url: string,
 ): Promise<string | null> {
   try {
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": "LeadReacher/1.0 (+https://leadreacher.com)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      signal: AbortSignal.timeout(8_000),
-      redirect: "follow",
+    const response = await fetchPublicText(url, {
+      maxBytes: 1_000_000,
+      timeoutMs: 8_000,
+      allowedContentTypes: ["text/html", "application/xhtml+xml"],
     });
 
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       return null;
     }
 
-    const html = await response.text();
-    return extractPreviewImageFromHtml(html, response.url || url);
+    return extractPreviewImageFromHtml(response.body, response.url || url);
   } catch {
     return null;
   }
