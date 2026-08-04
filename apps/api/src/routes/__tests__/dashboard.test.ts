@@ -32,6 +32,8 @@ const {
   deliveryAttemptCount,
   manualDeliveryAttemptFindMany,
   manualDeliveryAttemptCount,
+  activityEventFindMany,
+  activityEventCount,
   checkAndIncrementDailySendLimit,
   getDailySendLimitStatus,
   deliverOperatorMessage,
@@ -41,6 +43,7 @@ const {
   readDashboardChrome,
   cacheDashboardChrome,
   invalidateDashboardChrome,
+  getCampaignSenderForChannel,
 } = vi.hoisted(() => ({
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
@@ -70,6 +73,8 @@ const {
   deliveryAttemptCount: vi.fn(),
   manualDeliveryAttemptFindMany: vi.fn(),
   manualDeliveryAttemptCount: vi.fn(),
+  activityEventFindMany: vi.fn(),
+  activityEventCount: vi.fn(),
   checkAndIncrementDailySendLimit: vi.fn(),
   getDailySendLimitStatus: vi.fn(),
   deliverOperatorMessage: vi.fn(),
@@ -79,6 +84,7 @@ const {
   readDashboardChrome: vi.fn(),
   cacheDashboardChrome: vi.fn(),
   invalidateDashboardChrome: vi.fn(),
+  getCampaignSenderForChannel: vi.fn(),
 }));
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -94,6 +100,7 @@ vi.mock("../../lib/prisma.js", () => ({
     campaignVideoTemplate: { findFirst: campaignVideoTemplateFindFirst },
     deliveryAttempt: { findMany: deliveryAttemptFindMany, count: deliveryAttemptCount },
     manualDeliveryAttempt: { findMany: manualDeliveryAttemptFindMany, count: manualDeliveryAttemptCount },
+    activityEvent: { findMany: activityEventFindMany, count: activityEventCount },
   },
 }));
 vi.mock("../../lib/queue.js", () => ({
@@ -109,7 +116,14 @@ vi.mock("../../services/analytics-insights.js", () => ({
   readCachedAnalyticsInsights,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({ checkAndIncrementDailySendLimit, getDailySendLimitStatus }));
-vi.mock("../../services/operator-message-delivery.js", () => ({ deliverOperatorMessage }));
+vi.mock("../../services/operator-message-delivery.js", () => ({
+  deliverOperatorMessage,
+  resolveExistingOperatorDelivery: vi.fn((existing: { id: string }) => ({ messageId: existing.id })),
+}));
+vi.mock("../../services/entitlements.js", () => ({
+  requireOrganizationEntitlement: vi.fn(async () => undefined),
+}));
+vi.mock("../../services/campaign-channel-accounts.js", () => ({ getCampaignSenderForChannel }));
 vi.mock("../../modules/agents/reply-draft-agent.js", () => ({ runReplyDraftAgent }));
 vi.mock("../../adapters/unipile.js", () => ({ UnipileAdapter: class {} }));
 
@@ -122,6 +136,7 @@ import {
   sortDashboardActivity,
   campaignMetricRate,
   campaignStatusFilter,
+  leadSearchWhere,
 } from "../dashboard.js";
 import { buildPrimaryCampaignVideoSummary } from "../../lib/campaign-video-summary.js";
 
@@ -142,6 +157,31 @@ async function buildTestApp() {
 }
 
 let app: Awaited<ReturnType<typeof buildTestApp>>;
+
+describe("leadSearchWhere", () => {
+  it("matches full names by requiring each word across searchable lead fields", () => {
+    expect(leadSearchWhere("Maya Blake")).toEqual({
+      AND: [
+        {
+          OR: [
+            { firstName: { contains: "Maya", mode: "insensitive" } },
+            { lastName: { contains: "Maya", mode: "insensitive" } },
+            { company: { contains: "Maya", mode: "insensitive" } },
+            { title: { contains: "Maya", mode: "insensitive" } },
+          ],
+        },
+        {
+          OR: [
+            { firstName: { contains: "Blake", mode: "insensitive" } },
+            { lastName: { contains: "Blake", mode: "insensitive" } },
+            { company: { contains: "Blake", mode: "insensitive" } },
+            { title: { contains: "Blake", mode: "insensitive" } },
+          ],
+        },
+      ],
+    });
+  });
+});
 
 beforeEach(async () => {
   organizationFindUnique.mockReset().mockResolvedValue({
@@ -223,6 +263,12 @@ beforeEach(async () => {
   readDashboardChrome.mockReset().mockResolvedValue(null);
   cacheDashboardChrome.mockReset().mockResolvedValue(undefined);
   invalidateDashboardChrome.mockReset().mockResolvedValue(undefined);
+  getCampaignSenderForChannel.mockReset().mockResolvedValue({
+    id: "account-1",
+    platform: "linkedin",
+    status: "active",
+    unipileId: "unipile-1",
+  });
   videoAssetCount
     .mockReset()
     .mockResolvedValueOnce(1)
@@ -297,6 +343,8 @@ beforeEach(async () => {
   deliveryAttemptCount.mockReset().mockResolvedValue(0);
   manualDeliveryAttemptFindMany.mockReset().mockResolvedValue([]);
   manualDeliveryAttemptCount.mockReset().mockResolvedValue(0);
+  activityEventFindMany.mockReset().mockResolvedValue([]);
+  activityEventCount.mockReset().mockResolvedValue(0);
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
   getDailySendLimitStatus.mockReset().mockResolvedValue({ limit: 50, remaining: 49, resetAt: "2026-07-22T00:00:00.000Z" });
   deliverOperatorMessage.mockReset().mockResolvedValue({ messageId: "operator-message-1" });
@@ -588,6 +636,33 @@ describe("dashboard overview", () => {
   });
 
   it("returns a chronological, persisted activity feed without forecast data", async () => {
+    activityEventFindMany.mockResolvedValueOnce([
+      {
+        id: "message:message-1",
+        orgId: "org-1",
+        eventType: "message.inbound",
+        title: "Reply received from Grace Hopper",
+        detail: "linkedin · Q3 outreach",
+        channel: "linkedin",
+        campaignId: "campaign-1",
+        leadId: "lead-1",
+        metadata: { avatarUrl: null },
+        occurredAt: new Date("2026-07-20T13:00:00.000Z"),
+      },
+      {
+        id: "lead:lead-1",
+        orgId: "org-1",
+        eventType: "prospect.added",
+        title: "Grace Hopper added",
+        detail: "Navy",
+        channel: null,
+        campaignId: null,
+        leadId: "lead-1",
+        metadata: {},
+        occurredAt: new Date("2026-07-20T12:00:00.000Z"),
+      },
+    ]);
+    activityEventCount.mockResolvedValueOnce(2).mockResolvedValueOnce(2).mockResolvedValueOnce(0);
     campaignLeadFindMany.mockResolvedValueOnce([
       { id: "campaign-lead-1", campaignId: "campaign-1", leadId: "lead-1" },
     ]);
@@ -828,12 +903,16 @@ describe("dashboard overview", () => {
       campaignId: "campaign-1",
       leadId: "lead-1",
       linkedinChatId: "chat-1",
-      lead: { id: "lead-1" },
+      providerChatId: "chat-1",
+      emailThreadKey: null,
+      lead: { id: "lead-1", email: null, firstName: "Hannah", lastName: "Lewis" },
       campaign: {
-        senderAccount: { id: "account-1", status: "active", unipileId: "unipile-1" },
+        senderAccount: { id: "account-1", platform: "linkedin", status: "active", unipileId: "unipile-1" },
       },
     });
-    messageCount.mockResolvedValueOnce(1);
+    messageFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ channel: "linkedin", content: { message: "Can we talk?" } });
     checkAndIncrementDailySendLimit.mockResolvedValueOnce({ allowed: false, remaining: 0 });
     getDailySendLimitStatus.mockResolvedValueOnce({
       limit: 50,
@@ -963,6 +1042,7 @@ describe("dashboard conversations", () => {
         company: "Common Thread",
         location: "North America",
         linkedinUrl: "https://linkedin.com/in/hannah",
+        email: "hannah@example.com",
         avatarUrl: null,
         status: "replied",
       },
@@ -975,6 +1055,7 @@ describe("dashboard conversations", () => {
     messageFindMany.mockResolvedValueOnce([
       {
         id: "msg-1",
+        channel: "linkedin",
         content: { message: "Hello" },
         direction: "outbound",
         origin: "sequence",

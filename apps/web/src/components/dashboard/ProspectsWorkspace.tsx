@@ -59,7 +59,8 @@ import { apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
-type ReviewStatus = "all" | "pending" | "approved" | "excluded";
+type ReviewStatus = "all" | "pending" | "approved" | "excluded" | "booked";
+type LeadReviewStatus = Exclude<ReviewStatus, "all" | "booked">;
 
 type Campaign = {
   id: string;
@@ -83,7 +84,7 @@ type Prospect = {
   avatarUrl: string | null;
   source: string;
   status: string;
-  reviewStatus: Exclude<ReviewStatus, "all">;
+  reviewStatus: LeadReviewStatus;
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +136,7 @@ type ProspectListResponse = {
     pending: number;
     approved: number;
     excluded: number;
+    booked: number;
     reached: number;
   };
   limit: number;
@@ -186,7 +188,7 @@ function ReachableSignals({ prospect }: { prospect: Prospect }) {
   );
 }
 
-function ReviewBadge({ status }: { status: Exclude<ReviewStatus, "all"> }) {
+function ReviewBadge({ status }: { status: LeadReviewStatus }) {
   const styles = {
     pending: "border-onboarding-warning-200 bg-onboarding-warning-50 text-onboarding-warning-900 dark:border-onboarding-warning-500/70 dark:bg-onboarding-warning-900/60 dark:text-onboarding-warning-150",
     approved: "border-onboarding-success-200 bg-onboarding-success-50 text-onboarding-success-700 dark:border-onboarding-success-500/70 dark:bg-onboarding-success-900/60 dark:text-onboarding-neutral-0",
@@ -257,8 +259,9 @@ function SelectionActionBar({
           className="h-10 shrink-0 px-3 font-medium sm:h-8"
           disabled={isUpdating || !enrollmentCampaignId || approvedCount === 0}
           onClick={onEnroll}
+          title={!enrollmentCampaignId ? "Choose a draft or review campaign first" : approvedCount === 0 ? "Approve at least one selected prospect before enrollment" : `${approvedCount} of ${count} selected prospects are eligible`}
         >
-          Add {approvedCount || count} approved
+          Add {approvedCount} approved
         </Button>
       }
     >
@@ -320,8 +323,12 @@ export function ProspectsWorkspace() {
   const prospectParams = useMemo(() => {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
     if (debouncedQuery) params.set("query", debouncedQuery);
-    if (reviewStatus !== "all") params.set("reviewStatus", reviewStatus);
-    if (lifecycle) params.set("status", lifecycle);
+    if (reviewStatus === "booked") {
+      params.set("status", "meeting");
+    } else {
+      if (reviewStatus !== "all") params.set("reviewStatus", reviewStatus);
+      if (lifecycle) params.set("status", lifecycle);
+    }
     if (source) params.set("source", source);
     if (campaignFilter) params.set("campaignId", campaignFilter);
     return params.toString();
@@ -339,7 +346,7 @@ export function ProspectsWorkspace() {
   });
   const leads = prospectsQuery.data?.leads ?? [];
   const campaigns = campaignsQuery.data?.campaigns ?? [];
-  const counts = prospectsQuery.data?.counts ?? { all: 0, pending: 0, approved: 0, excluded: 0, reached: 0 };
+  const counts = prospectsQuery.data?.counts ?? { all: 0, pending: 0, approved: 0, excluded: 0, booked: 0, reached: 0 };
   const total = prospectsQuery.data?.total ?? 0;
   const isLoading = prospectsQuery.isLoading && !prospectsQuery.data;
   const isRefreshing = prospectsQuery.isFetching && !!prospectsQuery.data;
@@ -482,6 +489,7 @@ export function ProspectsWorkspace() {
               <TabsTrigger value="pending" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Pending <span className="text-xs text-muted-foreground">{counts.pending}</span></TabsTrigger>
               <TabsTrigger value="approved" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Approved <span className="text-xs text-muted-foreground">{counts.approved}</span></TabsTrigger>
               <TabsTrigger value="excluded" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Excluded <span className="text-xs text-muted-foreground">{counts.excluded}</span></TabsTrigger>
+              <TabsTrigger value="booked" className="flex-none px-3 py-2.5 min-h-10 sm:min-h-0 sm:py-2">Booked <span className="text-xs text-muted-foreground">{counts.booked}</span></TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -490,7 +498,8 @@ export function ProspectsWorkspace() {
           <div className="px-6 py-16 text-center">
             <Users className="mx-auto size-8 text-muted-foreground" />
             <h2 className="mt-3 font-semibold">No prospects match these filters</h2>
-            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">Import a CSV or run an ICP search to begin reviewing prospects.</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{debouncedQuery || reviewStatus !== "all" || activeFilterCount ? "No prospects match the current search and filters." : "Import a CSV or run an ICP search to begin reviewing prospects."}</p>
+            {debouncedQuery || reviewStatus !== "all" || activeFilterCount ? <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button> : null}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button>
               <Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button>

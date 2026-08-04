@@ -21,9 +21,15 @@ import {
   QUEUE_ANALYTICS_INSIGHTS,
 } from "../lib/queue.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { isOutreachChannel } from "../lib/channels.js";
 import { buildPrimaryCampaignVideoSummary } from "../lib/campaign-video-summary.js";
 import { readCachedAnalyticsInsights } from "../services/analytics-insights.js";
-import { deliverOperatorMessage } from "../services/operator-message-delivery.js";
+import {
+  deliverOperatorMessage,
+  resolveExistingOperatorDelivery,
+} from "../services/operator-message-delivery.js";
+import { requireOrganizationEntitlement } from "../services/entitlements.js";
+import { getCampaignSenderForChannel } from "../services/campaign-channel-accounts.js";
 import { runReplyDraftAgent } from "../modules/agents/reply-draft-agent.js";
 
 type EngineStatus = "running" | "ready" | "needs_attention";
@@ -319,6 +325,7 @@ const ConversationListQuerySchema = z.object({
   query: z.string().trim().max(120).optional(),
   campaignId: z.string().trim().min(1).optional(),
   state: z.enum(["all", "unread", "needs_reply"]).default("all"),
+  channel: z.enum(["linkedin", "whatsapp", "facebook", "instagram", "email"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -404,6 +411,20 @@ export function overviewMetricTrend(current: number, previous: number): Overview
   };
 }
 
+export function leadSearchWhere(rawQuery: string): Prisma.LeadWhereInput {
+  const terms = rawQuery.trim().split(/\s+/).filter(Boolean);
+  return {
+    AND: terms.map((term) => ({
+      OR: [
+        { firstName: { contains: term, mode: "insensitive" } },
+        { lastName: { contains: term, mode: "insensitive" } },
+        { company: { contains: term, mode: "insensitive" } },
+        { title: { contains: term, mode: "insensitive" } },
+      ],
+    })),
+  };
+}
+
 function prospectListWhere(
   orgId: string,
   query: z.infer<typeof ProspectListQuerySchema>,
@@ -414,21 +435,30 @@ function prospectListWhere(
     ...(query.status ? { status: query.status } : {}),
     ...(query.source ? { source: query.source } : {}),
     ...(query.campaignId ? { campaigns: { some: { campaignId: query.campaignId } } } : {}),
-    ...(query.query
-      ? {
-          OR: [
-            { firstName: { contains: query.query, mode: "insensitive" } },
-            { lastName: { contains: query.query, mode: "insensitive" } },
-            { company: { contains: query.query, mode: "insensitive" } },
-            { title: { contains: query.query, mode: "insensitive" } },
-          ],
-        }
-      : {}),
+    ...(query.query ? leadSearchWhere(query.query) : {}),
   };
 }
 
 function conversationKey(campaignId: string, leadId: string): string {
   return `${campaignId}:${leadId}`;
+}
+
+function activityKindFromEventType(eventType: string): DashboardActivity["kind"] {
+  if (eventType.startsWith("message.")) return "message";
+  if (eventType.startsWith("prospect.")) return "prospect";
+  if (eventType.startsWith("video.")) return "video";
+  return "campaign";
+}
+
+function activityMetadata(value: Prisma.JsonValue | null): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function metadataString(metadata: Record<string, unknown>, key: string): string | null {
+  const value = metadata[key];
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 export function resolveDashboardEngine(input: {
@@ -1097,7 +1127,6 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
           orgId,
           direction: "inbound",
           handledAt: null,
-          channel: "linkedin",
         },
         orderBy: { createdAt: "desc" },
         take: 12,
@@ -1205,7 +1234,6 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
           orgId,
           direction: "inbound",
           handledAt: null,
-          channel: "linkedin",
         },
       }),
     ]);
@@ -1412,37 +1440,24 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
     const currentDateWhere = { gte: range.start, lte: range.end };
     const previousDateWhere = { gte: range.previousStart, lte: range.previousEnd };
-    // We only need enough candidates from each source to fill this page after
-    // the unified activity feed is sorted. The previous fixed 100-row floor
-    // made a 10-row activity page scan far more history than it could render.
-    const sourceLimit = Math.min(100, Math.max(20, query.limit + query.offset + 12));
-    const messageWhere = {
+    const baseActivityWhere: Prisma.ActivityEventWhereInput = {
       orgId,
-      ...(hasExplicitRange ? { createdAt: currentDateWhere } : {}),
+      ...(hasExplicitRange ? { occurredAt: currentDateWhere } : {}),
       ...(query.channel ? { channel: query.channel } : {}),
       ...(query.campaignId ? { campaignId: query.campaignId } : {}),
     };
-    const leadWhere = {
-      orgId,
-      ...(hasExplicitRange ? { createdAt: currentDateWhere } : {}),
-      ...(query.campaignId ? { campaigns: { some: { campaignId: query.campaignId } } } : {}),
-    };
-    const videoWhere = {
-      orgId,
-      ...(hasExplicitRange ? { updatedAt: currentDateWhere } : {}),
-      ...(query.campaignId ? { campaignId: query.campaignId } : {}),
-    };
-    const campaignWhere = {
-      orgId,
-      ...(hasExplicitRange ? { updatedAt: currentDateWhere } : {}),
-      ...(query.campaignId ? { id: query.campaignId } : {}),
+    const activityWhere: Prisma.ActivityEventWhereInput = {
+      ...baseActivityWhere,
+      ...(query.kind === "all"
+        ? {}
+        : { eventType: { startsWith: `${query.kind === "prospect" ? "prospect" : query.kind}.` } }),
     };
 
     const [
-      messages,
-      leads,
-      videos,
-      campaigns,
+      activityRows,
+      activityTotal,
+      totalActivities,
+      previousTotalActivities,
       messagesSent,
       previousMessagesSent,
       repliesReceived,
@@ -1454,45 +1469,21 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       campaignOptions,
       channelRows,
     ] = await Promise.all([
-      prisma.message.findMany({
-        where: messageWhere,
-        orderBy: { createdAt: "desc" },
-        take: sourceLimit,
-        select: {
-          id: true,
-          direction: true,
-          channel: true,
-          createdAt: true,
-          leadId: true,
-          campaignId: true,
-          lead: { select: { id: true, firstName: true, lastName: true, company: true, avatarUrl: true } },
-          campaign: { select: { id: true, name: true } },
+      prisma.activityEvent.findMany({
+        where: activityWhere,
+        orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
+        skip: query.offset,
+        take: query.limit,
+      }),
+      prisma.activityEvent.count({ where: activityWhere }),
+      prisma.activityEvent.count({ where: baseActivityWhere }),
+      prisma.activityEvent.count({
+        where: {
+          orgId,
+          occurredAt: previousDateWhere,
+          ...(query.channel ? { channel: query.channel } : {}),
+          ...(query.campaignId ? { campaignId: query.campaignId } : {}),
         },
-      }),
-      prisma.lead.findMany({
-        where: leadWhere,
-        orderBy: { createdAt: "desc" },
-        take: sourceLimit,
-        select: { id: true, firstName: true, lastName: true, company: true, avatarUrl: true, createdAt: true },
-      }),
-      prisma.videoAsset.findMany({
-        where: videoWhere,
-        orderBy: { updatedAt: "desc" },
-        take: sourceLimit,
-        select: {
-          id: true,
-          status: true,
-          needsReview: true,
-          updatedAt: true,
-          campaign: { select: { name: true } },
-          lead: { select: { firstName: true, lastName: true, avatarUrl: true } },
-        },
-      }),
-      prisma.campaign.findMany({
-        where: campaignWhere,
-        orderBy: { updatedAt: "desc" },
-        take: sourceLimit,
-        select: { id: true, name: true, status: true, updatedAt: true, _count: { select: { leads: true } } },
       }),
       prisma.message.count({
         where: { orgId, direction: "outbound", createdAt: currentDateWhere },
@@ -1536,11 +1527,17 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       }),
     ]);
 
-    const campaignLeads = messages.length
+    const messageActivityRows = activityRows.filter(
+      (row) => row.eventType.startsWith("message.") && row.campaignId && row.leadId,
+    );
+    const campaignLeads = messageActivityRows.length
       ? await prisma.campaignLead.findMany({
           where: {
             campaign: { orgId },
-            OR: messages.map((message) => ({ campaignId: message.campaignId, leadId: message.leadId })),
+            OR: messageActivityRows.map((row) => ({
+              campaignId: row.campaignId!,
+              leadId: row.leadId!,
+            })),
           },
           select: { id: true, campaignId: true, leadId: true },
         })
@@ -1549,32 +1546,41 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       campaignLeads.map((campaignLead) => [conversationKey(campaignLead.campaignId, campaignLead.leadId), campaignLead.id]),
     );
 
-    const all = buildDashboardActivity({
-      messages: messages.map((message) => ({
-        ...message,
-        campaignLeadId: campaignLeadByConversation.get(conversationKey(message.campaignId, message.leadId)),
-      })),
-      leads,
-      videos,
-      campaigns,
-    }).filter((item) => {
-      if (hasExplicitRange && !inDateRange(item.occurredAt, range.start, range.end)) return false;
-      if (query.channel && item.kind === "message" && item.channel !== query.channel) return false;
-      return true;
+    const activity = activityRows.map((row): DashboardActivity => {
+      const metadata = activityMetadata(row.metadata);
+      const campaignLeadId = row.campaignId && row.leadId
+        ? campaignLeadByConversation.get(conversationKey(row.campaignId, row.leadId))
+        : undefined;
+      const isReply = row.eventType === "message.inbound" && campaignLeadId;
+      return {
+        id: row.id,
+        kind: activityKindFromEventType(row.eventType),
+        title: row.title,
+        detail: row.detail,
+        occurredAt: row.occurredAt,
+        avatarUrl: metadataString(metadata, "avatarUrl"),
+        ...(row.channel ? { channel: row.channel } : {}),
+        action: isReply ? "reply" : "view",
+        href: isReply
+          ? `/dashboard/messages/${campaignLeadId}`
+          : row.eventType.startsWith("prospect.") && row.leadId
+            ? `/dashboard/prospects/${row.leadId}`
+            : row.eventType.startsWith("campaign.") || row.eventType.startsWith("video.")
+              ? "/dashboard/campaigns"
+              : "/dashboard/activity",
+      };
     });
-
-    const filtered = query.kind === "all" ? all : all.filter((item) => item.kind === query.kind);
     const videosSent = videoMessages.filter((message) => messageHasVideoAttachment(message.content)).length;
     const previousVideosSent = previousVideoMessages.filter((message) => messageHasVideoAttachment(message.content)).length;
     const summaryMetrics = {
-      totalActivities: all.length,
+      totalActivities,
       messagesSent,
       repliesReceived,
       meetingsBooked,
       videosSent,
     };
     const previousSummaryMetrics = {
-      totalActivities: previousMessagesSent + previousRepliesReceived + previousMeetingsBooked + previousVideosSent,
+      totalActivities: previousTotalActivities,
       messagesSent: previousMessagesSent,
       repliesReceived: previousRepliesReceived,
       meetingsBooked: previousMeetingsBooked,
@@ -1589,8 +1595,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     ) as Record<ActivitySummaryKey, ActivitySummaryTrend>;
 
     return reply.send({
-      activity: filtered.slice(query.offset, query.offset + query.limit),
-      total: filtered.length,
+      activity,
+      total: activityTotal,
       limit: query.limit,
       offset: query.offset,
       summary: {
@@ -1620,11 +1626,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       prisma.lead.findMany({
         where: {
           orgId,
-          OR: [
-            { firstName: { contains: query.query, mode: "insensitive" } },
-            { lastName: { contains: query.query, mode: "insensitive" } },
-            { company: { contains: query.query, mode: "insensitive" } },
-          ],
+          ...leadSearchWhere(query.query),
         },
         take: 5,
         orderBy: { updatedAt: "desc" },
@@ -1658,7 +1660,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const orgId = requireOrgId(request);
     const query = request.query;
     const where = prospectListWhere(orgId, query);
-    const [leads, total, allLeadsTotal, reviewCounts, reachedLeads] = await Promise.all([
+    const [leads, total, allLeadsTotal, reviewCounts, bookedLeadsTotal, reachedLeads] = await Promise.all([
       prisma.lead.findMany({
         where,
         orderBy: [{ reviewStatus: "asc" }, { createdAt: "desc" }],
@@ -1704,6 +1706,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         where: { orgId },
         _count: { _all: true },
       }),
+      prisma.lead.count({ where: { orgId, status: "meeting" } }),
       prisma.message.findMany({
         where: {
           orgId,
@@ -1742,6 +1745,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         pending: counts.pending,
         approved: counts.approved,
         excluded: counts.excluded,
+        booked: bookedLeadsTotal,
         reached: reachedLeads.length,
       },
       limit: query.limit,
@@ -1874,7 +1878,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const query = request.query;
     const campaignLeads = await prisma.campaignLead.findMany({
       where: {
-        linkedinChatId: { not: null },
+        OR: [
+          { providerChatId: { not: null } },
+          { linkedinChatId: { not: null } },
+          { emailThreadKey: { not: null } },
+        ],
         campaign: {
           orgId,
           ...(query.campaignId ? { id: query.campaignId } : {}),
@@ -1895,6 +1903,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         campaignId: true,
         leadId: true,
         linkedinChatId: true,
+        providerChatId: true,
+        emailThreadKey: true,
         status: true,
         lead: { select: { firstName: true, lastName: true, title: true, company: true, avatarUrl: true } },
         campaign: {
@@ -1922,12 +1932,13 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         orgId,
         campaignId: { in: [...new Set(campaignLeads.map((item) => item.campaignId))] },
         leadId: { in: [...new Set(campaignLeads.map((item) => item.leadId))] },
-        channel: "linkedin",
+        ...(query.channel ? { channel: query.channel } : {}),
       },
       select: {
         id: true,
         campaignId: true,
         leadId: true,
+        channel: true,
         direction: true,
         status: true,
         origin: true,
@@ -1938,6 +1949,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
+      take: Math.min(2_000, Math.max(200, (query.limit + query.offset) * 20)),
     });
 
     const messagesByConversation = new Map<string, typeof messages>();
@@ -1958,7 +1970,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         id: campaignLead.id,
         leadId: campaignLead.leadId,
         campaignLeadStatus: campaignLead.status,
-        chatId: campaignLead.linkedinChatId,
+        chatId: campaignLead.providerChatId ?? campaignLead.linkedinChatId,
+        channel: latest.channel,
         prospect: {
           name: leadName(campaignLead.lead),
           title: campaignLead.lead.title,
@@ -2017,6 +2030,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         status: true,
         currentStep: true,
         linkedinChatId: true,
+        providerChatId: true,
+        emailThreadKey: true,
         lead: {
           select: {
             firstName: true,
@@ -2025,6 +2040,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
             company: true,
             location: true,
             linkedinUrl: true,
+            email: true,
             avatarUrl: true,
             status: true,
           },
@@ -2041,11 +2057,12 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     if (!campaignLead) throw new NotFoundError("Conversation");
 
     const messages = await prisma.message.findMany({
-      where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId, channel: "linkedin" },
+      where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId },
       orderBy: { createdAt: "asc" },
       select: {
         id: true,
         content: true,
+        channel: true,
         direction: true,
         origin: true,
         status: true,
@@ -2062,8 +2079,15 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
     await invalidateDashboardChrome(orgId);
 
-    const sender = campaignLead.campaign.senderAccount;
-    const senderLimit = sender?.unipileId
+    const latestChannel = messages.at(-1)?.channel ?? "linkedin";
+    const sender = isOutreachChannel(latestChannel)
+      ? await getCampaignSenderForChannel({
+          campaignId: campaignLead.campaignId,
+          channel: latestChannel,
+          legacyLinkedInAccount: campaignLead.campaign.senderAccount,
+        })
+      : null;
+    const senderLimit = latestChannel === "linkedin" && sender?.unipileId
       ? await getDailySendLimitStatus(sender.unipileId, "message")
       : null;
     const hasInboundMessage = messages.some((message) => message.direction === "inbound");
@@ -2074,12 +2098,20 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         leadId: campaignLead.leadId,
         status: campaignLead.status,
         currentStep: campaignLead.currentStep,
-        chatId: campaignLead.linkedinChatId,
+        chatId: campaignLead.providerChatId ?? campaignLead.linkedinChatId,
+        channel: latestChannel,
         prospect: { ...campaignLead.lead, name: leadName(campaignLead.lead) },
         campaign: { id: campaignLead.campaign.id, name: campaignLead.campaign.name },
         sender,
         senderLimit,
-        canReply: Boolean(hasInboundMessage && campaignLead.linkedinChatId && sender?.status === "active" && sender.unipileId),
+        canReply: Boolean(
+          hasInboundMessage &&
+          sender?.status === "active" &&
+          sender.unipileId &&
+          (latestChannel === "email"
+            ? campaignLead.lead.email
+            : campaignLead.providerChatId ?? campaignLead.linkedinChatId),
+        ),
         messages: messages.map((message) => ({
           ...message,
           content: messageContent(message.content),
@@ -2108,7 +2140,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!campaignLead) throw new NotFoundError("Conversation");
     const messages = await prisma.message.findMany({
-      where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId, channel: "linkedin" },
+      where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId },
       orderBy: { createdAt: "asc" },
       select: { direction: true, content: true },
     });
@@ -2138,10 +2170,14 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const body = request.body;
     const existingReply = await prisma.message.findFirst({
       where: { orgId, idempotencyKey: body.idempotencyKey },
-      select: { id: true },
+      select: {
+        id: true,
+        status: true,
+        manualDeliveryAttempt: { select: { state: true } },
+      },
     });
     if (existingReply) {
-      return reply.status(201).send({ messageId: existingReply.id });
+      return reply.status(201).send(resolveExistingOperatorDelivery(existingReply));
     }
     const campaignLead = await prisma.campaignLead.findFirst({
       where: { id: campaignLeadId, campaign: { orgId } },
@@ -2150,30 +2186,51 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         campaignId: true,
         leadId: true,
         linkedinChatId: true,
-        lead: { select: { id: true } },
+        providerChatId: true,
+        emailThreadKey: true,
+        lead: { select: { id: true, email: true, firstName: true, lastName: true } },
         campaign: {
           select: {
-            senderAccount: { select: { id: true, status: true, unipileId: true } },
+            senderAccount: { select: { id: true, platform: true, status: true, unipileId: true } },
           },
         },
       },
     });
     if (!campaignLead) throw new NotFoundError("Conversation");
-    if (!campaignLead.linkedinChatId) throw new ValidationError("This prospect does not have a LinkedIn chat yet");
-    const sender = campaignLead.campaign.senderAccount;
-    if (!sender || sender.status !== "active" || !sender.unipileId) {
-      throw new ValidationError("This campaign needs an active LinkedIn sender before replying");
-    }
-    const hasInboundMessage = await prisma.message.count({
+    const latestInbound = await prisma.message.findFirst({
       where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId, direction: "inbound" },
+      orderBy: { createdAt: "desc" },
+      select: { channel: true, content: true },
     });
-    if (hasInboundMessage === 0) {
+    if (!latestInbound) {
       throw new ValidationError("A prospect reply is required before sending an operator response");
     }
-    const limit = await checkAndIncrementDailySendLimit(sender.unipileId, "message");
-    if (!limit.allowed) {
-      const status = await getDailySendLimitStatus(sender.unipileId, "message");
-      throw new DailySendLimitError(status.resetAt);
+    if (!isOutreachChannel(latestInbound.channel)) {
+      throw new ValidationError(`Unsupported conversation channel: ${latestInbound.channel}`);
+    }
+    const channel = latestInbound.channel;
+    const sender = await getCampaignSenderForChannel({
+      campaignId: campaignLead.campaignId,
+      channel,
+      legacyLinkedInAccount: campaignLead.campaign.senderAccount,
+    });
+    if (!sender?.unipileId || sender.status !== "active") {
+      throw new ValidationError(`This campaign needs an active ${channel} sender before replying`);
+    }
+    const chatId = campaignLead.providerChatId ?? campaignLead.linkedinChatId ?? undefined;
+    if (channel !== "email" && !chatId) {
+      throw new ValidationError(`This prospect does not have a ${channel} chat yet`);
+    }
+    if (channel === "email" && !campaignLead.lead.email) {
+      throw new ValidationError("This prospect does not have an email address");
+    }
+    await requireOrganizationEntitlement(orgId);
+    if (channel === "linkedin") {
+      const limit = await checkAndIncrementDailySendLimit(sender.unipileId, "message");
+      if (!limit.allowed) {
+        const status = await getDailySendLimitStatus(sender.unipileId, "message");
+        throw new DailySendLimitError(status.resetAt);
+      }
     }
 
     const adapter = new UnipileAdapter({ dsn: env.UNIPILE_DSN, apiKey: env.UNIPILE_API_KEY });
@@ -2182,7 +2239,16 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       campaignId: campaignLead.campaignId,
       campaignLeadId: campaignLead.id,
       leadId: campaignLead.leadId,
-      chatId: campaignLead.linkedinChatId,
+      channel,
+      chatId,
+      senderAccountId: sender.unipileId,
+      recipientEmail: campaignLead.lead.email ?? undefined,
+      recipientName: leadName(campaignLead.lead),
+      subject: (() => {
+        if (!latestInbound.content || typeof latestInbound.content !== "object" || Array.isArray(latestInbound.content)) return undefined;
+        const subject = (latestInbound.content as Record<string, unknown>).subject;
+        return typeof subject === "string" && subject.trim() ? `Re: ${subject.replace(/^Re:\s*/i, "")}` : undefined;
+      })(),
       message: body.message,
       idempotencyKey: body.idempotencyKey,
     });

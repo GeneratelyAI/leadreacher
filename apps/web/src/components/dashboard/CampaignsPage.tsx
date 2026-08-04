@@ -414,15 +414,33 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [sequence, setSequence] = useState<SequenceStepDraft[]>(() => defaultSequenceDraft());
-  const [senderAccountId, setSenderAccountId] = useState("");
-  const [includeWhatsapp, setIncludeWhatsapp] = useState(false);
+  const [channelAccounts, setChannelAccounts] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const activeAccounts = accounts.filter((account) => account.platform === "linkedin" && account.status === "active");
+  const activeAccounts = useMemo(() => accounts.filter((account) => account.status === "active"), [accounts]);
+  const sequenceChannels = useMemo(() => [...new Set(sequence.map((step) => {
+    if (step.type.startsWith("linkedin_")) return "linkedin";
+    if (step.type === "email") return "email";
+    return step.type.replace(/_message$/, "");
+  }))], [sequence]);
 
   useEffect(() => {
-    if (!senderAccountId) setSenderAccountId(activeAccounts[0]?.id ?? "");
-  }, [activeAccounts, senderAccountId]);
+    setChannelAccounts((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const channel of sequenceChannels) {
+        const selected = activeAccounts.find((account) => account.id === next[channel] && account.platform === channel);
+        if (!selected) {
+          const fallback = activeAccounts.find((account) => account.platform === channel)?.id ?? "";
+          if (next[channel] !== fallback) {
+            next[channel] = fallback;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [accounts, sequenceChannels]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -430,18 +448,23 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       setError("Every sequence step needs a message.");
       return;
     }
+    const missingChannel = sequenceChannels.find((channel) => !channelAccounts[channel]);
+    if (missingChannel) {
+      setError(`Connect and select an active ${channelLabel(missingChannel)} sender before creating this campaign.`);
+      return;
+    }
     setIsSaving(true);
     setError(null);
     try {
-      const channels = includeWhatsapp ? ["linkedin", "whatsapp"] : ["linkedin"];
       await apiFetch("/campaigns", {
         method: "POST",
         body: JSON.stringify({
           name,
-          channels,
-          socialAccountId: senderAccountId,
+          channels: sequenceChannels,
+          socialAccountId: channelAccounts.linkedin || undefined,
+          channelAccounts,
           sequence: sequence.map((step, index) => ({
-            type: index === 0 ? "linkedin_invite" : "linkedin_message",
+            type: step.type,
             message: step.message.trim(),
             delayHours: index === 0 ? 0 : step.delayHours,
           })),
@@ -449,7 +472,7 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       });
       setName("");
       setSequence(defaultSequenceDraft());
-      setIncludeWhatsapp(false);
+      setChannelAccounts({});
       setOpen(false);
       toast.success("Campaign draft created");
       await onCreated();
@@ -483,38 +506,33 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
               Campaign name
               <Input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Q3 founder outreach" />
             </label>
-            <label className="grid gap-2 text-sm font-medium">
-              LinkedIn sender
-              <Select value={senderAccountId || null} onValueChange={(value) => setSenderAccountId(value ?? "")} required>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select a connected account" />
-                </SelectTrigger>
-                <SelectContent>
-                  {activeAccounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
-                      {account.accountName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
           </div>
-          <label className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm">
-            <Checkbox checked={includeWhatsapp} onCheckedChange={(checked) => setIncludeWhatsapp(checked === true)} />
-            <span>
-              Also target WhatsApp
-              <span className="mt-0.5 block text-xs text-muted-foreground">Stored on the campaign; LinkedIn remains the live send path today.</span>
-            </span>
-          </label>
           <div className="space-y-2">
             <p className="text-sm font-medium">Sequence</p>
             <SequenceBuilder value={sequence} onChange={setSequence} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {sequenceChannels.map((channel) => {
+              const options = activeAccounts.filter((account) => account.platform === channel);
+              return (
+                <label key={channel} className="grid gap-2 text-sm font-medium">
+                  {channelLabel(channel)} sender
+                  <Select value={channelAccounts[channel] || null} onValueChange={(value) => setChannelAccounts((current) => ({ ...current, [channel]: value ?? "" }))} required>
+                    <SelectTrigger className="w-full"><SelectValue placeholder={`Select a connected ${channelLabel(channel)} account`} /></SelectTrigger>
+                    <SelectContent>
+                      {options.map((account) => <SelectItem key={account.id} value={account.id}>{account.accountName}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  {!options.length ? <span className="text-xs font-normal text-amber-700 dark:text-amber-300">No active sender. Connect one in Channels first.</span> : null}
+                </label>
+              );
+            })}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" variant="primary" isLoading={isSaving} disabled={!senderAccountId}>
+            <Button type="submit" variant="primary" isLoading={isSaving} disabled={sequenceChannels.some((channel) => !channelAccounts[channel])}>
               Create draft
             </Button>
           </DialogFooter>
@@ -570,6 +588,13 @@ export function CampaignsPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isActing, setIsActing] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{
+    campaignIds: string[];
+    body: { status?: "paused" | "active" | "completed"; archived?: boolean };
+    title: string;
+    description: string;
+    success: string;
+  } | null>(null);
 
   const campaignParams = useMemo(() => new URLSearchParams({
     status,
@@ -627,11 +652,12 @@ export function CampaignsPage() {
 
   const handlers: ActionHandlers = {
     onOpen: (campaign) => setSelectedId(campaign.id),
-    onPause: (campaign) => void patchCampaign(campaign.id, { status: "paused" }, "Campaign paused"),
+    onPause: (campaign) => setPendingAction({ campaignIds: [campaign.id], body: { status: "paused" }, title: "Pause this campaign?", description: "Pending outreach will stop until you explicitly resume the campaign.", success: "Campaign paused" }),
     onResume: (campaign) => void patchCampaign(campaign.id, { status: "active" }, "Campaign resumed"),
-    onComplete: (campaign) => void patchCampaign(campaign.id, { status: "completed" }, "Campaign completed"),
-    onArchive: (campaign) =>
-      void patchCampaign(campaign.id, { archived: !campaign.archived }, campaign.archived ? "Campaign restored" : "Campaign archived"),
+    onComplete: (campaign) => setPendingAction({ campaignIds: [campaign.id], body: { status: "completed" }, title: "Complete this campaign?", description: "The campaign will be closed and no additional sequence steps will be sent.", success: "Campaign completed" }),
+    onArchive: (campaign) => campaign.archived
+      ? void patchCampaign(campaign.id, { archived: false }, "Campaign restored")
+      : setPendingAction({ campaignIds: [campaign.id], body: { archived: true }, title: "Archive this campaign?", description: "The campaign will be hidden from active views. Its persisted history remains available.", success: "Campaign archived" }),
     onDuplicate: (campaign) => {
       void (async () => {
         setIsActing(true);
@@ -664,6 +690,17 @@ export function CampaignsPage() {
     } finally {
       setIsActing(false);
     }
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action.campaignIds.length === 1) {
+      await patchCampaign(action.campaignIds[0], action.body, action.success);
+      return;
+    }
+    await bulkPatch(action.body, action.success);
   }
 
   const groups = useMemo(() => {
@@ -831,8 +868,9 @@ export function CampaignsPage() {
               <CardContent className="py-14 text-center">
                 <p className="font-semibold">No campaigns match these filters</p>
                 <p className="mt-2 text-sm text-app-fg-muted">
-                  Create a draft or adjust the status, channel, and search filters.
+                  {debouncedSearch || channel !== "all" || status !== "all" ? "No campaigns match the current filters." : "Create a draft to begin building outreach."}
                 </p>
+                {debouncedSearch || channel !== "all" || status !== "all" ? <Button variant="secondary" className="mt-4" onClick={() => { setSearch(""); setChannel("all"); setStatus("all"); }}>Clear filters</Button> : null}
               </CardContent>
             </Card>
           ) : (
@@ -873,9 +911,9 @@ export function CampaignsPage() {
       <CampaignSelectionActionBar
         count={selectedIds.size}
         isActing={isActing}
-        onPause={() => void bulkPatch({ status: "paused" }, "Selected campaigns paused")}
+        onPause={() => setPendingAction({ campaignIds: [...selectedIds], body: { status: "paused" }, title: `Pause ${selectedIds.size} campaigns?`, description: "Pending outreach for every selected campaign will stop until resumed.", success: "Selected campaigns paused" })}
         onResume={() => void bulkPatch({ status: "active" }, "Selected campaigns resumed")}
-        onArchive={() => void bulkPatch({ archived: true }, "Selected campaigns archived")}
+        onArchive={() => setPendingAction({ campaignIds: [...selectedIds], body: { archived: true }, title: `Archive ${selectedIds.size} campaigns?`, description: "Selected campaigns will be hidden from active views while their history remains available.", success: "Selected campaigns archived" })}
         onClear={() => setSelectedIds(new Set())}
       />
 
@@ -885,6 +923,18 @@ export function CampaignsPage() {
         onClose={() => setSelectedId(null)}
         onChanged={load}
       />
+      <Dialog open={Boolean(pendingAction)} onOpenChange={(open) => { if (!open) setPendingAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{pendingAction?.title}</DialogTitle>
+            <DialogDescription>{pendingAction?.description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingAction(null)}>Cancel</Button>
+            <Button variant="brand" disabled={isActing} onClick={() => void confirmPendingAction()}>{pendingAction?.body.archived ? <Archive /> : <Pause />} Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

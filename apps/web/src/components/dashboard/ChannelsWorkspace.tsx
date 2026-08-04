@@ -393,8 +393,14 @@ export function ChannelsWorkspace() {
   const error = actionError ?? (channelsQuery.error instanceof Error ? channelsQuery.error.message : null);
 
   useEffect(() => {
-    if (connectStatus === "connected") setNotice("Channel connected successfully.");
+    if (connectStatus === "connected") {
+      setNotice("Connection received. Syncing the account now.");
+      void sync();
+      window.history.replaceState({}, "", "/dashboard/channels");
+    }
     if (connectStatus === "failed") setActionError("Channel connection failed. Try again.");
+  // `sync` is intentionally invoked only for a fresh hosted-auth callback.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectStatus]);
 
   async function sync() {

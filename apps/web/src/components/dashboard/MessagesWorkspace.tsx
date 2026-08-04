@@ -470,6 +470,13 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     } catch (requestError) {
       if (requestError instanceof ApiError && requestError.code === "daily_message_limit") {
         setLimitError(requestError.message);
+      } else if (
+        requestError instanceof ApiError &&
+        ["delivery_pending", "delivery_unknown", "delivery_failed"].includes(
+          requestError.code ?? "",
+        )
+      ) {
+        setActionError(requestError.message);
       } else {
         setActionError(requestError instanceof Error ? requestError.message : "Unable to send reply.");
       }

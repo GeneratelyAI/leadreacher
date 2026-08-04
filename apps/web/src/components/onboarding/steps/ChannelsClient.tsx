@@ -156,6 +156,20 @@ export default function ChannelsClient() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    if (!connectionReturned) return;
+    let attempts = 0;
+    const interval = window.setInterval(() => {
+      attempts += 1;
+      void loadAccounts();
+      if (attempts >= 5) {
+        window.clearInterval(interval);
+        router.replace(onboardingHref("channels"));
+      }
+    }, 2_000);
+    return () => window.clearInterval(interval);
+  }, [connectionReturned, loadAccounts, router]);
+
+  useEffect(() => {
     let cancelled = false;
 
     (async () => {
@@ -234,7 +248,7 @@ export default function ChannelsClient() {
             Connect your channels
           </h1>
           <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            Link the platforms where your outreach will happen.
+            Connect LinkedIn for your first campaign. Other connected channels will be available when you build additional campaign sequences.
           </p>
         </div>
 
@@ -245,7 +259,7 @@ export default function ChannelsClient() {
         ) : null}
         {connectionReturned ? (
           <p className="mx-auto mt-6 w-full max-w-3xl rounded-onboarding bg-onboarding-success-50 px-4 py-3 text-sm text-onboarding-success-900 dark:bg-onboarding-success-900 dark:text-onboarding-success-50">
-            Connection request received. Refresh the list once your provider has finished activating it.
+            Connection request received. We&apos;re checking for the activated account now.
           </p>
         ) : null}
         {error ? (

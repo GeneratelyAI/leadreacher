@@ -19,6 +19,7 @@ import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
+import { enqueueOrganizationEmail } from "../services/product-email-outbox.js";
 
 const ConnectSocialAccountBodySchema = z.object({
   provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
@@ -291,6 +292,19 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           where: { id: existing.id },
           data: { status: "disconnected" },
         });
+        if (existing.status !== "disconnected") {
+          try {
+            await enqueueOrganizationEmail({
+              orgId,
+              idempotencyKey: `channel-disconnected:${existing.id}:${new Date().toISOString().slice(0, 10)}`,
+              template: "channel_disconnected",
+              subject: `${existing.accountName} disconnected from LeadReacher`,
+              text: `${existing.accountName} (${existing.platform}) is disconnected. Campaign sends using this account remain blocked until it is reconnected.`,
+            });
+          } catch (notificationError) {
+            request.log.error({ err: notificationError, socialAccountId: existing.id }, "Failed to enqueue channel disconnect email");
+          }
+        }
       }
     }
 

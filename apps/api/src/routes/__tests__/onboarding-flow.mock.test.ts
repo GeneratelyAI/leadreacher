@@ -115,6 +115,8 @@ vi.mock("../../lib/prisma.js", () => ({
     },
     campaign: {
       findFirst: vi.fn(async () => null),
+      findMany: vi.fn(async () => []),
+      updateMany: vi.fn(async () => ({ count: 0 })),
       create: vi.fn(async () => ({ id: "campaign-onboarding-e2e" })),
     },
     lead: { findFirst: vi.fn(async () => null) },
