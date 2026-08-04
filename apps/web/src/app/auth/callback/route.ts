@@ -34,7 +34,11 @@ export async function GET(request: Request) {
         session.access_token,
         defaultOrgNameFromEmail(user.email),
       );
-      destination = postLoginRedirectPath(bootstrap.onboardedAt);
+      destination = bootstrap.disabledAt
+        ? "/recover-organization"
+        : !bootstrap.legalAccepted
+          ? "/legal-consent"
+          : postLoginRedirectPath(bootstrap.onboardedAt);
     } catch {
       // Idempotent bootstrap; ignore if org already exists.
     }

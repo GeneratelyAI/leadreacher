@@ -353,7 +353,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                   {!isSignup ? (
                     <div className="mt-1.5 flex items-center justify-end h-compact:mt-1 lg:mt-2">
                       <Link
-                        href="#"
+                        href="/forgot-password"
                         className="text-xs font-medium text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
                       >
                         Forgot password?

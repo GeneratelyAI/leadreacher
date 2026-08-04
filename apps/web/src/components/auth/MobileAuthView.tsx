@@ -278,7 +278,7 @@ export default function MobileAuthView({ mode }: MobileAuthViewProps) {
                 {!isSignup ? (
                   <div className="mt-1.5 flex items-center justify-end">
                     <Link
-                      href="#"
+                      href="/forgot-password"
                       className="tap-target relative text-xs font-medium text-brand-purple transition-colors duration-fast ease-brand hover:opacity-80 dark:text-[#c4b5f0]"
                     >
                       Forgot password?

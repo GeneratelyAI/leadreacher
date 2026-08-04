@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { bootstrapOrganization } from "@/lib/api";
+import { bootstrapOrganization, clearAccessTokenCache } from "@/lib/api";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { createClient } from "@/lib/supabase/client";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
@@ -89,6 +89,8 @@ export function useAuthForm(mode: AuthMode) {
           throw signInError;
         }
       }
+
+      clearAccessTokenCache();
 
       await waitForReadyToNavigate(5000).catch((caught) => {
         if (process.env.NODE_ENV === "development") {

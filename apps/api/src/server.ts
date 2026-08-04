@@ -1,4 +1,5 @@
 import Fastify from "fastify";
+import { createHash } from "node:crypto";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRawBody from "fastify-raw-body";
@@ -58,12 +59,12 @@ export async function buildServer() {
     global: true,
     max: 120,
     timeWindow: "1 minute",
-    // Keep HTTP throttling in-process. Queue state still requires Redis, but
-    // charging one Redis command per normal request quickly exhausts a
-    // request-metered Upstash plan. Revisit a shared limiter before scaling
-    // the API horizontally.
-    keyGenerator: (request) =>
-      request.orgId ?? request.dbUserId ?? request.userId ?? request.ip,
+    redis,
+    keyGenerator: (request) => {
+      const authorization = request.headers.authorization;
+      if (!authorization) return request.ip;
+      return `auth:${createHash("sha256").update(authorization).digest("hex")}`;
+    },
     errorResponseBuilder: (_request, context) => ({
       statusCode: 429,
       error: "RATE_LIMITED",
@@ -128,6 +129,7 @@ export async function buildServer() {
   const reconcileWorkerEnabled = isWorkerEnabled(env.ENABLE_RECONCILE_WORKER);
   const videoWorkerEnabled = isWorkerEnabled(env.ENABLE_VIDEO_WORKER);
   const analyticsInsightsWorkerEnabled = isWorkerEnabled(env.ENABLE_ANALYTICS_INSIGHTS_WORKER);
+  const lifecycleWorkerEnabled = isWorkerEnabled(env.ENABLE_LIFECYCLE_WORKER);
 
   if (campaignWorkerEnabled) {
     registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
@@ -139,11 +141,12 @@ export async function buildServer() {
     );
   }
 
-  if (reconcileWorkerEnabled || videoWorkerEnabled) {
+  if (reconcileWorkerEnabled || videoWorkerEnabled || lifecycleWorkerEnabled) {
     registerWorker(
       startReconciliationMaintenanceWorker({
         reconcileEnabled: reconcileWorkerEnabled,
         videoEnabled: videoWorkerEnabled,
+        lifecycleEnabled: lifecycleWorkerEnabled,
       }),
       "reconcile-maintenance",
     );

@@ -6,19 +6,18 @@ import {
   CheckCircle2,
   ChevronRight,
   CreditCard,
-  KeyRound,
+  Download,
+  FileArchive,
+  LifeBuoy,
   Loader2,
   Mail,
-  MoreVertical,
   Plug,
-  Shield,
   SlidersHorizontal,
-  Users,
+  Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -30,21 +29,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -74,6 +62,13 @@ type SocialAccount = {
   accountName: string;
   avatarUrl: string | null;
   status: string;
+};
+
+type ExportJob = {
+  id: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string | null;
 };
 
 type Preferences = {
@@ -111,20 +106,14 @@ const INTEGRATION_ROWS: Array<{
   label: string;
   platforms: string[];
   logo?: "linkedin" | "whatsapp";
-  soon?: boolean;
 }> = [
   { key: "linkedin", label: "LinkedIn", platforms: ["linkedin"], logo: "linkedin" },
   { key: "whatsapp", label: "WhatsApp", platforms: ["whatsapp"], logo: "whatsapp" },
   { key: "email", label: "Email", platforms: ["email", "google", "microsoft", "imap"] },
-  { key: "zapier", label: "Zapier", platforms: [], soon: true },
 ];
 
 function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function initials(name: string): string {
-  return name.split(" ").filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
 }
 
 function prefsStorageKey(orgId: string): string {
@@ -163,16 +152,6 @@ function dateFormatPreview(format: string, timeFormat: "12h" | "24h"): string {
   return date;
 }
 
-function roleBadgeClass(role: string): string {
-  if (role === "owner") {
-    return "border-transparent bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100";
-  }
-  if (role === "admin") {
-    return "border-transparent bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-100";
-  }
-  return "border-transparent bg-onboarding-neutral-100 text-onboarding-neutral-700 dark:bg-onboarding-neutral-800 dark:text-onboarding-neutral-200";
-}
-
 function subscriptionBadgeClass(status: string | null): string {
   if (status === "active") {
     return "border-transparent bg-onboarding-success-50 text-onboarding-success-700 dark:bg-onboarding-success-500/20 dark:text-onboarding-success-300 dark:ring-1 dark:ring-onboarding-success-400/25";
@@ -206,29 +185,15 @@ function SettingsSectionCard({
   );
 }
 
-function ComingSoonButton({ label }: { label: string }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <span className="inline-flex w-full sm:w-auto" />
-        }
-      >
-        <Button variant="secondary" className="w-full sm:w-auto" disabled tabIndex={-1}>
-          {label}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>Coming soon</TooltipContent>
-    </Tooltip>
-  );
-}
-
 export function SettingsWorkspace() {
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [deletionDialogOpen, setDeletionDialogOpen] = useState(false);
+  const [deletionConfirmation, setDeletionConfirmation] = useState("");
+  const [isRequestingExport, setIsRequestingExport] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
   const settingsQuery = useQuery({
@@ -240,6 +205,15 @@ export function SettingsWorkspace() {
     queryKey: ["dashboard", "settings", "accounts"],
     queryFn: () => apiFetch<{ accounts: SocialAccount[] }>("/social-accounts").catch(() => ({ accounts: [] as SocialAccount[] })),
     staleTime: 60_000,
+  });
+  const exportsQuery = useQuery({
+    queryKey: ["dashboard", "settings", "exports"],
+    queryFn: () => apiFetch<{ exports: ExportJob[] }>("/dashboard/exports"),
+    staleTime: 15_000,
+    refetchInterval: (query) => {
+      const jobs = query.state.data?.exports ?? [];
+      return jobs.some((job) => job.status === "pending" || job.status === "processing") ? 3_000 : false;
+    },
   });
   const settings = settingsQuery.data ?? null;
   const accounts = accountsQuery.data?.accounts ?? [];
@@ -291,11 +265,51 @@ export function SettingsWorkspace() {
     }
   }
 
+  async function requestExport() {
+    setIsRequestingExport(true);
+    setActionError(null);
+    try {
+      await apiFetch("/dashboard/exports", {
+        method: "POST",
+        body: JSON.stringify({ format: "json" }),
+      });
+      await exportsQuery.refetch();
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to request export.");
+    } finally {
+      setIsRequestingExport(false);
+    }
+  }
+
+  async function downloadExport(exportId: string) {
+    try {
+      const result = await apiFetch<{ url: string }>(`/dashboard/exports/${exportId}/download`);
+      window.location.assign(result.url);
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to download export.");
+    }
+  }
+
+  async function requestDeletion() {
+    if (!organization) return;
+    setIsDeleting(true);
+    setActionError(null);
+    try {
+      await apiFetch("/dashboard/organization/deletion", {
+        method: "POST",
+        body: JSON.stringify({ confirmation: deletionConfirmation }),
+      });
+      window.location.assign("/login?organization=deletion-scheduled");
+    } catch (requestError) {
+      setActionError(requestError instanceof Error ? requestError.message : "Unable to schedule deletion.");
+      setDeletionDialogOpen(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   const integrationStatuses = useMemo(() => {
     return INTEGRATION_ROWS.map((row) => {
-      if (row.soon) {
-        return { ...row, connected: false, detail: "Coming soon" };
-      }
       const match = accounts.find(
         (account) => row.platforms.includes(account.platform.toLowerCase()) && account.status === "active",
       );
@@ -308,7 +322,8 @@ export function SettingsWorkspace() {
   }, [accounts]);
 
   const organization = settings?.organization ?? null;
-  const members = settings?.members ?? [];
+  const latestExport = exportsQuery.data?.exports[0] ?? null;
+  const latestExportDownloadable = latestExport?.status === "ready" && Boolean(latestExport.expiresAt) && new Date(latestExport.expiresAt as string) > new Date();
 
   return (
     <div className="space-y-6">
@@ -395,7 +410,7 @@ export function SettingsWorkspace() {
             </SettingsSectionCard>
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-3">
+          <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSectionCard icon={<SlidersHorizontal className="size-5" strokeWidth={1.75} aria-hidden />} title="Preferences">
               <div className="space-y-4">
                 <div className="grid gap-2">
@@ -499,67 +514,14 @@ export function SettingsWorkspace() {
               </div>
             </SettingsSectionCard>
 
-            <SettingsSectionCard icon={<Users className="size-5" strokeWidth={1.75} aria-hidden />} title="Team">
-              <ul className="divide-y divide-border rounded-lg border border-border">
-                {members.length === 0 ? (
-                  <li className="px-4 py-6 text-sm text-muted-foreground">No team members found for this workspace.</li>
-                ) : (
-                  members.map((member) => {
-                    const displayName = member.name?.trim() || member.email;
-                    return (
-                      <li key={member.id} className="flex items-center gap-3 px-4 py-3">
-                        <Avatar size="sm">
-                          <AvatarFallback className="bg-onboarding-purple-100 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
-                            {initials(displayName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{displayName}</p>
-                          <p className="truncate text-xs text-muted-foreground">{member.email}</p>
-                        </div>
-                        <Badge className={roleBadgeClass(member.role)}>{titleCase(member.role)}</Badge>
-                        {member.role !== "owner" ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={<Button variant="ghost" size="icon" aria-label={`Actions for ${displayName}`} />}
-                            >
-                              <MoreVertical />
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="min-w-44">
-                              <DropdownMenuItem disabled>Change role (coming soon)</DropdownMenuItem>
-                              <DropdownMenuItem disabled>Remove member (coming soon)</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : null}
-                      </li>
-                    );
-                  })
-                )}
-              </ul>
-              <Button variant="secondary" className="w-full" onClick={() => setTeamDialogOpen(true)}>
-                <Users /> Manage team
-              </Button>
-            </SettingsSectionCard>
-
             <SettingsSectionCard icon={<Plug className="size-5" strokeWidth={1.75} aria-hidden />} title="Connected integrations">
               <ul className="divide-y divide-border rounded-lg border border-border">
                 {integrationStatuses.map((row) => (
                   <li key={row.key}>
-                    {row.soon ? (
-                      <div className="flex items-center gap-3 px-4 py-3 opacity-70">
-                        <span className="inline-flex size-8 items-center justify-center text-onboarding-neutral-600 dark:text-onboarding-neutral-300">
-                          <Plug className="size-5" strokeWidth={1.75} aria-hidden />
-                        </span>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium">{row.label}</p>
-                          <p className="text-xs text-muted-foreground">{row.detail}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <Link
-                        href="/dashboard/channels"
-                        className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-                      >
+                    <Link
+                      href="/dashboard/channels"
+                      className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                    >
                         {row.logo ? (
                           row.logo === "linkedin" ? (
                             <span className="inline-flex size-8 items-center justify-center" aria-hidden>
@@ -592,8 +554,7 @@ export function SettingsWorkspace() {
                           </p>
                         </div>
                         <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
-                      </Link>
-                    )}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -605,67 +566,52 @@ export function SettingsWorkspace() {
             </SettingsSectionCard>
           </div>
 
-          <SettingsSectionCard icon={<Shield className="size-5" strokeWidth={1.75} aria-hidden />} title="Workspace security">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                {
-                  title: "Two-factor authentication",
-                  detail: "Add an extra layer of security",
-                  action: "Enable 2FA",
-                  icon: <Shield className="size-5" strokeWidth={1.75} aria-hidden />,
-                },
-                {
-                  title: "Active sessions",
-                  detail: "Manage your active sessions",
-                  action: "View sessions",
-                  icon: <Users className="size-5" strokeWidth={1.75} aria-hidden />,
-                },
-                {
-                  title: "Allowed IP addresses",
-                  detail: "Restrict access to specific IPs",
-                  action: "Manage IPs",
-                  icon: <Shield className="size-5" strokeWidth={1.75} aria-hidden />,
-                },
-                {
-                  title: "API access",
-                  detail: "Manage API keys and access",
-                  action: "Manage API keys",
-                  icon: <KeyRound className="size-5" strokeWidth={1.75} aria-hidden />,
-                },
-              ].map((item) => (
-                <div key={item.title} className="rounded-lg border border-border p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="mt-0.5 inline-flex shrink-0 text-onboarding-neutral-700 dark:text-onboarding-neutral-200">
-                      {item.icon}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{item.title}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.detail}</p>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <ComingSoonButton label={item.action} />
-                  </div>
+          <SettingsSectionCard icon={<FileArchive className="size-5" strokeWidth={1.75} aria-hidden />} title="Data and support">
+            <div className="grid gap-4 lg:grid-cols-3">
+              <div className="rounded-lg border border-border p-4">
+                <Download className="size-5 text-onboarding-purple-600 dark:text-onboarding-purple-200" />
+                <h3 className="mt-3 text-sm font-semibold">Organization export</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Download campaign, prospect, message, audit, and media-manifest data.</p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button variant="secondary" onClick={() => void requestExport()} disabled={isRequestingExport || latestExport?.status === "pending" || latestExport?.status === "processing"}>
+                    {isRequestingExport ? <Loader2 className="animate-spin" /> : <Download />}
+                    {latestExport?.status === "pending" || latestExport?.status === "processing" ? "Preparing export" : "Request export"}
+                  </Button>
+                  {latestExportDownloadable && latestExport ? <Button variant="ghost" onClick={() => void downloadExport(latestExport.id)}>Download</Button> : null}
                 </div>
-              ))}
+                {latestExport?.status === "failed" ? <p className="mt-3 text-xs text-red-600 dark:text-red-300">The latest export failed. Request a new export or contact support if it happens again.</p> : null}
+                {latestExport?.status === "ready" && latestExport.expiresAt && new Date(latestExport.expiresAt) <= new Date() ? <p className="mt-3 text-xs text-muted-foreground">The latest download expired. Request a new export.</p> : null}
+              </div>
+              <div className="rounded-lg border border-border p-4">
+                <LifeBuoy className="size-5 text-onboarding-purple-600 dark:text-onboarding-purple-200" />
+                <h3 className="mt-3 text-sm font-semibold">Help Center</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Get operational help from the LeadReacher team.</p>
+                <Button variant="secondary" className="mt-4" asChild><a href="mailto:support@leadreacher.com">Contact support</a></Button>
+              </div>
+              <div className="rounded-lg border border-red-200 p-4 dark:border-red-500/30">
+                <Trash2 className="size-5 text-red-600 dark:text-red-300" />
+                <h3 className="mt-3 text-sm font-semibold">Delete organization</h3>
+                <p className="mt-1 text-xs text-muted-foreground">Disable delivery immediately. Recovery remains available for 30 days.</p>
+                <Button variant="secondary" className="mt-4 text-red-700 dark:text-red-200" onClick={() => setDeletionDialogOpen(true)}>Schedule deletion</Button>
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground"><Link href="/privacy" className="font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200">Privacy</Link> · <Link href="/terms" className="font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200">Terms</Link></p>
           </SettingsSectionCard>
         </>
       )}
 
-      <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+      <Dialog open={deletionDialogOpen} onOpenChange={setDeletionDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Manage team</DialogTitle>
+            <DialogTitle>Schedule organization deletion</DialogTitle>
             <DialogDescription>
-              Invites, role changes, and removals are not available yet. This workspace currently lists members
-              in read-only mode.
+              Outreach stops immediately. Enter <strong>{organization?.name}</strong> to confirm. The owner can recover this organization for 30 days before permanent deletion.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2"><Label htmlFor="deletion-confirmation">Organization name</Label><Input id="deletion-confirmation" value={deletionConfirmation} onChange={(event) => setDeletionConfirmation(event.target.value)} /></div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setTeamDialogOpen(false)}>
-              Close
-            </Button>
+            <Button variant="secondary" onClick={() => setDeletionDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => void requestDeletion()} disabled={isDeleting || deletionConfirmation !== organization?.name} className="bg-red-600 text-white hover:bg-red-700">{isDeleting ? <Loader2 className="animate-spin" /> : <Trash2 />} Schedule deletion</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

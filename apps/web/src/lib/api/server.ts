@@ -12,9 +12,13 @@ export async function bootstrapOrganizationServer(
 ): Promise<{
   orgId: string;
   userId: string;
+  role: string;
   subscriptionStatus: string | null;
   onboardedAt: string | null;
   activeChannelCount: number;
+  disabledAt: string | null;
+  purgeAt: string | null;
+  legalAccepted: boolean;
 }> {
   const response = await fetch(`${getApiBaseUrl()}/auth/bootstrap`, {
     method: "POST",
@@ -29,9 +33,13 @@ export async function bootstrapOrganizationServer(
     | {
         orgId: string;
         userId: string;
+        role?: string;
         subscriptionStatus?: string | null;
         onboardedAt?: string | null;
         activeChannelCount?: number;
+        disabledAt?: string | null;
+        purgeAt?: string | null;
+        legalAccepted?: boolean;
         message?: string;
       }
     | null;
@@ -47,9 +55,13 @@ export async function bootstrapOrganizationServer(
   return {
     orgId: payload.orgId,
     userId: payload.userId,
+    role: payload.role ?? "member",
     subscriptionStatus: payload.subscriptionStatus ?? null,
     onboardedAt: payload.onboardedAt ?? null,
     activeChannelCount: payload.activeChannelCount ?? 0,
+    disabledAt: payload.disabledAt ?? null,
+    purgeAt: payload.purgeAt ?? null,
+    legalAccepted: payload.legalAccepted === true,
   };
 }
 

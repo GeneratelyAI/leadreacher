@@ -51,6 +51,7 @@ const optionalUrl = z.preprocess(
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive(),
+  RUNTIME_ROLE: z.enum(["api", "worker"]).default("api"),
   DATABASE_URL: z.string().min(1),
   DIRECT_URL: z.string().min(1),
   UNIPILE_DSN: z.string().min(1),
@@ -116,6 +117,7 @@ const envSchema = z.object({
   ENABLE_RECONCILE_WORKER: optionalBoolean,
   ENABLE_VIDEO_WORKER: optionalBoolean,
   ENABLE_ANALYTICS_INSIGHTS_WORKER: optionalBoolean,
+  ENABLE_LIFECYCLE_WORKER: optionalBoolean,
   ENABLE_API_DOCS: optionalBoolean,
   BULLMQ_IDLE_DRAIN_DELAY_SECONDS: z.coerce
     .number()
@@ -129,6 +131,15 @@ const envSchema = z.object({
     .min(1)
     .max(3)
     .default(DEFAULT_VEO_PARALLEL_VARIANTS),
+  SUPPORT_EMAIL: z.string().email().default("support@leadreacher.com"),
+  RESEND_API_KEY: z.string().optional().default(""),
+  PRODUCT_EMAIL_FROM: z
+    .string()
+    .min(1)
+    .default("LeadReacher <notifications@leadreacher.com>"),
+  TERMS_VERSION: z.string().min(1).default("2026-08-04"),
+  PRIVACY_VERSION: z.string().min(1).default("2026-08-04"),
+  LEGAL_ACCEPTANCE_REQUIRED: booleanString,
 }).superRefine((value, ctx) => {
   if (value.STRIPE_MOCK_MODE) {
     return;
@@ -166,7 +177,8 @@ if (env.STRIPE_MOCK_MODE && process.env.NODE_ENV === "production") {
 export type Env = z.infer<typeof envSchema>;
 
 export function isWorkerEnabled(value: boolean | undefined): boolean {
-  return value ?? process.env.NODE_ENV === "production";
+  if (env.RUNTIME_ROLE !== "worker") return false;
+  return value ?? true;
 }
 
 /** Docs default on outside production; set ENABLE_API_DOCS to override. */

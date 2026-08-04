@@ -113,17 +113,19 @@ export default async function OnboardingPage({
     data: { session },
   } = await supabase.auth.getSession();
 
+  let workspaceAccess: Awaited<ReturnType<typeof bootstrapOrganizationServer>> | null = null;
   try {
-    const bootstrap = await bootstrapOrganizationServer(
+    workspaceAccess = await bootstrapOrganizationServer(
       session?.access_token ?? "",
       defaultOrgNameFromEmail(user.email ?? ""),
     );
-    if (bootstrap.onboardedAt) {
-      redirect("/dashboard");
-    }
   } catch {
     // Resume logic below retains its existing safe discovery fallback.
   }
+
+  if (workspaceAccess?.disabledAt) redirect("/recover-organization");
+  if (workspaceAccess && !workspaceAccess.legalAccepted) redirect("/legal-consent");
+  if (workspaceAccess?.onboardedAt) redirect("/dashboard");
 
   const params = searchParams ? await searchParams : {};
   const requestedStep = firstParam(params.step);

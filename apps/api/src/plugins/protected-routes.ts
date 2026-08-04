@@ -8,6 +8,7 @@ import { strategyRoutes } from "../routes/strategy.js";
 import { billingRoutes } from "../routes/billing.js";
 import { onboardingRoutes } from "../routes/onboarding.js";
 import { dashboardRoutes } from "../routes/dashboard.js";
+import { dataRightsRoutes } from "../routes/data-rights.js";
 
 export async function protectedRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", verifySupabaseJwt);
@@ -21,4 +22,5 @@ export async function protectedRoutes(app: FastifyInstance): Promise<void> {
   await app.register(socialAccountRoutes);
   await app.register(onboardingRoutes);
   await app.register(dashboardRoutes);
+  await app.register(dataRightsRoutes);
 }

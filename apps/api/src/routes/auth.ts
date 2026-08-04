@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { env } from "../config/env.js";
 import {
   anonScrapeClaimKey,
   anonScrapeStatusKey,
@@ -17,6 +18,7 @@ import { bearerSecurity, errorResponses } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { verifySupabaseJwt } from "../plugins/auth.js";
+import { recoverOrganization } from "../services/organization-lifecycle.js";
 
 const BootstrapBodySchema = z.object({
   name: z.string().trim().min(1),
@@ -55,11 +57,22 @@ async function getOrganizationOnboardingProgress(orgId: string): Promise<{
   subscriptionStatus: string | null;
   onboardedAt: Date | null;
   activeChannelCount: number;
+  disabledAt: Date | null;
+  purgeAt: Date | null;
+  legalAccepted: boolean;
 }> {
   const [organization, activeChannelCount] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: orgId },
-      select: { subscriptionStatus: true, onboardedAt: true },
+      select: {
+        subscriptionStatus: true,
+        onboardedAt: true,
+        disabledAt: true,
+        purgeAt: true,
+        legalAcceptedAt: true,
+        termsVersion: true,
+        privacyVersion: true,
+      },
     }),
     prisma.socialAccount.count({
       where: { orgId, status: "active" },
@@ -70,6 +83,13 @@ async function getOrganizationOnboardingProgress(orgId: string): Promise<{
     subscriptionStatus: organization?.subscriptionStatus ?? null,
     onboardedAt: organization?.onboardedAt ?? null,
     activeChannelCount,
+    disabledAt: organization?.disabledAt ?? null,
+    purgeAt: organization?.purgeAt ?? null,
+    legalAccepted: !env.LEGAL_ACCEPTANCE_REQUIRED || Boolean(
+      organization?.legalAcceptedAt &&
+      organization.termsVersion === env.TERMS_VERSION &&
+      organization.privacyVersion === env.PRIVACY_VERSION
+    ),
   };
 }
 
@@ -110,6 +130,31 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
   r.post(
+    "/auth/organization/recover",
+    {
+      preHandler: [verifySupabaseJwt],
+      schema: {
+        tags: ["Auth"],
+        summary: "Recover an organization pending deletion",
+        security: [...bearerSecurity],
+      },
+    },
+    async (request, reply) => {
+      if (!request.userId) throw new AuthError();
+      const user = await prisma.user.findUnique({
+        where: { supabaseId: request.userId },
+        select: { orgId: true, role: true, org: { select: { disabledAt: true, purgeAt: true } } },
+      });
+      if (!user?.orgId || user.role !== "owner") throw new AuthError();
+      if (!user.org?.disabledAt || !user.org.purgeAt || user.org.purgeAt <= new Date()) {
+        throw new ValidationError("This organization is not recoverable");
+      }
+      await recoverOrganization(user.orgId);
+      return reply.send({ recovered: true });
+    },
+  );
+
+  r.post(
     "/auth/bootstrap",
     {
       preHandler: [verifySupabaseJwt],
@@ -129,7 +174,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
       const existing = await prisma.user.findUnique({
         where: { supabaseId },
-        select: { id: true, orgId: true },
+        select: { id: true, orgId: true, role: true },
       });
 
       if (existing?.orgId) {
@@ -143,6 +188,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         return reply.send({
           orgId: existing.orgId,
           userId: existing.id,
+          role: existing.role,
           scrapeStatus,
           ...onboardingProgress,
         });
@@ -178,7 +224,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
               },
             });
 
-        return { orgId: org.id, userId: user.id };
+        return { orgId: org.id, userId: user.id, role: user.role };
       });
 
       const [scrapeStatus, onboardingProgress] = await Promise.all([

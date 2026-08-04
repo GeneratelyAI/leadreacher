@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   modal,
 }: {
   children: React.ReactNode;
-  modal: React.ReactNode;
+  modal?: React.ReactNode;
 }) {
   const supabase = await createClient();
   const {
@@ -38,21 +38,29 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  let bootstrap;
   try {
-    const bootstrap = await bootstrapOrganizationServer(
+    bootstrap = await bootstrapOrganizationServer(
       session.access_token,
       defaultOrgNameFromEmail(user.email),
     );
-    if (!bootstrap.onboardedAt) {
-      redirect("/onboarding");
-    }
   } catch {
     redirect("/login");
   }
 
+  if (bootstrap.disabledAt) {
+    redirect("/recover-organization");
+  }
+  if (!bootstrap.legalAccepted) {
+    redirect("/legal-consent");
+  }
+  if (!bootstrap.onboardedAt) {
+    redirect("/onboarding");
+  }
+
   return (
     <DashboardQueryProvider>
-      <DashboardShell memberName={displayName(user)} modal={modal}>{children}</DashboardShell>
+      <DashboardShell memberName={displayName(user)} modal={modal ?? null}>{children}</DashboardShell>
     </DashboardQueryProvider>
   );
 }

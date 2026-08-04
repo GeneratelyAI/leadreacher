@@ -1,7 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "../config/env.js";
-import { AuthError, ForbiddenError, UnauthorizedError } from "../lib/errors.js";
+import {
+  AuthError,
+  ForbiddenError,
+  OrganizationDisabledError,
+  UnauthorizedError,
+} from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 
 const BOOTSTRAP_MESSAGE =
@@ -66,12 +71,13 @@ export async function requireOrg(
 
   const user = await prisma.user.findUnique({
     where: { supabaseId: request.userId },
-    select: { id: true, orgId: true },
+    select: { id: true, orgId: true, org: { select: { disabledAt: true } } },
   });
 
   if (!user?.orgId) {
     throw new ForbiddenError(BOOTSTRAP_MESSAGE);
   }
+  if (user.org?.disabledAt) throw new OrganizationDisabledError();
 
   request.dbUserId = user.id;
   request.orgId = user.orgId;
