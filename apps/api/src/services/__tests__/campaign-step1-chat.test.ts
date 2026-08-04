@@ -49,6 +49,9 @@ vi.mock("../../lib/rate-limiter.js", () => ({
   millisecondsUntilNextUtcDay: () => 60_000,
   utcDay: () => "2026-07-22",
 }));
+vi.mock("../entitlements.js", () => ({
+  requireOrganizationEntitlement: vi.fn(async () => undefined),
+}));
 
 import { deliverSequenceStep1ViaChat } from "../campaign-step1-chat.js";
 

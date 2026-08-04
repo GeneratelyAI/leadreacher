@@ -16,6 +16,7 @@ import {
   millisecondsUntilNextUtcDay,
   utcDay,
 } from "../lib/rate-limiter.js";
+import { requireOrganizationEntitlement } from "./entitlements.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -47,6 +48,8 @@ export async function deliverSequenceStep1ViaChat(
   if (existingChatId) {
     return { skipped: true, reason: "linkedinChatId already set" };
   }
+
+  await requireOrganizationEntitlement(orgId);
 
   const step1 = sequence[1];
   if (!step1) {

@@ -90,6 +90,13 @@ vi.mock("../../lib/rate-limiter.js", () => ({
 vi.mock("../../services/campaign-step1-chat.js", () => ({
   deliverSequenceStep1ViaChat,
 }));
+vi.mock("../../services/entitlements.js", () => ({
+  getOrganizationEntitlement: vi.fn(async () => ({
+    entitled: true,
+    currentPeriodEnd: null,
+    status: "active",
+  })),
+}));
 vi.mock("../../services/personalized-video.js", () => ({
   ensurePersonalizedVideoReady,
 }));
@@ -126,6 +133,7 @@ function campaignLead(step = 0) {
       linkedinUrl: "https://www.linkedin.com/in/lead-one",
     },
     campaign: {
+      status: "active",
       sequence,
       senderAccount: {
         id: "social-account-1",

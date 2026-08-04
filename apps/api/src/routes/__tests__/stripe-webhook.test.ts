@@ -48,6 +48,11 @@ vi.mock("../../lib/queue.js", () => ({
   QUEUE_VIDEO_GENERATION: "video-generation",
   videoGenerationQueue: { add },
 }));
+vi.mock("../../services/entitlements.js", () => ({
+  subscriptionIsEntitled: ({ subscriptionStatus }: { subscriptionStatus: string | null }) =>
+    subscriptionStatus === "active" || subscriptionStatus === "trialing",
+  synchronizeBillingSuspension: vi.fn(async () => undefined),
+}));
 
 import { stripeWebhookRoutes } from "../stripe-webhook.js";
 

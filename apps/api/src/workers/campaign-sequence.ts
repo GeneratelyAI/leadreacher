@@ -23,6 +23,10 @@ import {
   utcDay,
 } from "../lib/rate-limiter.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
+import {
+  getOrganizationEntitlement,
+  synchronizeBillingSuspension,
+} from "../services/entitlements.js";
 import { getCampaignSenderForChannel } from "../services/campaign-channel-accounts.js";
 import {
   deliverEmailChannelStep,
@@ -66,6 +70,19 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       if (!campaignLead) {
         throw new Error(`CampaignLead not found: ${campaignLeadId}`);
+      }
+
+      const entitlement = await getOrganizationEntitlement(orgId);
+      if (!entitlement.entitled) {
+        await synchronizeBillingSuspension(orgId);
+        return { skipped: true, reason: "subscription required" };
+      }
+
+      if (campaignLead.campaign.status !== "active") {
+        return {
+          skipped: true,
+          reason: `campaign is ${campaignLead.campaign.status}`,
+        };
       }
 
       if (

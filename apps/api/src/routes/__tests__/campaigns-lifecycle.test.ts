@@ -94,6 +94,9 @@ vi.mock("../../services/campaign-sequence-control.js", () => ({
   cancelCampaignPendingSequenceJobs,
   resumeCampaignSequenceJobs,
 }));
+vi.mock("../../services/entitlements.js", () => ({
+  requireOrganizationEntitlement: vi.fn(async () => undefined),
+}));
 
 import { campaignRoutes } from "../campaigns.js";
 

@@ -34,14 +34,19 @@ vi.mock("../../lib/prisma.js", () => ({
   },
 }));
 
-import { deliverOperatorMessage } from "../operator-message-delivery.js";
+import {
+  deliverOperatorMessage,
+  resolveExistingOperatorDelivery,
+} from "../operator-message-delivery.js";
 
 const input = {
   orgId: "org-1",
   campaignId: "campaign-1",
   campaignLeadId: "campaign-lead-1",
-  leadId: "lead-1",
-  chatId: "chat-1",
+    leadId: "lead-1",
+    channel: "linkedin",
+    chatId: "chat-1",
+    senderAccountId: "account-1",
   message: "Thanks for your note. Would next week work?",
   idempotencyKey: "8fe2f68c-c707-44c5-95b3-d8fe08de7517",
 };
@@ -72,22 +77,39 @@ describe("deliverOperatorMessage", () => {
       created = true;
       return { id: "operator-message-1" };
     });
-    messageFindFirst.mockResolvedValue({ id: "operator-message-1" });
+    messageFindFirst.mockResolvedValue({
+      id: "operator-message-1",
+      status: "queued",
+      manualDeliveryAttempt: { state: "reserved" },
+    });
     const sendMessageToChat = vi.fn().mockResolvedValue({ message_id: "provider-message-1" });
     const adapter = { sendMessageToChat } as unknown as UnipileAdapter;
 
-    const [first, second] = await Promise.all([
+    const [first, second] = await Promise.allSettled([
       deliverOperatorMessage(adapter, input),
       deliverOperatorMessage(adapter, input),
     ]);
 
-    expect(first).toEqual({ messageId: "operator-message-1" });
-    expect(second).toEqual({ messageId: "operator-message-1" });
+    expect([first, second].filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect([first, second].filter((result) => result.status === "rejected")).toHaveLength(1);
     expect(messageCreate).toHaveBeenCalledTimes(2);
     expect(manualDeliveryAttemptCreate).toHaveBeenCalledTimes(1);
     expect(sendMessageToChat).toHaveBeenCalledTimes(1);
     expect(messageCreate).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ idempotencyKey: input.idempotencyKey }),
     }));
+  });
+
+  it("only treats a provider-confirmed delivery as a successful duplicate", () => {
+    expect(resolveExistingOperatorDelivery({
+      id: "operator-message-1",
+      status: "sent",
+      manualDeliveryAttempt: { state: "sent" },
+    })).toEqual({ messageId: "operator-message-1" });
+    expect(() => resolveExistingOperatorDelivery({
+      id: "operator-message-2",
+      status: "skipped",
+      manualDeliveryAttempt: { state: "unknown" },
+    })).toThrow("Delivery could not be confirmed");
   });
 });

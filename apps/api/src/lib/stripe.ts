@@ -118,6 +118,20 @@ export async function createBillingPortalSession(
   return { url: session.url };
 }
 
+export async function cancelSubscriptionAtPeriodEnd(subscriptionId: string): Promise<void> {
+  if (env.STRIPE_MOCK_MODE) return;
+  await getStripeClient().subscriptions.update(subscriptionId, {
+    cancel_at_period_end: true,
+  });
+}
+
+export async function restoreSubscriptionRenewal(subscriptionId: string): Promise<void> {
+  if (env.STRIPE_MOCK_MODE) return;
+  await getStripeClient().subscriptions.update(subscriptionId, {
+    cancel_at_period_end: false,
+  });
+}
+
 export function verifyStripeWebhookEvent(
   rawBody: Buffer,
   signature: string | undefined,

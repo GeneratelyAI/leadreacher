@@ -7,21 +7,27 @@ datasource db {
 }
 
 model Organization {
-  id                   String               @id @default(cuid())
+  id                   String                  @id @default(cuid())
   name                 String
   /// "individual" | "company"
-  accountType          String               @default("individual")
-  supabaseOrgId        String               @unique
-  plan                 String               @default("starter")
+  accountType          String                  @default("individual")
+  supabaseOrgId        String                  @unique
+  plan                 String                  @default("starter")
   onboardingData       Json?
   onboardedAt          DateTime?
-  stripeCustomerId     String?              @unique
+  stripeCustomerId     String?                 @unique
   stripeSubscriptionId String?
   subscriptionStatus   String?
   planPriceId          String?
   currentPeriodEnd     DateTime?
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
+  disabledAt           DateTime?
+  deletionRequestedAt  DateTime?
+  purgeAt              DateTime?
+  legalAcceptedAt      DateTime?
+  termsVersion         String?
+  privacyVersion       String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
   users                User[]
   integrations         Integration[]
   campaigns            Campaign[]
@@ -30,6 +36,70 @@ model Organization {
   socialAccounts       SocialAccount[]
   videoAssets          VideoAsset[]
   videoTemplates       CampaignVideoTemplate[]
+  activityEvents       ActivityEvent[]
+  emailOutbox          ProductEmailOutbox[]
+  exportJobs           OrganizationExportJob[]
+}
+
+model ActivityEvent {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  eventType      String
+  campaignId     String?
+  leadId         String?
+  messageId      String?
+  channel        String?
+  actorUserId    String?
+  title          String
+  detail         String
+  metadata       Json?
+  idempotencyKey String?      @unique
+  occurredAt     DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+
+  @@index([orgId, occurredAt, id])
+  @@index([orgId, eventType, occurredAt])
+  @@index([orgId, campaignId, occurredAt])
+}
+
+model ProductEmailOutbox {
+  id             String       @id @default(cuid())
+  orgId          String
+  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  idempotencyKey String       @unique
+  template       String
+  recipient      String
+  subject        String
+  payload        Json
+  status         String       @default("pending") // 'pending' | 'sending' | 'sent' | 'failed'
+  attempts       Int          @default(0)
+  scheduledAt    DateTime     @default(now())
+  sentAt         DateTime?
+  lastError      String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([status, scheduledAt])
+  @@index([orgId, createdAt])
+}
+
+model OrganizationExportJob {
+  id            String       @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  requestedById String
+  format        String       @default("json") // 'json' | 'csv'
+  status        String       @default("pending") // 'pending' | 'processing' | 'ready' | 'failed' | 'expired'
+  objectKey     String?
+  manifest      Json?
+  expiresAt     DateTime?
+  error         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([orgId, createdAt])
+  @@index([status, createdAt])
 }
 
 model StripeWebhookEvent {
@@ -67,16 +137,16 @@ model Integration {
 }
 
 model Strategy {
-  id              String       @id @default(cuid())
-  orgId           String
-  org             Organization @relation(fields: [orgId], references: [id])
-  icpDefinition   Json
-  positioning     Json
-  channels        Json
-  messagingAngles Json
-  creativeAssets  Json
-  executionPlan   Json         @default("[]")
-  completedSteps  Int[]
+  id               String       @id @default(cuid())
+  orgId            String
+  org              Organization @relation(fields: [orgId], references: [id])
+  icpDefinition    Json
+  positioning      Json
+  channels         Json
+  messagingAngles  Json
+  creativeAssets   Json
+  executionPlan    Json         @default("[]")
+  completedSteps   Int[]
   audienceSegments Json?
   channelPlan      Json?
   contentApproach  Json?
@@ -85,37 +155,39 @@ model Strategy {
   statHighlights   Json?
   approvedAt       DateTime?
   logoUrl          String?
-  campaignType    String?
-  videoConfig     Json?
-  version         Int          @default(1)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  campaignType     String?
+  videoConfig      Json?
+  version          Int          @default(1)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   @@index([orgId])
 }
 
 model Campaign {
-  id              String         @id @default(cuid())
-  orgId           String
-  org             Organization   @relation(fields: [orgId], references: [id])
-  strategyId      String?
+  id               String                   @id @default(cuid())
+  orgId            String
+  org              Organization             @relation(fields: [orgId], references: [id])
+  strategyId       String?
   /// Legacy LinkedIn sender mirror. Prefer CampaignChannelAccount for multi-channel.
-  socialAccountId String?
-  senderAccount   SocialAccount? @relation("CampaignSender", fields: [socialAccountId], references: [id], onDelete: SetNull)
-  name            String
-  status          String         @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
-  channels        String[]
-  sequence        Json // SequenceStep[]
-  aiConfig        Json?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  leads           CampaignLead[]
-  messages        Message[]
-  videoAssets     VideoAsset[]
-  videoTemplates CampaignVideoTemplate[]
-  channelAccounts CampaignChannelAccount[]
+  socialAccountId  String?
+  senderAccount    SocialAccount?           @relation("CampaignSender", fields: [socialAccountId], references: [id], onDelete: SetNull)
+  name             String
+  status           String                   @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
+  suspensionReason String? // null | 'billing'
+  channels         String[]
+  sequence         Json // SequenceStep[]
+  aiConfig         Json?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  leads            CampaignLead[]
+  messages         Message[]
+  videoAssets      VideoAsset[]
+  videoTemplates   CampaignVideoTemplate[]
+  channelAccounts  CampaignChannelAccount[]
 
   @@index([orgId, status])
+  @@index([orgId, suspensionReason])
   @@index([orgId, socialAccountId])
 }
 
@@ -135,37 +207,37 @@ model CampaignChannelAccount {
 }
 
 model Lead {
-  id             String         @id @default(cuid())
-  orgId          String
-  org            Organization   @relation(fields: [orgId], references: [id])
-  source         String // 'csv' | 'manual' | 'apify' | 'sales_navigator'
-  email          String?
-  linkedinUrl    String?
-  phone          String?
-  avatarUrl      String?
-  firstName      String
-  lastName       String
-  company        String
-  title          String
-  industry       String?
-  videoAssets    VideoAsset[]
-  companySize    String?
-  location       String?
-  enrichmentData     Json?
-  providerLinkedinId String?
-  providerWhatsappId String?
-  providerFacebookId String?
+  id                  String         @id @default(cuid())
+  orgId               String
+  org                 Organization   @relation(fields: [orgId], references: [id])
+  source              String // 'csv' | 'manual' | 'apify' | 'sales_navigator'
+  email               String?
+  linkedinUrl         String?
+  phone               String?
+  avatarUrl           String?
+  firstName           String
+  lastName            String
+  company             String
+  title               String
+  industry            String?
+  videoAssets         VideoAsset[]
+  companySize         String?
+  location            String?
+  enrichmentData      Json?
+  providerLinkedinId  String?
+  providerWhatsappId  String?
+  providerFacebookId  String?
   providerInstagramId String?
-  status             String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
-  reviewStatus       String         @default("pending") // 'pending' | 'approved' | 'excluded'
-  reviewedAt         DateTime?
-  pipelineStage  String?
-  tags           String[]
-  notes          Json[]
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  campaigns      CampaignLead[]
-  messages       Message[]
+  status              String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  reviewStatus        String         @default("pending") // 'pending' | 'approved' | 'excluded'
+  reviewedAt          DateTime?
+  pipelineStage       String?
+  tags                String[]
+  notes               Json[]
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  campaigns           CampaignLead[]
+  messages            Message[]
 
   @@index([orgId, status])
   @@index([orgId, reviewStatus])
@@ -176,21 +248,21 @@ model Lead {
 }
 
 model CampaignLead {
-  id          String   @id @default(cuid())
-  campaignId  String
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
-  leadId      String
-  lead        Lead     @relation(fields: [leadId], references: [id])
-  currentStep     Int      @default(0)
+  id                     String                  @id @default(cuid())
+  campaignId             String
+  campaign               Campaign                @relation(fields: [campaignId], references: [id])
+  leadId                 String
+  lead                   Lead                    @relation(fields: [leadId], references: [id])
+  currentStep            Int                     @default(0)
   /// Legacy LinkedIn chat id. Prefer providerChatId for new multi-channel code.
-  linkedinChatId  String?  @unique
+  linkedinChatId         String?                 @unique
   /// Unipile chat/thread id for messaging channels (LinkedIn, WhatsApp, Messenger, Instagram).
-  providerChatId  String?  @unique
+  providerChatId         String?                 @unique
   /// Soft key for email reply matching (accountId:normalizedEmail).
-  emailThreadKey  String?
-  status          String   @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
-  createdAt       DateTime @default(now())
-  deliveryAttempts DeliveryAttempt[]
+  emailThreadKey         String?
+  status                 String                  @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
+  createdAt              DateTime                @default(now())
+  deliveryAttempts       DeliveryAttempt[]
   manualDeliveryAttempts ManualDeliveryAttempt[]
 
   @@unique([campaignId, leadId])
@@ -218,27 +290,27 @@ model DeliveryAttempt {
 }
 
 model Message {
-  id         String    @id @default(cuid())
-  campaignId String
-  campaign   Campaign  @relation(fields: [campaignId], references: [id])
-  leadId     String
-  lead       Lead      @relation(fields: [leadId], references: [id])
-  orgId      String
-  channel    String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
-  content    Json // { type, subject?, body?, message?, text? }
-  direction  String    @default("outbound") // 'inbound' | 'outbound'
-  origin     String    @default("automation") // 'automation' | 'operator'
-  status     String    @default("draft") // 'draft' | 'queued' | 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'skipped'
-  externalId String?
-  stepIndex  Int
-  sentAt     DateTime?
-  approvedBy String?
-  approvedAt DateTime?
-  readAt     DateTime?
-  handledAt  DateTime?
-  idempotencyKey String? @unique
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id                    String                 @id @default(cuid())
+  campaignId            String
+  campaign              Campaign               @relation(fields: [campaignId], references: [id])
+  leadId                String
+  lead                  Lead                   @relation(fields: [leadId], references: [id])
+  orgId                 String
+  channel               String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
+  content               Json // { type, subject?, body?, message?, text? }
+  direction             String                 @default("outbound") // 'inbound' | 'outbound'
+  origin                String                 @default("automation") // 'automation' | 'operator'
+  status                String                 @default("draft") // 'draft' | 'queued' | 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'skipped'
+  externalId            String?
+  stepIndex             Int
+  sentAt                DateTime?
+  approvedBy            String?
+  approvedAt            DateTime?
+  readAt                DateTime?
+  handledAt             DateTime?
+  idempotencyKey        String?                @unique
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   manualDeliveryAttempt ManualDeliveryAttempt?
 
   @@index([orgId, campaignId])
@@ -283,60 +355,60 @@ model AnalyticsEvent {
 }
 
 model SocialAccount {
-  id             String       @id @default(cuid())
-  orgId          String
-  org            Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  platform       String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
-  platformUserId String
-  unipileId      String? // Unipile's internal account ID
-  accountName    String
-  avatarUrl      String?
-  status         String       @default("active") // 'active' | 'disconnected' | 'error' | 'reconnecting'
-  metadata       Json?
-  senderCampaigns Campaign[] @relation("CampaignSender")
+  id                      String                   @id @default(cuid())
+  orgId                   String
+  org                     Organization             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  platform                String // 'linkedin' | 'whatsapp' | 'instagram' | 'facebook' | 'email'
+  platformUserId          String
+  unipileId               String? // Unipile's internal account ID
+  accountName             String
+  avatarUrl               String?
+  status                  String                   @default("active") // 'active' | 'disconnected' | 'error' | 'reconnecting'
+  metadata                Json?
+  senderCampaigns         Campaign[]               @relation("CampaignSender")
   campaignChannelAccounts CampaignChannelAccount[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
 
   @@unique([orgId, platform, platformUserId])
   @@index([orgId])
 }
 
 model VideoAsset {
-  id              String       @id @default(cuid())
-  orgId           String
-  org             Organization @relation(fields: [orgId], references: [id])
-  campaignId      String?
-  campaign        Campaign?    @relation(fields: [campaignId], references: [id])
-  leadId          String?
-  lead            Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  templateId      String?
-  template        CampaignVideoTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  pipeline        String       @default("standard") // 'standard' | 'personalized'
-  status          String       @default("pending") // 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'failed'
-  seedImageUrl    String?
-  videoUrl        String? // Cloudflare R2 URL
-  thumbnailUrl    String?
-  generation      Int          @default(1) // 1, 2, or 3 (parallel variants)
-  selectedTone    String?
-  criticScore     Int?
-  needsReview     Boolean      @default(false)
-  veoOperationId  String?      @unique
-  veoOperationState String?    // 'submitting' | 'active' | 'recovering' | 'completed' | 'failed' | 'unknown'
-  veoSubmitLeaseAt DateTime?  // Submission, active-poll, or recovery lease.
-  approvedBy      String?
-  approvedAt      DateTime?
-  renderManifest  Json?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                String                 @id @default(cuid())
+  orgId             String
+  org               Organization           @relation(fields: [orgId], references: [id])
+  campaignId        String?
+  campaign          Campaign?              @relation(fields: [campaignId], references: [id])
+  leadId            String?
+  lead              Lead?                  @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  templateId        String?
+  template          CampaignVideoTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  pipeline          String                 @default("standard") // 'standard' | 'personalized'
+  status            String                 @default("pending") // 'pending' | 'generating' | 'ready' | 'approved' | 'rejected' | 'failed'
+  seedImageUrl      String?
+  videoUrl          String? // Cloudflare R2 URL
+  thumbnailUrl      String?
+  generation        Int                    @default(1) // 1, 2, or 3 (parallel variants)
+  selectedTone      String?
+  criticScore       Int?
+  needsReview       Boolean                @default(false)
+  veoOperationId    String?                @unique
+  veoOperationState String? // 'submitting' | 'active' | 'recovering' | 'completed' | 'failed' | 'unknown'
+  veoSubmitLeaseAt  DateTime? // Submission, active-poll, or recovery lease.
+  approvedBy        String?
+  approvedAt        DateTime?
+  renderManifest    Json?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
+  @@unique([templateId, leadId])
   @@index([orgId, status])
   @@index([orgId, updatedAt])
   @@index([campaignId])
   @@index([leadId])
   @@index([templateId])
   @@index([campaignId, leadId])
-  @@unique([templateId, leadId])
   @@index([veoOperationState, veoSubmitLeaseAt])
 }
 
@@ -360,7 +432,7 @@ model CampaignVideoTemplate {
   criticScore        Int?
   needsReview        Boolean      @default(false)
   veoOperationId     String?      @unique
-  veoOperationState  String?      // 'submitting' | 'active' | 'completed' | 'failed'
+  veoOperationState  String? // 'submitting' | 'active' | 'completed' | 'failed'
   veoSubmitLeaseAt   DateTime?
   renderManifest     Json?
   createdAt          DateTime     @default(now())

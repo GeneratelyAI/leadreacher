@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import {
   CampaignIdParamsSchema,
   authenticatedRoute,
@@ -14,6 +14,7 @@ import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
 import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
+import { requireOrganizationEntitlement } from "../services/entitlements.js";
 import {
   cancelCampaignPendingSequenceJobs,
   resumeCampaignSequenceJobs,
@@ -670,6 +671,9 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (body.status === "active" && !["paused", "active"].includes(campaign.status)) {
       throw new ValidationError(`Campaign cannot resume from status "${campaign.status}"`);
     }
+    if (body.status === "active") {
+      await requireOrganizationEntitlement(orgId);
+    }
     if (body.status === "paused" && campaign.status !== "active" && campaign.status !== "paused") {
       throw new ValidationError(`Campaign cannot pause from status "${campaign.status}"`);
     }
@@ -697,7 +701,10 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           ? withArchivedFlag(nextAiConfig, body.archived)
           : nextAiConfig;
     }
-    if (body.status !== undefined) data.status = body.status;
+    if (body.status !== undefined) {
+      data.status = body.status;
+      if (body.status === "active") data.suspensionReason = null;
+    }
 
     const updated = await prisma.campaign.update({
       where: { id: campaignId },
@@ -851,6 +858,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw new ValidationError("Review and save the connection note before launching");
     }
 
+    await requireOrganizationEntitlement(orgId);
+
     await resolveCampaignSenders({
       orgId,
       campaignId,
@@ -859,22 +868,28 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       socialAccountId: campaign.socialAccountId,
     });
 
-    await prisma.campaign.update({
-      where: { id: campaignId },
-      data: { status: "active" },
-    });
-
     let jobCount = 0;
-    for (const campaignLead of campaign.leads) {
-      try {
+    try {
+      for (const campaignLead of campaign.leads) {
         const state = await ensureCampaignStepZeroQueued({
           campaignLeadId: campaignLead.id,
           orgId,
+          delayMs: 5_000,
         });
-        if (state === "enqueued" || state === "pending") jobCount += 1;
-      } catch (error) {
-        request.log.error({ error, campaignLeadId: campaignLead.id }, "step 0 queue unavailable; reconciler will retry");
+        if (state !== "enqueued" && state !== "pending") {
+          throw new ConflictError(`Initial outreach job is ${state}`);
+        }
+        jobCount += 1;
       }
+
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { status: "active", suspensionReason: null },
+      });
+    } catch (error) {
+      await cancelCampaignPendingSequenceJobs({ campaignId, orgId });
+      request.log.error({ error, campaignId }, "campaign launch queueing failed");
+      throw new ConflictError("Campaign could not be scheduled. Please retry launch.");
     }
 
     await invalidateDashboardChrome(orgId);

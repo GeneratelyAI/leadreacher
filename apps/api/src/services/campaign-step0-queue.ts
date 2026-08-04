@@ -25,6 +25,7 @@ export function classifyExistingStepZeroJobState(
 export async function ensureCampaignStepZeroQueued(input: {
   campaignLeadId: string;
   orgId: string;
+  delayMs?: number;
 }): Promise<StepZeroQueueState> {
   const jobId = campaignSequenceJobId(input.campaignLeadId, 0);
   const existing = await campaignSequenceQueue.getJob(jobId);
@@ -37,7 +38,7 @@ export async function ensureCampaignStepZeroQueued(input: {
   await campaignSequenceQueue.add(
     QUEUE_CAMPAIGN_SEQUENCE,
     { campaignLeadId: input.campaignLeadId, orgId: input.orgId, step: 0 },
-    { jobId },
+    { jobId, ...(input.delayMs ? { delay: input.delayMs } : {}) },
   );
   return "enqueued";
 }

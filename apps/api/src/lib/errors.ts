@@ -56,6 +56,44 @@ export class DailySendLimitError extends AppError {
   }
 }
 
+export class SubscriptionRequiredError extends AppError {
+  constructor(message: string = "An active subscription is required to run outreach") {
+    super(message, 402, "subscription_required");
+  }
+}
+
+export class OrganizationDisabledError extends AppError {
+  constructor() {
+    super(
+      "This organization is pending deletion. Recover it before continuing.",
+      423,
+      "organization_disabled",
+    );
+  }
+}
+
+export class DeliveryPendingError extends AppError {
+  constructor() {
+    super("This reply is still being delivered", 409, "delivery_pending");
+  }
+}
+
+export class DeliveryUnknownError extends AppError {
+  constructor() {
+    super(
+      "Delivery could not be confirmed. Review the conversation before trying again.",
+      409,
+      "delivery_unknown",
+    );
+  }
+}
+
+export class DeliveryFailedError extends AppError {
+  constructor() {
+    super("The previous delivery failed. Send again to create a new attempt.", 409, "delivery_failed");
+  }
+}
+
 export class ExternalServiceError extends AppError {
   constructor(service: string, message: string) {
     super(`${service}: ${message}`, 502, "EXTERNAL_SERVICE_ERROR");

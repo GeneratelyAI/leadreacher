@@ -8,6 +8,8 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { videoGenerationQueue } from "../lib/queue.js";
 import { verifyStripeWebhookEvent, type StripeWebhookEvent } from "../lib/stripe.js";
+import { subscriptionIsEntitled, synchronizeBillingSuspension } from "../services/entitlements.js";
+import { enqueueOrganizationEmail } from "../services/product-email-outbox.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -173,7 +175,11 @@ async function processSubscriptionLifecycle(object: JsonRecord): Promise<void> {
 
   const metadata = readMetadata(object);
   const status = readString(object, "status") ?? "unknown";
-  const isActive = status === "active";
+  const currentPeriodEnd = readCurrentPeriodEnd(object);
+  const isActive = subscriptionIsEntitled({
+    subscriptionStatus: status,
+    currentPeriodEnd,
+  });
   const customerId = readString(object, "customer");
   const subscriptionId = readString(object, "id");
   const planPriceId = readSubscriptionPriceId(object);
@@ -186,8 +192,8 @@ async function processSubscriptionLifecycle(object: JsonRecord): Promise<void> {
       ...(subscriptionId ? { stripeSubscriptionId: subscriptionId } : {}),
       subscriptionStatus: status,
       ...(planPriceId ? { planPriceId } : {}),
-      ...(readCurrentPeriodEnd(object)
-        ? { currentPeriodEnd: readCurrentPeriodEnd(object) }
+      ...(currentPeriodEnd
+        ? { currentPeriodEnd }
         : {}),
       plan: isActive ? (campaignType ?? "starter") : "starter",
     },
@@ -195,6 +201,16 @@ async function processSubscriptionLifecycle(object: JsonRecord): Promise<void> {
 
   if (isActive && organization.subscriptionStatus !== "active") {
     await enqueueActivationVideoIfEligible(organization.id);
+  }
+  await synchronizeBillingSuspension(organization.id);
+  if (!isActive && ["past_due", "unpaid", "incomplete", "incomplete_expired"].includes(status)) {
+    await enqueueOrganizationEmail({
+      orgId: organization.id,
+      idempotencyKey: `billing-access:${subscriptionId ?? organization.id}:${status}:${currentPeriodEnd?.toISOString() ?? "none"}`,
+      template: "billing_access_interrupted",
+      subject: "LeadReacher outreach paused because of billing",
+      text: `Your subscription is ${status}. Active campaigns have been paused before any further sends. Update billing in LeadReacher to restore access.`,
+    });
   }
 }
 
