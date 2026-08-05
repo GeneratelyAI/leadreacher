@@ -18,8 +18,8 @@ import { prisma } from "../lib/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
+import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
-import { enqueueOrganizationEmail } from "../services/product-email-outbox.js";
 
 const ConnectSocialAccountBodySchema = z.object({
   provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
@@ -41,21 +41,19 @@ function emptyBucket(): ChannelMetricBucket {
   return { messagesSent: 0, prospectsReached: 0, leadIds: new Set() };
 }
 
-function buildChannelMetrics(
-  messages: Array<{ channel: string; leadId: string }>,
-): Map<string, ChannelMetricBucket> {
-  const byChannel = new Map<string, ChannelMetricBucket>();
+function metricsForCampaigns(
+  messages: Array<{ campaignId: string; channel: string; leadId: string }>,
+  campaignIds: Set<string>,
+  platform: string,
+): ChannelMetricBucket {
+  const bucket = emptyBucket();
   for (const message of messages) {
-    const key = message.channel.toLowerCase();
-    const bucket = byChannel.get(key) ?? emptyBucket();
+    if (!campaignIds.has(message.campaignId) || message.channel.toLowerCase() !== platform) continue;
     bucket.messagesSent += 1;
     bucket.leadIds.add(message.leadId);
-    byChannel.set(key, bucket);
   }
-  for (const bucket of byChannel.values()) {
-    bucket.prospectsReached = bucket.leadIds.size;
-  }
-  return byChannel;
+  bucket.prospectsReached = bucket.leadIds.size;
+  return bucket;
 }
 
 function getHostedAuthNotifyUrl(): string {
@@ -120,6 +118,16 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           status: true,
           createdAt: true,
           updatedAt: true,
+          unipileId: true,
+          campaignChannelAccounts: {
+            select: {
+              channel: true,
+              campaign: { select: { id: true, name: true, status: true } },
+            },
+          },
+          senderCampaigns: {
+            select: { id: true, name: true, status: true },
+          },
         },
         orderBy: { createdAt: "asc" },
       }),
@@ -129,7 +137,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           direction: "outbound",
           createdAt: currentDateWhere,
         },
-        select: { channel: true, leadId: true },
+        select: { campaignId: true, channel: true, leadId: true },
       }),
       prisma.message.findMany({
         where: {
@@ -137,22 +145,28 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           direction: "outbound",
           createdAt: previousDateWhere,
         },
-        select: { channel: true, leadId: true },
+        select: { campaignId: true, channel: true, leadId: true },
       }),
     ]);
 
-    // Summary KPIs always use the resolved range (default last 7 days). Account row metrics use the same window.
-    const currentMetrics = buildChannelMetrics(currentOutbound);
-    const previousMetrics = buildChannelMetrics(previousOutbound);
-
-    const primaryLinkedIn = accounts.find(
-      (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
-    ) ?? accounts.find((account) => account.platform.toLowerCase() === "linkedin");
-
-    const enrichedAccounts = accounts.map((account) => {
+    const enrichedAccounts = await Promise.all(accounts.map(async (account) => {
       const platform = account.platform.toLowerCase();
-      const metrics = currentMetrics.get(platform) ?? emptyBucket();
+      const explicitCampaigns = (account.campaignChannelAccounts ?? [])
+        .filter((assignment) => assignment.channel.toLowerCase() === platform)
+        .map((assignment) => assignment.campaign);
+      const legacyCampaigns = platform === "linkedin" ? (account.senderCampaigns ?? []) : [];
+      const assignedCampaigns = Array.from(
+        new Map([...explicitCampaigns, ...legacyCampaigns].map((campaign) => [campaign.id, campaign])).values(),
+      );
+      const campaignIds = new Set(assignedCampaigns.map((campaign) => campaign.id));
+      const metrics = metricsForCampaigns(currentOutbound, campaignIds, platform);
       const health = account.status === "active" ? "healthy" : account.status === "disconnected" ? "disconnected" : "needs_attention";
+      const capacity = platform === "linkedin" && account.unipileId
+        ? await Promise.all([
+            getDailySendLimitStatus(account.unipileId, "invite"),
+            getDailySendLimitStatus(account.unipileId, "message"),
+          ]).then(([invites, messages]) => ({ invites, messages }))
+        : null;
       return {
         id: account.id,
         platform: account.platform,
@@ -161,12 +175,17 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
         status: account.status,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
-        isPrimary: primaryLinkedIn ? account.id === primaryLinkedIn.id : accounts[0]?.id === account.id,
         health,
         messagesSent: metrics.messagesSent,
         prospectsReached: metrics.prospectsReached,
+        assignedCampaigns: assignedCampaigns.map((campaign) => ({
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+        })),
+        capacity,
       };
-    });
+    }));
 
     const connectedAccounts = accounts.filter((account) => account.status !== "disconnected");
     const monitoredAccounts = accounts.filter((account) => account.status !== "disconnected");
@@ -243,7 +262,17 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
 
     const result = await adapter.listAccounts();
     const items = result.items ?? [];
-    const syncedKeys = new Set<string>();
+    const accountsByExternalId = new Map(
+      (await prisma.socialAccount.findMany({
+        where: { orgId },
+        select: { id: true, platform: true, platformUserId: true, unipileId: true, status: true },
+      })).flatMap((account) => {
+        const keys = [account.platformUserId, account.unipileId].filter(
+          (value): value is string => Boolean(value),
+        );
+        return keys.map((key) => [key, account] as const);
+      }),
+    );
     let synced = 0;
 
     for (const account of items) {
@@ -252,60 +281,24 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const platform = normalizeUnipilePlatform(account.type);
+      const ownedAccount = accountsByExternalId.get(account.id);
+      // Unipile's account list is shared by the API key. Never create or
+      // mutate an organization row from an unowned external account.
+      if (!ownedAccount || ownedAccount.platform !== platform) {
+        continue;
+      }
       const accountStatus = await resolveAccountStatus(adapter, account.id);
 
-      await prisma.socialAccount.upsert({
-        where: {
-          orgId_platform_platformUserId: {
-            orgId,
-            platform,
-            platformUserId: account.id,
-          },
-        },
-        create: {
-          orgId,
-          platform,
-          platformUserId: account.id,
-          unipileId: account.id,
-          accountName: account.name ?? account.id,
-          status: accountStatus,
-        },
-        update: {
+      await prisma.socialAccount.update({
+        where: { id: ownedAccount.id },
+        data: {
           unipileId: account.id,
           accountName: account.name ?? account.id,
           status: accountStatus,
         },
       });
 
-      syncedKeys.add(`${platform}:${account.id}`);
       synced += 1;
-    }
-
-    const existingAccounts = await prisma.socialAccount.findMany({
-      where: { orgId },
-    });
-
-    for (const existing of existingAccounts) {
-      const key = `${existing.platform}:${existing.platformUserId}`;
-      if (!syncedKeys.has(key)) {
-        await prisma.socialAccount.update({
-          where: { id: existing.id },
-          data: { status: "disconnected" },
-        });
-        if (existing.status !== "disconnected") {
-          try {
-            await enqueueOrganizationEmail({
-              orgId,
-              idempotencyKey: `channel-disconnected:${existing.id}:${new Date().toISOString().slice(0, 10)}`,
-              template: "channel_disconnected",
-              subject: `${existing.accountName} disconnected from LeadReacher`,
-              text: `${existing.accountName} (${existing.platform}) is disconnected. Campaign sends using this account remain blocked until it is reconnected.`,
-            });
-          } catch (notificationError) {
-            request.log.error({ err: notificationError, socialAccountId: existing.id }, "Failed to enqueue channel disconnect email");
-          }
-        }
-      }
     }
 
     await invalidateDashboardChrome(orgId);
