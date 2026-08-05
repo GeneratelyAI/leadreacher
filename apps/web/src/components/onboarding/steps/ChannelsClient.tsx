@@ -306,10 +306,21 @@ export default function ChannelsClient() {
                       </p>
                     </div>
                     {connected ? (
-                      <span className="status-badge bg-onboarding-success-50 text-onboarding-success-900 dark:bg-onboarding-success-900 dark:text-onboarding-success-50">
-                        <Check className="size-3" aria-hidden />
-                        Connected
-                      </span>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="status-badge bg-onboarding-success-50 text-onboarding-success-900 dark:bg-onboarding-success-900 dark:text-onboarding-success-50">
+                          <Check className="size-3" aria-hidden />
+                          Connected
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isConnecting}
+                          onClick={() => void handleConnect(channel.provider)}
+                        >
+                          Add another
+                        </Button>
+                      </div>
                     ) : channel.available ? (
                       <Button
                         type="button"

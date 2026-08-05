@@ -53,10 +53,14 @@ type ChannelAccount = {
   status: string;
   createdAt: string;
   updatedAt: string;
-  isPrimary: boolean;
   health: "healthy" | "disconnected" | "needs_attention" | string;
   messagesSent: number;
   prospectsReached: number;
+  assignedCampaigns: Array<{ id: string; name: string; status: string }>;
+  capacity: {
+    invites: { limit: number; remaining: number; resetAt: string };
+    messages: { limit: number; remaining: number; resetAt: string };
+  } | null;
 };
 
 type ChannelsSummary = {
@@ -106,7 +110,7 @@ const KPI_CARDS: Array<{
 }> = [
   {
     key: "connectedChannels",
-    label: "Connected channels",
+    label: "Connected accounts",
     icon: Link2,
     tone: "text-onboarding-purple-600 dark:text-onboarding-purple-200",
     fallbackDetail: "Accounts ready for outreach",
@@ -137,10 +141,6 @@ const KPI_CARDS: Array<{
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(value);
-}
-
-function formatConnectedDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value));
 }
 
 function titleCase(value: string): string {
@@ -261,17 +261,13 @@ function ChannelAccountRow({
 
   return (
     <li className="border-b border-border last:border-b-0">
-      <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,0.7fr))_auto] lg:items-center">
+      <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,0.72fr))_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
           <PlatformMark platform={account.platform} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{channelName(account.platform)}</p>
-              {account.isPrimary ? (
-                <Badge className="bg-onboarding-success-500/15 text-onboarding-success-600 dark:text-onboarding-success-400">
-                  Primary
-                </Badge>
-              ) : null}
+              <p className="truncate font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{account.accountName}</p>
+              <Badge variant="outline">{channelName(account.platform)}</Badge>
             </div>
             <div className="mt-1 flex min-w-0 items-center gap-2">
               {account.avatarUrl ? (
@@ -280,7 +276,11 @@ function ChannelAccountRow({
                   <AvatarFallback>{initials(account.accountName)}</AvatarFallback>
                 </Avatar>
               ) : null}
-              <p className="truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{account.accountName}</p>
+              <p className="truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                {account.assignedCampaigns.length === 0
+                  ? "Not assigned to a campaign"
+                  : account.assignedCampaigns.map((campaign) => campaign.name).slice(0, 2).join(" · ")}
+              </p>
             </div>
           </div>
         </div>
@@ -313,18 +313,25 @@ function ChannelAccountRow({
         </div>
 
         <div>
-          <p className="text-xs text-muted-foreground">Connected</p>
-          <p className="mt-1 text-sm font-medium">{formatConnectedDate(account.createdAt)}</p>
+          <p className="text-xs text-muted-foreground">Campaigns</p>
+          <p className="mt-1 text-sm font-medium">{formatNumber(account.assignedCampaigns.length)}</p>
         </div>
 
         <div>
-          <p className="text-xs text-muted-foreground">Messages sent</p>
+          <p className="text-xs text-muted-foreground">Campaign messages</p>
           <p className="mt-1 text-sm font-medium">{formatNumber(account.messagesSent)}</p>
         </div>
 
         <div>
-          <p className="text-xs text-muted-foreground">Prospects reached</p>
-          <p className="mt-1 text-sm font-medium">{formatNumber(account.prospectsReached)}</p>
+          <p className="text-xs text-muted-foreground">Daily capacity</p>
+          {account.capacity ? (
+            <div className="mt-1 text-sm font-medium">
+              <p>{account.capacity.messages.remaining}/{account.capacity.messages.limit} messages</p>
+              <p className="mt-0.5 text-xs font-normal text-muted-foreground">{account.capacity.invites.remaining}/{account.capacity.invites.limit} invites</p>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">Provider managed</p>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-2 lg:justify-end">
