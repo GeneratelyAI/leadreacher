@@ -9,7 +9,7 @@ import {
 type BrandImageName = "linkedin" | "instagram" | "gmail" | "outlook";
 
 export type ChannelLogoName =
-  | Extract<SocialMediaIconName, "whatsapp">
+  | Extract<SocialMediaIconName, "whatsapp" | "facebook">
   | BrandImageName
   | "whatsapp-mark";
 
@@ -31,7 +31,7 @@ const BRAND_IMAGE_SRC: Record<BrandImageName, string> = {
 
 /** Official channel marks used in onboarding and dashboard chrome. */
 export function ChannelLogo({ name, className, ...props }: ChannelLogoProps) {
-  if (name === "whatsapp") {
+  if (name === "whatsapp" || name === "facebook") {
     return <SocialMediaIcon name={name} className={className} {...props} />;
   }
 

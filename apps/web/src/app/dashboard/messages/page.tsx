@@ -13,5 +13,5 @@ export default function MessagesPage() {
 }
 
 function DashboardRouteSkeleton() {
-  return <div className="h-[32rem] animate-pulse rounded-lg border border-app-border bg-app-elevated" aria-label="Loading messages" />;
+  return <div className="h-[32rem] animate-pulse rounded-lg border border-app-border bg-app-elevated" aria-label="Loading chat" />;
 }

@@ -78,7 +78,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/dashboard/prospects", label: "Prospects", icon: Users },
-  { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
+  { href: "/dashboard/messages", label: "Chat", icon: MessageSquare },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
