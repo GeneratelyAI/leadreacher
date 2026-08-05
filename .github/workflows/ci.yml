@@ -43,13 +43,13 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --dir apps/api prisma validate
-      - run: pnpm --dir apps/api prisma generate
-      - run: pnpm --dir apps/api lint
-      - run: pnpm --dir apps/api test
-      - run: pnpm --dir apps/api build
-      - run: pnpm --dir apps/web lint
-      - run: pnpm --dir apps/web test
+      - run: pnpm --dir apps/api exec prisma validate
+      - run: pnpm --dir apps/api exec prisma generate
+      - run: pnpm --dir apps/api run lint
+      - run: pnpm --dir apps/api run test
+      - run: pnpm --dir apps/api run build
+      - run: pnpm --dir apps/web run lint
+      - run: pnpm --dir apps/web run test
       - run: pnpm --dir apps/web exec tsc --noEmit
       - run: pnpm --filter @leadreacher/web build
       - name: Check migration drift
@@ -57,6 +57,6 @@ jobs:
         env:
           DIRECT_URL: ${{ env.CI_DIRECT_URL }}
           DATABASE_URL: ${{ env.CI_DIRECT_URL }}
-        run: pnpm --dir apps/api prisma migrate status
+        run: pnpm --dir apps/api exec prisma migrate status
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level high
