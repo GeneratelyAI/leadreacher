@@ -1,25 +1,30 @@
 import IORedis from "ioredis";
 import { env } from "../config/env.js";
 
-const UPSTASH_OPTIONS = {
-  tls: { rejectUnauthorized: false },
+const isTlsRedis = (env.UPSTASH_REDIS_URL ?? "").startsWith("rediss://");
+const redisPassword = isTlsRedis ? env.UPSTASH_REDIS_TOKEN : undefined;
+
+const REDIS_OPTIONS = {
   maxRetriesPerRequest: null,
+  ...(isTlsRedis
+    ? { tls: { rejectUnauthorized: false } }
+    : {}),
 } as const;
 
 export const redis = new IORedis(env.UPSTASH_REDIS_URL, {
-  ...UPSTASH_OPTIONS,
-  password: env.UPSTASH_REDIS_TOKEN,
+  ...REDIS_OPTIONS,
+  password: redisPassword,
 });
 
 export const redisSubscriber = new IORedis(env.UPSTASH_REDIS_URL, {
-  ...UPSTASH_OPTIONS,
-  password: env.UPSTASH_REDIS_TOKEN,
+  ...REDIS_OPTIONS,
+  password: redisPassword,
 });
 
 export function createRedisSubscriber(): IORedis {
   return new IORedis(env.UPSTASH_REDIS_URL, {
-    ...UPSTASH_OPTIONS,
-    password: env.UPSTASH_REDIS_TOKEN,
+    ...REDIS_OPTIONS,
+    password: redisPassword,
   });
 }
 
