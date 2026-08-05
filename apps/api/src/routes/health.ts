@@ -3,6 +3,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { prisma } from "../lib/prisma.js";
 import { publicRoute } from "../lib/openapi.js";
 import { redis } from "../lib/redis.js";
+import { ServiceUnavailableError } from "../lib/errors.js";
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -38,10 +39,7 @@ export const healthRoutes: FastifyPluginAsync = async (app) => {
         return { status: "ok" as const, timestamp: new Date().toISOString() };
       } catch (error) {
         app.log.error({ err: error }, "Readiness check failed");
-        return reply.status(503).send({
-          status: "unavailable",
-          timestamp: new Date().toISOString(),
-        });
+        throw new ServiceUnavailableError("Database or cache is unavailable");
       }
     },
   );

@@ -8,7 +8,7 @@ import {
 } from "fastify-type-provider-zod";
 
 import { isApiDocsEnabled } from "../config/env.js";
-import { OPENAPI_TAGS } from "../lib/openapi.js";
+import { errorResponses, OPENAPI_TAGS } from "../lib/openapi.js";
 import { applyZodCompilers } from "../lib/zod-compilers.js";
 
 /**
@@ -24,6 +24,19 @@ const openapiPluginImpl: FastifyPluginAsync = async (app) => {
   if (!isApiDocsEnabled()) {
     return;
   }
+
+  const transformZodSchema = createJsonSchemaTransform({
+    skipList: [
+      "/documentation",
+      "/documentation/",
+      "/documentation/json",
+      "/documentation/yaml",
+      "/documentation/*",
+      "/docs",
+      "/docs/",
+      "/docs/*",
+    ],
+  });
 
   await app.register(swagger, {
     openapi: {
@@ -58,18 +71,24 @@ const openapiPluginImpl: FastifyPluginAsync = async (app) => {
         },
       },
     },
-    transform: createJsonSchemaTransform({
-      skipList: [
-        "/documentation",
-        "/documentation/",
-        "/documentation/json",
-        "/documentation/yaml",
-        "/documentation/*",
-        "/docs",
-        "/docs/",
-        "/docs/*",
-      ],
-    }),
+    transform: (input) => {
+      const schema = input.schema && typeof input.schema === "object"
+        ? input.schema
+        : {};
+      const response = "response" in schema && schema.response && typeof schema.response === "object"
+        ? schema.response
+        : {};
+      return transformZodSchema({
+        ...input,
+        schema: {
+          ...schema,
+          response: {
+            ...errorResponses,
+            ...response,
+          },
+        },
+      });
+    },
     transformObject: jsonSchemaTransformObject,
   });
 

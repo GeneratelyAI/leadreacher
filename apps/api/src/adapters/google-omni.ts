@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GoogleGenAI, FileState } from "@google/genai";
 import { env } from "../config/env.js";
-import { ExternalServiceError } from "../lib/errors.js";
+import { externalServiceFailure } from "../lib/errors.js";
 import type { VideoJobStatus } from "./google-ai.js";
 
 export const GOOGLE_OMNI_VIDEO_MODEL = "gemini-omni-flash-preview";
@@ -237,9 +237,9 @@ Generate a silent visual-only video. Do not add speech, dialogue, narration, mus
 
     return { jobId: operationIdForInteraction(interaction.id) };
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "GeminiOmni",
-      `submitOmniVideoJob failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`submitOmniVideoJob failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }
@@ -344,9 +344,9 @@ export async function getOmniVideoJobResult(
       await rm(temporaryDirectory, { recursive: true, force: true });
     }
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "GeminiOmni",
-      `getOmniVideoJobResult failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`getOmniVideoJobResult failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }

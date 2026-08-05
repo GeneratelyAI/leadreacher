@@ -7,7 +7,7 @@ import { promisify } from "node:util";
 import { GoogleGenAI } from "@google/genai";
 import ffmpegPath from "ffmpeg-static";
 import { env } from "../config/env.js";
-import { ExternalServiceError } from "../lib/errors.js";
+import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
 import { createSilentMp3 } from "../lib/video-frames.js";
 
 const execFileAsync = promisify(execFile);
@@ -160,6 +160,6 @@ export async function synthesizeSpeech(text: string): Promise<Buffer> {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new ExternalServiceError("GeminiTTS", message);
+    throw externalServiceFailure("GeminiTTS", new Error(message));
   }
 }

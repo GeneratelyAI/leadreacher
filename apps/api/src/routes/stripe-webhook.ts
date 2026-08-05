@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { ValidationError } from "../lib/errors.js";
 import {
   errorResponses,
   stripeSecurity,
@@ -271,7 +272,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       if (!request.rawBody) {
-        return reply.status(400).send({ error: "Missing raw webhook body" });
+        throw new ValidationError("Missing raw webhook body");
       }
 
       const rawBody = Buffer.isBuffer(request.rawBody)
@@ -284,7 +285,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
       try {
         event = verifyStripeWebhookEvent(rawBody, signature);
       } catch {
-        return reply.status(400).send({ error: "Invalid Stripe signature" });
+        throw new ValidationError("Invalid Stripe signature");
       }
 
       const result = await processStripeWebhookEvent(event);

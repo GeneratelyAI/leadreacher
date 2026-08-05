@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "../config/env.js";
-import { ExternalServiceError } from "../lib/errors.js";
+import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
 
 interface R2UploadResult {
   url: string;
@@ -78,9 +78,9 @@ export class R2Adapter {
         response.headers.get("content-type") ?? "application/octet-stream";
       return this.uploadBuffer(key, buffer, contentType);
     } catch (error) {
-      throw new ExternalServiceError(
+      throw externalServiceFailure(
         "R2",
-        `uploadFromUrl failed: ${error instanceof Error ? error.message : String(error)}`,
+        new Error(`uploadFromUrl failed: ${error instanceof Error ? error.message : String(error)}`),
       );
     }
   }

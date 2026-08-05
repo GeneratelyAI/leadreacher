@@ -62,8 +62,11 @@ describe("OpenAPI / Scalar docs", () => {
     expect(specResponse.statusCode).toBe(200);
     const spec = specResponse.json() as {
       openapi: string;
-      paths: Record<string, unknown>;
-      components: { securitySchemes: Record<string, unknown> };
+      paths: Record<string, { get?: { responses?: Record<string, unknown> } }>;
+      components: {
+        securitySchemes: Record<string, unknown>;
+        schemas?: Record<string, unknown>;
+      };
     };
     expect(spec.openapi).toMatch(/^3\./);
     expect(spec.paths).toHaveProperty("/health");
@@ -73,6 +76,17 @@ describe("OpenAPI / Scalar docs", () => {
     expect(spec.components.securitySchemes).toHaveProperty("bearerAuth");
     expect(spec.components.securitySchemes).toHaveProperty("unipileAuth");
     expect(spec.components.securitySchemes).toHaveProperty("stripeSignature");
+    expect(spec.components.schemas).toHaveProperty("ApiErrorResponse");
+    expect(spec.paths["/campaigns"]?.get?.responses).toEqual(
+      expect.objectContaining({
+        "400": expect.any(Object),
+        "404": expect.any(Object),
+        "410": expect.any(Object),
+        "429": expect.any(Object),
+        "500": expect.any(Object),
+        "504": expect.any(Object),
+      }),
+    );
 
     const uiResponse = await app.inject({ method: "GET", url: "/docs/" });
     expect(uiResponse.statusCode).toBe(200);

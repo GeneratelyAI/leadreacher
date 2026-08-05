@@ -1,6 +1,6 @@
 import { GoogleGenAI, type GenerateVideosOperation } from "@google/genai";
 import { env } from "../config/env.js";
-import { ExternalServiceError } from "../lib/errors.js";
+import { externalServiceFailure } from "../lib/errors.js";
 
 const googleAI = new GoogleGenAI({ apiKey: env.GOOGLE_AI_API_KEY });
 const IMAGEN_GENERATION_TIMEOUT_MS = 60_000;
@@ -144,9 +144,9 @@ export async function generateImageFromPrompt(
     const buffer = Buffer.from(generated.image.imageBytes, "base64");
     return { buffer, mimeType: "image/png" };
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "Imagen4",
-      `generateImageFromPrompt failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`generateImageFromPrompt failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }
@@ -238,9 +238,9 @@ export async function generateImageWithAssets(
       mimeType: imagePart.inlineData.mimeType ?? "image/png",
     };
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "GeminiFlashImage",
-      `generateImageWithAssets failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`generateImageWithAssets failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }
@@ -366,9 +366,9 @@ export async function submitVideoJob(
     const jobId = operation.name ?? String(Date.now());
     return { jobId };
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "Veo3",
-      `submitVideoJob failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`submitVideoJob failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }
@@ -457,9 +457,9 @@ export async function getJobResult(jobId: string): Promise<VideoJobResult> {
     const videoBuffer = Buffer.from(await videoResponse.arrayBuffer());
     return { videoBuffer, durationMs: 8000 };
   } catch (error) {
-    throw new ExternalServiceError(
+    throw externalServiceFailure(
       "Veo3",
-      `getJobResult failed: ${error instanceof Error ? error.message : String(error)}`,
+      new Error(`getJobResult failed: ${error instanceof Error ? error.message : String(error)}`),
     );
   }
 }

@@ -10,10 +10,36 @@ export class ApiError extends Error {
     message: string,
     readonly status: number,
     readonly code?: string,
+    readonly requestId?: string,
+    readonly details?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ApiError";
   }
+}
+
+type ApiErrorPayload = {
+  status?: number;
+  message?: string;
+  code?: string;
+  error?: string;
+  requestId?: string;
+  details?: Record<string, unknown>;
+};
+
+function apiErrorFromResponse(
+  response: Response,
+  payload: ApiErrorPayload | null,
+): ApiError {
+  const message = payload?.message ?? payload?.error ?? response.statusText;
+  const requestId = payload?.requestId ?? response.headers.get("X-Request-Id") ?? undefined;
+  return new ApiError(
+    message,
+    response.status,
+    payload?.code,
+    requestId,
+    payload?.details,
+  );
 }
 
 function getApiBaseUrl(): string {
@@ -91,36 +117,28 @@ export async function apiFetch<T>(
     );
   }
 
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: string; code?: string; error?: string }
-    | T
-    | null;
+  const payload = (await response.json().catch(() => null)) as ApiErrorPayload | T | null;
 
   if (!response.ok) {
-    const payloadMessage =
-      payload &&
-      typeof payload === "object" &&
-      "message" in payload &&
-      typeof payload.message === "string"
-        ? payload.message
-        : payload &&
-            typeof payload === "object" &&
-            "error" in payload &&
-            typeof payload.error === "string"
-          ? payload.error
-          : null;
-    const message = payloadMessage ?? response.statusText;
-    const code =
-      payload &&
-      typeof payload === "object" &&
-      "code" in payload &&
-      typeof payload.code === "string"
-        ? payload.code
-        : undefined;
-    throw new ApiError(message, response.status, code);
+    throw apiErrorFromResponse(response, payload as ApiErrorPayload | null);
   }
 
   return payload as T;
+}
+
+export async function apiStream(path: string, signal: AbortSignal): Promise<Response> {
+  const token = await getAccessToken();
+  if (!token) throw new ApiError("Not authenticated", 401, "UNAUTHORIZED");
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+    throw apiErrorFromResponse(response, payload);
+  }
+  return response;
 }
 
 export async function bootstrapOrganization(

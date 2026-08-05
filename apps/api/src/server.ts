@@ -3,11 +3,11 @@ import { createHash } from "node:crypto";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRawBody from "fastify-raw-body";
-import { ZodError } from "zod";
 import "./config/env.js";
 import { env, isWorkerEnabled } from "./config/env.js";
-import { AppError, DailySendLimitError } from "./lib/errors.js";
+import { apiErrorResponse } from "./lib/errors.js";
 import { startBetterStackHeartbeat } from "./lib/better-stack.js";
+import { installHttpErrorHandling } from "./lib/http-error-handler.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
 import { captureException } from "./lib/sentry.js";
@@ -53,7 +53,10 @@ export async function buildServer() {
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Authorization", "Content-Type", "Unipile-Auth", "stripe-signature"],
+    exposedHeaders: ["X-Request-Id"],
   });
+
+  installHttpErrorHandling(app);
 
   await app.register(rateLimit, {
     global: true,
@@ -65,51 +68,17 @@ export async function buildServer() {
       if (!authorization) return request.ip;
       return `auth:${createHash("sha256").update(authorization).digest("hex")}`;
     },
-    errorResponseBuilder: (_request, context) => ({
-      statusCode: 429,
-      error: "RATE_LIMITED",
-      message: `Rate limit exceeded. Try again in ${context.after}.`,
-    }),
+    errorResponseBuilder: (request, context) =>
+      apiErrorResponse(
+        request.id,
+        429,
+        "RATE_LIMITED",
+        `Rate limit exceeded. Try again in ${context.after}.`,
+        { retryAfter: context.after },
+      ),
   });
 
   await app.register(openapiPlugin);
-
-  app.setErrorHandler((error, request, reply) => {
-    if (error instanceof DailySendLimitError) {
-      return reply
-        .status(error.statusCode)
-        .send({ code: error.code, message: error.message, resetAt: error.resetAt });
-    }
-
-    if (error instanceof AppError) {
-      return reply
-        .status(error.statusCode)
-        .send({ code: error.code, message: error.message });
-    }
-
-    if (error instanceof ZodError) {
-      return reply.status(400).send({
-        code: "VALIDATION_ERROR",
-        message: error.message,
-      });
-    }
-
-    const fastifyError = error as { code?: string; statusCode?: number; message?: string };
-    if (fastifyError.code === "FST_ERR_VALIDATION") {
-      return reply.status(400).send({
-        code: "VALIDATION_ERROR",
-        message: fastifyError.message ?? "Validation failed",
-      });
-    }
-
-    request.log.error(error);
-    captureException(error, {
-      operation: "http-request-failed",
-      method: request.method,
-      route: request.routeOptions.url,
-    });
-    return reply.status(500).send({ error: "Internal error" });
-  });
 
   await app.register(prismaPlugin);
   await app.register(fastifyRawBody, {

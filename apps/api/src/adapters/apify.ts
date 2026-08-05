@@ -1,4 +1,4 @@
-import { ExternalServiceError } from "../lib/errors.js";
+import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
 import { resolveCompanyHeadcountCodes } from "./linkedin-company-size-codes.js";
 import { resolveIndustryIds } from "./linkedin-industry-codes.js";
 
@@ -326,7 +326,7 @@ export class ApifyAdapter {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
     }
     await this.abortRun(runId);
-    throw new ExternalServiceError("Apify", `Actor run timed out after ${POLL_TIMEOUT_MS}ms`);
+    throw externalServiceFailure("Apify", new Error(`Actor run timed out after ${POLL_TIMEOUT_MS}ms`));
   }
 
   private async abortRun(runId: string): Promise<void> {

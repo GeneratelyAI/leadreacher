@@ -9,7 +9,7 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { normalizeUnipilePlatform } from "../lib/channels.js";
-import { ExternalServiceError } from "../lib/errors.js";
+import { AuthError, ExternalServiceError, ValidationError } from "../lib/errors.js";
 import {
   errorResponses,
   unipileSecurity,
@@ -24,6 +24,7 @@ import {
 import { parseSequence } from "../lib/sequence.js";
 import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
 import { recordInboundMessage } from "../lib/inbound-message.js";
+import { publishChatEvent } from "../lib/chat-events.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 
 const STATUS_REPLIED = "replied";
@@ -157,7 +158,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
     if (hostedAuthCallback.success) {
       const orgId = decodeHostedAuthName(hostedAuthCallback.data.name);
       if (!orgId) {
-        return reply.status(401).send({ error: "Unauthorized" });
+        throw new AuthError();
       }
 
       const adapter = new UnipileAdapter({
@@ -201,13 +202,13 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       typeof authHeader === "string" ? authHeader : authHeader?.[0];
 
     if (!verifyUnipileAuthHeader(providedAuth, env.UNIPILE_WEBHOOK_SECRET)) {
-      return reply.status(401).send({ error: "Unauthorized" });
+      throw new AuthError();
     }
 
     const parsed = UnipileWebhookSchema.safeParse(request.body);
 
     if (!parsed.success) {
-      return reply.status(400).send({ error: "Invalid payload" });
+      throw new ValidationError("Invalid payload");
     }
 
     const data = parsed.data;
@@ -299,6 +300,12 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         stepIndex: campaignLead.currentStep,
         sentAt: new Date(data.timestamp),
       });
+      await publishChatEvent({
+        orgId: socialAccount.orgId,
+        type: "message.created",
+        campaignLeadId: campaignLead.id,
+        messageId: `inbound:${data.message_id}`,
+      });
       await invalidateDashboardChrome(socialAccount.orgId);
 
       app.log.info({
@@ -376,6 +383,12 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         externalId,
         stepIndex: campaignLead.currentStep,
         sentAt: data.timestamp ? new Date(data.timestamp) : new Date(),
+      });
+      await publishChatEvent({
+        orgId: socialAccount.orgId,
+        type: "message.created",
+        campaignLeadId: campaignLead.id,
+        messageId: `inbound:${externalId}`,
       });
     } else if (data.event === "new_relation") {
       const socialAccount = await prisma.socialAccount.findFirst({

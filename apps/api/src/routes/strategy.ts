@@ -937,10 +937,11 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       const lockKey = `strategy:generate:lock:${orgId}`;
       const acquired = await redis.set(lockKey, "1", "PX", 300000, "NX");
       if (acquired !== "OK") {
-        return reply.code(409).send({
-          code: "STRATEGY_GENERATION_IN_PROGRESS",
-          message: "Strategy generation is already in progress for this organization.",
-        });
+        throw new AppError(
+          "Strategy generation is already in progress for this organization.",
+          409,
+          "STRATEGY_GENERATION_IN_PROGRESS",
+        );
       }
 
       try {

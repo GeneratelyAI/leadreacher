@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { ExternalServiceError } from "../lib/errors.js";
+import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
 import { env } from "../config/env.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
@@ -144,10 +144,7 @@ export class UnipileAdapter {
     }
 
     if (!res) {
-      throw new ExternalServiceError(
-        "Unipile",
-        lastError instanceof Error ? lastError.message : "Request timed out",
-      );
+      throw externalServiceFailure("Unipile", lastError ?? new Error("Request timed out"));
     }
 
     if (!res.ok) {

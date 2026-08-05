@@ -4,6 +4,7 @@ import { z } from "zod";
 import { R2Adapter } from "../adapters/r2.js";
 import { env } from "../config/env.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { assertExportDownloadReady } from "../lib/export-download.js";
 import { authenticatedRoute } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
@@ -65,9 +66,7 @@ export async function dataRightsRoutes(app: FastifyInstance): Promise<void> {
       where: { id: request.params.exportId, orgId },
     });
     if (!job) throw new NotFoundError("Export");
-    if (job.status !== "ready" || !job.objectKey || !job.expiresAt || job.expiresAt <= new Date()) {
-      throw new ValidationError("This export is not ready or has expired");
-    }
+    assertExportDownloadReady(job);
     const expiresIn = Math.max(60, Math.min(3600, Math.floor((job.expiresAt.getTime() - Date.now()) / 1000)));
     const url = await new R2Adapter().createSignedDownloadUrl(job.objectKey, expiresIn);
     return reply.send({ url, expiresAt: new Date(Date.now() + expiresIn * 1000) });

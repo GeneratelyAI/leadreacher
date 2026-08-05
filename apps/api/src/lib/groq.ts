@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { ExternalServiceError } from "./errors.js";
+import { ExternalServiceError, externalServiceFailure } from "./errors.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_TIMEOUT_MS = 30_000;
@@ -66,10 +66,7 @@ async function groqRequest(body: Record<string, unknown>): Promise<Response> {
     }
     await waitBeforeRetry(attempt);
   }
-  throw new ExternalServiceError(
-    "Groq",
-    lastError instanceof Error ? lastError.message : "Request timed out",
-  );
+  throw externalServiceFailure("Groq", lastError ?? new Error("Request timed out"));
 }
 
 export async function callGroq(

@@ -17,20 +17,28 @@ export const OPENAPI_TAGS = [
 
 export type OpenApiTag = (typeof OPENAPI_TAGS)[number];
 
-export const ErrorResponseSchema = z
+export const ApiErrorResponseSchema = z
   .object({
-    code: z.string().optional(),
-    message: z.string().optional(),
-    error: z.string().optional(),
-  })
-  .meta({ id: "ErrorResponse" });
-
-export const RateLimitErrorSchema = z
-  .object({
-    statusCode: z.literal(429),
-    error: z.literal("RATE_LIMITED"),
+    status: z.number().int().min(400).max(599),
+    code: z.string(),
     message: z.string(),
+    requestId: z.string(),
+    details: z.record(z.string(), z.unknown()).optional(),
   })
+  .meta({ id: "ApiErrorResponse" });
+
+export const ErrorResponseSchema = ApiErrorResponseSchema;
+
+export const RateLimitErrorSchema = ApiErrorResponseSchema.extend({
+  status: z.literal(429),
+  details: z
+    .object({
+      retryAfter: z.string().optional(),
+      resetAt: z.string().optional(),
+    })
+    .catchall(z.unknown())
+    .optional(),
+})
   .meta({ id: "RateLimitError" });
 
 /**
@@ -41,12 +49,18 @@ export const RateLimitErrorSchema = z
 export const errorResponses = {
   400: ErrorResponseSchema,
   401: ErrorResponseSchema,
+  402: ErrorResponseSchema,
   403: ErrorResponseSchema,
   404: ErrorResponseSchema,
   409: ErrorResponseSchema,
+  410: ErrorResponseSchema,
   413: ErrorResponseSchema,
+  423: ErrorResponseSchema,
   429: RateLimitErrorSchema,
   500: ErrorResponseSchema,
+  502: ErrorResponseSchema,
+  503: ErrorResponseSchema,
+  504: ErrorResponseSchema,
 } as const;
 
 export const bearerSecurity = [{ bearerAuth: [] }] as const;
