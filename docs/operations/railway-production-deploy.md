@@ -5,6 +5,41 @@ from the same pnpm monorepo. Each service must use its own config-as-code file.
 Do not add a repository-root `railway.toml`: Railway applies a root config to
 every service and it will override the service-specific dashboard settings.
 
+## Release flow
+
+GitHub Actions owns validation; Railway's GitHub integration owns deployment.
+This avoids two systems issuing competing deployment commands.
+
+- Pull requests, `develop`, and `main` run `.github/workflows/ci.yml`.
+- Configure the Railway staging services to deploy commits pushed to `develop`.
+- Configure the Railway production services to deploy commits pushed to `main`.
+- After a successful CI run on either branch,
+  `.github/workflows/deployment-smoke.yml` waits for the deployed API and web
+  application, then verifies API readiness, API liveness, and the web root.
+
+Set the repository variable `DEPLOYMENT_SMOKE_ENABLED` to `true` only after the
+environment URLs below are configured. Until then, the workflow remains
+available through `workflow_dispatch` but will not create failing automatic
+checks for an unconfigured deployment target.
+
+Create GitHub environments named `staging` and `production`. Add these
+environment secrets, pointing at the matching environment's public services:
+
+| Secret | Value |
+| --- | --- |
+| `STAGING_API_URL` | Public staging API base URL. Add only to the `staging` environment. |
+| `STAGING_WEB_URL` | Public staging web base URL. Add only to the `staging` environment. |
+| `PRODUCTION_API_URL` | Public production API base URL. Add only to the `production` environment. |
+| `PRODUCTION_WEB_URL` | Public production web base URL. Add only to the `production` environment. |
+
+The names remain explicit so a failed or manually dispatched smoke check cannot
+accidentally target production. Configure the production environment with the
+required reviewer protection rule before enabling the production deploy branch.
+
+To roll back, use Railway's deployment rollback for the affected service, then
+run **Deployment smoke** manually from GitHub Actions against the restored
+environment.
+
 ## Web service
 
 Configure `@leadreacher/web` with:
