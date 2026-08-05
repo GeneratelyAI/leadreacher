@@ -6,6 +6,7 @@ import {
   DeliveryUnknownError,
 } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
+import { publishChatEvent } from "../lib/chat-events.js";
 
 type DeliverOperatorMessageInput = {
   orgId: string;
@@ -155,5 +156,125 @@ export async function deliverOperatorMessage(
     }),
   ]);
 
+  await publishChatEvent({
+    orgId: input.orgId,
+    type: "message.created",
+    campaignLeadId: input.campaignLeadId,
+    messageId: prepared.id,
+  });
+
   return { messageId: prepared.id };
+}
+
+type StartOperatorLinkedInConversationInput = Omit<
+  DeliverOperatorMessageInput,
+  "channel" | "chatId" | "recipientEmail" | "recipientName" | "subject"
+> & {
+  recipientProviderId: string;
+};
+
+export async function startOperatorLinkedInConversation(
+  adapter: UnipileAdapter,
+  input: StartOperatorLinkedInConversationInput,
+): Promise<{ messageId: string; chatId: string }> {
+  let prepared: { id: string };
+  try {
+    prepared = await prisma.$transaction(async (tx) => {
+      const message = await tx.message.create({
+        data: {
+          campaignId: input.campaignId,
+          leadId: input.leadId,
+          orgId: input.orgId,
+          channel: "linkedin",
+          content: { type: "text", message: input.message },
+          direction: "outbound",
+          origin: "operator",
+          status: "queued",
+          stepIndex: -1,
+          idempotencyKey: input.idempotencyKey,
+        },
+        select: { id: true },
+      });
+      await tx.manualDeliveryAttempt.create({
+        data: { messageId: message.id, campaignLeadId: input.campaignLeadId },
+      });
+      return message;
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) throw error;
+    const existing = await prisma.message.findFirst({
+      where: { orgId: input.orgId, idempotencyKey: input.idempotencyKey },
+      select: {
+        id: true,
+        status: true,
+        manualDeliveryAttempt: { select: { state: true, providerRef: true } },
+      },
+    });
+    if (!existing) throw error;
+    resolveExistingOperatorDelivery(existing);
+    const campaignLead = await prisma.campaignLead.findUnique({
+      where: { id: input.campaignLeadId },
+      select: { providerChatId: true, linkedinChatId: true },
+    });
+    const chatId = campaignLead?.providerChatId ?? campaignLead?.linkedinChatId;
+    if (!chatId) throw new DeliveryPendingError();
+    return { messageId: existing.id, chatId };
+  }
+
+  let chatId: string;
+  try {
+    const chat = await adapter.startChat(
+      input.senderAccountId,
+      input.recipientProviderId,
+      input.message,
+    );
+    chatId = chat.chat_id;
+  } catch (error) {
+    await prisma.$transaction([
+      prisma.manualDeliveryAttempt.update({
+        where: { messageId: prepared.id },
+        data: { state: "unknown" },
+      }),
+      prisma.message.update({
+        where: { id: prepared.id },
+        data: { status: "skipped" },
+      }),
+    ]);
+    throw error;
+  }
+
+  const providerRef = `linkedin-chat:${chatId}:initial:${prepared.id}`;
+  const sentAt = new Date();
+  await prisma.$transaction([
+    prisma.campaignLead.update({
+      where: { id: input.campaignLeadId },
+      data: { linkedinChatId: chatId, providerChatId: chatId },
+    }),
+    prisma.manualDeliveryAttempt.update({
+      where: { messageId: prepared.id },
+      data: { state: "sent", providerRef, sentAt },
+    }),
+    prisma.message.update({
+      where: { id: prepared.id },
+      data: { status: "sent", externalId: providerRef, sentAt },
+    }),
+    prisma.auditLog.create({
+      data: {
+        orgId: input.orgId,
+        action: "message.operator_start",
+        resource: "Message",
+        resourceId: prepared.id,
+        metadata: { campaignLeadId: input.campaignLeadId, channel: "linkedin" },
+      },
+    }),
+  ]);
+
+  await publishChatEvent({
+    orgId: input.orgId,
+    type: "message.created",
+    campaignLeadId: input.campaignLeadId,
+    messageId: prepared.id,
+  });
+
+  return { messageId: prepared.id, chatId };
 }

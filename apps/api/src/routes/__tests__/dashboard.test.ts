@@ -14,6 +14,7 @@ const {
   messageCount,
   messageFindMany,
   messageFindFirst,
+  messageGroupBy,
   campaignCount,
   campaignFindMany,
   campaignFindFirst,
@@ -37,6 +38,7 @@ const {
   checkAndIncrementDailySendLimit,
   getDailySendLimitStatus,
   deliverOperatorMessage,
+  startOperatorLinkedInConversation,
   runReplyDraftAgent,
   readCachedAnalyticsInsights,
   analyticsInsightsQueueAdd,
@@ -55,6 +57,7 @@ const {
   messageCount: vi.fn(),
   messageFindMany: vi.fn(),
   messageFindFirst: vi.fn(),
+  messageGroupBy: vi.fn(),
   campaignCount: vi.fn(),
   campaignFindMany: vi.fn(),
   campaignFindFirst: vi.fn(),
@@ -78,6 +81,7 @@ const {
   checkAndIncrementDailySendLimit: vi.fn(),
   getDailySendLimitStatus: vi.fn(),
   deliverOperatorMessage: vi.fn(),
+  startOperatorLinkedInConversation: vi.fn(),
   runReplyDraftAgent: vi.fn(),
   readCachedAnalyticsInsights: vi.fn(),
   analyticsInsightsQueueAdd: vi.fn(),
@@ -93,7 +97,7 @@ vi.mock("../../lib/prisma.js", () => ({
     user: { findMany: userFindMany },
     lead: { count: leadCount, groupBy: leadGroupBy, findMany: leadFindMany, findFirst: leadFindFirst, update: leadUpdate },
     campaignLead: { count: campaignLeadCount, findMany: campaignLeadFindMany, findFirst: campaignLeadFindFirst },
-    message: { count: messageCount, findMany: messageFindMany, findFirst: messageFindFirst, updateMany: messageUpdateMany },
+    message: { count: messageCount, findMany: messageFindMany, findFirst: messageFindFirst, groupBy: messageGroupBy, updateMany: messageUpdateMany },
     campaign: { count: campaignCount, findMany: campaignFindMany, findFirst: campaignFindFirst, update: campaignUpdate },
     socialAccount: { findMany: socialAccountFindMany, count: socialAccountCount },
     videoAsset: { count: videoAssetCount, findMany: videoAssetFindMany },
@@ -118,6 +122,7 @@ vi.mock("../../services/analytics-insights.js", () => ({
 vi.mock("../../lib/rate-limiter.js", () => ({ checkAndIncrementDailySendLimit, getDailySendLimitStatus }));
 vi.mock("../../services/operator-message-delivery.js", () => ({
   deliverOperatorMessage,
+  startOperatorLinkedInConversation,
   resolveExistingOperatorDelivery: vi.fn((existing: { id: string }) => ({ messageId: existing.id })),
 }));
 vi.mock("../../services/entitlements.js", () => ({
@@ -339,6 +344,7 @@ beforeEach(async () => {
   leadFindFirst.mockReset().mockResolvedValue(null);
   leadUpdate.mockReset().mockResolvedValue({});
   messageUpdateMany.mockReset().mockResolvedValue({ count: 0 });
+  messageGroupBy.mockReset().mockResolvedValue([]);
   deliveryAttemptFindMany.mockReset().mockResolvedValue([]);
   deliveryAttemptCount.mockReset().mockResolvedValue(0);
   manualDeliveryAttemptFindMany.mockReset().mockResolvedValue([]);
@@ -348,6 +354,7 @@ beforeEach(async () => {
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
   getDailySendLimitStatus.mockReset().mockResolvedValue({ limit: 50, remaining: 49, resetAt: "2026-07-22T00:00:00.000Z" });
   deliverOperatorMessage.mockReset().mockResolvedValue({ messageId: "operator-message-1" });
+  startOperatorLinkedInConversation.mockReset().mockResolvedValue({ messageId: "operator-message-1", chatId: "chat-1" });
   runReplyDraftAgent.mockReset().mockResolvedValue({ drafts: ["A safe draft."] });
   readCachedAnalyticsInsights.mockReset().mockResolvedValue(null);
   analyticsInsightsQueueAdd.mockReset().mockResolvedValue({});
@@ -952,6 +959,48 @@ describe("dashboard overview", () => {
     expect(deliverOperatorMessage).not.toHaveBeenCalled();
     expect(checkAndIncrementDailySendLimit).not.toHaveBeenCalled();
   });
+
+  it("starts a LinkedIn conversation through the campaign-bound sender", async () => {
+    campaignLeadFindFirst.mockResolvedValueOnce({
+      id: "campaign-lead-1",
+      campaignId: "campaign-1",
+      leadId: "lead-1",
+      status: "active",
+      linkedinChatId: null,
+      providerChatId: null,
+      lead: { providerLinkedinId: "provider-lead-1" },
+      campaign: {
+        status: "draft",
+        senderAccount: { id: "account-1", platform: "linkedin", status: "active", unipileId: "unipile-1" },
+      },
+    });
+    messageFindFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+    getCampaignSenderForChannel.mockResolvedValueOnce({
+      id: "account-1",
+      platform: "linkedin",
+      status: "active",
+      unipileId: "unipile-1",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/conversations/campaign-lead-1/start",
+      payload: {
+        message: "Hi Clara, would you be open to a quick conversation?",
+        idempotencyKey: "8fe2f68c-c707-44c5-95b3-d8fe08de7517",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(startOperatorLinkedInConversation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        campaignLeadId: "campaign-lead-1",
+        senderAccountId: "unipile-1",
+        recipientProviderId: "provider-lead-1",
+      }),
+    );
+  });
 });
 
 describe("dashboard conversations", () => {
@@ -984,6 +1033,17 @@ describe("dashboard conversations", () => {
         },
       },
     ]);
+    messageGroupBy
+      .mockResolvedValueOnce([
+        { campaignId: "campaign-1", leadId: "lead-1", _max: { createdAt: new Date("2026-07-22T12:00:00.000Z") } },
+        { campaignId: "campaign-1", leadId: "lead-2", _max: { createdAt: new Date("2026-07-21T12:00:00.000Z") } },
+      ])
+      .mockResolvedValueOnce([
+        { campaignId: "campaign-1", leadId: "lead-1", _count: { _all: 1 } },
+      ])
+      .mockResolvedValueOnce([
+        { campaignId: "campaign-1", leadId: "lead-1", _count: { _all: 1 } },
+      ]);
     messageFindMany.mockResolvedValueOnce([
       {
         id: "msg-1",
@@ -1077,6 +1137,57 @@ describe("dashboard conversations", () => {
       id: "campaign-lead-1",
       leadId: "lead-1",
       prospect: { name: "Hannah Lewis" },
+    });
+  });
+
+  it("pages older messages with an organization-scoped cursor", async () => {
+    campaignLeadFindFirst.mockResolvedValueOnce({ campaignId: "campaign-1", leadId: "lead-1" });
+    messageFindMany.mockResolvedValueOnce([
+      {
+        id: "msg-older-2",
+        channel: "linkedin",
+        content: { message: "Second" },
+        direction: "inbound",
+        origin: "prospect",
+        status: "delivered",
+        readAt: null,
+        handledAt: null,
+        sentAt: new Date("2026-07-20T10:00:00.000Z"),
+        createdAt: new Date("2026-07-20T10:00:00.000Z"),
+        manualDeliveryAttempt: null,
+      },
+      {
+        id: "msg-older-1",
+        channel: "linkedin",
+        content: { message: "First" },
+        direction: "outbound",
+        origin: "sequence",
+        status: "sent",
+        readAt: null,
+        handledAt: null,
+        sentAt: new Date("2026-07-19T10:00:00.000Z"),
+        createdAt: new Date("2026-07-19T10:00:00.000Z"),
+        manualDeliveryAttempt: null,
+      },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/dashboard/conversations/campaign-lead-1/messages?cursor=msg-newer&limit=1",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(campaignLeadFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "campaign-lead-1", campaign: { orgId: "org-1" } },
+    }));
+    expect(messageFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      cursor: { id: "msg-newer" },
+      skip: 1,
+      take: 2,
+    }));
+    expect(response.json()).toMatchObject({
+      messages: [{ id: "msg-older-2" }],
+      nextCursor: "msg-older-2",
     });
   });
 });

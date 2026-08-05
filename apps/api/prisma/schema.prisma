@@ -317,9 +317,11 @@ model Message {
   @@index([externalId])
   @@index([status])
   @@index([orgId, direction, readAt])
+  @@index([orgId, direction, readAt, createdAt])
   @@index([orgId, createdAt])
   @@index([orgId, direction, createdAt])
   @@index([campaignId, createdAt])
+  @@index([orgId, campaignId, leadId, createdAt])
 }
 
 model ManualDeliveryAttempt {

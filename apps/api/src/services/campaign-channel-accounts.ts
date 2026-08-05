@@ -101,12 +101,16 @@ export async function getCampaignSenderForChannel(input: {
   /** Fallback legacy LinkedIn sender include. */
   legacyLinkedInAccount?: {
     id: string;
+    accountName?: string;
+    avatarUrl?: string | null;
     platform: string;
     status: string;
     unipileId: string | null;
   } | null;
 }): Promise<{
   id: string;
+  accountName: string;
+  avatarUrl: string | null;
   platform: string;
   status: string;
   unipileId: string;
@@ -120,7 +124,7 @@ export async function getCampaignSenderForChannel(input: {
     },
     include: {
       socialAccount: {
-        select: { id: true, platform: true, status: true, unipileId: true },
+        select: { id: true, accountName: true, avatarUrl: true, platform: true, status: true, unipileId: true },
       },
     },
   });
@@ -128,6 +132,8 @@ export async function getCampaignSenderForChannel(input: {
   if (row?.socialAccount.unipileId && row.socialAccount.status === "active") {
     return {
       id: row.socialAccount.id,
+      accountName: row.socialAccount.accountName,
+      avatarUrl: row.socialAccount.avatarUrl,
       platform: row.socialAccount.platform,
       status: row.socialAccount.status,
       unipileId: row.socialAccount.unipileId,
@@ -142,6 +148,8 @@ export async function getCampaignSenderForChannel(input: {
   ) {
     return {
       id: input.legacyLinkedInAccount.id,
+      accountName: input.legacyLinkedInAccount.accountName ?? "LinkedIn sender",
+      avatarUrl: input.legacyLinkedInAccount.avatarUrl ?? null,
       platform: input.legacyLinkedInAccount.platform,
       status: input.legacyLinkedInAccount.status,
       unipileId: input.legacyLinkedInAccount.unipileId,

@@ -16,6 +16,13 @@ export const redisSubscriber = new IORedis(env.UPSTASH_REDIS_URL, {
   password: env.UPSTASH_REDIS_TOKEN,
 });
 
+export function createRedisSubscriber(): IORedis {
+  return new IORedis(env.UPSTASH_REDIS_URL, {
+    ...UPSTASH_OPTIONS,
+    password: env.UPSTASH_REDIS_TOKEN,
+  });
+}
+
 async function closeRedisClient(client: IORedis): Promise<void> {
   if (client.status === "end") {
     return;

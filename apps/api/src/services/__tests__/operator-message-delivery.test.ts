@@ -9,6 +9,8 @@ const {
   manualDeliveryAttemptCreate,
   manualDeliveryAttemptUpdate,
   auditLogCreate,
+  campaignLeadFindUnique,
+  campaignLeadUpdate,
   transaction,
 } = vi.hoisted(() => ({
   messageCreate: vi.fn(),
@@ -18,6 +20,8 @@ const {
   manualDeliveryAttemptCreate: vi.fn(),
   manualDeliveryAttemptUpdate: vi.fn(),
   auditLogCreate: vi.fn(),
+  campaignLeadFindUnique: vi.fn(),
+  campaignLeadUpdate: vi.fn(),
   transaction: vi.fn(),
 }));
 
@@ -31,12 +35,14 @@ vi.mock("../../lib/prisma.js", () => ({
     },
     manualDeliveryAttempt: { update: manualDeliveryAttemptUpdate },
     auditLog: { create: auditLogCreate },
+    campaignLead: { findUnique: campaignLeadFindUnique, update: campaignLeadUpdate },
   },
 }));
 
 import {
   deliverOperatorMessage,
   resolveExistingOperatorDelivery,
+  startOperatorLinkedInConversation,
 } from "../operator-message-delivery.js";
 
 const input = {
@@ -67,6 +73,38 @@ beforeEach(() => {
   manualDeliveryAttemptCreate.mockReset().mockResolvedValue({});
   manualDeliveryAttemptUpdate.mockReset().mockResolvedValue({});
   auditLogCreate.mockReset().mockResolvedValue({});
+  campaignLeadFindUnique.mockReset().mockResolvedValue({ providerChatId: "chat-1", linkedinChatId: "chat-1" });
+  campaignLeadUpdate.mockReset().mockResolvedValue({});
+});
+
+describe("startOperatorLinkedInConversation", () => {
+  it("creates the provider chat and persists it on the campaign membership", async () => {
+    messageCreate.mockResolvedValue({ id: "operator-message-1" });
+    const startChat = vi.fn().mockResolvedValue({ chat_id: "chat-1" });
+    const adapter = { startChat } as unknown as UnipileAdapter;
+
+    const result = await startOperatorLinkedInConversation(adapter, {
+      orgId: "org-1",
+      campaignId: "campaign-1",
+      campaignLeadId: "campaign-lead-1",
+      leadId: "lead-1",
+      senderAccountId: "account-1",
+      recipientProviderId: "provider-lead-1",
+      message: "Hi Clara, would you be open to a quick conversation?",
+      idempotencyKey: "8fe2f68c-c707-44c5-95b3-d8fe08de7517",
+    });
+
+    expect(result).toEqual({ messageId: "operator-message-1", chatId: "chat-1" });
+    expect(startChat).toHaveBeenCalledWith(
+      "account-1",
+      "provider-lead-1",
+      "Hi Clara, would you be open to a quick conversation?",
+    );
+    expect(campaignLeadUpdate).toHaveBeenCalledWith({
+      where: { id: "campaign-lead-1" },
+      data: { linkedinChatId: "chat-1", providerChatId: "chat-1" },
+    });
+  });
 });
 
 describe("deliverOperatorMessage", () => {
