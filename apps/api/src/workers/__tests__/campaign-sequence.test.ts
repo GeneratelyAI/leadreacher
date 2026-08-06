@@ -204,6 +204,27 @@ describe("campaign sequence step zero", () => {
       unipileAccountId: "account-1",
       sequence,
     }));
+    expect(campaignLeadUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        linkedinRelationship: "connected",
+        relationshipSenderId: "account-1",
+      }),
+    }));
+  });
+
+  it("treats Unipile's relationship flag as connected even without FIRST_DEGREE", async () => {
+    getProfile.mockResolvedValue({
+      network_distance: "SECOND_DEGREE",
+      is_relationship: true,
+      provider_id: "profile-provider-1",
+    });
+
+    await expect(processStepZero()).resolves.toMatchObject({
+      path: "already-connected",
+      sent: true,
+    });
+    expect(sendConnectionInvite).not.toHaveBeenCalled();
+    expect(deliverSequenceStep1ViaChat).toHaveBeenCalledOnce();
   });
 
   it("sends an invite for a lead that is not already connected", async () => {
@@ -224,6 +245,12 @@ describe("campaign sequence step zero", () => {
       "lead-provider-1",
       "Connect?",
     );
+    expect(campaignLeadUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        linkedinRelationship: "invite_required",
+        relationshipSenderId: "account-1",
+      }),
+    }));
   });
 
   it("skips and reschedules delivery when the sender has reached the daily cap", async () => {

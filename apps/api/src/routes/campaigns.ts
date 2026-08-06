@@ -28,6 +28,10 @@ import {
   campaignVideoPaused,
 } from "../lib/campaign-video-summary.js";
 import { videoGenerationQueue } from "../lib/queue.js";
+import {
+  getCampaignRelationshipSummary,
+  refreshCampaignRelationshipRouting,
+} from "../services/campaign-relationship-routing.js";
 
 const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
@@ -75,6 +79,10 @@ const EnrollLeadsBodySchema = z.object({
 
 const CampaignLeadsQuerySchema = z.object({
   status: z.string().optional(),
+});
+
+const RefreshRelationshipsBodySchema = z.object({
+  cursor: z.string().trim().min(1).optional(),
 });
 
 
@@ -352,6 +360,11 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     ).length;
     const replies = messages.filter((message) => message.direction === "inbound").length;
     const meetings = campaign.leads.filter((row) => row.lead.status === "meeting").length;
+    const audienceRouting = await getCampaignRelationshipSummary({
+      campaignId,
+      senderId: campaign.socialAccountId,
+      total: leadCount,
+    });
 
     let sequence: unknown = campaign.sequence;
     try {
@@ -390,6 +403,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         id: campaignLead.id,
         campaignLeadStatus: campaignLead.status,
         currentStep: campaignLead.currentStep,
+        linkedinRelationship: campaignLead.linkedinRelationship,
+        relationshipCheckedAt: campaignLead.relationshipCheckedAt,
         leadId: campaignLead.leadId,
         name: `${campaignLead.lead.firstName} ${campaignLead.lead.lastName}`.trim(),
         headline: campaignLead.lead.title,
@@ -423,6 +438,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
             : []),
         ],
       },
+      audienceRouting,
     });
   });
 
@@ -711,6 +727,20 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       data,
     });
 
+    if (
+      senders &&
+      senders.linkedInSocialAccountId !== campaign.socialAccountId
+    ) {
+      await prisma.campaignLead.updateMany({
+        where: { campaignId },
+        data: {
+          linkedinRelationship: "unknown",
+          relationshipCheckedAt: null,
+          relationshipSenderId: null,
+        },
+      });
+    }
+
     if (body.status === "paused" || body.status === "completed") {
       await cancelCampaignPendingSequenceJobs({ campaignId, orgId });
     }
@@ -820,6 +850,43 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ enrolled: created.length, queued });
   });
 
+  r.post("/campaigns/:campaignId/relationships/refresh", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Refresh LinkedIn relationship routing preview"),
+      params: CampaignIdParamsSchema,
+      body: RefreshRelationshipsBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { campaignId } = request.params;
+    const campaign = await prisma.campaign.findFirst({
+      where: { id: campaignId, orgId },
+      include: { senderAccount: true },
+    });
+
+    if (!campaign) throw new NotFoundError("Campaign");
+    if (!campaign.channels.includes("linkedin")) {
+      throw new ValidationError("Relationship routing is only available for LinkedIn campaigns");
+    }
+    if (!campaign.senderAccount?.unipileId || campaign.senderAccount.status !== "active") {
+      throw new ValidationError("Select an active LinkedIn sender before checking relationships");
+    }
+    if (!["draft", "review", "paused"].includes(campaign.status)) {
+      throw new ValidationError("Relationship routing can only be refreshed before or while a campaign is paused");
+    }
+
+    const summary = await refreshCampaignRelationshipRouting({
+      campaignId,
+      orgId,
+      sender: {
+        id: campaign.senderAccount.id,
+        unipileId: campaign.senderAccount.unipileId,
+      },
+      cursor: request.body.cursor,
+    });
+    return reply.send(summary);
+  });
+
   r.post("/campaigns/:campaignId/launch", {
     schema: {
       ...authenticatedRoute("Campaigns", "Launch a draft/review campaign"),
@@ -892,8 +959,13 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw new ConflictError("Campaign could not be scheduled. Please retry launch.");
     }
 
+    const audienceRouting = await getCampaignRelationshipSummary({
+      campaignId,
+      senderId: campaign.socialAccountId,
+      total: campaign.leads.length,
+    });
     await invalidateDashboardChrome(orgId);
-    return reply.send({ launched: true, jobCount });
+    return reply.send({ launched: true, jobCount, audienceRouting });
   });
 
   r.get("/campaigns/:campaignId/leads", {
