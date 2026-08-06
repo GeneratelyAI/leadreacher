@@ -49,6 +49,14 @@ const optionalUrl = z.preprocess(
   z.string().url().optional(),
 );
 
+const redisConnectionUrl = z
+  .string()
+  .url()
+  .refine(
+    (value) => value.startsWith("redis://") || value.startsWith("rediss://"),
+    "Must use a redis:// or rediss:// connection URL",
+  );
+
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive(),
   RUNTIME_ROLE: z.enum(["api", "worker"]).default("api"),
@@ -58,7 +66,7 @@ const envSchema = z.object({
   UNIPILE_API_KEY: z.string().min(1),
   UNIPILE_WEBHOOK_SECRET: z.string().min(1),
   APIFY_API_KEY: z.string().min(1),
-  UPSTASH_REDIS_URL: z.string().min(1),
+  UPSTASH_REDIS_URL: redisConnectionUrl,
   UPSTASH_REDIS_TOKEN: z.string().min(1),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
