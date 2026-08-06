@@ -235,7 +235,10 @@ export function OverviewChannelUpsellCarousel({
                     <Link
                       href="/dashboard/channels"
                       aria-label={`Connect ${channel.label}`}
-                      className="size-20 transition duration-200 ease-out hover:-translate-y-1 hover:scale-105 focus-visible:-translate-y-1 focus-visible:scale-105 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+                      className={cn(
+                        channel.id === "whatsapp" ? "size-25 translate-y-1" : "size-20",
+                        "transition-transform duration-200 ease-out hover:translate-y-0 hover:scale-110 focus-visible:translate-y-0 focus-visible:scale-110 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 motion-reduce:transition-none motion-reduce:hover:scale-100",
+                      )}
                     >
                       <ChannelStickerMark name={channel.id} />
                     </Link>

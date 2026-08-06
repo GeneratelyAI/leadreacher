@@ -62,6 +62,7 @@ import { cn } from "@/lib/utils";
 
 type ReviewStatus = "all" | "pending" | "approved" | "excluded" | "booked";
 type LeadReviewStatus = Exclude<ReviewStatus, "all" | "booked">;
+type LinkedInRelationship = "connected" | "invite_required" | "unresolved" | "unknown";
 
 type Campaign = {
   id: string;
@@ -96,6 +97,8 @@ type Prospect = {
     status: string;
     campaignLeadId: string;
     campaignLeadStatus: string;
+    linkedinRelationship: LinkedInRelationship;
+    relationshipCheckedAt: string | null;
   }>;
 };
 
@@ -196,6 +199,20 @@ function ReviewBadge({ status }: { status: LeadReviewStatus }) {
     excluded: "border-onboarding-neutral-200 bg-onboarding-neutral-100 text-onboarding-neutral-600 dark:border-onboarding-neutral-500 dark:bg-onboarding-neutral-700 dark:text-onboarding-neutral-0",
   } as const;
   return <Badge variant="outline" className={cn("font-medium", styles[status])}>{titleCase(status)}</Badge>;
+}
+
+function RelationshipBadge({ relationship }: { relationship: LinkedInRelationship }) {
+  const labels: Record<LinkedInRelationship, string> = {
+    connected: "Direct message",
+    invite_required: "Invite first",
+    unresolved: "Unresolved",
+    unknown: "Not checked",
+  };
+  return (
+    <Badge variant="outline" className="border-transparent bg-muted text-[11px] font-medium text-muted-foreground">
+      {labels[relationship]}
+    </Badge>
+  );
 }
 
 function TrendlessMetric({ label, value, detail, tone, icon }: { label: string; value: number; detail: string; tone: "purple" | "yellow" | "green" | "red" | "blue"; icon: ReactNode }) {
@@ -312,6 +329,12 @@ export function ProspectsWorkspace() {
   const [lifecycle, setLifecycle] = useState("");
   const [source, setSource] = useState("");
   const [campaignFilter, setCampaignFilter] = useState(() => searchParams.get("campaignId") ?? "");
+  const [relationshipFilter, setRelationshipFilter] = useState<LinkedInRelationship | "">(() => {
+    const value = searchParams.get("relationship");
+    return ["connected", "invite_required", "unresolved", "unknown"].includes(value ?? "")
+      ? value as LinkedInRelationship
+      : "";
+  });
   const [enrollmentCampaignId, setEnrollmentCampaignId] = useState(
     () => searchParams.get("enrollCampaignId") ?? "",
   );
@@ -332,8 +355,9 @@ export function ProspectsWorkspace() {
     }
     if (source) params.set("source", source);
     if (campaignFilter) params.set("campaignId", campaignFilter);
+    if (campaignFilter && relationshipFilter) params.set("linkedinRelationship", relationshipFilter);
     return params.toString();
-  }, [campaignFilter, debouncedQuery, lifecycle, page, reviewStatus, source]);
+  }, [campaignFilter, debouncedQuery, lifecycle, page, relationshipFilter, reviewStatus, source]);
   const prospectsQuery = useQuery({
     queryKey: ["dashboard", "prospects", prospectParams],
     queryFn: () => apiFetch<ProspectListResponse>(`/dashboard/prospects?${prospectParams}`),
@@ -359,7 +383,11 @@ export function ProspectsWorkspace() {
     ]);
   };
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, debouncedQuery, lifecycle, reviewStatus, source]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, debouncedQuery, lifecycle, relationshipFilter, reviewStatus, source]);
+
+  useEffect(() => {
+    if (!campaignFilter) setRelationshipFilter("");
+  }, [campaignFilter]);
 
   async function openDetail(id: string) {
     try {
@@ -406,8 +434,8 @@ export function ProspectsWorkspace() {
   const approvedSelectedCount = useMemo(() => [...selected].filter((id) => leads.find((lead) => lead.id === id)?.reviewStatus === "approved").length, [leads, selected]);
   const visibleIds = leads.map((lead) => lead.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
-  const clearFilters = () => { setQuery(""); setReviewStatus("all"); setLifecycle(""); setSource(""); setCampaignFilter(""); };
-  const activeFilterCount = [lifecycle, source, campaignFilter].filter(Boolean).length;
+  const clearFilters = () => { setQuery(""); setReviewStatus("all"); setLifecycle(""); setSource(""); setCampaignFilter(""); setRelationshipFilter(""); };
+  const activeFilterCount = [lifecycle, source, campaignFilter, relationshipFilter].filter(Boolean).length;
 
   const filterControls = (
     <>
@@ -423,6 +451,24 @@ export function ProspectsWorkspace() {
         <SelectTrigger className="min-w-36 h-10 sm:h-9"><SelectValue placeholder="All campaigns" /></SelectTrigger>
         <SelectContent><SelectItem value="__all">All campaigns</SelectItem>{campaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectContent>
       </Select>
+      {campaignFilter ? (
+        <Select
+          value={relationshipFilter || null}
+          onValueChange={(value) => {
+            const nextValue = value as string | null;
+            setRelationshipFilter(nextValue === "__all" || nextValue === null ? "" : nextValue as LinkedInRelationship);
+          }}
+        >
+          <SelectTrigger className="min-w-36 h-10 sm:h-9"><SelectValue placeholder="All relationship routes" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all">All relationship routes</SelectItem>
+            <SelectItem value="connected">Direct message</SelectItem>
+            <SelectItem value="invite_required">Invite first</SelectItem>
+            <SelectItem value="unresolved">Unresolved</SelectItem>
+            <SelectItem value="unknown">Not checked</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : null}
     </>
   );
 
@@ -552,6 +598,11 @@ export function ProspectsWorkspace() {
                                 <span className={cn("size-1.5 rounded-full", lead.status === "new" ? "bg-onboarding-neutral-400" : lead.status === "replied" ? "bg-blue-500" : lead.status === "meeting" ? "bg-onboarding-purple-600" : "bg-onboarding-success-500")} />
                                 {lifecycleLabel(lead.status)}
                               </span>
+                              {campaignFilter ? (
+                                <RelationshipBadge
+                                  relationship={lead.campaigns.find((campaign) => campaign.id === campaignFilter)?.linkedinRelationship ?? "unknown"}
+                                />
+                              ) : null}
                             </div>
                           </div>
                         </div>
@@ -631,6 +682,13 @@ export function ProspectsWorkspace() {
                           <div className="max-w-48 truncate text-xs text-primary">
                             {lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}
                           </div>
+                          {campaignFilter ? (
+                            <div className="mt-1">
+                              <RelationshipBadge
+                                relationship={lead.campaigns.find((campaign) => campaign.id === campaignFilter)?.linkedinRelationship ?? "unknown"}
+                              />
+                            </div>
+                          ) : null}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{relativeTime(lead.lastActivityAt)}</TableCell>
                         <TableCell onClick={(event) => event.stopPropagation()}>

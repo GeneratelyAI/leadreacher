@@ -17,6 +17,7 @@ import { channelForStepType } from "../lib/channels.js";
 import { parseSequence } from "../lib/sequence.js";
 import { resolveProviderId } from "../lib/provider-id.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
+import { isConnectedProfile } from "../lib/relation-status.js";
 import {
   checkAndIncrementDailySendLimit,
   millisecondsUntilNextUtcDay,
@@ -209,6 +210,14 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           isRelationship = profile.is_relationship;
           profileProviderId = profile.provider_id;
         } catch (error) {
+          await prisma.campaignLead.update({
+            where: { id: campaignLeadId },
+            data: {
+              linkedinRelationship: "unresolved",
+              relationshipCheckedAt: new Date(),
+              relationshipSenderId: socialAccount.id,
+            },
+          });
           console.error(
             JSON.stringify({
               event: "campaign-sequence-step0",
@@ -221,7 +230,10 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           throw error;
         }
 
-        if (networkDistance === "FIRST_DEGREE") {
+        if (isConnectedProfile({
+          network_distance: networkDistance,
+          is_relationship: isRelationship,
+        })) {
           const attendeeProviderId = resolveProviderId(
             campaignLead.lead.providerLinkedinId,
             profileProviderId,
@@ -240,6 +252,14 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
               ...(campaignLead.lead.providerLinkedinId
                 ? {}
                 : { providerLinkedinId: attendeeProviderId }),
+            },
+          });
+          await prisma.campaignLead.update({
+            where: { id: campaignLeadId },
+            data: {
+              linkedinRelationship: "connected",
+              relationshipCheckedAt: new Date(),
+              relationshipSenderId: socialAccount.id,
             },
           });
 
@@ -343,7 +363,12 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             // Step 1 is triggered by new_relation after the invite is accepted.
             prisma.campaignLead.update({
               where: { id: campaignLeadId },
-              data: { currentStep: 1 },
+              data: {
+                currentStep: 1,
+                linkedinRelationship: "invite_required",
+                relationshipCheckedAt: new Date(),
+                relationshipSenderId: socialAccount.id,
+              },
             }),
             prisma.deliveryAttempt.update({
               where: { id: reservation.attemptId },

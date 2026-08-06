@@ -3,10 +3,14 @@
 import Link from "next/link";
 import {
   CheckCircle2,
+  CircleHelp,
   Loader2,
   MessageSquare,
   Pause,
   Play,
+  RefreshCw,
+  UserCheck,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -73,6 +77,8 @@ export type CampaignDetail = {
     leadStatus: string;
     campaignLeadStatus: string;
     currentStep: number;
+    linkedinRelationship: "unknown" | "connected" | "invite_required" | "unresolved";
+    relationshipCheckedAt: string | null;
     avatarUrl: string | null;
   }>;
   launchReady: {
@@ -80,6 +86,14 @@ export type CampaignDetail = {
     hasSequenceReview: boolean;
     hasSender: boolean;
     reasons: string[];
+  };
+  audienceRouting: {
+    total: number;
+    directMessage: number;
+    inviteRequired: number;
+    unresolved: number;
+    unknown: number;
+    checked: number;
   };
 };
 
@@ -122,6 +136,8 @@ export function CampaignDetailSheet({
   const [senderAccountId, setSenderAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmLaunchOpen, setConfirmLaunchOpen] = useState(false);
+  const [isRefreshingRelationships, setIsRefreshingRelationships] = useState(false);
+  const [relationshipCursor, setRelationshipCursor] = useState<string | null>(null);
 
   const load = useCallback(async (id: string) => {
     setIsLoading(true);
@@ -132,6 +148,7 @@ export function CampaignDetailSheet({
       setName(next.name);
       setSequence(asSequence(next.sequence));
       setSenderAccountId(next.socialAccountId ?? "");
+      setRelationshipCursor(null);
       setEditing(false);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load campaign.");
@@ -183,6 +200,37 @@ export function CampaignDetailSheet({
       toast.error(message);
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function refreshRelationships() {
+    if (!campaignId || isRefreshingRelationships) return;
+    setIsRefreshingRelationships(true);
+    setError(null);
+    try {
+      const result = await apiFetch<CampaignDetail["audienceRouting"] & {
+        processed: number;
+        hasMore: boolean;
+        nextCursor: string | null;
+      }>(`/campaigns/${campaignId}/relationships/refresh`, {
+        method: "POST",
+        body: JSON.stringify(relationshipCursor ? { cursor: relationshipCursor } : {}),
+      });
+      setDetail((current) => current ? { ...current, audienceRouting: result } : current);
+      setRelationshipCursor(result.hasMore ? result.nextCursor : null);
+      toast.success(
+        result.hasMore
+          ? `Checked ${result.processed} prospects. Continue to check the remaining audience.`
+          : `Checked ${result.processed} prospect${result.processed === 1 ? "" : "s"}`,
+      );
+    } catch (requestError) {
+      const message = requestError instanceof ApiError
+        ? requestError.message
+        : "Unable to check LinkedIn relationships.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsRefreshingRelationships(false);
     }
   }
 
@@ -372,11 +420,50 @@ export function CampaignDetailSheet({
 
               <section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Audience</h3>
-                  <Button size="sm" variant="ghost" asChild>
-                    <Link href={`/dashboard/prospects?campaignId=${detail.id}`}>View in Prospects</Link>
-                  </Button>
+                  <div>
+                    <h3 className="text-sm font-semibold">Audience routing</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Checked against {detail.senderAccount?.accountName ?? "the selected sender"}.
+                    </p>
+                  </div>
+                  {detail.channels.includes("linkedin") && ["draft", "review", "paused"].includes(detail.status) ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isRefreshingRelationships || !detail.senderAccount || detail.prospectCount === 0}
+                      onClick={() => void refreshRelationships()}
+                    >
+                      <RefreshCw className={cn(isRefreshingRelationships && "animate-spin")} />
+                      {relationshipCursor
+                        ? "Continue check"
+                        : detail.audienceRouting.checked > 0
+                          ? "Refresh"
+                          : "Check relationships"}
+                    </Button>
+                  ) : null}
                 </div>
+                {detail.channels.includes("linkedin") && detail.prospectCount > 0 ? (
+                  <div className="grid overflow-hidden rounded-lg border border-border sm:grid-cols-4">
+                    {[
+                      { key: "connected", label: "Direct message", value: detail.audienceRouting.directMessage, icon: UserCheck },
+                      { key: "invite_required", label: "Invite first", value: detail.audienceRouting.inviteRequired, icon: UserPlus },
+                      { key: "unresolved", label: "Unresolved", value: detail.audienceRouting.unresolved, icon: CircleHelp },
+                      { key: "unknown", label: "Not checked", value: detail.audienceRouting.unknown, icon: RefreshCw },
+                    ].map((item) => (
+                      <Link
+                        key={item.key}
+                        href={`/dashboard/prospects?campaignId=${detail.id}&relationship=${item.key}`}
+                        className="flex min-h-20 items-center gap-3 border-b border-border px-3 py-3 transition-colors hover:bg-muted/50 last:border-b-0 sm:border-r sm:border-b-0 sm:last:border-r-0"
+                      >
+                        <item.icon className="size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-300" aria-hidden />
+                        <span>
+                          <span className="block text-lg font-semibold leading-none">{item.value}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">{item.label}</span>
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                ) : null}
                 {detail.leads.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No prospects enrolled yet.</p>
                 ) : (
@@ -387,7 +474,15 @@ export function CampaignDetailSheet({
                           <p className="truncate text-sm font-medium">{lead.name}</p>
                           <p className="truncate text-xs text-muted-foreground">{lead.company}</p>
                         </div>
-                        <Badge variant="secondary">{titleCase(lead.leadStatus)}</Badge>
+                        <Badge variant="secondary">
+                          {lead.linkedinRelationship === "connected"
+                            ? "Direct message"
+                            : lead.linkedinRelationship === "invite_required"
+                              ? "Invite first"
+                              : lead.linkedinRelationship === "unresolved"
+                                ? "Unresolved"
+                                : titleCase(lead.leadStatus)}
+                        </Badge>
                       </li>
                     ))}
                   </ul>
@@ -487,6 +582,27 @@ export function CampaignDetailSheet({
               This will begin outreach to {detail?.prospectCount ?? 0} enrolled prospect{detail?.prospectCount === 1 ? "" : "s"} using the selected sender. Messages cannot be recalled after they are sent.
             </DialogDescription>
           </DialogHeader>
+          {detail?.channels.includes("linkedin") ? (
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm">
+              <p className="font-medium">LinkedIn delivery preview</p>
+              <p className="mt-1 text-muted-foreground">
+                {detail.audienceRouting.directMessage} direct message · {detail.audienceRouting.inviteRequired} invite first
+                {detail.audienceRouting.unresolved > 0 ? ` · ${detail.audienceRouting.unresolved} unresolved` : ""}
+                {detail.audienceRouting.unknown > 0 ? ` · ${detail.audienceRouting.unknown} checked at send time` : ""}
+              </p>
+              {detail.audienceRouting.unknown > 0 || detail.audienceRouting.unresolved > 0 ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2 h-auto px-0"
+                  disabled={isRefreshingRelationships}
+                  onClick={() => void refreshRelationships()}
+                >
+                  <RefreshCw className={cn(isRefreshingRelationships && "animate-spin")} /> Check relationships now
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmLaunchOpen(false)}>Cancel</Button>
             <Button

@@ -311,8 +311,17 @@ const ProspectListQuerySchema = z.object({
   status: z.string().trim().max(40).optional(),
   source: z.string().trim().max(40).optional(),
   campaignId: z.string().trim().min(1).optional(),
+  linkedinRelationship: z.enum(["connected", "invite_required", "unresolved", "unknown"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
+}).superRefine((query, context) => {
+  if (query.linkedinRelationship && !query.campaignId) {
+    context.addIssue({
+      code: "custom",
+      path: ["linkedinRelationship"],
+      message: "campaignId is required when filtering by LinkedIn relationship",
+    });
+  }
 });
 
 const ReviewProspectSchema = z.object({
@@ -442,7 +451,17 @@ function prospectListWhere(
     ...(query.reviewStatus ? { reviewStatus: query.reviewStatus } : {}),
     ...(query.status ? { status: query.status } : {}),
     ...(query.source ? { source: query.source } : {}),
-    ...(query.campaignId ? { campaigns: { some: { campaignId: query.campaignId } } } : {}),
+    ...(query.campaignId ? {
+      campaigns: {
+        some: {
+          campaignId: query.campaignId,
+          campaign: { orgId },
+          ...(query.linkedinRelationship ? {
+            linkedinRelationship: query.linkedinRelationship,
+          } : {}),
+        },
+      },
+    } : {}),
     ...(query.query ? leadSearchWhere(query.query) : {}),
   };
 }
@@ -1695,6 +1714,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
             select: {
               id: true,
               status: true,
+              linkedinRelationship: true,
+              relationshipCheckedAt: true,
               campaign: { select: { id: true, name: true, status: true } },
             },
             orderBy: { createdAt: "desc" },
@@ -1743,6 +1764,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         campaigns: lead.campaigns.map((membership) => ({
           campaignLeadId: membership.id,
           campaignLeadStatus: membership.status,
+          linkedinRelationship: membership.linkedinRelationship,
+          relationshipCheckedAt: membership.relationshipCheckedAt,
           ...membership.campaign,
         })),
         messages: undefined,

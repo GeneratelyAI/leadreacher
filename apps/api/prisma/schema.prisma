@@ -260,6 +260,10 @@ model CampaignLead {
   providerChatId         String?                 @unique
   /// Soft key for email reply matching (accountId:normalizedEmail).
   emailThreadKey         String?
+  /// Sender-specific LinkedIn routing result: unknown | connected | invite_required | unresolved.
+  linkedinRelationship   String                  @default("unknown")
+  relationshipCheckedAt  DateTime?
+  relationshipSenderId   String?
   status                 String                  @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
   createdAt              DateTime                @default(now())
   deliveryAttempts       DeliveryAttempt[]
@@ -268,6 +272,7 @@ model CampaignLead {
   @@unique([campaignId, leadId])
   @@index([emailThreadKey])
   @@index([campaignId, status, createdAt])
+  @@index([campaignId, relationshipSenderId, linkedinRelationship])
 }
 
 model DeliveryAttempt {
