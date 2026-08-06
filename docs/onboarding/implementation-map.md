@@ -6,13 +6,14 @@ durable data, transitions, and tests.
 
 ## Non-negotiable product boundary
 
-Onboarding configures a workspace. It does **not** launch outreach.
+Connecting a channel never sends outreach. The final **Finish and launch**
+action does launch the first campaign after all persisted gates pass.
 
 Completing the flow means the organization has strategy, a campaign type,
 mandatory video configuration, an active Stripe subscription, and at least one
-connected delivery channel. It then enters `/dashboard`, landing on
-`/dashboard/campaigns?reviewCampaignId=...` for the review draft created at
-completion.
+connected delivery channel. The completion action approves the exact prospects
+persisted by audience analysis, enrolls them in one Strategy-linked campaign,
+uses the shared launch validation path, and then enters `/dashboard`.
 
 Connecting LinkedIn does not send a connection invite, chat message, or video.
 
@@ -79,7 +80,7 @@ when a new persisted completion requirement is introduced.
 | Campaign Type | `steps/CampaignTypeClient.tsx` | `PATCH /strategy/:orgId/campaign-type` | `Strategy.campaignType` | Video Decision |
 | Video Decision | `steps/VideoDecisionClient.tsx` plus `steps/video-decision/*` | `PATCH /strategy/:orgId/video-decision`, outreach-message and upload endpoints | `Strategy.videoConfig`, message or uploaded-media selection | Checkout |
 | Checkout | `steps/CheckoutClient.tsx` | `GET /billing/pricing`, `POST /billing/checkout-session` | Stripe checkout session. Entitlement is finalized by webhook. | Channels after verified active state |
-| Channels | `steps/ChannelsClient.tsx` | `GET /social-accounts`, `POST /social-accounts/connect`, `POST /social-accounts/sync`, `POST /onboarding/complete` | Active `SocialAccount`, one Strategy-linked review campaign draft, then `Organization.onboardedAt` | `/dashboard/campaigns?reviewCampaignId=...` |
+| Channels | `steps/ChannelsClient.tsx` | `GET /social-accounts`, `POST /social-accounts/connect`, `POST /social-accounts/sync`, `POST /onboarding/complete` | Active `SocialAccount`, approved/enrolled strategy prospects, one active Strategy-linked campaign, then `Organization.onboardedAt` | `/dashboard` |
 
 All of these API routes are protected and must derive ownership from the JWT
 organization. An `orgId` in a route parameter is a scoped lookup constraint,
@@ -162,9 +163,11 @@ not authorization by itself.
   never recommended since the current strategy model doesn't score it.
 - `POST /onboarding/complete` should only be called when the required channel
   condition is satisfied. On success, it idempotently creates one Strategy-linked
-  review draft, sets `Organization.onboardedAt`, and navigates to
-  `/dashboard/campaigns?reviewCampaignId=...`. It must not enroll prospects or
-  enqueue outreach.
+  campaign, approves and enrolls the strategy's persisted prospect set, invokes
+  the same entitlement/sender/queue guards as `POST /campaigns/:id/launch`, sets
+  `Organization.onboardedAt`, and navigates to `/dashboard`.
+- A retry after a successful launch must recognize the active onboarding campaign
+  and must not enqueue duplicate step-zero jobs.
 
 ## API request discipline
 
@@ -193,5 +196,6 @@ not authorization by itself.
    the operation.
 3. It persists the decision before advancing.
 4. It leaves a refresh or back/forward navigation on the same safe state.
-5. It does not launch a campaign or send outreach.
+5. Only the final Channels completion action may launch the first campaign; all
+   earlier steps and all display-only actions remain side-effect free.
 6. Its API route tests and web typecheck/build pass.

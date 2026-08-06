@@ -8,17 +8,16 @@ real, organization-scoped operating data and make unavailable areas explicit.
 
 `/dashboard` is the permanent destination for a completed organization, with
 real nested routes per section (no more `?view=` query-param switching). The
-dashboard creates drafts and launches campaigns only after an explicit user
-action. The operating workflow is:
+dashboard creates later drafts and launches them only after an explicit user
+action. The first campaign uses the explicit **Finish and launch** action at the
+end of onboarding. The operating workflow is:
 
 ```text
 completed onboarding
-  -> automatically create one reviewed campaign draft from Strategy
-  -> open the draft in Campaigns
-  -> add and approve prospects
-  -> edit and save the connection note
-  -> review first outreach and channels
-  -> user confirms launch in the launch dialog
+  -> approve the persisted strategy audience
+  -> create and enroll one Strategy-linked campaign
+  -> user confirms with Finish and launch
+  -> shared launch guards schedule step-zero jobs
   -> existing sequence worker delivers outreach
 ```
 
@@ -59,7 +58,7 @@ organization ID from the browser as a substitute for that scope.
 
 | View | Read contract | Mutations | Important boundary |
 | --- | --- | --- | --- |
-| Campaigns | `GET /campaigns`, `GET /social-accounts` | `POST /campaigns`, `POST /campaigns/:id/launch` | Creating a draft sends nothing. Launch is explicit and existing API validation requires enrolled leads. |
+| Campaigns | `GET /campaigns`, `GET /social-accounts` | `POST /campaigns`, `POST /campaigns/:id/launch` | Creating a dashboard draft sends nothing. Launch is explicit and existing API validation requires enrolled leads. The onboarding campaign reaches the same launch service through `POST /onboarding/complete`. |
 | Prospects | `GET /leads?limit=100`, `GET /campaigns` | `PATCH /leads/:id`, `POST /campaigns/:id/leads` | Do not fabricate approval data. A selected record is only enrolled after the user chooses a campaign. |
 | Messages | `GET /dashboard/messages` | None in this release | Read-only persisted delivery and inbound-reply timeline. Do not add a reply control without a channel-specific delivery design. |
 | Channels | `GET /social-accounts` | `POST /social-accounts/sync`, `POST /social-accounts/connect` | Hosted authorization can return to `/dashboard/channels`; it authorizes/syncs an account and does not send messages. |

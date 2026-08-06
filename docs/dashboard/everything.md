@@ -64,8 +64,8 @@ routes. Each keeps a narrow, explicit scope:
 
 ## Campaign launch boundary
 
-Onboarding configures strategy, billing, video choices, and a channel. When the
-user finishes onboarding, the API creates one reviewable LinkedIn Campaign
-draft from the saved strategy and routes the user to that draft. It does not
-enroll prospects or send outreach. The user must edit and save the connection
-note, add approved prospects, and confirm the launch before delivery begins.
+Onboarding configures strategy, billing, video choices, and a channel. The final
+**Finish and launch** action approves and enrolls the persisted audience-analysis
+prospects, creates the first LinkedIn campaign from saved strategy copy, and
+launches it through the same guards as a dashboard launch. Dashboard-created
+campaigns continue to require manual enrollment and explicit launch.

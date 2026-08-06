@@ -22,9 +22,10 @@ that have not completed onboarding.
   data when a step parameter is missing or invalid.
 - Strategy has internal substeps: `how-it-works`, `targeting`, and `channels`.
 - Checkout success moves the user to Channels.
-- Completing channel setup records `Organization.onboardedAt` and sends the user
-  to `/dashboard/campaigns?reviewCampaignId=...`, the review draft created at
-  completion.
+- Completing channel setup approves and enrolls the prospects produced by the
+  saved audience analysis, launches the first LinkedIn campaign through the
+  standard guarded launch service, records `Organization.onboardedAt`, and sends
+  the user to `/dashboard`.
 - Returning users with `onboardedAt` are redirected away from `/onboarding` to
   the dashboard.
 
@@ -34,8 +35,9 @@ that have not completed onboarding.
   them useful.
 - It persists decisions incrementally so refresh, browser navigation, and login
   resumes do not silently discard work.
-- It does not automatically launch outreach. Campaign creation, prospect review,
-  and final launch remain explicit operational decisions after setup.
+- The final button explicitly says **Finish and launch** and explains its effect.
+  This is the user's confirmation for the first campaign. Campaigns created
+  later in the dashboard still require explicit enrollment and launch.
 
 ## Implementation entry point
 
