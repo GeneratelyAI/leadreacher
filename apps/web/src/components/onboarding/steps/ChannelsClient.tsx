@@ -218,15 +218,16 @@ export default function ChannelsClient() {
     setIsCompleting(true);
     setError(null);
     try {
-      const result = await apiFetch<{ completed: boolean; campaignId: string | null }>(
+      await apiFetch<{
+        completed: true;
+        campaignId: string;
+        launched: true;
+        jobCount: number;
+      }>(
         "/onboarding/complete",
         { method: "POST" },
       );
-      router.push(
-        result.campaignId
-          ? `/dashboard/campaigns?reviewCampaignId=${encodeURIComponent(result.campaignId)}`
-          : "/dashboard",
-      );
+      router.push("/dashboard");
     } catch (completeError) {
       setError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",
@@ -354,6 +355,10 @@ export default function ChannelsClient() {
           </div>
         </OnboardingCard>
 
+        <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+          Finishing setup approves the prospects found during audience analysis and starts your first LinkedIn campaign from the connected account.
+        </p>
+
       </main>
 
       <div className="pointer-events-none fixed inset-x-0 bottom-7 z-30 flex items-center justify-between px-6 sm:px-10">
@@ -373,7 +378,7 @@ export default function ChannelsClient() {
           onClick={() => void handleComplete()}
           className="pointer-events-auto h-13 px-8 text-base sm:px-10"
         >
-          {isCompleting ? "Finishing..." : "Finish setup"}
+          {isCompleting ? "Launching campaign..." : "Finish and launch"}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
       </div>
