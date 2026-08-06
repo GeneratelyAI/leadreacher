@@ -24,10 +24,10 @@ implementation-map.md), are available through real nested
 `/dashboard/<section>` routes and use organization-scoped API data. Current
 scope is intentionally focused:
 
-- Completing onboarding creates one reviewable LinkedIn campaign draft from the
-  saved strategy and opens it in Campaigns. Campaigns still require prospect
-  enrollment, connection-note review, and an explicit launch confirmation.
-  A running campaign can be paused and resumed.
+- Completing onboarding explicitly launches the first LinkedIn campaign using
+  approved prospects and copy derived from the saved strategy. Campaigns created
+  later in the dashboard still require prospect enrollment and an explicit
+  launch confirmation. A running campaign can be paused and resumed.
 - Prospects updates lifecycle status, enrolls selected records in a campaign,
   and supports client-side search and lifecycle/source/campaign filters.
 - Messages is an operator inbox: an AI-drafted reply can be edited and sent,

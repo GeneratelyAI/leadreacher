@@ -9,8 +9,10 @@ outreach campaigns.
 
 `/dashboard/campaigns` lists persisted campaigns and creates a draft only after
 the operator enters a campaign name, connection note, and first post-connection
-message. An active LinkedIn account is required. Launch remains an explicit API
-action and does not occur when creating a draft. A running campaign can be
+message. An active LinkedIn account is required. Dashboard draft launch remains
+an explicit API action and does not occur when creating a draft. The first
+onboarding campaign is the exception: the explicit **Finish and launch** action
+creates, enrolls, and launches it through the same launch service. A running campaign can be
 paused and resumed from its row menu (`status: "paused"` is a real, persisted
 campaign state, not just a video-generation flag).
 

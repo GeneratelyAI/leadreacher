@@ -18,15 +18,17 @@ the final onboarding step and requires at least one healthy required channel.
   This is a deliberate product decision, not a bug — see the implementation
   notes below.
 - The UI refreshes account status after the hosted connection flow returns.
-- Finishing setup marks the organization onboarded, creates one Strategy-linked
-  review campaign draft, and redirects to
-  `/dashboard/campaigns?reviewCampaignId=...`.
+- **Finish and launch** approves and enrolls the prospects from the persisted
+  audience analysis, creates one Strategy-linked campaign with generated
+  connection and follow-up copy, launches it, marks the organization onboarded,
+  and redirects to `/dashboard`.
 
 ## Safety boundary
 
-Connecting an account does not send invitations, chats, follow-ups, or video.
-It only authorizes and records the channel account. Delivery needs a separately
-created and launched campaign.
+Connecting an account by itself does not send invitations, chats, follow-ups,
+or video. The separate **Finish and launch** action is the explicit confirmation
+that schedules the first campaign. Later campaigns retain the dashboard's
+normal review and launch controls.
 
 ## Implementation notes
 

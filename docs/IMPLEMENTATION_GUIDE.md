@@ -96,7 +96,7 @@ After editing:
 | Strategy generation | Existing persisted Strategy data must be reused when present |
 | Stripe entitlement | Stripe webhook state on `Organization`, not a checkout redirect |
 | Channel connection | Persisted active `SocialAccount` after hosted-auth return and sync |
-| Campaign launch | Explicit API launch after a valid Campaign, approved prospects, and user confirmation |
+| Campaign launch | Shared guarded launch service after a valid Campaign and approved prospects. Confirmation is either onboarding's explicit **Finish and launch** action for the first campaign or the dashboard launch action for later campaigns. |
 | Outreach send | Existing sequence worker and delivery-reservation safeguards |
 | Paid video generation | Durable template/asset state and recovery path |
 
