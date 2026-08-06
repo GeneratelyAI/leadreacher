@@ -49,6 +49,7 @@ const { getStripePrice, createSubscriptionCheckoutSession, verifyStripeWebhookEv
     verifyStripeWebhookEvent: vi.fn(),
   }));
 const { queueAdd } = vi.hoisted(() => ({ queueAdd: vi.fn() }));
+const { launchCampaign } = vi.hoisted(() => ({ launchCampaign: vi.fn() }));
 
 vi.mock("../../config/env.js", () => ({
   env: {
@@ -119,7 +120,12 @@ vi.mock("../../lib/prisma.js", () => ({
       updateMany: vi.fn(async () => ({ count: 0 })),
       create: vi.fn(async () => ({ id: "campaign-onboarding-e2e" })),
     },
-    lead: { findFirst: vi.fn(async () => null) },
+    lead: {
+      findFirst: vi.fn(async () => null),
+      findMany: vi.fn(async () => [{ id: "lead-e2e", reviewStatus: "pending" }]),
+      updateMany: vi.fn(async () => ({ count: 1 })),
+    },
+    campaignLead: { createMany: vi.fn(async () => ({ count: 1 })) },
     message: { findFirst: vi.fn(), findMany: vi.fn(async () => []) },
   },
 }));
@@ -140,6 +146,7 @@ vi.mock("../../lib/queue.js", () => ({
 vi.mock("../../services/campaign-step1-chat.js", () => ({
   deliverSequenceStep1ViaChat: vi.fn(),
 }));
+vi.mock("../../services/campaign-launch.js", () => ({ launchCampaign }));
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {
     createHostedAuthLink = vi.fn(async () => ({ url: "https://unipile.test/link" }));
@@ -169,9 +176,15 @@ async function buildTestApp() {
   app.addHook("preHandler", async (request) => {
     request.orgId = ORG_ID;
   });
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
-      return reply.status(error.statusCode).send({ code: error.code, message: error.message });
+      reply.header("X-Request-Id", request.id);
+      return reply.status(error.statusCode).send({
+        status: error.statusCode,
+        code: error.code,
+        message: error.message,
+        requestId: request.id,
+      });
     }
     throw error;
   });
@@ -215,6 +228,8 @@ beforeEach(async () => {
   createSubscriptionCheckoutSession.mockReset();
   verifyStripeWebhookEvent.mockReset();
   queueAdd.mockReset();
+  launchCampaign.mockReset();
+  launchCampaign.mockResolvedValue({ launched: true, jobCount: 1, audienceRouting: {} });
   getStripePrice.mockImplementation(async (priceId: string) => ({
     priceId,
     unitAmount: null,
@@ -311,7 +326,12 @@ describe("onboarding backend in Stripe mock mode", () => {
     expect(accounts.json()).toMatchObject({
       accounts: [expect.objectContaining({ platform: "linkedin", status: "active" })],
     });
-    expect(complete.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-e2e" });
+    expect(complete.json()).toEqual({
+      completed: true,
+      campaignId: "campaign-onboarding-e2e",
+      launched: true,
+      jobCount: 1,
+    });
     expect(state.organization.onboardedAt).toBeInstanceOf(Date);
   });
 });

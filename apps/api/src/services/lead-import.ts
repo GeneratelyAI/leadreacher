@@ -51,10 +51,11 @@ function isDuplicateLinkedinUrl(
 export async function importScrapedProfiles(
   orgId: string,
   profiles: ScrapedProfile[],
-): Promise<{ imported: number; skipped: number }> {
+): Promise<{ imported: number; skipped: number; leadIds: string[] }> {
+  const profileUrls = [...new Set(profiles.map((profile) => profile.linkedinUrl))];
   const existingUrls = await fetchExistingLinkedinUrls(
     orgId,
-    profiles.map((profile) => profile.linkedinUrl),
+    profileUrls,
   );
   const seenInBatch = new Set<string>();
   const toCreate: Prisma.LeadCreateManyInput[] = [];
@@ -89,11 +90,27 @@ export async function importScrapedProfiles(
   }
 
   if (toCreate.length === 0) {
-    return { imported: 0, skipped };
+    const existingLeads = await prisma.lead.findMany({
+      where: { orgId, linkedinUrl: { in: profileUrls } },
+      select: { id: true },
+    });
+    return {
+      imported: 0,
+      skipped,
+      leadIds: existingLeads.map((lead) => lead.id),
+    };
   }
 
   const { count } = await prisma.lead.createMany({ data: toCreate });
-  return { imported: count, skipped };
+  const importedLeads = await prisma.lead.findMany({
+    where: { orgId, linkedinUrl: { in: profileUrls } },
+    select: { id: true },
+  });
+  return {
+    imported: count,
+    skipped,
+    leadIds: importedLeads.map((lead) => lead.id),
+  };
 }
 
 export async function importFromCSV(

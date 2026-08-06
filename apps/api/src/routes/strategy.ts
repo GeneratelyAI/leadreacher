@@ -33,6 +33,7 @@ import { redis } from "../lib/redis.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { VideoConfigSchema } from "../lib/billing/pricing.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
+import { importScrapedProfiles } from "../services/lead-import.js";
 import {
   buildCompanySearchPlan,
   COMPANY_SEARCH_NO_RESULTS_REASON,
@@ -79,6 +80,7 @@ type StrategyIcpDefinition = {
     decisionMakers: {
       totalFound: number;
       sampleSize: number;
+      prospectLeadIds?: string[];
     };
     reachability: {
       percentage: number;
@@ -586,6 +588,8 @@ export async function generateStrategy(
       );
     }
 
+    const importedAudience = await importScrapedProfiles(orgId, profiles);
+
     const reachableProfiles = profiles.filter((profile) => hasText(profile.email)).length;
     const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
     const channels = asRecord(strategy.channels) as StrategyChannels;
@@ -622,6 +626,7 @@ export async function generateStrategy(
             decisionMakers: {
               totalFound: profileTotalFound,
               sampleSize: profiles.length,
+              prospectLeadIds: importedAudience.leadIds,
             },
             reachability: {
               percentage: percentage(reachableProfiles, profiles.length),

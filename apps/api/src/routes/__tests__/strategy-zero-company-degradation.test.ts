@@ -9,12 +9,14 @@ const {
   strategyUpdate,
   auditCreate,
   redisGet,
+  importScrapedProfiles,
 } = vi.hoisted(() => ({
   searchCompanies: vi.fn(),
   scrapeLeadsWithTotal: vi.fn(),
   strategyUpdate: vi.fn(),
   auditCreate: vi.fn(),
   redisGet: vi.fn(),
+  importScrapedProfiles: vi.fn(),
 }));
 
 vi.mock("../../adapters/apify.js", () => ({
@@ -33,6 +35,7 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../lib/redis.js", () => ({
   redis: { get: redisGet },
 }));
+vi.mock("../../services/lead-import.js", () => ({ importScrapedProfiles }));
 
 import { generateStrategy } from "../strategy.js";
 
@@ -72,9 +75,15 @@ beforeEach(() => {
   strategyUpdate.mockReset();
   auditCreate.mockReset();
   redisGet.mockReset();
+  importScrapedProfiles.mockReset();
   redisGet.mockResolvedValue(null);
   auditCreate.mockResolvedValue({});
   strategyUpdate.mockImplementation(async ({ data }) => ({ ...strategy, ...data }));
+  importScrapedProfiles.mockResolvedValue({
+    imported: 1,
+    skipped: 0,
+    leadIds: ["lead-1"],
+  });
 });
 
 describe("Strategy company-search degradation", () => {
@@ -106,6 +115,7 @@ describe("Strategy company-search degradation", () => {
       decisionMakers: { totalFound: 1 },
       topIndustries: [],
     });
+    expect(importScrapedProfiles).toHaveBeenCalledWith("org-1", [profile]);
   });
 
   it("still fails when the profile search returns zero decision makers", async () => {
