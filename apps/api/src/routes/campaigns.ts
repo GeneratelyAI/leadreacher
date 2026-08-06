@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
 import {
   CampaignIdParamsSchema,
   authenticatedRoute,
@@ -32,10 +32,10 @@ import {
   getCampaignRelationshipSummary,
   refreshCampaignRelationshipRouting,
 } from "../services/campaign-relationship-routing.js";
+import { launchCampaign } from "../services/campaign-launch.js";
 
 const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
-const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 const PATCHABLE_STATUSES = ["active", "paused", "completed"] as const;
 
 const SequenceStepSchema = z.object({
@@ -895,77 +895,11 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const { campaignId } = request.params;
-
-    const campaign = await prisma.campaign.findUnique({
-      where: { id: campaignId },
-      include: { leads: true, senderAccount: true },
-    });
-
-    if (!campaign) throw new NotFoundError("Campaign");
-    if (campaign.orgId !== orgId) throw new ForbiddenError();
-    if (isCampaignArchived(campaign.aiConfig)) {
-      throw new ValidationError("Archived campaigns cannot be launched");
-    }
-
-    if (
-      !LAUNCHABLE_STATUSES.includes(
-        campaign.status as (typeof LAUNCHABLE_STATUSES)[number],
-      )
-    ) {
-      throw new ValidationError(
-        `Campaign cannot be launched from status "${campaign.status}"`,
-      );
-    }
-
-    if (campaign.leads.length === 0) {
-      throw new ValidationError("Campaign has no enrolled leads");
-    }
-
-    if (asRecord(campaign.aiConfig)?.requiresSequenceReview === true) {
-      throw new ValidationError("Review and save the connection note before launching");
-    }
-
-    await requireOrganizationEntitlement(orgId);
-
-    await resolveCampaignSenders({
+    return reply.send(await launchCampaign({
+      campaignId,
       orgId,
-      campaignId,
-      channels: campaign.channels,
-      sequence: campaign.sequence,
-      socialAccountId: campaign.socialAccountId,
-    });
-
-    let jobCount = 0;
-    try {
-      for (const campaignLead of campaign.leads) {
-        const state = await ensureCampaignStepZeroQueued({
-          campaignLeadId: campaignLead.id,
-          orgId,
-          delayMs: 5_000,
-        });
-        if (state !== "enqueued" && state !== "pending") {
-          throw new ConflictError(`Initial outreach job is ${state}`);
-        }
-        jobCount += 1;
-      }
-
-      await prisma.campaign.update({
-        where: { id: campaignId },
-        data: { status: "active", suspensionReason: null },
-      });
-    } catch (error) {
-      await cancelCampaignPendingSequenceJobs({ campaignId, orgId });
-      request.log.error({ error, campaignId }, "campaign launch queueing failed");
-      throw new ConflictError("Campaign could not be scheduled. Please retry launch.");
-    }
-
-    const audienceRouting = await getCampaignRelationshipSummary({
-      campaignId,
-      senderId: campaign.socialAccountId,
-      total: campaign.leads.length,
-    });
-    await invalidateDashboardChrome(orgId);
-    return reply.send({ launched: true, jobCount, audienceRouting });
+      logger: request.log,
+    }));
   });
 
   r.get("/campaigns/:campaignId/leads", {
