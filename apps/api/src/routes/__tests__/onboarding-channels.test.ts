@@ -14,6 +14,10 @@ const {
   strategyUpdate,
   campaignFindFirst,
   campaignCreate,
+  campaignUpdate,
+  leadFindMany,
+  leadUpdateMany,
+  campaignLeadCreateMany,
 } = vi.hoisted(() => ({
   socialAccountFindMany: vi.fn(),
   socialAccountCount: vi.fn(),
@@ -25,6 +29,10 @@ const {
   strategyUpdate: vi.fn(),
   campaignFindFirst: vi.fn(),
   campaignCreate: vi.fn(),
+  campaignUpdate: vi.fn(),
+  leadFindMany: vi.fn(),
+  leadUpdateMany: vi.fn(),
+  campaignLeadCreateMany: vi.fn(),
 }));
 const { createHostedAuthLink } = vi.hoisted(() => ({
   createHostedAuthLink: vi.fn(),
@@ -32,6 +40,7 @@ const { createHostedAuthLink } = vi.hoisted(() => ({
 const { getDailySendLimitStatus } = vi.hoisted(() => ({
   getDailySendLimitStatus: vi.fn(),
 }));
+const { launchCampaign } = vi.hoisted(() => ({ launchCampaign: vi.fn() }));
 
 vi.mock("../../config/env.js", () => ({
   env: {
@@ -63,7 +72,10 @@ vi.mock("../../lib/prisma.js", () => ({
     campaign: {
       findFirst: campaignFindFirst,
       create: campaignCreate,
+      update: campaignUpdate,
     },
+    lead: { findMany: leadFindMany, updateMany: leadUpdateMany },
+    campaignLead: { createMany: campaignLeadCreateMany },
   },
 }));
 vi.mock("../../adapters/unipile.js", () => ({
@@ -74,6 +86,10 @@ vi.mock("../../adapters/unipile.js", () => ({
   encodeHostedAuthName: (orgId: string) => `lr:${orgId}:signed`,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({ getDailySendLimitStatus }));
+vi.mock("../../services/campaign-launch.js", () => ({ launchCampaign }));
+vi.mock("../../lib/redis.js", () => ({
+  redis: { get: vi.fn(), set: vi.fn(), del: vi.fn() },
+}));
 
 import { onboardingRoutes } from "../onboarding.js";
 import { socialAccountRoutes } from "../social-accounts.js";
@@ -84,11 +100,17 @@ async function buildTestApp() {
   app.addHook("preHandler", async (request) => {
     request.orgId = "org-1";
   });
-  app.setErrorHandler((error, _request, reply) => {
+  app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
+      reply.header("X-Request-Id", request.id);
       return reply
         .status(error.statusCode)
-        .send({ code: error.code, message: error.message });
+        .send({
+          status: error.statusCode,
+          code: error.code,
+          message: error.message,
+          requestId: request.id,
+        });
     }
     throw error;
   });
@@ -110,6 +132,11 @@ beforeEach(async () => {
   strategyUpdate.mockReset();
   campaignFindFirst.mockReset();
   campaignCreate.mockReset();
+  campaignUpdate.mockReset();
+  leadFindMany.mockReset();
+  leadUpdateMany.mockReset();
+  campaignLeadCreateMany.mockReset();
+  launchCampaign.mockReset();
   createHostedAuthLink.mockReset();
   getDailySendLimitStatus.mockReset();
 
@@ -162,6 +189,13 @@ beforeEach(async () => {
   strategyUpdate.mockResolvedValue({});
   campaignFindFirst.mockResolvedValue(null);
   campaignCreate.mockResolvedValue({ id: "campaign-onboarding-1" });
+  leadFindMany.mockResolvedValue([
+    { id: "lead-1", reviewStatus: "pending" },
+    { id: "lead-2", reviewStatus: "approved" },
+  ]);
+  leadUpdateMany.mockResolvedValue({ count: 1 });
+  campaignLeadCreateMany.mockResolvedValue({ count: 2 });
+  launchCampaign.mockResolvedValue({ launched: true, jobCount: 2, audienceRouting: {} });
   createHostedAuthLink.mockResolvedValue({
     url: "https://account.unipile.com/hosted-auth-link",
   });
@@ -279,7 +313,12 @@ describe("channel connection and onboarding completion", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-1" });
+    expect(response.json()).toEqual({
+      completed: true,
+      campaignId: "campaign-onboarding-1",
+      launched: true,
+      jobCount: 2,
+    });
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org-1" },
       data: { onboardedAt: expect.any(Date) },
@@ -290,9 +329,27 @@ describe("channel connection and onboarding completion", () => {
           strategyId: "strategy-1",
           status: "review",
           socialAccountId: "sa-1",
+          aiConfig: expect.objectContaining({ requiresSequenceReview: false }),
+          sequence: expect.arrayContaining([
+            expect.objectContaining({
+              type: "linkedin_invite",
+              message: expect.stringMatching(/\{\{FirstName\}\}.*\{\{Company\}\}/),
+            }),
+          ]),
         }),
       }),
     );
+    expect(campaignLeadCreateMany).toHaveBeenCalledWith({
+      data: [
+        { campaignId: "campaign-onboarding-1", leadId: "lead-1" },
+        { campaignId: "campaign-onboarding-1", leadId: "lead-2" },
+      ],
+      skipDuplicates: true,
+    });
+    expect(launchCampaign).toHaveBeenCalledWith(expect.objectContaining({
+      campaignId: "campaign-onboarding-1",
+      orgId: "org-1",
+    }));
   });
 
   it("is idempotent when onboarding was already completed", async () => {
@@ -302,7 +359,12 @@ describe("channel connection and onboarding completion", () => {
       subscriptionStatus: "active",
       onboardedAt: new Date("2026-07-13T00:00:00.000Z"),
     });
-    campaignFindFirst.mockResolvedValue({ id: "campaign-onboarding-1" });
+    campaignFindFirst.mockResolvedValue({
+      id: "campaign-onboarding-1",
+      status: "active",
+      sequence: [],
+      aiConfig: { source: "onboarding", requiresSequenceReview: false },
+    });
 
     const response = await app.inject({
       method: "POST",
@@ -311,8 +373,14 @@ describe("channel connection and onboarding completion", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ completed: true, campaignId: "campaign-onboarding-1" });
+    expect(response.json()).toEqual({
+      completed: true,
+      campaignId: "campaign-onboarding-1",
+      launched: true,
+      jobCount: 0,
+    });
     expect(organizationUpdate).not.toHaveBeenCalled();
+    expect(launchCampaign).not.toHaveBeenCalled();
   });
 
   it("refuses completion when entitlement is not active", async () => {
