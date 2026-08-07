@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, Mail } from "lucide-react";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { ChevronDown } from "lucide-react";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -18,54 +18,15 @@ const menuCheckboxClassName = cn(
   "dark:border-onboarding-neutral-600 dark:bg-onboarding-neutral-0 dark:data-checked:border-onboarding-neutral-500 dark:data-checked:bg-onboarding-neutral-0 dark:data-checked:text-onboarding-ink",
 );
 
-function channelLabel(platform: string): string {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") return "LinkedIn";
-  if (key === "whatsapp") return "WhatsApp";
-  if (key === "email" || key === "google" || key === "microsoft" || key === "imap") return "Email";
-  return platform.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 function ChannelMark({ platform }: { platform: string }) {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") {
-    return (
-      <span
-        data-channel-mark
-        className="pointer-events-none inline-flex size-5 shrink-0 items-center justify-center"
-        aria-hidden
-      >
-        <ChannelLogo name="linkedin" className="size-5" />
-      </span>
-    );
-  }
-  if (key === "whatsapp") {
-    return (
-      <span
-        data-channel-mark
-        className="pointer-events-none inline-flex size-5 shrink-0 items-center justify-center rounded-[0.3rem] bg-[#25D366] text-white"
-        aria-hidden
-      >
-        <ChannelLogo name="whatsapp" className="size-3" fill="#fff" />
-      </span>
-    );
-  }
-  return (
-    <span
-      data-channel-mark
-      className="pointer-events-none inline-flex size-5 shrink-0 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200"
-      aria-hidden
-    >
-      <Mail className="size-3" />
-    </span>
-  );
+  return <DashboardChannelLogo platform={platform} className="pointer-events-none size-5" />;
 }
 
 export function formatChannelFilterLabel(selected: string[], options: string[]): string {
   if (selected.length === 0 || (options.length > 0 && selected.length === options.length)) {
     return "All channels";
   }
-  if (selected.length === 1) return channelLabel(selected[0] ?? "");
+  if (selected.length === 1) return channelDisplayName(selected[0] ?? "");
   return `${selected.length} channels`;
 }
 
@@ -151,7 +112,7 @@ export function ChannelFilterMenu({
               }}
             >
               <ChannelMark platform={channel} />
-              <span className="min-w-0 flex-1 truncate">{channelLabel(channel)}</span>
+              <span className="min-w-0 flex-1 truncate">{channelDisplayName(channel)}</span>
               <Checkbox
                 checked={checked}
                 tabIndex={-1}
@@ -166,4 +127,4 @@ export function ChannelFilterMenu({
   );
 }
 
-export { channelLabel };
+export { channelDisplayName as channelLabel };

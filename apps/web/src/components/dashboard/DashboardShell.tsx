@@ -10,7 +10,6 @@ import {
   CircleHelp,
   CreditCard,
   Clock3,
-  Ellipsis,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -28,7 +27,7 @@ import {
   X,
   BarChart3,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import {
@@ -73,6 +72,14 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   exact?: boolean;
 };
+
+const DashboardShellContext = createContext<{ memberName: string } | null>(null);
+
+export function useDashboardShell() {
+  const context = useContext(DashboardShellContext);
+  if (!context) throw new Error("useDashboardShell must be used within DashboardShell");
+  return context;
+}
 
 const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -316,7 +323,6 @@ export function DashboardShell({
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -382,7 +388,6 @@ export function DashboardShell({
 
   useEffect(() => {
     setMobileSidebarOpen(false);
-    setMoreOpen(false);
   }, [pathname]);
 
   function toggleDesktopSidebar() {
@@ -431,8 +436,6 @@ export function DashboardShell({
     pathname.startsWith("/dashboard/activity") ||
     pathname.startsWith("/dashboard/channels") ||
     pathname.startsWith("/dashboard/analytics");
-  const secondaryActive = SECONDARY_NAV.some((item) => navItemActive(pathname, item));
-
   function setRange(days: number) {
     const end = new Date();
     const start = new Date(end);
@@ -459,9 +462,9 @@ export function DashboardShell({
           ["--dashboard-sidebar-width" as string]: sidebarOpen ? "17.75rem" : "4.5rem",
           ["--dashboard-page-px" as string]: sidebarOpen ? "1rem" : "0.75rem",
           ["--dashboard-page-py" as string]: sidebarOpen ? "1.25rem" : "1rem",
-          ["--dashboard-bottom-nav-height" as string]: "calc(3.75rem + var(--safe-area-bottom))",
         }}
       >
+      <DashboardShellContext.Provider value={{ memberName }}>
       <div className="flex h-full w-full">
         <div className={cn("relative hidden h-full shrink-0 transition-[width] duration-200 ease-out lg:block", sidebarOpen ? "w-[17.75rem]" : "w-[4.5rem]")}>
           <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} onPrefetch={prefetchWorkspace} />
@@ -594,38 +597,6 @@ export function DashboardShell({
           </SheetContent>
         </Sheet>
 
-        <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-          <SheetContent side="bottom" className="gap-0 rounded-t-2xl border-app-border bg-app-elevated pb-[max(1rem,var(--safe-area-bottom))] lg:hidden">
-            <SheetHeader className="border-b border-app-border px-1 pb-3">
-              <SheetTitle>More</SheetTitle>
-              <SheetDescription>Secondary workspace destinations.</SheetDescription>
-            </SheetHeader>
-            <nav className="grid gap-1 py-3" aria-label="More destinations">
-              {SECONDARY_NAV.map((item) => {
-                const active = navItemActive(pathname, item);
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMoreOpen(false)}
-                    className={cn(
-                      "flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
-                      active
-                        ? "bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100"
-                        : "text-app-fg hover:bg-app-hover",
-                    )}
-                    aria-current={active ? "page" : undefined}
-                  >
-                    <Icon className="size-5 shrink-0" aria-hidden />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </SheetContent>
-        </Sheet>
-
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <header className="relative flex min-h-[4.75rem] shrink-0 items-center border-b-0 lg:border-b border-app-border bg-app-chrome px-[var(--dashboard-page-px,1rem)] pt-[var(--safe-area-top)]">
             <button type="button" onClick={() => setMobileSidebarOpen(true)} className="mr-1 inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden" aria-label="Open menu" aria-expanded={mobileSidebarOpen}><Menu className="size-5" aria-hidden /></button>
@@ -723,56 +694,11 @@ export function DashboardShell({
               <button type="button" onClick={(event) => toggle(event)} className="inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300" aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}>{isDark ? <Sun className="size-[1.1rem]" aria-hidden /> : <Moon className="size-[1.1rem]" aria-hidden />}</button>
             </div>
           </header>
-          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[var(--dashboard-bottom-nav-height)] lg:pb-0">{children}</main>
+          <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</main>
           {modal}
-
-          <nav
-            className="fixed inset-x-0 bottom-0 z-40 border-t-0 bg-app-chrome/95 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.4)] pb-[var(--safe-area-bottom)] backdrop-blur-md lg:hidden"
-            aria-label="Primary destinations"
-          >
-            <ul className="grid h-[3.75rem] grid-cols-5">
-              {PRIMARY_NAV.map((item) => {
-                const active = navItemActive(pathname, item);
-                const Icon = item.icon;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={cn(
-                        "flex h-full flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-onboarding-purple-300",
-                        active
-                          ? "text-onboarding-purple-600 dark:text-onboarding-purple-200"
-                          : "text-onboarding-neutral-500 hover:text-onboarding-neutral-800 dark:text-onboarding-neutral-400 dark:hover:text-onboarding-neutral-200",
-                      )}
-                      aria-current={active ? "page" : undefined}
-                    >
-                      <Icon className="size-5" aria-hidden />
-                      <span className="truncate">{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-              <li>
-                <button
-                  type="button"
-                  onClick={() => setMoreOpen(true)}
-                  className={cn(
-                    "flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-onboarding-purple-300",
-                    secondaryActive || moreOpen
-                      ? "text-onboarding-purple-600 dark:text-onboarding-purple-200"
-                      : "text-onboarding-neutral-500 hover:text-onboarding-neutral-800 dark:text-onboarding-neutral-400 dark:hover:text-onboarding-neutral-200",
-                  )}
-                  aria-expanded={moreOpen}
-                  aria-label="More destinations"
-                >
-                  <Ellipsis className="size-5" aria-hidden />
-                  <span>More</span>
-                </button>
-              </li>
-            </ul>
-          </nav>
         </div>
       </div>
+      </DashboardShellContext.Provider>
       </div>
     </TooltipProvider>
   );

@@ -6,10 +6,10 @@ import {
   type SocialMediaIconName,
 } from "@/components/ui/SocialMediaIcon";
 
-type BrandImageName = "linkedin" | "instagram" | "gmail" | "outlook";
+type BrandImageName = "linkedin" | "instagram" | "facebook" | "gmail" | "outlook";
 
 export type ChannelLogoName =
-  | Extract<SocialMediaIconName, "whatsapp" | "facebook">
+  | Extract<SocialMediaIconName, "whatsapp">
   | BrandImageName
   | "whatsapp-mark";
 
@@ -25,13 +25,14 @@ export { LINKEDIN_BRAND_LOGO_SRC };
 const BRAND_IMAGE_SRC: Record<BrandImageName, string> = {
   linkedin: LINKEDIN_BRAND_LOGO_SRC,
   instagram: "/dashboard/instagram-logo.png",
+  facebook: "/dashboard/facebook-logo.png",
   gmail: "/dashboard/gmail-logo.png",
   outlook: "/dashboard/outlook-logo.png",
 };
 
 /** Official channel marks used in onboarding and dashboard chrome. */
 export function ChannelLogo({ name, className, ...props }: ChannelLogoProps) {
-  if (name === "whatsapp" || name === "facebook") {
+  if (name === "whatsapp") {
     return <SocialMediaIcon name={name} className={className} {...props} />;
   }
 

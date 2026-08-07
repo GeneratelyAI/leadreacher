@@ -11,7 +11,6 @@ import {
   Info,
   Link2,
   Loader2,
-  Mail,
   MoreVertical,
   Plus,
   RefreshCw,
@@ -22,6 +21,7 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -148,11 +148,7 @@ function titleCase(value: string): string {
 }
 
 function channelName(platform: string): string {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") return "LinkedIn";
-  if (key === "whatsapp") return "WhatsApp";
-  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") return "Email";
-  return titleCase(platform);
+  return channelDisplayName(platform);
 }
 
 function initials(name: string): string {
@@ -206,36 +202,7 @@ function TrendLine({ trend, fallback }: { trend?: ChannelTrend; fallback: string
 }
 
 function PlatformMark({ platform }: { platform: string }) {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") {
-    return (
-      <span className="inline-flex size-10 shrink-0 items-center justify-center" aria-hidden>
-        <ChannelLogo name="linkedin" className="size-10" />
-      </span>
-    );
-  }
-  if (key === "whatsapp") {
-    return (
-      <span
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
-        aria-hidden
-      >
-        <ChannelLogo name="whatsapp" className="size-5" />
-      </span>
-    );
-  }
-  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") {
-    return (
-      <span className="inline-flex size-10 shrink-0 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200" aria-hidden>
-        <Mail className="size-5" strokeWidth={1.75} />
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex size-10 shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden>
-      <Link2 className="size-5" strokeWidth={1.75} />
-    </span>
-  );
+  return <DashboardChannelLogo platform={platform} className="size-10" />;
 }
 
 function ChannelAccountRow({

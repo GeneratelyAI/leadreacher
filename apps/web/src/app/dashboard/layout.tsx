@@ -60,7 +60,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardQueryProvider>
-      <DashboardShell memberName={displayName(user)} modal={modal ?? null}>{children}</DashboardShell>
+      <DashboardShell memberName={bootstrap.memberName ?? displayName(user)} modal={modal ?? null}>{children}</DashboardShell>
     </DashboardQueryProvider>
   );
 }

@@ -10,14 +10,13 @@ import {
   FileArchive,
   LifeBuoy,
   Loader2,
-  Mail,
   Plug,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -317,6 +316,8 @@ export function SettingsWorkspace() {
         ...row,
         connected: Boolean(match),
         detail: match ? match.accountName : "Not connected",
+        platform: match?.platform ?? row.key,
+        accountName: match?.accountName ?? null,
       };
     });
   }, [accounts]);
@@ -522,24 +523,7 @@ export function SettingsWorkspace() {
                       href="/dashboard/channels"
                       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                     >
-                        {row.logo ? (
-                          row.logo === "linkedin" ? (
-                            <span className="inline-flex size-8 items-center justify-center" aria-hidden>
-                              <ChannelLogo name="linkedin" className="size-8" />
-                            </span>
-                          ) : (
-                            <span
-                              className="inline-flex size-8 items-center justify-center rounded-md bg-[#25D366] text-white"
-                              aria-hidden
-                            >
-                              <ChannelLogo name={row.logo} className="size-4" />
-                            </span>
-                          )
-                        ) : (
-                          <span className="inline-flex size-8 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200">
-                            <Mail className="size-5" strokeWidth={1.75} aria-hidden />
-                          </span>
-                        )}
+                        <DashboardChannelLogo platform={row.platform} accountName={row.accountName} className="size-8" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{row.label}</p>
                           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
