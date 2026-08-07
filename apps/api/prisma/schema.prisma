@@ -207,37 +207,44 @@ model CampaignChannelAccount {
 }
 
 model Lead {
-  id                  String         @id @default(cuid())
-  orgId               String
-  org                 Organization   @relation(fields: [orgId], references: [id])
-  source              String // 'csv' | 'manual' | 'apify' | 'sales_navigator'
-  email               String?
-  linkedinUrl         String?
-  phone               String?
-  avatarUrl           String?
-  firstName           String
-  lastName            String
-  company             String
-  title               String
-  industry            String?
-  videoAssets         VideoAsset[]
-  companySize         String?
-  location            String?
-  enrichmentData      Json?
-  providerLinkedinId  String?
-  providerWhatsappId  String?
-  providerFacebookId  String?
-  providerInstagramId String?
-  status              String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
-  reviewStatus        String         @default("pending") // 'pending' | 'approved' | 'excluded'
-  reviewedAt          DateTime?
-  pipelineStage       String?
-  tags                String[]
-  notes               Json[]
-  createdAt           DateTime       @default(now())
-  updatedAt           DateTime       @updatedAt
-  campaigns           CampaignLead[]
-  messages            Message[]
+  id                        String         @id @default(cuid())
+  orgId                     String
+  org                       Organization   @relation(fields: [orgId], references: [id])
+  source                    String // 'csv' | 'manual' | 'apify' | 'sales_navigator'
+  email                     String?
+  linkedinUrl               String?
+  phone                     String?
+  avatarUrl                 String?
+  firstName                 String
+  lastName                  String
+  company                   String
+  title                     String
+  industry                  String?
+  videoAssets               VideoAsset[]
+  companySize               String?
+  location                  String?
+  enrichmentData            Json?
+  providerLinkedinId        String?
+  providerWhatsappId        String?
+  providerFacebookId        String?
+  providerInstagramId       String?
+  instagramUsername         String?
+  instagramMessagingId      String?
+  instagramIdentityStatus   String         @default("unresolved") // unresolved | resolved | invalid | error
+  whatsappConsentAt         DateTime?
+  whatsappConsentSource     String?
+  outreachSuppressedAt      DateTime?
+  outreachSuppressionReason String?
+  status                    String         @default("new") // 'new' | 'contacted' | 'connected' | 'replied' | 'meeting' | 'converted' | 'lost' | 'skipped'
+  reviewStatus              String         @default("pending") // 'pending' | 'approved' | 'excluded'
+  reviewedAt                DateTime?
+  pipelineStage             String?
+  tags                      String[]
+  notes                     Json[]
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
+  campaigns                 CampaignLead[]
+  messages                  Message[]
 
   @@index([orgId, status])
   @@index([orgId, reviewStatus])
@@ -245,6 +252,10 @@ model Lead {
   @@index([orgId, updatedAt])
   @@index([orgId, email])
   @@index([orgId, phone])
+  @@index([orgId, whatsappConsentAt])
+  @@index([orgId, instagramUsername])
+  @@index([orgId, instagramIdentityStatus])
+  @@index([orgId, outreachSuppressedAt])
 }
 
 model CampaignLead {
@@ -265,6 +276,8 @@ model CampaignLead {
   relationshipCheckedAt  DateTime?
   relationshipSenderId   String?
   status                 String                  @default("active") // 'active' | 'completed' | 'replied' | 'skipped'
+  skipReason             String?
+  skippedAt              DateTime?
   createdAt              DateTime                @default(now())
   deliveryAttempts       DeliveryAttempt[]
   manualDeliveryAttempts ManualDeliveryAttempt[]
@@ -292,6 +305,18 @@ model DeliveryAttempt {
 
   @@unique([campaignLeadId, stepIndex])
   @@index([state, reservedAt])
+}
+
+model ChannelOutreachClaim {
+  id         String   @id @default(cuid())
+  orgId      String
+  leadId     String
+  channel    String
+  campaignId String
+  claimedAt  DateTime @default(now())
+
+  @@unique([orgId, leadId, channel])
+  @@index([campaignId, channel])
 }
 
 model Message {

@@ -17,6 +17,7 @@ import {
   utcDay,
 } from "../lib/rate-limiter.js";
 import { requireOrganizationEntitlement } from "./entitlements.js";
+import { personalizeSequenceStep } from "./personalize-sequence-step.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -56,11 +57,42 @@ export async function deliverSequenceStep1ViaChat(
     return { skipped: true, reason: "no sequence step 1" };
   }
 
+  const [campaign, lead] = await Promise.all([
+    prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { name: true, aiConfig: true },
+    }),
+    prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        firstName: true,
+        lastName: true,
+        title: true,
+        company: true,
+        industry: true,
+        companySize: true,
+        location: true,
+        enrichmentData: true,
+      },
+    }),
+  ]);
+  if (!campaign || !lead) {
+    throw new Error("Campaign or lead is unavailable for sequence personalization");
+  }
+  const preparedStep = await personalizeSequenceStep({
+    orgId,
+    channel: "linkedin",
+    campaign,
+    lead,
+    step: 1,
+    sequenceStep: step1,
+  });
+
   const personalizedVideo = await getReadyPersonalizedVideoForDelivery({
     campaignId,
     leadId,
   });
-  const messageText = step1.message;
+  const messageText = preparedStep.message;
 
   const messageLimit = await checkAndIncrementDailySendLimit(
     unipileAccountId,

@@ -33,6 +33,7 @@ import {
   refreshCampaignRelationshipRouting,
 } from "../services/campaign-relationship-routing.js";
 import { launchCampaign } from "../services/campaign-launch.js";
+import { getCampaignChannelPreflight } from "../services/campaign-channel-preflight.js";
 
 const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
@@ -67,6 +68,7 @@ const CreateCampaignBodySchema = z.object({
   sequence: z.array(SequenceStepSchema).min(1),
   socialAccountId: z.string().trim().min(1).optional(),
   channelAccounts: z.record(z.string(), z.string()).optional(),
+  personalizeByChannel: z.boolean().default(false),
 });
 
 const ListCampaignsQuerySchema = z.object({
@@ -222,7 +224,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { name, channels, sequence, socialAccountId, channelAccounts } = request.body;
+    const { name, channels, sequence, socialAccountId, channelAccounts, personalizeByChannel } = request.body;
     validateChannels(channels);
 
     const validatedSequence = parseSequenceOrThrow(sequence);
@@ -242,6 +244,12 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         sequence: validatedSequence,
         status: "draft",
         socialAccountId: senders.linkedInSocialAccountId,
+        aiConfig: {
+          channelPersonalization: {
+            enabled: personalizeByChannel,
+            version: 1,
+          },
+        },
       },
     });
 
@@ -899,6 +907,19 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       campaignId,
       orgId,
       logger: request.log,
+    }));
+  });
+
+  r.post("/campaigns/:campaignId/channel-preflight", {
+    schema: {
+      ...authenticatedRoute("Campaigns", "Resolve channel identities and check launch capacity"),
+      params: CampaignIdParamsSchema,
+    },
+  }, async (request, reply) => {
+    return reply.send(await getCampaignChannelPreflight({
+      campaignId: request.params.campaignId,
+      orgId: requireOrgId(request),
+      resolveInstagram: true,
     }));
   });
 

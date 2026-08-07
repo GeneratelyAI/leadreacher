@@ -12,6 +12,7 @@ export function resolveLeadAttendeeId(
     | "providerWhatsappId"
     | "providerFacebookId"
     | "providerInstagramId"
+    | "instagramMessagingId"
   >,
 ): string | null {
   switch (channel) {
@@ -26,7 +27,7 @@ export function resolveLeadAttendeeId(
     case "facebook":
       return lead.providerFacebookId?.trim() || null;
     case "instagram":
-      return lead.providerInstagramId?.trim() || null;
+      return lead.instagramMessagingId?.trim() || null;
     case "email":
       return lead.email?.trim().toLowerCase() || null;
     default:

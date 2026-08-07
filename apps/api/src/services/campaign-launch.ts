@@ -2,11 +2,18 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from ".
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { prisma } from "../lib/prisma.js";
 import { parseSequence } from "../lib/sequence.js";
+import { channelsUsedInSequence } from "../lib/sequence.js";
+import { resolveLeadAttendeeId } from "../lib/lead-channel-identity.js";
 import { ensureCampaignStepZeroQueued } from "./campaign-step0-queue.js";
 import { resolveAndSyncCampaignChannelAccounts } from "./campaign-channel-accounts.js";
 import { getCampaignRelationshipSummary } from "./campaign-relationship-routing.js";
 import { cancelCampaignPendingSequenceJobs } from "./campaign-sequence-control.js";
 import { requireOrganizationEntitlement } from "./entitlements.js";
+import {
+  resolveInstagramCampaignIdentities,
+  type InstagramReachability,
+} from "./instagram-identity-resolution.js";
+import { getWhatsAppReachability, type WhatsAppReachability } from "./channel-reachability.js";
 
 const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 
@@ -31,6 +38,7 @@ export type CampaignLaunchResult = {
     unknown: number;
     checked: number;
   };
+  channelReachability?: { instagram?: InstagramReachability; whatsapp?: WhatsAppReachability };
 };
 
 export async function launchCampaign(input: {
@@ -41,7 +49,10 @@ export async function launchCampaign(input: {
 }): Promise<CampaignLaunchResult> {
   const campaign = await prisma.campaign.findUnique({
     where: { id: input.campaignId },
-    include: { leads: true, senderAccount: true },
+    include: {
+      leads: { include: { lead: true } },
+      senderAccount: true,
+    },
   });
 
   if (!campaign) throw new NotFoundError("Campaign");
@@ -63,14 +74,49 @@ export async function launchCampaign(input: {
     throw new ValidationError("Review and save the connection note before launching");
   }
 
+  const sequence = parseSequence(campaign.sequence);
+  const usedChannels = channelsUsedInSequence(sequence);
   await requireOrganizationEntitlement(input.orgId);
-  await resolveAndSyncCampaignChannelAccounts({
+  const senders = await resolveAndSyncCampaignChannelAccounts({
     orgId: input.orgId,
     campaignId: input.campaignId,
     channels: campaign.channels,
-    sequence: parseSequence(campaign.sequence),
+    sequence,
     socialAccountId: campaign.socialAccountId,
   });
+
+  const channelReachability: CampaignLaunchResult["channelReachability"] = {};
+  if (usedChannels.includes("whatsapp")) {
+    channelReachability.whatsapp = getWhatsAppReachability(campaign.leads.map(({ lead }) => lead));
+    if (channelReachability.whatsapp.reachable === 0) {
+      throw new ValidationError(
+        "No enrolled prospects have both a valid WhatsApp number and recorded consent",
+        { reachability: channelReachability.whatsapp },
+      );
+    }
+  }
+  if (usedChannels.includes("instagram")) {
+    const instagramSenderId = senders.channelAccounts.instagram;
+    const instagramSender = instagramSenderId
+      ? await prisma.socialAccount.findFirst({
+          where: { id: instagramSenderId, orgId: input.orgId, status: "active" },
+          select: { unipileId: true },
+        })
+      : null;
+    if (!instagramSender?.unipileId) {
+      throw new ValidationError("Select an active Instagram sender before launch");
+    }
+    channelReachability.instagram = await resolveInstagramCampaignIdentities({
+      leads: campaign.leads.map(({ lead }) => lead),
+      unipileAccountId: instagramSender.unipileId,
+    });
+    if (channelReachability.instagram.reachable === 0) {
+      throw new ValidationError(
+        "No enrolled prospects have a resolved Instagram messaging identity",
+        { reachability: channelReachability.instagram },
+      );
+    }
+  }
 
   let jobCount = 0;
   try {
@@ -108,5 +154,10 @@ export async function launchCampaign(input: {
     total: campaign.leads.length,
   });
   await invalidateDashboardChrome(input.orgId);
-  return { launched: true, jobCount, audienceRouting };
+  return {
+    launched: true,
+    jobCount,
+    audienceRouting,
+    ...(Object.keys(channelReachability).length > 0 ? { channelReachability } : {}),
+  };
 }

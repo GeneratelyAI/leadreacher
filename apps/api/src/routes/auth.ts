@@ -174,7 +174,22 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
       const existing = await prisma.user.findUnique({
         where: { supabaseId },
-        select: { id: true, orgId: true, role: true },
+        select: {
+          id: true,
+          orgId: true,
+          role: true,
+          name: true,
+          org: {
+            select: {
+              socialAccounts: {
+                where: { platform: "linkedin", status: "active" },
+                orderBy: { createdAt: "asc" },
+                take: 1,
+                select: { accountName: true },
+              },
+            },
+          },
+        },
       });
 
       if (existing?.orgId) {
@@ -189,6 +204,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           orgId: existing.orgId,
           userId: existing.id,
           role: existing.role,
+          memberName:
+            existing.name?.trim() ||
+            existing.org?.socialAccounts[0]?.accountName.trim() ||
+            null,
           scrapeStatus,
           ...onboardingProgress,
         });

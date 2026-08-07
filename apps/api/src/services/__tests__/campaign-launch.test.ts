@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError } from "../../lib/errors.js";
+import { ConflictError, ValidationError } from "../../lib/errors.js";
 
 const {
   campaignFindUnique,
@@ -10,6 +10,8 @@ const {
   cancelCampaignPendingSequenceJobs,
   requireOrganizationEntitlement,
   invalidateDashboardChrome,
+  socialAccountFindFirst,
+  resolveInstagramCampaignIdentities,
 } = vi.hoisted(() => ({
   campaignFindUnique: vi.fn(),
   campaignUpdate: vi.fn(),
@@ -19,11 +21,14 @@ const {
   cancelCampaignPendingSequenceJobs: vi.fn(),
   requireOrganizationEntitlement: vi.fn(),
   invalidateDashboardChrome: vi.fn(),
+  socialAccountFindFirst: vi.fn(),
+  resolveInstagramCampaignIdentities: vi.fn(),
 }));
 
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     campaign: { findUnique: campaignFindUnique, update: campaignUpdate },
+    socialAccount: { findFirst: socialAccountFindFirst },
   },
 }));
 vi.mock("../campaign-step0-queue.js", () => ({ ensureCampaignStepZeroQueued }));
@@ -32,6 +37,9 @@ vi.mock("../campaign-relationship-routing.js", () => ({ getCampaignRelationshipS
 vi.mock("../campaign-sequence-control.js", () => ({ cancelCampaignPendingSequenceJobs }));
 vi.mock("../entitlements.js", () => ({ requireOrganizationEntitlement }));
 vi.mock("../../lib/dashboard-cache.js", () => ({ invalidateDashboardChrome }));
+vi.mock("../instagram-identity-resolution.js", () => ({
+  resolveInstagramCampaignIdentities,
+}));
 
 import { launchCampaign } from "../campaign-launch.js";
 
@@ -46,7 +54,10 @@ const campaign = {
   socialAccountId: "sender-1",
   aiConfig: { requiresSequenceReview: false },
   senderAccount: { id: "sender-1" },
-  leads: [{ id: "campaign-lead-1" }, { id: "campaign-lead-2" }],
+  leads: [
+    { id: "campaign-lead-1", lead: { phone: null, providerWhatsappId: null } },
+    { id: "campaign-lead-2", lead: { phone: null, providerWhatsappId: null } },
+  ],
 };
 
 beforeEach(() => {
@@ -68,6 +79,15 @@ beforeEach(() => {
   cancelCampaignPendingSequenceJobs.mockReset().mockResolvedValue(undefined);
   requireOrganizationEntitlement.mockReset().mockResolvedValue(undefined);
   invalidateDashboardChrome.mockReset().mockResolvedValue(undefined);
+  socialAccountFindFirst.mockReset().mockResolvedValue({ unipileId: "instagram-account" });
+  resolveInstagramCampaignIdentities.mockReset().mockResolvedValue({
+    total: 2,
+    reachable: 1,
+    unresolved: 1,
+    invalid: 0,
+    errors: 0,
+    suppressed: 0,
+  });
 });
 
 describe("launchCampaign", () => {
@@ -114,5 +134,89 @@ describe("launchCampaign", () => {
       orgId: "org-1",
     });
     expect(campaignUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a WhatsApp campaign when no enrolled prospect has a reachable phone", async () => {
+    campaignFindUnique.mockResolvedValue({
+      ...campaign,
+      channels: ["whatsapp"],
+      sequence: [{ type: "whatsapp_message", message: "Hi", delayHours: 0 }],
+    });
+
+    await expect(launchCampaign({
+      campaignId: "campaign-1",
+      orgId: "org-1",
+    })).rejects.toBeInstanceOf(ValidationError);
+
+    expect(resolveAndSyncCampaignChannelAccounts).toHaveBeenCalled();
+    expect(ensureCampaignStepZeroQueued).not.toHaveBeenCalled();
+  });
+
+  it("launches WhatsApp sequencing when at least one prospect has a valid phone", async () => {
+    campaignFindUnique.mockResolvedValue({
+      ...campaign,
+      channels: ["whatsapp"],
+      sequence: [{ type: "whatsapp_message", message: "Hi", delayHours: 0 }],
+      leads: [{
+        id: "campaign-lead-1",
+        lead: {
+          phone: "+14165550123",
+          providerWhatsappId: null,
+          whatsappConsentAt: new Date("2026-07-20T12:00:00.000Z"),
+          whatsappConsentSource: "website form",
+          outreachSuppressedAt: null,
+        },
+      }],
+    });
+    ensureCampaignStepZeroQueued.mockResolvedValue("enqueued");
+
+    await expect(launchCampaign({
+      campaignId: "campaign-1",
+      orgId: "org-1",
+    })).resolves.toMatchObject({ launched: true, jobCount: 1 });
+  });
+
+  it("resolves Instagram identities before queueing and returns reachability", async () => {
+    campaignFindUnique.mockResolvedValue({
+      ...campaign,
+      channels: ["instagram"],
+      sequence: [{ type: "instagram_message", message: "Hi", delayHours: 0 }],
+    });
+    resolveAndSyncCampaignChannelAccounts.mockResolvedValue({
+      linkedInSocialAccountId: null,
+      channelAccounts: { instagram: "instagram-sender" },
+    });
+    ensureCampaignStepZeroQueued.mockResolvedValue("enqueued");
+
+    const result = await launchCampaign({ campaignId: "campaign-1", orgId: "org-1" });
+
+    expect(resolveInstagramCampaignIdentities).toHaveBeenCalledWith(expect.objectContaining({
+      unipileAccountId: "instagram-account",
+    }));
+    expect(result.channelReachability?.instagram).toMatchObject({ reachable: 1, unresolved: 1 });
+  });
+
+  it("blocks Instagram launch when no messaging identities can be resolved", async () => {
+    campaignFindUnique.mockResolvedValue({
+      ...campaign,
+      channels: ["instagram"],
+      sequence: [{ type: "instagram_message", message: "Hi", delayHours: 0 }],
+    });
+    resolveAndSyncCampaignChannelAccounts.mockResolvedValue({
+      linkedInSocialAccountId: null,
+      channelAccounts: { instagram: "instagram-sender" },
+    });
+    resolveInstagramCampaignIdentities.mockResolvedValue({
+      total: 2,
+      reachable: 0,
+      unresolved: 2,
+      invalid: 0,
+      errors: 0,
+      suppressed: 0,
+    });
+
+    await expect(launchCampaign({ campaignId: "campaign-1", orgId: "org-1" }))
+      .rejects.toBeInstanceOf(ValidationError);
+    expect(ensureCampaignStepZeroQueued).not.toHaveBeenCalled();
   });
 });

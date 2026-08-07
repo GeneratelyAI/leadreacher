@@ -26,6 +26,7 @@ import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
 import { recordInboundMessage } from "../lib/inbound-message.js";
 import { publishChatEvent } from "../lib/chat-events.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
+import { isExplicitOutreachOptOut } from "../lib/outreach-suppression.js";
 
 const STATUS_REPLIED = "replied";
 
@@ -270,7 +271,15 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       await prisma.lead.update({
         where: { id: campaignLead.leadId },
-        data: { status: STATUS_REPLIED },
+        data: {
+          status: STATUS_REPLIED,
+          ...(isExplicitOutreachOptOut(data.message)
+            ? {
+                outreachSuppressedAt: new Date(),
+                outreachSuppressionReason: "explicit_opt_out",
+              }
+            : {}),
+        },
       });
 
       await prisma.campaignLead.update({

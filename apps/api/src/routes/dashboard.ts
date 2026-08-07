@@ -189,6 +189,7 @@ type OverviewMetricTrend = {
 type OverviewActivityMessage = {
   createdAt: Date;
   direction: string;
+  leadId?: string;
 };
 
 export function buildOverviewActivityTrend(
@@ -230,21 +231,34 @@ export function buildAnalyticsActivityTrend(
   messages: OverviewActivityMessage[],
   meetings: Array<{ updatedAt: Date }>,
   granularity: "day" | "week" = "day",
-): Array<{ date: string; messagesSent: number; repliesReceived: number; meetingsBooked: number; replyRate: number }> {
+): Array<{ date: string; messagesSent: number; repliesReceived: number; meetingsBooked: number; prospectsReached: number; replyRate: number }> {
   const firstDay = new Date(`${start.toISOString().slice(0, 10)}T00:00:00.000Z`);
   const lastDay = new Date(`${end.toISOString().slice(0, 10)}T00:00:00.000Z`);
-  const counts = new Map<string, { messagesSent: number; repliesReceived: number; meetingsBooked: number }>();
+  const counts = new Map<string, {
+    messagesSent: number;
+    repliesReceived: number;
+    meetingsBooked: number;
+    prospectIds: Set<string>;
+  }>();
 
   for (const cursor = new Date(firstDay); cursor <= lastDay; cursor.setUTCDate(cursor.getUTCDate() + 1)) {
     const key = bucketKey(cursor, granularity);
-    if (!counts.has(key)) counts.set(key, { messagesSent: 0, repliesReceived: 0, meetingsBooked: 0 });
+    if (!counts.has(key)) counts.set(key, {
+      messagesSent: 0,
+      repliesReceived: 0,
+      meetingsBooked: 0,
+      prospectIds: new Set<string>(),
+    });
   }
 
   for (const message of messages) {
     const key = bucketKey(message.createdAt, granularity);
     const day = counts.get(key);
     if (!day) continue;
-    if (message.direction === "outbound") day.messagesSent += 1;
+    if (message.direction === "outbound") {
+      day.messagesSent += 1;
+      if (message.leadId) day.prospectIds.add(message.leadId);
+    }
     if (message.direction === "inbound") day.repliesReceived += 1;
   }
 
@@ -259,7 +273,10 @@ export function buildAnalyticsActivityTrend(
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([date, values]) => ({
       date,
-      ...values,
+      messagesSent: values.messagesSent,
+      repliesReceived: values.repliesReceived,
+      meetingsBooked: values.meetingsBooked,
+      prospectsReached: values.prospectIds.size,
       replyRate: values.messagesSent === 0
         ? 0
         : Math.round((values.repliesReceived / values.messagesSent) * 1000) / 10,
@@ -1703,6 +1720,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
           linkedinUrl: true,
           email: true,
           phone: true,
+          instagramUsername: true,
+          instagramMessagingId: true,
+          instagramIdentityStatus: true,
+          outreachSuppressedAt: true,
           avatarUrl: true,
           source: true,
           status: true,
@@ -1806,6 +1827,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         linkedinUrl: true,
         email: true,
         phone: true,
+        instagramUsername: true,
+        instagramMessagingId: true,
+        instagramIdentityStatus: true,
+        outreachSuppressedAt: true,
+        outreachSuppressionReason: true,
         avatarUrl: true,
         source: true,
         status: true,

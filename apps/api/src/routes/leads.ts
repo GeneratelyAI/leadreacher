@@ -47,6 +47,22 @@ const CsvRowSchema = z
     company: z.string().optional(),
     title: z.string().optional(),
     location: z.string().optional(),
+    phone: z.string().optional(),
+    whatsappConsentAt: z.string().datetime({ offset: true }).optional(),
+    whatsappConsentSource: z.string().trim().min(1).max(120).optional(),
+    instagramUsername: z
+      .string()
+      .trim()
+      .regex(/^@?[A-Za-z0-9._]{1,30}$/, "instagramUsername is invalid")
+      .optional(),
+  })
+  .superRefine((row, ctx) => {
+    if (row.whatsappConsentAt && !row.whatsappConsentSource) {
+      ctx.addIssue({ code: "custom", path: ["whatsappConsentSource"], message: "Consent source is required with WhatsApp consent" });
+    }
+    if (row.whatsappConsentSource && !row.whatsappConsentAt) {
+      ctx.addIssue({ code: "custom", path: ["whatsappConsentAt"], message: "Consent timestamp is required with WhatsApp consent source" });
+    }
   })
   .strict();
 
