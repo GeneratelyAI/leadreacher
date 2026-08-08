@@ -158,7 +158,7 @@ export default function Navbar() {
             href="/signup"
             className={cn(
               buttonVariants({ variant: "glass-outline", size: "glass-nav" }),
-              "group transition-[background-color,border-color,color,transform] duration-base ease-brand",
+              "group transition-[background-color,border-color,color,transform,box-shadow] duration-base ease-brand hover:-translate-y-px active:translate-y-0",
               isDark
                 ? "border-white/20! bg-white/8! shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]! hover:bg-white/14!"
                 : "liquid-glass-on-light border-brand-purple/12! bg-white/25! shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]! hover:bg-white/38!",

@@ -6,7 +6,7 @@ type ArrowIconProps = {
 
 export function ArrowIcon({ className }: ArrowIconProps) {
   return (
-    <span className={cn("inline-block translate-y-px text-lg", className)} aria-hidden>
+    <span className={cn("inline-block translate-y-px text-lg transition-transform duration-200 ease-out group-hover:translate-x-1", className)} aria-hidden>
       →
     </span>
   );

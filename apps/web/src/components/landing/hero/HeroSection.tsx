@@ -72,10 +72,11 @@ export default function HeroSection() {
     const animation = target.animate(
       [
         { backgroundPosition: "0 0, 0% 50%" },
-        { backgroundPosition: "0 0, 100% 50%" },
-        { backgroundPosition: "0 0, 0% 50%" },
+        { backgroundPosition: "0 0, 100% 50%", offset: 0.16 },
+        { backgroundPosition: "0 0, 0% 50%", offset: 0.34 },
+        { backgroundPosition: "0 0, 0% 50%", offset: 1 },
       ],
-      { duration: 5_500, easing: "ease-in-out", iterations: Number.POSITIVE_INFINITY },
+      { duration: 10_000, easing: "ease-in-out", iterations: Number.POSITIVE_INFINITY },
     );
     return () => animation.cancel();
   }, [errorMessage, phase]);
@@ -141,7 +142,7 @@ export default function HeroSection() {
             asChild
             size="default"
             glassScale={14}
-            className="hero-eyebrow-liquid mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm"
+            className="hero-eyebrow-liquid hero-entrance hero-entrance--badge mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm"
           >
             <div>
               <Sparkles className="size-4" aria-hidden />
@@ -161,20 +162,20 @@ export default function HeroSection() {
           </LiquidButton>
 
           <h1 className="mt-6 max-w-[930px] text-balance text-[2.6rem] font-semibold leading-[1.06] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem]">
-            <span className="block">Drop your URL.</span>
-            <span className="block">Go back to <ShimmerText>business.</ShimmerText></span>
+            <span className="hero-headline-line hero-headline-line--one block">Drop your URL.</span>
+            <span className="hero-headline-line hero-headline-line--two block">Go back to <ShimmerText className="hero-business-shimmer">business.</ShimmerText></span>
           </h1>
-          <p className="mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9">
+          <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9">
             The world&rsquo;s first 100% done-for-you lead gen platform.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-7 w-full max-w-[820px] sm:mt-9" noValidate>
+          <form onSubmit={handleSubmit} className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] sm:mt-9" noValidate>
             <div
               ref={waveTargetRef}
               data-fiber-flow-target
               data-invalid={errorMessage && phase === "idle" ? "true" : undefined}
               className={cn(
-                "flex min-h-20 items-center rounded-[22px] border border-transparent p-2 shadow-[0_18px_45px_rgba(66,42,148,0.14),0_0_24px_rgba(124,58,237,0.08)] transition-[box-shadow] duration-300 focus-within:shadow-[0_18px_45px_rgba(66,42,148,0.16),0_0_0_3px_rgba(124,58,237,0.10),0_0_30px_rgba(99,102,241,0.14)] max-sm:flex-col max-sm:items-stretch max-sm:gap-2 max-sm:rounded-2xl",
+                "hero-analyzer flex min-h-20 items-center rounded-[22px] border border-transparent p-2 shadow-[0_18px_45px_rgba(66,42,148,0.10)] transition-[box-shadow] duration-300 focus-within:shadow-[0_18px_45px_rgba(66,42,148,0.16),0_0_0_3px_rgba(124,58,237,0.10),0_0_30px_rgba(99,102,241,0.14)] max-sm:flex-col max-sm:items-stretch max-sm:gap-2 max-sm:rounded-2xl",
               )}
               style={{
                 background: errorMessage && phase === "idle"
@@ -229,12 +230,8 @@ export default function HeroSection() {
             </div>
           </form>
 
-          <p className="mt-5 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-6 sm:text-lg sm:leading-8 lg:text-xl">
-            Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
-          </p>
-
-          <div className="relative mt-4 flex w-full max-w-[860px] items-center justify-center gap-3 text-center sm:mt-5 sm:gap-4">
-            <span className="inline-flex items-center justify-center text-[#4f46e5] md:absolute md:left-1/2 md:top-1/2 md:mr-0 md:-translate-x-[280px] md:-translate-y-1/2" aria-hidden>
+          <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center gap-3 text-center sm:mt-5 sm:gap-4">
+            <span className="hero-video-icon inline-flex items-center justify-center text-[#4f46e5] md:mr-0" aria-hidden>
               <SquarePlay className="size-5 sm:size-[1.375rem]" />
             </span>
             <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
@@ -242,6 +239,10 @@ export default function HeroSection() {
               <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span> for maximum conversion.</span>
             </p>
           </div>
+
+          <p className="hero-entrance hero-entrance--description mt-4 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-5 sm:text-lg sm:leading-8 lg:text-xl">
+            Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
+          </p>
 
           <div className="min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[118px] sm:pt-7" aria-live="polite" aria-atomic="true">
             {phase !== "idle" ? (
@@ -271,14 +272,14 @@ export default function HeroSection() {
             ) : errorMessage ? <p id="landing-analyzer-message" className="text-sm font-medium text-red-700">{errorMessage}</p> : null}
           </div>
 
-          <ul className="mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5]">
+          <ul className="hero-entrance hero-entrance--trust mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5]">
             {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-              <li key={label} className="flex min-w-[220px] items-center justify-center gap-3 px-7 py-1.5 sm:py-2">
-                <span className="inline-flex size-9 items-center justify-center rounded-full bg-white/55 text-[#596078] shadow-sm sm:size-10"><Icon className="size-5" aria-hidden /></span>{label}
+              <li key={label} className="hero-trust-item flex min-w-[220px] items-center justify-center gap-3 px-7 py-1.5 sm:py-2">
+                <span className="hero-trust-icon inline-flex size-9 items-center justify-center rounded-full bg-white/55 text-[#596078] shadow-sm sm:size-10"><Icon className="size-5" aria-hidden /></span>{label}
               </li>
             ))}
           </ul>
-          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="mt-auto flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden">
+          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue mt-auto flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden">
             <ArrowDown className="size-6" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
           </button>
         </main>

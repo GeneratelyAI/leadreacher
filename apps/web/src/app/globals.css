@@ -2410,6 +2410,213 @@ html[data-page="discovery"].dark body {
     0 0 12px rgba(124, 58, 237, 0.08);
 }
 
+@keyframes hero-entrance-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-headline-resolve {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-business-resolve {
+  0% {
+    background-position: -120% 50%;
+    opacity: 0;
+  }
+  45% {
+    background-position: 0% 50%;
+    opacity: 0.9;
+  }
+  100% {
+    background-position: 120% 50%;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-ambient-shift {
+  0%,
+  100% {
+    background-position: 12% 45%;
+  }
+  50% {
+    background-position: 88% 55%;
+  }
+}
+
+@keyframes hero-video-ring {
+  0%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  73% {
+    opacity: 0.28;
+  }
+  86% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+@keyframes hero-scroll-cue {
+  0%,
+  65%,
+  100% {
+    transform: translateY(0);
+  }
+  78% {
+    transform: translateY(3px);
+  }
+}
+
+.hero-ambient-gradient {
+  background:
+    linear-gradient(
+      120deg,
+      rgba(216, 225, 241, 0.11),
+      rgba(219, 231, 255, 0.08) 36%,
+      rgba(211, 198, 255, 0.12) 68%,
+      rgba(216, 225, 241, 0.08)
+    );
+  background-size: 240% 240%;
+  animation: hero-ambient-shift 24s ease-in-out infinite;
+}
+
+.hero-entrance {
+  opacity: 0;
+  animation: hero-entrance-up 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-entrance--badge {
+  animation-delay: 40ms;
+}
+
+.hero-entrance--category {
+  animation-delay: 250ms;
+}
+
+.hero-entrance--analyzer {
+  animation-delay: 350ms;
+}
+
+.hero-entrance--video {
+  animation-delay: 450ms;
+}
+
+.hero-entrance--description {
+  animation-delay: 525ms;
+}
+
+.hero-entrance--trust {
+  animation-delay: 600ms;
+}
+
+.hero-entrance--scroll {
+  animation-delay: 680ms;
+}
+
+.hero-headline-line {
+  opacity: 0;
+  animation: hero-headline-resolve 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-headline-line--one {
+  animation-delay: 100ms;
+}
+
+.hero-headline-line--two {
+  animation-delay: 200ms;
+}
+
+.hero-business-shimmer .lr-shimmer-text__shine {
+  animation: hero-business-resolve 700ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both;
+}
+
+.hero-analyzer:hover {
+  box-shadow:
+    0 18px 45px rgba(66, 42, 148, 0.13),
+    0 0 0 2px rgba(124, 58, 237, 0.06),
+    0 0 26px rgba(99, 102, 241, 0.1);
+}
+
+.hero-video-icon {
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .hero-video-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-280px, -50%);
+  }
+}
+
+.hero-video-icon::after {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(99, 102, 241, 0.34);
+  border-radius: 999px;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  animation: hero-video-ring 7s ease-out infinite;
+}
+
+.hero-trust-item {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.hero-trust-item:hover {
+  transform: translateY(-1px);
+}
+
+.hero-trust-item:hover .hero-trust-icon {
+  box-shadow:
+    0 4px 12px rgba(83, 38, 183, 0.08),
+    0 0 0 3px rgba(124, 58, 237, 0.05);
+}
+
+.hero-trust-icon {
+  transition: box-shadow 220ms ease;
+}
+
+.hero-scroll-cue > svg {
+  animation: hero-scroll-cue 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-ambient-gradient,
+  .hero-entrance,
+  .hero-headline-line,
+  .hero-business-shimmer .lr-shimmer-text__shine,
+  .hero-video-icon::after,
+  .hero-scroll-cue > svg {
+    animation: none;
+  }
+
+  .hero-entrance,
+  .hero-headline-line {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .auth-analysis-card {
   transition:
     min-height var(--onboarding-motion-slow) var(--onboarding-ease-standard),
