@@ -170,7 +170,7 @@ function ShellActions({
   onContinue: () => void;
 }) {
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-7 z-30 flex items-center justify-between px-6 sm:px-10">
+    <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
       <Button
         type="button"
         variant="secondary"
@@ -286,9 +286,9 @@ function WorkCardPreview({ index }: { index: number }) {
     return (
       <div className="strategy-preview strategy-preview--buyers">
         <div className="strategy-preview__avatars">
-          <PreviewAvatar src="https://randomuser.me/api/portraits/women/44.jpg" className="size-8" showStatus />
-          <PreviewAvatar src="https://randomuser.me/api/portraits/men/32.jpg" className="strategy-preview__avatar--overlap size-8" />
-          <PreviewAvatar src="https://randomuser.me/api/portraits/women/68.jpg" className="strategy-preview__avatar--overlap size-8" />
+          <PreviewAvatar src="/landing/portraits/prospect-44.webp" className="size-8" showStatus />
+          <PreviewAvatar src="/landing/portraits/prospect-32.webp" className="strategy-preview__avatar--overlap size-8" />
+          <PreviewAvatar src="/landing/portraits/prospect-68.webp" className="strategy-preview__avatar--overlap size-8" />
           <span className="strategy-preview__plus-avatar">
             <Plus className="size-4" aria-hidden />
           </span>
@@ -328,7 +328,7 @@ function WorkCardPreview({ index }: { index: number }) {
   return (
     <div className="strategy-preview strategy-preview--launch">
       <div className="strategy-preview__surface">
-        <PreviewAvatar src="https://randomuser.me/api/portraits/men/46.jpg" className="size-8" showStatus />
+        <PreviewAvatar src="/landing/portraits/prospect-46.webp" className="size-8" showStatus />
         <div className="strategy-preview__launch-lines">
           <span className="strategy-preview__launch-line" aria-hidden />
           <span className="strategy-preview__launch-line strategy-preview__launch-line--short" aria-hidden />
@@ -343,7 +343,7 @@ function WorkCardPreview({ index }: { index: number }) {
 
 function HowItWorksScreen() {
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center px-5 pb-28 pt-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
       <ScreenHeader
         icon={<Sparkles className="size-8" aria-hidden />}
         title="How LeadReacher works"
@@ -450,7 +450,7 @@ function TargetingScreen({
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
         <ScreenHeader
           icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
@@ -463,7 +463,7 @@ function TargetingScreen({
 
   if (error || !analysis || analysis.status !== "completed") {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
         <ScreenHeader
           icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
@@ -482,7 +482,7 @@ function TargetingScreen({
   const companiesUnavailable = analysis.companies.status === "unavailable";
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
       <ScreenHeader
         icon={<Users className="size-8" aria-hidden />}
         title="Who we're targeting"
@@ -629,7 +629,7 @@ function ChannelsScreen({
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
         <ScreenHeader
           icon={<Megaphone className="size-8" aria-hidden />}
           title="Recommended channels"
@@ -641,7 +641,7 @@ function ChannelsScreen({
 
   if (error || recommendations.length === 0) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
         <ScreenHeader
           icon={<Megaphone className="size-8" aria-hidden />}
           title="Recommended channels"
@@ -652,7 +652,7 @@ function ChannelsScreen({
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
       <ScreenHeader
         icon={<Megaphone className="size-8" aria-hidden />}
         title="Recommended channels"

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import {
   BriefcaseBusiness,
   ChartNoAxesCombined,
@@ -26,13 +26,13 @@ const CHANNELS: readonly Channel[] = [
   { label: "Outlook", logo: "outlook" },
 ] as const;
 
-const PROSPECT_AVATAR = "https://randomuser.me/api/portraits/women/36.jpg";
+const PROSPECT_AVATAR = "/landing/portraits/prospect-36.webp";
 
 const AVATARS = [
-  { src: "https://randomuser.me/api/portraits/women/44.jpg", alt: "Diverse prospect portrait", position: "left-[6%] top-[14%]" },
-  { src: "https://randomuser.me/api/portraits/men/32.jpg", alt: "Diverse prospect portrait", position: "right-[6%] top-[14%]" },
-  { src: "https://randomuser.me/api/portraits/men/46.jpg", alt: "Diverse prospect portrait", position: "left-[6%] bottom-[14%]" },
-  { src: "https://randomuser.me/api/portraits/women/68.jpg", alt: "Diverse prospect portrait", position: "right-[6%] bottom-[14%]" },
+  { src: "/landing/portraits/prospect-44.webp", alt: "Diverse prospect portrait", position: "left-[6%] top-[14%]" },
+  { src: "/landing/portraits/prospect-32.webp", alt: "Diverse prospect portrait", position: "right-[6%] top-[14%]" },
+  { src: "/landing/portraits/prospect-46.webp", alt: "Diverse prospect portrait", position: "left-[6%] bottom-[14%]" },
+  { src: "/landing/portraits/prospect-68.webp", alt: "Diverse prospect portrait", position: "right-[6%] bottom-[14%]" },
 ] as const;
 
 function ChannelGlyph({ channel, className }: { channel: Channel; className?: string }) {
@@ -56,39 +56,38 @@ function OrbitNetwork() {
         />
       ))}
 
-      <motion.div
+      <m.div
         className="absolute left-1/2 top-1/2 size-[275px] -translate-x-1/2 -translate-y-1/2"
         animate={reducedMotion ? undefined : { rotate: 360 }}
         transition={reducedMotion ? undefined : { duration: 24, repeat: Infinity, ease: "linear" }}
       >
-        <motion.div
+        <m.div
           className="absolute left-1/2 top-0 flex size-12 -translate-x-1/2 items-center justify-center rounded-full bg-gradient-to-br from-[#f3ecff] to-[#d8ccff] text-[#6340db] shadow-[0_8px_18px_rgba(91,57,213,.14)]"
           animate={reducedMotion ? undefined : { rotate: -360 }}
           transition={reducedMotion ? undefined : { duration: 24, repeat: Infinity, ease: "linear" }}
         >
           <ChartNoAxesCombined className="size-7" aria-hidden />
-        </motion.div>
+        </m.div>
         {AVATARS.map((avatar) => (
-          <motion.div
+          <m.div
             key={avatar.src}
             className={cn("absolute size-12 overflow-hidden rounded-full bg-white shadow-[0_8px_18px_rgba(48,36,99,.14)]", avatar.position)}
             animate={reducedMotion ? undefined : { rotate: -360 }}
             transition={reducedMotion ? undefined : { duration: 24, repeat: Infinity, ease: "linear" }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={avatar.src} alt={avatar.alt} className="size-full rounded-full object-cover" />
-          </motion.div>
+            <Image src={avatar.src} alt={avatar.alt} fill sizes="48px" className="rounded-full object-cover" />
+          </m.div>
         ))}
-        <motion.div
+        <m.div
           className="absolute bottom-0 left-1/2 flex size-12 -translate-x-1/2 items-center justify-center rounded-full bg-[#f0edff] text-[#5c3ad0] shadow-[0_7px_16px_rgba(91,57,213,.12)]"
           animate={reducedMotion ? undefined : { rotate: -360 }}
           transition={reducedMotion ? undefined : { duration: 24, repeat: Infinity, ease: "linear" }}
         >
           <BriefcaseBusiness className="size-6" aria-hidden />
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         className="absolute left-1/2 top-1/2 z-10 flex size-[82px] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-white shadow-[0_14px_30px_rgba(81,49,202,.18)]"
         animate={reducedMotion ? undefined : { boxShadow: ["0 14px 30px rgba(81,49,202,.16)", "0 14px 42px rgba(102,70,239,.3)", "0 14px 30px rgba(81,49,202,.16)"] }}
         transition={reducedMotion ? undefined : { duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
@@ -96,7 +95,7 @@ function OrbitNetwork() {
         <span aria-hidden className="absolute -inset-2 rounded-full border border-[#a994ff]/35" />
         <span aria-hidden className="absolute -inset-4 rounded-full border border-[#c8bcff]/25" />
         <UserRound className="relative size-10 text-[#5530d1]" strokeWidth={1.8} aria-hidden />
-      </motion.div>
+      </m.div>
     </div>
   );
 }
@@ -115,7 +114,7 @@ function ChannelFlow() {
         {paths.map((path, index) => (
           <g key={path}>
             <path d={path} stroke="#d9d7eb" strokeWidth="1.2" />
-            <motion.path
+            <m.path
               d={path}
               stroke={index % 2 === 0 ? "#7454ee" : "#8ca8ff"}
               strokeWidth="2"
@@ -129,7 +128,7 @@ function ChannelFlow() {
         ))}
       </svg>
 
-      <motion.div
+      <m.div
         className="absolute left-1 top-1/2 flex size-16 -translate-y-1/2 items-center justify-center"
         initial={reducedMotion ? undefined : { opacity: 0, scale: 0.86 }}
         whileInView={reducedMotion ? undefined : { opacity: 1, scale: 1 }}
@@ -137,12 +136,12 @@ function ChannelFlow() {
         transition={{ duration: 0.45 }}
       >
         <Image src="/logo/leadreacher_plane_only.svg" alt="LeadReacher" width={64} height={64} className="size-14 object-contain" />
-      </motion.div>
+      </m.div>
 
       {CHANNELS.map((channel, index) => (
-        <motion.div
+        <m.div
           key={channel.label}
-          aria-label={channel.label}
+          aria-hidden
           className="absolute left-1/2 flex size-14 -translate-x-1/2 items-center justify-center"
           style={{ top: channelY[index] - 28 }}
           initial={reducedMotion ? undefined : { opacity: 0, scale: 0.8 }}
@@ -151,19 +150,18 @@ function ChannelFlow() {
           transition={{ delay: index * 0.08, duration: 0.35 }}
         >
           <ChannelGlyph channel={channel} className="size-12" />
-        </motion.div>
+        </m.div>
       ))}
 
-      <motion.div
+      <m.div
         className="absolute right-1 top-1/2 size-16 -translate-y-1/2 overflow-hidden rounded-full shadow-[0_12px_26px_rgba(76,46,205,.18)]"
         initial={reducedMotion ? undefined : { opacity: 0, scale: 0.86 }}
         whileInView={reducedMotion ? undefined : { opacity: 1, scale: 1 }}
         viewport={{ once: true, amount: 0.5 }}
         transition={{ duration: 0.45, delay: 0.25 }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={PROSPECT_AVATAR} alt="Prospect" className="size-full object-cover" />
-      </motion.div>
+        <Image src={PROSPECT_AVATAR} alt="Prospect" fill sizes="64px" className="object-cover" />
+      </m.div>
     </div>
   );
 }
@@ -183,7 +181,7 @@ function ReviewPreview() {
         </div>
         <div className="mt-3 flex gap-2"><span className="h-2 flex-1 rounded-full bg-[#dedcf0]" /><span className="h-2 w-16 rounded-full bg-[#7454ee]" /><span className="h-2 w-10 rounded-full bg-[#dedcf0]" /></div>
       </div>
-      <motion.div
+      <m.div
         className="absolute -right-1 bottom-7 w-[132px] rounded-2xl border border-white bg-white p-3 shadow-[0_14px_30px_rgba(55,42,112,.13)]"
         initial={{ opacity: 0, x: 12 }}
         whileInView={{ opacity: 1, x: 0 }}
@@ -198,7 +196,7 @@ function ReviewPreview() {
         </svg>
         <p className="mt-3 text-[8px] font-medium text-[#777c90]">Conversions</p>
         <p className="mt-1 text-xl font-semibold tracking-tight text-[#171b2c]">3–8%</p>
-      </motion.div>
+      </m.div>
     </div>
   );
 }
@@ -212,13 +210,13 @@ const SHOWCASE_CARDS = [
 export default function AcquisitionShowcase() {
   return (
     <div className="mx-auto max-w-7xl px-5 pb-16 pt-24 text-center sm:px-8 sm:pb-20 sm:pt-28 lg:px-10 lg:pb-24 lg:pt-32">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#3034d7]">What LeadReacher does</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#3034d7] 2xl:text-sm">What LeadReacher does</p>
       <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-7xl">
         Customer acquisition
         <br />
         that runs <ShimmerText className="text-[#4f46e5]">itself.</ShimmerText>
       </h2>
-      <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-[#62697e] sm:text-lg sm:leading-8">
+      <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-[#62697e] sm:text-lg sm:leading-8 2xl:text-xl 2xl:leading-9">
         We combine AI, social channels and personalized video to find, reach and convert your ideal customers - on autopilot.
       </p>
 
@@ -238,8 +236,8 @@ export default function AcquisitionShowcase() {
               />
             ) : null}
             <div className="mt-6 px-2 sm:px-4">
-              <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full bg-white text-lg font-semibold text-[#4f46e5] shadow-[0_6px_14px_rgba(77,53,189,.1)]">{card.number}</span><h3 className="text-2xl font-semibold tracking-[-0.02em] text-[#111527]">{card.label}</h3></div>
-              <p className="mt-4 max-w-sm text-base leading-7 text-[#62697e]">{card.description}</p>
+              <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full bg-white text-lg font-semibold text-[#4f46e5] shadow-[0_6px_14px_rgba(77,53,189,.1)]">{card.number}</span><h3 className="text-2xl font-semibold tracking-[-0.02em] text-[#111527] 2xl:text-3xl">{card.label}</h3></div>
+              <p className="mt-4 max-w-sm text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">{card.description}</p>
             </div>
           </div>
         ))}

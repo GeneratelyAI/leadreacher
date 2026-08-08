@@ -4,13 +4,23 @@
 @import "../styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
-@custom-variant h-compact (@media (max-height: 820px));
+@custom-variant compact-phone (@media (max-width: 359px));
+@custom-variant h-compact (@media (max-height: 999px) and (max-width: 1279px));
+@custom-variant h-short (@media (max-height: 680px));
 @custom-variant h-comfortable (@media (min-height: 1000px));
 @custom-variant h-spacious (@media (min-height: 1200px));
 @config "../../tailwind.config.ts";
 
 :root {
-  --landing-light-bg: #f8f7ff;
+  /* Match the canvas fill used beneath the landing hero's fiber flow. */
+  --landing-light-bg: #f7f6ff;
+  --viewport-gutter: clamp(1rem, 3vw, 2.5rem);
+  --viewport-gutter-compact: clamp(0.75rem, 4vw, 1rem);
+  --content-max: 100rem;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   --glass-blur: 24px;
   --glass-saturate: 180%;
   --glass-bg: rgba(255, 255, 255, 0.1);
@@ -66,6 +76,13 @@
 
 .landing-light-surface {
   background-color: var(--landing-light-bg);
+}
+
+/* Keep lower landing sections in the accessibility tree while deferring their
+   layout and paint cost until they approach the viewport. */
+.landing-deferred-render {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 900px;
 }
 
 @theme inline {
@@ -1001,7 +1018,7 @@ html {
 
   .onboarding-chrome-mobile {
     position: fixed;
-    inset: 1rem 1rem auto;
+    inset: max(1rem, var(--safe-area-top)) max(1rem, var(--safe-area-right)) auto max(1rem, var(--safe-area-left));
     z-index: 30;
     display: flex;
     align-items: center;
@@ -1010,7 +1027,7 @@ html {
 
   .onboarding-chrome-mobile__stepper {
     position: fixed;
-    inset: auto 1rem 1rem;
+    inset: auto max(1rem, var(--safe-area-right)) max(1rem, var(--safe-area-bottom)) max(1rem, var(--safe-area-left));
     z-index: 30;
     display: block;
     padding: var(--onboarding-space-2);
@@ -1041,8 +1058,195 @@ html {
   }
 }
 
+.onboarding-actions {
+  bottom: max(1.75rem, var(--safe-area-bottom));
+  padding-left: max(1.5rem, var(--safe-area-left));
+  padding-right: max(1.5rem, var(--safe-area-right));
+}
+
+@media (max-width: 63.999rem) {
+  .onboarding-actions {
+    bottom: calc(max(1rem, var(--safe-area-bottom)) + 4.75rem);
+    gap: 0.75rem;
+    padding-left: max(0.75rem, var(--safe-area-left));
+    padding-right: max(0.75rem, var(--safe-area-right));
+  }
+
+  .onboarding-actions > * {
+    min-width: 0;
+  }
+}
+
 body {
   min-height: 100dvh;
+  overflow-x: clip;
+}
+
+html {
+  min-width: 20rem;
+  scroll-padding-top: calc(4.5rem + var(--safe-area-top));
+}
+
+.viewport-container {
+  width: min(100%, var(--content-max));
+  margin-inline: auto;
+  padding-inline: max(var(--viewport-gutter), var(--safe-area-left));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, var(--safe-area-bottom));
+}
+
+.dashboard-page-frame {
+  padding-right: max(var(--dashboard-page-px, 1rem), var(--safe-area-right));
+  padding-bottom: max(var(--dashboard-page-py, 1.25rem), var(--safe-area-bottom));
+  padding-left: max(var(--dashboard-page-px, 1rem), var(--safe-area-left));
+}
+
+.dashboard-chat-composer {
+  padding-bottom: max(0.75rem, var(--safe-area-bottom));
+}
+
+.intentional-x-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 39.999rem) {
+  .viewport-container {
+    padding-inline: max(var(--viewport-gutter-compact), var(--safe-area-left));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  :root {
+    --viewport-gutter: 1rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-width: 79.999rem) and (max-height: 62.499rem) {
+  .hero-shell {
+    min-height: calc(100svh - 2rem);
+    padding-top: 5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .hero-composition .hero-eyebrow-liquid {
+    margin-top: 0;
+  }
+
+  .hero-composition h1 {
+    margin-top: 1.25rem;
+    font-size: clamp(3.5rem, 7vh, 4.25rem);
+    line-height: 1.03;
+  }
+
+  .hero-composition .hero-entrance--category {
+    margin-top: 0.75rem;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  .hero-composition .hero-entrance--analyzer {
+    margin-top: 1rem;
+  }
+
+  .hero-composition .hero-entrance--video,
+  .hero-composition .hero-entrance--description {
+    margin-top: 0.5rem;
+  }
+
+  .hero-composition .hero-status-reserve {
+    min-height: 0;
+    padding-top: 0.25rem;
+  }
+
+  .hero-composition .hero-entrance--description {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .hero-composition .hero-entrance--trust {
+    margin-top: 0;
+  }
+
+  .hero-composition .hero-scroll-cue {
+    margin-bottom: 0;
+    gap: 0.125rem;
+    padding-top: 0;
+    font-size: 0.75rem;
+  }
+}
+
+/* Preserve the original large-desktop composition. Responsive height
+   compression is reserved for narrower laptops, where the full composition
+   genuinely needs to be reflowed to stay visible. */
+@media (min-width: 80rem) {
+  #top {
+    min-height: 100svh;
+  }
+
+  .hero-shell {
+    min-height: 100svh;
+    padding-top: 8rem;
+    padding-bottom: 2rem;
+  }
+
+  .hero-composition .hero-eyebrow-liquid {
+    margin-top: 1.25rem;
+  }
+
+  .hero-composition h1 {
+    margin-top: 2.25rem;
+    font-size: 5.5rem;
+    line-height: 1.06;
+  }
+
+  .hero-composition .hero-entrance--category {
+    margin-top: 1.5rem;
+    font-size: 1.5rem;
+    line-height: 2.25rem;
+  }
+
+  .hero-composition .hero-entrance--analyzer {
+    margin-top: 2.25rem;
+  }
+
+  .hero-composition .hero-entrance--video {
+    margin-top: 1.25rem;
+  }
+
+  .hero-composition .hero-entrance--description {
+    margin-top: 1.25rem;
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+
+  .hero-composition .hero-status-reserve {
+    min-height: 5.125rem;
+    padding-top: 1.75rem;
+  }
+
+  .hero-composition .hero-entrance--trust {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .hero-composition .hero-scroll-cue {
+    margin-bottom: 1rem;
+    gap: 0.5rem;
+    padding-top: 1.5rem;
+    font-size: 0.875rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 42.5rem) {
+  .hero-composition h1 {
+    margin-top: 0.75rem;
+    font-size: 3rem;
+  }
 }
 
 /* iOS Safari force-zooms the viewport whenever a focused form control renders
@@ -2509,6 +2713,10 @@ html[data-page="discovery"].dark body {
     );
   background-size: 240% 240%;
   animation: hero-ambient-shift 24s ease-in-out infinite;
+}
+
+.hero-headline {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .hero-entrance {

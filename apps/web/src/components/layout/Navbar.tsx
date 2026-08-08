@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { FileText, ShieldCheck } from "lucide-react";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { buttonVariants } from "@/components/ui/Button";
@@ -14,11 +15,11 @@ import {
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { useNavbarTheme } from "@/hooks/useNavbarTheme";
+import { ASSETS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { href: "#product", label: "Product" },
-  { href: "#how-it-works", label: "How it works" },
   { href: "#pricing", label: "Pricing" },
 ] as const;
 
@@ -45,15 +46,14 @@ export default function Navbar() {
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-50 transition-transform duration-300 ease-out motion-reduce:transition-none"
+      className="fixed inset-x-0 top-0 z-50 pt-[calc(var(--nav-progress)*min(0.75rem,2vh))] px-[calc(var(--nav-progress)*min(1.25rem,3vw))] transition-transform duration-300 ease-out motion-reduce:transition-none"
       style={{
-        paddingTop: `${floatingProgress * 12}px`,
-        paddingInline: `${floatingProgress * 20}px`,
+        ["--nav-progress" as string]: floatingProgress,
         transform: isVisible ? "translateY(0)" : "translateY(-110%)",
       }}
     >
       <nav
-        className="relative flex w-full items-center justify-between pl-4 pr-5 sm:pl-5 sm:pr-8"
+        className="relative flex w-full items-center justify-between gap-2 pl-3 pr-3 min-[360px]:pl-4 min-[360px]:pr-4 sm:pl-5 sm:pr-8"
         style={{ height: `${64 - floatingProgress * 4}px` }}
       >
         <div
@@ -70,13 +70,21 @@ export default function Navbar() {
           }}
         />
 
-        <Link href="/" className="relative z-10 flex shrink-0 items-center">
+        <Link
+          href="/"
+          aria-label="LeadReacher home"
+          className="relative z-10 flex size-9 shrink-0 items-center justify-center md:hidden"
+        >
+          <Image src={ASSETS.planeIcon} width={24} height={24} alt="" className="size-6 object-contain" priority />
+        </Link>
+
+        <Link href="/" className="relative z-10 hidden shrink-0 items-center md:flex">
           <Logo
             size="xs"
             variant={isDark ? "white" : "colored"}
             align="left"
             crossfade
-            className="h-5 max-w-44 sm:h-6.5 sm:max-w-none"
+            className="h-5 max-w-[8.75rem] min-[360px]:max-w-44 sm:h-6.5 md:max-w-[13.5rem] lg:max-w-[15rem] xl:max-w-none"
           />
         </Link>
 
@@ -90,7 +98,7 @@ export default function Navbar() {
                 <NavigationMenuLink
                   render={<Link href={link.href} />}
                   className={cn(
-                    "rounded-md bg-transparent px-1.5 py-2 text-sm font-medium hover:bg-transparent focus:bg-transparent data-active:bg-transparent",
+                    "rounded-md bg-transparent px-1.5 py-2 text-sm font-medium hover:bg-transparent focus:bg-transparent data-active:bg-transparent 2xl:text-base",
                     themeTransition,
                     isDark
                       ? "text-white/95 hover:text-white focus:text-white"
@@ -105,7 +113,7 @@ export default function Navbar() {
             <NavigationMenuItem>
               <NavigationMenuTrigger
                 className={cn(
-                  "h-auto rounded-md bg-transparent px-1.5 py-2 text-sm hover:bg-transparent focus:bg-transparent data-popup-open:bg-transparent data-popup-open:hover:bg-transparent data-open:bg-transparent data-open:hover:bg-transparent",
+                  "h-auto rounded-md bg-transparent px-1.5 py-2 text-sm hover:bg-transparent focus:bg-transparent data-popup-open:bg-transparent data-popup-open:hover:bg-transparent data-open:bg-transparent data-open:hover:bg-transparent 2xl:text-base",
                   themeTransition,
                   isDark
                     ? "text-white/95 hover:text-white focus:text-white"
@@ -141,11 +149,24 @@ export default function Navbar() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        <div className="relative z-10 flex shrink-0 items-center gap-5 sm:gap-6">
+        <div className="relative z-10 flex min-w-0 flex-1 items-center justify-between gap-0.5 min-[360px]:gap-1 md:w-auto md:flex-none md:shrink-0 md:justify-end sm:gap-2 md:gap-6">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                "inline-flex min-h-11 items-center px-1 text-xs font-medium min-[360px]:text-sm md:hidden",
+                themeTransition,
+                isDark ? "text-white/95 hover:text-white" : "text-neutral-700 hover:text-neutral-900",
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
           <Link
             href="/login"
             className={cn(
-              "hidden text-sm font-medium sm:inline",
+              "inline-flex min-h-11 items-center px-1 text-xs font-medium min-[360px]:text-sm md:px-0 md:text-sm 2xl:text-base",
               themeTransition,
               isDark
                 ? "text-white/95 hover:text-white"
@@ -158,7 +179,7 @@ export default function Navbar() {
             href="/signup"
             className={cn(
               buttonVariants({ variant: "glass-outline", size: "glass-nav" }),
-              "group transition-[background-color,border-color,color,transform,box-shadow] duration-base ease-brand hover:-translate-y-px active:translate-y-0",
+              "group min-h-11 px-2 text-xs min-[360px]:px-3 min-[360px]:text-sm md:px-4 transition-[background-color,border-color,color,transform,box-shadow] duration-base ease-brand hover:-translate-y-px active:translate-y-0 2xl:text-base",
               isDark
                 ? "border-white/20! bg-white/8! shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]! hover:bg-white/14!"
                 : "liquid-glass-on-light border-brand-purple/12! bg-white/25! shadow-[inset_0_1px_0_rgba(255,255,255,0.35)]! hover:bg-white/38!",
@@ -167,7 +188,7 @@ export default function Navbar() {
             Get Started
             <ArrowIcon
               className={cn(
-                "text-base",
+                "hidden text-base md:inline-flex",
                 themeTransition,
                 isDark ? "text-white" : "text-brand-purple",
               )}

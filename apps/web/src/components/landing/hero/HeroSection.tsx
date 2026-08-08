@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowRight, Link2, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, SquarePlay, Zap } from "lucide-react";
+import { ArrowDown, ArrowRight, Link2, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { analysisStepForElapsedTime, LANDING_ANALYSIS_STEPS, normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
@@ -131,10 +131,10 @@ export default function HeroSection() {
   }
 
   return (
-    <section id="top" data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden text-[#090d1d]">
+    <section id="top" data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
       <HeroBackground />
-      <div className="mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-5 pb-7 pt-24 sm:px-8 sm:pt-28 lg:px-12 lg:pb-8 lg:pt-32">
-        <main className="flex flex-1 flex-col items-center text-center">
+      <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-22 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
+        <main className="hero-composition flex flex-1 flex-col items-center text-center">
           {/* Tailwind classes belong on LiquidButton, not the slotted child: `asChild`
               concatenates the child's className instead of running it through twMerge,
               so anything set there loses to the variant defaults. */}
@@ -142,7 +142,7 @@ export default function HeroSection() {
             asChild
             size="default"
             glassScale={14}
-            className="hero-eyebrow-liquid hero-entrance hero-entrance--badge mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm"
+            className="hero-eyebrow-liquid hero-entrance hero-entrance--badge mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm 2xl:text-base"
           >
             <div>
               <Sparkles className="size-4" aria-hidden />
@@ -161,24 +161,15 @@ export default function HeroSection() {
             </div>
           </LiquidButton>
 
-          <h1 className="mt-6 max-w-[930px] text-balance text-[2.6rem] font-semibold leading-[1.06] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem]">
-            <span className="hero-headline-line hero-headline-line--one block">Drop your URL.</span>
-            <span className="hero-headline-line hero-headline-line--two block">Go back to <ShimmerText
-              className="hero-business-shimmer"
-              style={
-                {
-                  "--lr-shimmer-base": "#4f46e5",
-                  "--lr-shimmer-core": "#58a6ff",
-                  "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
-                } as CSSProperties
-              }
-            >business.</ShimmerText></span>
+          <h1 className="hero-headline mt-6 max-w-[930px] text-balance text-[2.25rem] font-semibold leading-[1.06] min-[360px]:text-[2.6rem] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem] h-compact:sm:mt-6 h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:mt-4 h-short:lg:text-[3rem]">
+            <span className="block">Drop your URL.</span>
+            <span className="block">Go back to <span className="text-[#4f46e5]">business.</span></span>
           </h1>
-          <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9">
+          <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9 h-compact:sm:mt-4 h-compact:lg:text-xl h-compact:lg:leading-8 h-short:lg:mt-2 h-short:lg:text-lg h-short:lg:leading-7 2xl:text-[1.625rem]">
             The world&rsquo;s first 100% done-for-you lead gen platform.
           </p>
 
-          <form onSubmit={handleSubmit} className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] sm:mt-9" noValidate>
+          <form onSubmit={handleSubmit} className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] sm:mt-9 h-compact:sm:mt-6 h-short:lg:mt-3" noValidate>
             <div
               ref={waveTargetRef}
               data-fiber-flow-target
@@ -239,21 +230,25 @@ export default function HeroSection() {
             </div>
           </form>
 
-          <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center gap-3 text-center sm:mt-5 sm:gap-4">
-            <span className="hero-video-icon inline-flex items-center justify-center text-[#4f46e5] md:mr-0" aria-hidden>
-              <SquarePlay className="size-5 sm:size-[1.375rem]" />
-            </span>
-            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+          <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center text-center sm:mt-5 h-compact:sm:mt-3 h-short:lg:mt-2">
+            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
               <span className="block">Including personalized video outreach,</span>
               <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span> for maximum conversion.</span>
             </p>
           </div>
 
-          <p className="hero-entrance hero-entrance--description mt-4 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-5 sm:text-lg sm:leading-8 lg:text-xl">
+          <p className="hero-entrance hero-entrance--description mt-4 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-5 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
             Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
           </p>
 
-          <div className="min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[82px] sm:pt-7" aria-live="polite" aria-atomic="true">
+          <div
+            className={cn(
+              "hero-status-reserve min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[82px] sm:pt-7 h-compact:sm:min-h-[42px] h-compact:sm:pt-3 h-short:lg:min-h-0 h-short:lg:pt-1",
+              phase === "idle" && "h-compact:sm:min-h-0 h-compact:sm:pt-1",
+            )}
+            aria-live="polite"
+            aria-atomic="true"
+          >
             {phase !== "idle" ? (
               <div className="animate-in fade-in duration-300 motion-reduce:animate-none">
                 <p className="flex items-center justify-center gap-3 text-base font-semibold">
@@ -281,15 +276,15 @@ export default function HeroSection() {
             ) : errorMessage ? <p id="landing-analyzer-message" className="text-sm font-medium text-red-700">{errorMessage}</p> : null}
           </div>
 
-          <ul className="hero-entrance hero-entrance--trust mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5]">
+          <ul className="hero-entrance hero-entrance--trust mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5] h-compact:lg:text-[0.8125rem] h-short:lg:mt-0 2xl:text-base">
             {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-              <li key={label} className="hero-trust-item flex min-w-[220px] items-center justify-center gap-3 px-7 py-1.5 sm:py-2">
-                <span className="hero-trust-icon inline-flex size-9 items-center justify-center rounded-full bg-white/55 text-[#596078] shadow-sm sm:size-10"><Icon className="size-5" aria-hidden /></span>{label}
+              <li key={label} className="hero-trust-item flex min-w-[220px] items-center justify-center gap-3 px-7 py-1.5 sm:py-2 h-compact:lg:min-w-[190px] h-compact:lg:px-5 h-compact:lg:py-1">
+                <span className="hero-trust-icon inline-flex size-9 items-center justify-center rounded-full bg-white/55 text-[#596078] shadow-sm sm:size-10 h-compact:lg:size-8"><Icon className="size-5 h-compact:lg:size-4" aria-hidden /></span>{label}
               </li>
             ))}
           </ul>
-          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mt-auto mb-4 flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden">
-            <ArrowDown className="size-6" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
+          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mt-auto mb-4 flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden h-compact:lg:mb-3 h-compact:lg:gap-1 h-compact:lg:pt-2 h-compact:lg:text-xs h-short:lg:mb-0 h-short:lg:pt-0">
+            <ArrowDown className="size-6 h-compact:lg:size-5" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
           </button>
         </main>
       </div>

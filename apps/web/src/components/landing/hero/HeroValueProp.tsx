@@ -1,19 +1,19 @@
-import { Mail, MessageSquareText } from "lucide-react";
+import { Mail, MessageSquareText, MessageSquare, Send, Sparkles } from "lucide-react";
 import { SocialMediaIcon, type SocialMediaIconName } from "@/components/ui/SocialMediaIcon";
 
 const FEATURES = [
   {
-    icon: "fa-star",
+    icon: Sparkles,
     label: "Automated content generation.",
     description: "We create content that attracts your ideal customers.",
   },
   {
-    icon: "fa-paper-plane",
+    icon: Send,
     label: "Automated campaign execution.",
     description: "We run and optimize campaigns across the right channels.",
   },
   {
-    icon: "fa-comment",
+    icon: MessageSquare,
     label: "Qualified conversations.",
     description: "We deliver qualified conversations ready for you to close.",
   },
@@ -64,10 +64,7 @@ export default function HeroValueProp() {
                 />
               ) : null}
               <span className="flex size-20 items-center justify-center rounded-full border border-brand-purple/55 bg-brand-purple/8 shadow-[0_0_34px_rgba(83,38,183,0.18)]">
-                <i
-                  className={`fas ${feature.icon} text-3xl text-brand-purple`}
-                  aria-hidden
-                />
+                <feature.icon className="size-8 text-brand-purple" aria-hidden />
               </span>
               <h3 className="mt-6 max-w-56 text-xl font-bold leading-tight text-white">
                 {feature.label}

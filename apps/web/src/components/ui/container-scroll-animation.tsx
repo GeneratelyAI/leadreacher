@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import {
-  motion,
+  m,
   useMotionValueEvent,
   useReducedMotion,
   useScroll,
@@ -60,15 +60,15 @@ export function ContainerScroll({
     >
       <div className="sticky top-0 flex h-svh flex-col items-center justify-center overflow-hidden px-5 py-6 sm:px-8 lg:px-10">
         {titleComponent ? (
-          <motion.div
+          <m.div
             style={shouldReduceMotion ? { opacity: 1, transform: "none" } : { opacity: titleOpacity, y: titleY }}
             className="pointer-events-none relative z-20 mb-5 w-full shrink-0 text-center motion-reduce:transform-none! sm:mb-6"
           >
             {titleComponent}
-          </motion.div>
+          </m.div>
         ) : null}
 
-        <motion.div
+        <m.div
           data-testid="container-scroll-frame"
           style={
             shouldReduceMotion
@@ -87,7 +87,7 @@ export function ContainerScroll({
           )}
         >
           {children}
-        </motion.div>
+        </m.div>
       </div>
     </div>
   );

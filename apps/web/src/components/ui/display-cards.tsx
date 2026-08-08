@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { m, useReducedMotion } from "framer-motion";
 import type { LucideIcon } from "lucide-react";
 import { ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export function DisplayCards({ cards, className }: { cards: readonly DisplayCard
           const isActive = index === activeIndex;
           const offset = index - center;
           return (
-            <motion.article
+            <m.article
               key={title}
               tabIndex={0}
               aria-label={`${title}: ${description}`}
@@ -60,7 +60,7 @@ export function DisplayCards({ cards, className }: { cards: readonly DisplayCard
               </div>
               <p className="relative mt-4 min-h-12 text-sm leading-6 text-white/64">{description}</p>
               <div className="relative mt-4 flex items-center justify-between border-t border-white/10 pt-3 text-xs"><span className="flex items-center gap-1.5 text-white/68"><CheckCircle2 className="size-3.5 text-[#72d7a8]" />{status}</span><span className="text-white/32">0{index + 1}</span></div>
-            </motion.article>
+            </m.article>
           );
         })}
       </div>

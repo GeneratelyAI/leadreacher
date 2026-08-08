@@ -23,11 +23,11 @@ export { LINKEDIN_BRAND_LOGO_SRC };
 // (ChannelsWorkspace's ConnectChannelMark) - kept in sync so onboarding and
 // dashboard always show identical logos for a given channel.
 const BRAND_IMAGE_SRC: Record<BrandImageName, string> = {
-  linkedin: LINKEDIN_BRAND_LOGO_SRC,
-  instagram: "/dashboard/instagram-logo.png",
-  facebook: "/dashboard/facebook-logo.png",
-  gmail: "/dashboard/gmail-logo.png",
-  outlook: "/dashboard/outlook-logo.png",
+  linkedin: "/landing/linkedin-logo.webp",
+  instagram: "/landing/instagram-logo.webp",
+  facebook: "/landing/facebook-logo.webp",
+  gmail: "/landing/gmail-logo.webp",
+  outlook: "/landing/outlook-logo.webp",
 };
 
 /** Official channel marks used in onboarding and dashboard chrome. */
