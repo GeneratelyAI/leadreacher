@@ -646,11 +646,11 @@ export function DashboardShell({
                 <Search className="size-[1.05rem]" aria-hidden />
               </button>
               {showRangeControl ? (
-                <div className="hidden sm:block">
+                <div className="block">
                   <Select onValueChange={(value) => setRange(Number(value))}>
-                    <SelectTrigger aria-label="Date range" className="h-10 w-auto max-w-[11rem] gap-2 border-onboarding-neutral-150 px-3 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover">
+                    <SelectTrigger aria-label="Date range" className="h-10 w-10 gap-0 border-onboarding-neutral-150 px-0 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 min-[430px]:w-auto min-[430px]:max-w-[11rem] min-[430px]:gap-2 min-[430px]:px-3 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover">
                       <CalendarDays className="size-4 shrink-0 text-onboarding-neutral-600 dark:text-onboarding-neutral-300" aria-hidden />
-                      <span className="truncate">{pageRange}</span>
+                      <span className="hidden truncate min-[430px]:inline">{pageRange}</span>
                     </SelectTrigger>
                     <SelectContent align="end" className="w-44 border border-app-border bg-app-elevated text-app-fg">
                       {RANGE_OPTIONS.map((option) => (

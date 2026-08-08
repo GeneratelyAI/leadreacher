@@ -1161,7 +1161,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                   </MessageScrollerProvider>
                 </div>
 
-                <div className={cn("shrink-0 border-t border-border bg-onboarding-neutral-0 p-3 dark:bg-onboarding-neutral-900", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
+                <div className={cn("dashboard-chat-composer shrink-0 border-t border-border bg-onboarding-neutral-0 p-3 dark:bg-onboarding-neutral-900", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
                   {limitError || isLimitReached ? (
                     <p className="mb-2 text-xs font-medium text-onboarding-warning-900 dark:text-onboarding-warning-150">
                       {limitError || `Daily LinkedIn message limit reached. Sending resets at ${resetTime}.`}

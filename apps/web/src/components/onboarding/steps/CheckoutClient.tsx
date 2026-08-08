@@ -153,7 +153,7 @@ export default function CheckoutClient() {
   return (
     <div className="onboarding-page relative flex h-dvh min-h-dvh w-full flex-col overflow-y-auto">
       <OnboardingChrome activeStep="checkout" />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-28 pt-28 lg:pt-34">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
         <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
           <HeroBadge icon={<CreditCard className="size-7" />} tone="warning" />
           <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
@@ -259,7 +259,7 @@ export default function CheckoutClient() {
         </div>
       </main>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-7 z-30 flex items-center justify-between px-6 sm:px-10">
+      <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
         <Button
           type="button"
           variant="secondary"
