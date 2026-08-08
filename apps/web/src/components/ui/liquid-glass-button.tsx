@@ -78,7 +78,7 @@ function LiquidButton({
 
 function GlassFilter({ id, scale }: { id: string; scale: number }) {
   return (
-    // Kept in-flow at zero size rather than `display: none` — a fully hidden
+    // Kept in-flow at zero size rather than `display: none` - a fully hidden
     // SVG stops some browsers resolving the filter from backdrop-filter.
     <svg aria-hidden className="pointer-events-none absolute size-0" focusable="false">
       <defs>

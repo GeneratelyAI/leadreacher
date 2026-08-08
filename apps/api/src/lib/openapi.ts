@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-/** OpenAPI tag names — keep in sync with @fastify/swagger registration. */
+/** OpenAPI tag names - keep in sync with @fastify/swagger registration. */
 export const OPENAPI_TAGS = [
   "Health",
   "Auth",
@@ -42,7 +42,7 @@ export const RateLimitErrorSchema = ApiErrorResponseSchema.extend({
   .meta({ id: "RateLimitError" });
 
 /**
- * Prefer omitting success `response` schemas for complex payloads — `z.any()` /
+ * Prefer omitting success `response` schemas for complex payloads - `z.any()` /
  * `z.unknown()` do not compile to valid AJV schemas with Fastify.
  * Keep request schemas + error responses instead.
  */

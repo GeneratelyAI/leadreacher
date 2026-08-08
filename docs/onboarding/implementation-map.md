@@ -154,7 +154,7 @@ not authorization by itself.
   and records/syncs an account. LinkedIn is the only required channel.
 - Gmail and Outlook are shown as separate rows to match the dashboard's
   connect picker, but Unipile normalizes both to the same `email` platform
-  server-side — there is no way to tell them apart once connected, so
+  server-side - there is no way to tell them apart once connected, so
   connecting either marks both rows "Connected." This is intentional; do not
   "fix" it by inventing a client-side distinction the backend doesn't have.
 - A channel shows a "Recommended" badge when the Strategy generated earlier in

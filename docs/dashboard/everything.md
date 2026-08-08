@@ -42,7 +42,7 @@ routes. Each keeps a narrow, explicit scope:
   lifecycle/source/campaign filters, updates lifecycle status, and enrolls
   selected prospects in a chosen campaign.
 - **Messages** lists persisted inbound and outbound records and supports a
-  real reply flow: generate an AI draft, edit it, send — LinkedIn-only today,
+  real reply flow: generate an AI draft, edit it, send - LinkedIn-only today,
   requires an inbound message first, idempotency- and rate-limit-protected.
 - **Channels** lists accounts, syncs their provider state, and starts hosted
   authorization for LinkedIn, WhatsApp, Instagram, Gmail, and Outlook. It does

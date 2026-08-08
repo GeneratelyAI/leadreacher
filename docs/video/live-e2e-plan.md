@@ -1,4 +1,4 @@
-# Live E2E Pipeline Test — Implementation Plan
+# Live E2E Pipeline Test - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
@@ -6,7 +6,7 @@
 
 **Goal:** Produce the tooling (configurable webhook URL, a recipient-seeding script) and the runbook needed to run the Apify→Unipile pipeline end to end against real services, then execute that run and record findings.
 
-**Architecture:** Tasks 1–2 are small, test-first code changes that make the existing ops scripts safe and repeatable. Task 3 writes the runbook (the operational deliverable) using the real, verified API endpoints. Task 4 is the **gated live execution** — it sends real LinkedIn outreach and is performed by a human following the runbook, never by an automated subagent.
+**Architecture:** Tasks 1–2 are small, test-first code changes that make the existing ops scripts safe and repeatable. Task 3 writes the runbook (the operational deliverable) using the real, verified API endpoints. Task 4 is the **gated live execution** - it sends real LinkedIn outreach and is performed by a human following the runbook, never by an automated subagent.
 
 **Tech Stack:** TypeScript (ESM/NodeNext), Vitest, Zod, Prisma, Fastify, BullMQ, Unipile/Apify HTTP APIs, ngrok, curl.
 
@@ -23,14 +23,14 @@
 
 | File | Responsibility |
 |------|----------------|
-| `apps/api/src/lib/webhook-url.ts` | **new** — `resolveWebhookUrl(env)` pure resolver |
-| `apps/api/src/lib/webhook-url.test.ts` | **new** — resolver tests |
-| `apps/api/src/scripts/recreate-unipile-webhooks.ts` | **modify** — use `resolveWebhookUrl`, drop hardcoded URL |
-| `apps/api/src/lib/seed-lead.ts` | **new** — `buildSeedLead(input)` pure builder |
-| `apps/api/src/lib/seed-lead.test.ts` | **new** — builder tests |
-| `apps/api/src/scripts/seed-test-lead.ts` | **new** — CLI that inserts the recipient lead |
-| `docs/video/live-e2e-runbook.md` | **new** — the executable runbook + findings |
-| `apps/api/.env.example` | **modify** — document `UNIPILE_WEBHOOK_URL` / `PUBLIC_BASE_URL` |
+| `apps/api/src/lib/webhook-url.ts` | **new** - `resolveWebhookUrl(env)` pure resolver |
+| `apps/api/src/lib/webhook-url.test.ts` | **new** - resolver tests |
+| `apps/api/src/scripts/recreate-unipile-webhooks.ts` | **modify** - use `resolveWebhookUrl`, drop hardcoded URL |
+| `apps/api/src/lib/seed-lead.ts` | **new** - `buildSeedLead(input)` pure builder |
+| `apps/api/src/lib/seed-lead.test.ts` | **new** - builder tests |
+| `apps/api/src/scripts/seed-test-lead.ts` | **new** - CLI that inserts the recipient lead |
+| `docs/video/live-e2e-runbook.md` | **new** - the executable runbook + findings |
+| `apps/api/.env.example` | **modify** - document `UNIPILE_WEBHOOK_URL` / `PUBLIC_BASE_URL` |
 
 ---
 
@@ -45,7 +45,7 @@
 - Modify: `apps/api/.env.example`
 
 **Interfaces:**
-- Produces: `resolveWebhookUrl(env: Record<string, string | undefined>): string` — returns `env.UNIPILE_WEBHOOK_URL` (trimmed) if set; else `${env.PUBLIC_BASE_URL}/webhooks/unipile` (trailing slash on base trimmed) if `PUBLIC_BASE_URL` set; else throws `Error` with a setup message.
+- Produces: `resolveWebhookUrl(env: Record<string, string | undefined>): string` - returns `env.UNIPILE_WEBHOOK_URL` (trimmed) if set; else `${env.PUBLIC_BASE_URL}/webhooks/unipile` (trailing slash on base trimmed) if `PUBLIC_BASE_URL` set; else throws `Error` with a setup message.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -85,7 +85,7 @@ describe("resolveWebhookUrl", () => {
 - [ ] **Step 2: Run it to confirm it fails**
 
 Run: `pnpm --filter @leadreacher/api test src/lib/webhook-url.test.ts`
-Expected: FAIL — cannot resolve `./webhook-url.js`.
+Expected: FAIL - cannot resolve `./webhook-url.js`.
 
 - [ ] **Step 3: Implement the resolver**
 
@@ -217,7 +217,7 @@ describe("buildSeedLead", () => {
 - [ ] **Step 2: Run it to confirm it fails**
 
 Run: `pnpm --filter @leadreacher/api test src/lib/seed-lead.test.ts`
-Expected: FAIL — module not found.
+Expected: FAIL - module not found.
 
 - [ ] **Step 3: Implement the builder**
 
@@ -347,7 +347,7 @@ The runbook is the operational deliverable: exact, copy-pasteable commands and a
 # Live E2E Pipeline Runbook
 
 ## 0. Prerequisites
-1. `cd apps/api && pnpm dev` (or `pnpm dev:api` from root) — API + in-process worker up on :3001.
+1. `cd apps/api && pnpm dev` (or `pnpm dev:api` from root) - API + in-process worker up on :3001.
 2. Sender health: `pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts` → T1–T3 PASS. Record the sender `account_id`.
 3. Tunnel: `ngrok http 3001` → copy the https URL. In `apps/api/.env` set `UNIPILE_WEBHOOK_URL=https://<tunnel>/webhooks/unipile`.
 4. Register webhooks: `pnpm --filter @leadreacher/api exec tsx src/scripts/recreate-unipile-webhooks.ts` → confirm 2 webhooks in the Unipile dashboard.
@@ -355,14 +355,14 @@ The runbook is the operational deliverable: exact, copy-pasteable commands and a
 6. Create the SocialAccount row: `curl -sX POST localhost:3001/social-accounts/sync -H "Authorization: Bearer $TOKEN"` → confirm a `linkedin` account with `status: active`.
 7. Get the org id: `pnpm --filter @leadreacher/api exec tsx -e "import('./src/lib/prisma.js').then(async ({prisma})=>{console.log((await prisma.organization.findFirst())?.id); process.exit(0)})"`
 
-## 1. Track A — ingestion (no outreach)
+## 1. Track A - ingestion (no outreach)
 ```bash
 curl -sX POST localhost:3001/leads/scrape -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"filters":{"jobTitles":["Software Engineer"],"industries":[],"companySizes":[],"locations":["United States"]},"maxResults":2}'
 ```
 Verify: response `{imported,skipped,total}`; `GET /leads?source=apify` shows the rows with names/title/company/providerLinkedinId. Re-run the same scrape → `skipped` increases, no new rows. **Do not enroll these.**
 
-## 2. Track B — outreach loop (recipient you control)
+## 2. Track B - outreach loop (recipient you control)
 ```bash
 # a. Recipient provider_id (note the provider_id printed by T3):
 pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts <SENDER_ACCOUNT_ID> <RECIPIENT_SLUG>
@@ -376,7 +376,7 @@ pnpm --filter @leadreacher/api exec tsx src/scripts/seed-test-lead.ts \
 curl -sX POST localhost:3001/campaigns -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"E2E Test","channels":["linkedin"],"sequence":[
     {"type":"connection","message":"Hi, testing connection.","delayHours":0},
-    {"type":"message","message":"Thanks for connecting — test DM.","delayHours":0},
+    {"type":"message","message":"Thanks for connecting - test DM.","delayHours":0},
     {"type":"message","message":"Test follow-up.","delayHours":24}]}'   # -> <CAMPAIGN_ID>
 
 # d. Enroll + launch:
@@ -393,7 +393,7 @@ Then: watch the API logs; **accept** the invite on the recipient account; after 
 | reply (recipient) | webhook `message_received` | `Lead/CampaignLead.status=replied`; inbound `Message`; step-2 job removed (never fires) |
 
 ## 4. Findings
-(One row per edge case observed during the run: symptom, evidence — log line / DB row, severity.)
+(One row per edge case observed during the run: symptom, evidence - log line / DB row, severity.)
 - providerLinkedinId gap (pre-identified): …
 ````
 
@@ -406,7 +406,7 @@ git commit -m "docs(api): add live E2E pipeline runbook"
 
 ---
 
-### Task 4: Execute the live run (GATED — human, not autonomous)
+### Task 4: Execute the live run (GATED - human, not autonomous)
 
 **Do not perform without explicit go-ahead and the burner recipient ready.** This sends real LinkedIn invites/messages.
 

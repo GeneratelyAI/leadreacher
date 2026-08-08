@@ -414,7 +414,7 @@ export function CampaignDetailSheet({
                       size="sm"
                       variant="outline"
                       disabled={isSaving}
-                      onClick={() => void patch({ status: "paused" }, "Campaign paused — you can edit the sequence now")}
+                      onClick={() => void patch({ status: "paused" }, "Campaign paused - you can edit the sequence now")}
                     >
                       <Pause /> Pause to edit
                     </Button>

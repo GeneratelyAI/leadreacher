@@ -9,7 +9,7 @@ const UNIPILE_TIMEOUT_MS = 30_000;
 // Shape of GET /accounts/{id}, confirmed empirically against a live LinkedIn
 // account (the docs page does not render the response schema):
 //   { object, id, name, type, sources: [{ id, status }], connection_params, ... }
-// There is NO top-level `status` field — status lives per-source in `sources[]`.
+// There is NO top-level `status` field - status lives per-source in `sources[]`.
 // A LinkedIn account can expose multiple sources (e.g. MESSAGING, RECRUITER),
 // each with its own status; observed value: "OK". `isAccountHealthy()` treats
 // only "OK" as healthy.

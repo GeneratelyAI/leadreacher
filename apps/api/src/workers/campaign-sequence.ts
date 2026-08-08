@@ -448,7 +448,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       const chatId = existingChatId;
       if (!chatId) {
         throw new Error(
-          `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
+          `No chatId on CampaignLead ${campaignLeadId} - connection not yet accepted`,
         );
       }
 

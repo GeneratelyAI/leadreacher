@@ -44,7 +44,7 @@ type RawLinkedInProfile = {
   profilePictureUrl?: string;
   pictureUrl?: string;
   profilePicture?: string | { url?: string };
-  /** Legacy / forward-compat — actor does not return these today */
+  /** Legacy / forward-compat - actor does not return these today */
   industry?: string;
   companySize?: string;
 };
@@ -307,7 +307,7 @@ export class ApifyAdapter {
       // free-tier queuing notice) long before the run actually finishes.
       // isStatusMessageTerminal (or the run status itself reaching a terminal
       // state) is what tells us the message is the final word, not a
-      // transient one the run may still recover from — without this check we
+      // transient one the run may still recover from - without this check we
       // aborted runs that went on to succeed moments later.
       if (
         statusMessage &&

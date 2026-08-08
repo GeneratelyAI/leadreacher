@@ -57,7 +57,7 @@ pnpm dev:api   # Fastify on http://localhost:3001
 
 Local secrets live in `.env.local` at the **repository root**. The Next.js app loads this file automatically via `apps/web/next.config.ts`.
 
-Do not commit `.env.local` — it is gitignored.
+Do not commit `.env.local` - it is gitignored.
 
 ## Packages
 

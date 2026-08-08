@@ -8,7 +8,7 @@ AI-drafted, human-approved reply is sent only after explicit operator action.
 ## Current implementation
 
 `/dashboard/messages` (`GET /dashboard/messages`) lists organization-scoped
-conversations — lead, campaign, channel, delivery status, and time — filterable
+conversations - lead, campaign, channel, delivery status, and time - filterable
 by `all` / `unread` / `needs_reply`. Opening a conversation
 (`GET /dashboard/conversations/:campaignLeadId`) loads its full message
 history. `POST .../drafts` generates an AI reply draft via

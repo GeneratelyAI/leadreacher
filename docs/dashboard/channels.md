@@ -15,7 +15,7 @@ logos: LinkedIn, WhatsApp, Instagram, Gmail, and Outlook
 (`ConnectChannelMark` / `CONNECT_CHANNEL_OPTIONS` in `ChannelsWorkspace.tsx`).
 Gmail and Outlook both normalize to the same `email` platform server-side
 (`apps/api/src/lib/channels.ts`), so a connected account's list entry always
-reads "Email" regardless of which of the two the user picked — there is no
+reads "Email" regardless of which of the two the user picked - there is no
 persisted distinction between them.
 
 ## Required capabilities

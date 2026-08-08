@@ -1,4 +1,4 @@
-# AGENTS.md — LeadReacher
+# AGENTS.md - LeadReacher
 
 Context file for Cursor and AI agents. Read this before touching any file in the repo.
 
@@ -9,7 +9,7 @@ Context file for Cursor and AI agents. Read this before touching any file in the
 LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via Apify LinkedIn scraper), writes personalized connection notes and follow-up sequences (via Groq's Llama models), and sends them across LinkedIn, WhatsApp, Instagram, and email (via Unipile). Campaigns run on a BullMQ job queue: send invite → wait for acceptance → send follow-up message. Replies come back via Unipile webhooks.
 
 **Co-founders:** Samo Ayoub (business), Nicolas Cantanhede (CTO).
-**Backend intern:** Kai ([kaiyue.wei@outlook.com](mailto:kaiyue.wei@outlook.com)) — assigned tasks listed below.
+**Backend intern:** Kai ([kaiyue.wei@outlook.com](mailto:kaiyue.wei@outlook.com)) - assigned tasks listed below.
 **Repo:** `nickcantanhede/leadreacher` (private, monorepo, Turborepo).
 
 ---
@@ -22,7 +22,7 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 │   ├── api/                          # Fastify backend (Node.js + TypeScript)
 │   │   ├── src/
 │   │   │   ├── adapters/              # 10 files as of 2026-07-26, not the 3 below
-│   │   │   │   ├── apify.ts          # ApifyAdapter — LinkedIn scraper
+│   │   │   │   ├── apify.ts          # ApifyAdapter - LinkedIn scraper
 │   │   │   │   ├── google-ai.ts      # Veo video generation (submit/poll/fetch)
 │   │   │   │   ├── google-omni.ts    # Gemini Omni video generation (alt provider)
 │   │   │   │   ├── google-tts.ts     # Text-to-speech for video audio
@@ -30,7 +30,7 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 │   │   │   │   ├── r2.ts             # Cloudflare R2 storage
 │   │   │   │   ├── linkedin-company-size-codes.ts
 │   │   │   │   ├── linkedin-industry-codes.ts
-│   │   │   │   ├── unipile.ts        # UnipileAdapter — all social channel I/O, incl. email
+│   │   │   │   ├── unipile.ts        # UnipileAdapter - all social channel I/O, incl. email
 │   │   │   │   └── types.ts          # Shared adapter types (UnipileProfile, etc.)
 │   │   │   ├── config/
 │   │   │   │   └── env.ts            # Zod-validated env schema
@@ -45,12 +45,12 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 │   │   │   │   ├── auth.ts           # Supabase JWT verification, sets request.orgId
 │   │   │   │   ├── prisma.ts         # Fastify Prisma plugin
 │   │   │   │   └── protected-routes.ts
-│   │   │   ├── routes/                # 13 route files as of 2026-07-26, not the 6 below —
+│   │   │   ├── routes/                # 13 route files as of 2026-07-26, not the 6 below -
 │   │   │   │   │                      # check apps/api/src/routes/ for the current list
 │   │   │   │   ├── auth.ts           # POST /auth/signup, /auth/login
 │   │   │   │   ├── billing.ts        # Stripe checkout session, billing portal, pricing
 │   │   │   │   ├── campaigns.ts      # CRUD + /launch + /leads enrollment
-│   │   │   │   ├── dashboard.ts      # /dashboard/* — overview, campaigns, prospects,
+│   │   │   │   ├── dashboard.ts      # /dashboard/* - overview, campaigns, prospects,
 │   │   │   │   │                      # messages/conversations/replies, channels, analytics, settings
 │   │   │   │   ├── discovery.ts      # /discovery/scrape, scrape-status, summary, complete
 │   │   │   │   ├── health.ts         # GET /health
@@ -81,7 +81,7 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 │   │   │   │   └── fastify.d.ts      # Adds orgId to FastifyRequest
 │   │   │   ├── workers/               # 7 files as of 2026-07-26, not the 1 below
 │   │   │   │   ├── analytics-insights.ts
-│   │   │   │   ├── campaign-sequence.ts  # BullMQ worker — runs campaign steps
+│   │   │   │   ├── campaign-sequence.ts  # BullMQ worker - runs campaign steps
 │   │   │   │   ├── reconcile-campaign-enrollments.ts
 │   │   │   │   ├── reconcile-delivery-attempts.ts
 │   │   │   │   ├── reconcile-maintenance.ts
@@ -124,11 +124,11 @@ LeadReacher is a multi-channel B2B outreach automation SaaS. It finds leads (via
 | Queue                     | BullMQ + Upstash Redis                                                 |
 | Outreach channels         | Unipile (LinkedIn, WhatsApp, Instagram, Facebook, email)               |
 | Lead scraping             | Apify actor `harvestapi~linkedin-profile-search`                       |
-| Lead enrichment           | Firecrawl — company website → markdown, feeds Discovery and enrichment (`apps/api/src/lib/firecrawl.ts`) |
-| AI (sequences + strategy) | Groq (`llama-3.1-8b-instant` text, `meta-llama/llama-4-scout-17b-16e-instruct` vision) — see `apps/api/src/lib/groq.ts`. No Anthropic SDK dependency exists in the API. |
+| Lead enrichment           | Firecrawl - company website → markdown, feeds Discovery and enrichment (`apps/api/src/lib/firecrawl.ts`) |
+| AI (sequences + strategy) | Groq (`llama-3.1-8b-instant` text, `meta-llama/llama-4-scout-17b-16e-instruct` vision) - see `apps/api/src/lib/groq.ts`. No Anthropic SDK dependency exists in the API. |
 | AI video                  | Google, configurable via `VIDEO_GENERATION_PROVIDER`: Veo (`google-ai.ts`) or Gemini Omni (`google-omni.ts`), plus `google-tts.ts` for audio |
 | Video storage             | Cloudflare R2                                                          |
-| Payments                  | Stripe — fully integrated (checkout sessions, billing portal, webhook-driven subscription sync, full pricing catalog, mock mode) |
+| Payments                  | Stripe - fully integrated (checkout sessions, billing portal, webhook-driven subscription sync, full pricing catalog, mock mode) |
 | Frontend hosting          | Vercel                                                                 |
 | Backend hosting           | Railway                                                                |
 | Tunnel (dev)              | ngrok stable domain: `https://antler-concert-unluckily.ngrok-free.dev` |
@@ -165,7 +165,7 @@ ENABLE_API_DOCS=                # optional; default on when NODE_ENV !== product
 
 ---
 
-## Prisma schema — key models
+## Prisma schema - key models
 
 ```
 Organization   id, name, supabaseOrgId, plan, onboardingData, onboardedAt
@@ -189,7 +189,7 @@ Waitlist       id, email
 
 ```
 POST /campaigns/:id/launch
-  → campaignSequenceQueue.addBulk() — one job per CampaignLead at step=0
+  → campaignSequenceQueue.addBulk() - one job per CampaignLead at step=0
 
 Worker picks up step=0:
   → adapter.getProfile(accountId, linkedinPublicId)
@@ -222,7 +222,7 @@ Webhook: message_received fires:
   → all messages → status 'replied'
   → lead.status = 'replied'
   → campaignLead.status = 'replied'
-  → cancelPendingSequenceJobs() — removes all future BullMQ steps
+  → cancelPendingSequenceJobs() - removes all future BullMQ steps
   → create inbound Message record
 ```
 
@@ -244,7 +244,7 @@ Campaign sequence must be a non-empty array of SequenceStep. Step 0 = invite, St
 
 ---
 
-## Unipile integration — critical details
+## Unipile integration - critical details
 
 **Auth:** `Unipile-Auth` header. NOT HMAC. Value equals `UNIPILE_WEBHOOK_SECRET` set at webhook creation.
 
@@ -259,7 +259,7 @@ crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(secret))
 - `leadreacher-messaging` → source: `"messaging"`, events: `["message_received"]`
 - `leadreacher-relations` → source: `"users"`, events: `["new_relation"]`
 
-`**new_relation` payload** (actual Unipile schema — confirmed empirically):
+`**new_relation` payload** (actual Unipile schema - confirmed empirically):
 
 ```ts
 {
@@ -282,7 +282,7 @@ crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(secret))
 const isOutbound = data.sender.attendee_provider_id === data.account_info.user_id;
 ```
 
-**Unipile fires webhooks twice** — all handlers must be idempotent. `isDuplicate()` checks `Message.externalId` before processing.
+**Unipile fires webhooks twice** - all handlers must be idempotent. `isDuplicate()` checks `Message.externalId` before processing.
 
 **Nicolas's test LinkedIn account:** `accountId: Zi8sHaTJQc-GrDZ_SwQnkQ`
 
@@ -292,7 +292,7 @@ const isOutbound = data.sender.attendee_provider_id === data.account_info.user_i
 
 - Actor: `harvestapi~linkedin-profile-search`
 - Polling: 3s interval, 120s timeout
-- `industries` and `companySizes` filters are **not passed to the actor** — actor expects LinkedIn numeric codes / headcount codes, not free-form strings
+- `industries` and `companySizes` filters are **not passed to the actor** - actor expects LinkedIn numeric codes / headcount codes, not free-form strings
 - Dataset items fetched from `/actor-runs/{runId}/dataset/items` (not under `/acts/`)
 - `providerLinkedinId` mapped from `raw.id`
 
@@ -303,7 +303,7 @@ const isOutbound = data.sender.attendee_provider_id === data.account_info.user_i
 - 144 PNG frames @ 24fps → compiled to `/animation/output.webm`
 - Paper plane color: `#8B7FD4` (light face), `#6B5FBF` (shadow/fold)
 - Background: `#0d0854` (brand-bg), purple: `#5326b7`
-- Hook: `useHeroVideo` — plays full animation once, then loops from frame 116 (4.79s) = bounce loop
+- Hook: `useHeroVideo` - plays full animation once, then loops from frame 116 (4.79s) = bounce loop
 - `<video>` is `poster="/BG.png"`, covers full hero section
 
 ---
@@ -319,7 +319,7 @@ ANIMATION_BOUNCE_LOOP_START_INDEX = 115  // 0-indexed → frame 116
 
 ---
 
-## Pricing model (Stripe-integrated — do not hardcode amounts in UI)
+## Pricing model (Stripe-integrated - do not hardcode amounts in UI)
 
 Superseded the earlier "modular à la carte" plan. Stripe is fully integrated
 (`apps/api/src/routes/billing.ts`, `stripe-webhook.ts`,
@@ -327,11 +327,11 @@ Superseded the earlier "modular à la carte" plan. Stripe is fully integrated
 Pricing is now per campaign type, not per channel:
 
 - One line item selected by `Strategy.campaignType`: `personalized_outreach`,
-  `ai_video_ad`, or `uploaded_video` — each maps to its own Stripe Price ID via
+  `ai_video_ad`, or `uploaded_video` - each maps to its own Stripe Price ID via
   a `STRIPE_PRICE_*` env var.
 - A `video_addon` line item is always added on top.
 - Actual monetary amounts are Stripe's source of truth (configured in the
-  Stripe dashboard), never hardcoded here or in the UI — see
+  Stripe dashboard), never hardcoded here or in the UI - see
   `buildPricingCatalog()` in `pricing.ts`.
 - Entitlement (`Organization.subscriptionStatus`) is finalized by verified
   Stripe webhook events, never by a frontend callback.
@@ -340,15 +340,15 @@ Pricing is now per campaign type, not per channel:
 
 ## Do not do
 
-- Do not use HMAC for Unipile webhook verification — it uses `Unipile-Auth` header, not `X-Unipile-Signature`
-- Do not add `timestamp` or `provider_id` to `UnipileNewRelationSchema` — not in payload
+- Do not use HMAC for Unipile webhook verification - it uses `Unipile-Auth` header, not `X-Unipile-Signature`
+- Do not add `timestamp` or `provider_id` to `UnipileNewRelationSchema` - not in payload
 - Do not commit `.env` files
 - Do not use `any` in TypeScript without a comment explaining why
-- Do not hardcode price amounts in the UI — Stripe is the source of truth (see Pricing model above)
-- Do not use Claude's browsing for Discovery agent — always Firecrawl first
-- Do not push directly to `main` — all work goes to `develop` (last commit: `22f47b0`)
-- Do not call `campaignSequenceQueue.remove()` with a job that doesn't exist — it throws, catch it (already handled in `cancelPendingSequenceJobs`)
-- Do not pass `industryIds` or `companyHeadcount` to Apify unless you confirm the actor's actual input schema — current filters intentionally omit these
+- Do not hardcode price amounts in the UI - Stripe is the source of truth (see Pricing model above)
+- Do not use Claude's browsing for Discovery agent - always Firecrawl first
+- Do not push directly to `main` - all work goes to `develop` (last commit: `22f47b0`)
+- Do not call `campaignSequenceQueue.remove()` with a job that doesn't exist - it throws, catch it (already handled in `cancelPendingSequenceJobs`)
+- Do not pass `industryIds` or `companyHeadcount` to Apify unless you confirm the actor's actual input schema - current filters intentionally omit these
 
 ---
 

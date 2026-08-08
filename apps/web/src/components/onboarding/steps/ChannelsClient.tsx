@@ -39,7 +39,7 @@ type SocialAccountsResponse = {
 
 // Any of these Unipile providers collapse to the same normalized "email"
 // platform server-side (see apps/api/src/lib/channels.ts), so Gmail and
-// Outlook can't be distinguished once connected — both rows below share
+// Outlook can't be distinguished once connected - both rows below share
 // this match list and will flip to "Connected" together.
 const EMAIL_MATCH_PLATFORMS = ["email", "google", "microsoft", "outlook", "imap", "mail"] as const;
 
@@ -181,7 +181,7 @@ export default function ChannelsClient() {
         setRecommendedChannels(new Set(recommendations.map((item) => item.channel)));
       } catch (loadError) {
         // "Recommended" tags are a decorative enhancement layered on top of
-        // the strategy generated earlier in onboarding — a missing or failed
+        // the strategy generated earlier in onboarding - a missing or failed
         // strategy (e.g. 404 before it's generated) should never block the
         // actual channel-connection flow, so this fails silently.
         if (loadError instanceof ApiError && loadError.status === 404) return;

@@ -86,7 +86,7 @@
   --color-error: var(--onboarding-error-500);
   --color-warning: var(--onboarding-warning-500);
 
-  /* Radius — ds-* avoids clashing with Tailwind/shadcn --radius-sm|md|lg in @theme */
+  /* Radius - ds-* avoids clashing with Tailwind/shadcn --radius-sm|md|lg in @theme */
   --onboarding-radius: 0.5rem;
   --onboarding-radius-pill: 4.5rem;
   --ds-radius-sm: 0.375rem;
@@ -127,7 +127,7 @@
   --motion-slow: var(--onboarding-motion-slow);
   --ease-standard: var(--onboarding-ease-standard);
 
-  /* App surfaces (light) — prefer these in dashboard chrome */
+  /* App surfaces (light) - prefer these in dashboard chrome */
   --app-canvas: var(--onboarding-neutral-0);
   --app-chrome: var(--onboarding-neutral-0);
   --app-elevated: var(--onboarding-neutral-0);
@@ -151,7 +151,7 @@
 
 .dark {
   color-scheme: dark;
-  /* Cool charcoal stack — canvas < chrome < elevated */
+  /* Cool charcoal stack - canvas < chrome < elevated */
   --app-canvas: #0a0e14;
   /* Every dark-mode surface (auth, onboarding, dashboard) shares this canvas
      so the app doesn't visibly change background color between them. */

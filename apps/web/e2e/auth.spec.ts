@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-// AuthForm renders both MobileAuthView and the desktop form at once —
-// `lg:hidden` is CSS-only, not removed from the DOM — so locators must be
+// AuthForm renders both MobileAuthView and the desktop form at once -
+// `lg:hidden` is CSS-only, not removed from the DOM - so locators must be
 // scoped to whichever view is actually visible at the current viewport, or
 // they'll strict-mode-collide against the other view's duplicate fields.
 function mobileView(page: Page): Locator {
@@ -9,7 +9,7 @@ function mobileView(page: Page): Locator {
 }
 
 // SSR renders these "use client" forms fully interactive-looking before
-// React has hydrated and attached their handlers — clicking too early is a
+// React has hydrated and attached their handlers - clicking too early is a
 // silent no-op. `networkidle` is a reliable proxy for hydration having had
 // a chance to run against the Turbopack dev server.
 async function gotoReady(page: Page, path: string) {
@@ -18,19 +18,19 @@ async function gotoReady(page: Page, path: string) {
 }
 
 // This whole file exercises MobileAuthView specifically, which is display:none
-// at desktop widths — not just slower there, genuinely not the active UI.
+// at desktop widths - not just slower there, genuinely not the active UI.
 test.beforeEach(async ({ isMobile }) => {
-  test.skip(!isMobile, "mobile-auth-view only — desktop coverage belongs in a separate spec");
+  test.skip(!isMobile, "mobile-auth-view only - desktop coverage belongs in a separate spec");
 });
 
-test.describe("signup — mobile", () => {
+test.describe("signup - mobile", () => {
   test("inputs never trigger iOS Safari's zoom-on-focus", async ({ page }) => {
     await gotoReady(page, "/signup");
     const view = mobileView(page);
     await expect(view.getByPlaceholder("Enter your work email")).toBeVisible();
 
     // iOS Safari force-zooms the viewport on focus for any input computing
-    // below 16px and never zooms back out — this is a hard regression guard
+    // below 16px and never zooms back out - this is a hard regression guard
     // for that bug, not a style preference.
     for (const placeholder of ["Enter your full name", "Enter your work email", "Create a password"]) {
       const input = view.getByPlaceholder(placeholder);
@@ -76,7 +76,7 @@ test.describe("signup — mobile", () => {
     const box = await revealButton.boundingBox();
     expect(box).not.toBeNull();
 
-    // Visual size may stay small (a 20px icon) — what matters is the actual
+    // Visual size may stay small (a 20px icon) - what matters is the actual
     // hit area, expanded invisibly via the .tap-target CSS utility.
     const hitArea = await revealButton.evaluate((el) => {
       const after = getComputedStyle(el, "::after");
@@ -91,7 +91,7 @@ test.describe("signup — mobile", () => {
   });
 });
 
-test.describe("login — mobile", () => {
+test.describe("login - mobile", () => {
   test("renders the core form and links to signup", async ({ page }) => {
     await gotoReady(page, "/login");
     const view = mobileView(page);
@@ -106,8 +106,8 @@ test.describe("login — mobile", () => {
     await gotoReady(page, "/login");
 
     // AuthThemeToggle renders once in AuthPageShell, outside both the
-    // mobile and desktop view wrappers — only repositioned via responsive
-    // classes, not duplicated — so this is intentionally unscoped.
+    // mobile and desktop view wrappers - only repositioned via responsive
+    // classes, not duplicated - so this is intentionally unscoped.
     const getThemeColor = () => page.locator('meta[name="theme-color"]').getAttribute("content");
 
     const initial = await getThemeColor();

@@ -1,6 +1,6 @@
 /**
  * Typed references to CSS design tokens.
- * Values live in `styles/tokens.css` — this file is for DX/docs only (no hex duplication).
+ * Values live in `styles/tokens.css` - this file is for DX/docs only (no hex duplication).
  */
 export const designTokens = {
   color: {

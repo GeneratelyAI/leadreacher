@@ -16,13 +16,12 @@ import {
   Mail,
   MessageCircle,
   Search,
-  Send,
   Sparkles,
   Target,
-  UsersRound,
 } from "lucide-react";
 import { siWhatsapp } from "simple-icons";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+import AcquisitionShowcase from "./AcquisitionShowcase";
 import {
   PRODUCT_STORY_STAGE_IDS,
   progressForStageIndex,
@@ -75,12 +74,6 @@ const STAGES: readonly Stage[] = [
     title: "You step in when the prospect is ready.",
     description: "Interested replies arrive in Chat with their campaign, channel, and conversation context intact.",
   },
-] as const;
-
-const PROCESS = [
-  { label: "Understand", text: "Learn your business and identify who is most likely to buy.", icon: Search },
-  { label: "Reach", text: "Contact prospects through the channels they actually use.", icon: Send },
-  { label: "Convert", text: "Manage follow-ups and surface qualified conversations.", icon: CalendarCheck2 },
 ] as const;
 
 const CHANNEL_IMAGES = {
@@ -349,19 +342,16 @@ function MobileStory() {
 
 export default function ProductStorySection() {
   return (
-    <section data-navbar-theme="light" className="relative z-[5] -mt-7 overflow-clip rounded-t-[28px] bg-[#f8f7ff] text-[#111527] sm:-mt-9 sm:rounded-t-[40px]">
+    <section data-navbar-theme="light" className="landing-light-surface relative z-[5] -mt-7 overflow-clip rounded-t-[28px] text-[#111527] sm:-mt-9 sm:rounded-t-[40px]">
+      <div aria-hidden className="pointer-events-none absolute inset-0 hero-ambient-gradient" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.34),transparent_46%)]" />
       <span id="how-it-works" className="absolute top-28 scroll-mt-24 sm:top-32 lg:top-36" aria-hidden />
       <span id="product" className="absolute top-0 scroll-mt-24" aria-hidden />
-      <div className="mx-auto max-w-7xl px-5 pb-10 pt-24 text-center sm:px-8 sm:pt-28 lg:px-10 lg:pt-32">
-        <p className="text-xs font-semibold uppercase text-[#5b39d5]">How LeadReacher works</p>
-        <h2 className="mx-auto mt-4 max-w-3xl text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl">Customer acquisition that runs itself.</h2>
-        <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-[#62697e] sm:text-lg">LeadReacher combines business understanding, focused prospecting, and multi-channel outreach to start conversations with the right people.</p>
-        <div className="mt-12 grid overflow-hidden border-y border-[#dedbea] text-left sm:grid-cols-3 sm:divide-x sm:divide-[#dedbea] lg:mt-16">
-          {PROCESS.map(({ label, text, icon: Icon }, index) => <div key={label} className={cn("flex items-start gap-4 px-2 py-6 sm:px-6 lg:px-9 lg:py-8", index > 0 && "max-sm:border-t max-sm:border-[#dedbea]")}><span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#eee9ff] text-[#4e28df]"><Icon className="size-5" aria-hidden /></span><span><span className="block text-base font-semibold">{label}</span><span className="mt-1.5 block text-sm leading-6 text-[#686f83]">{text}</span></span>{index < PROCESS.length - 1 ? <ArrowRight className="ml-auto mt-3 hidden size-4 text-[#aaa5c0] sm:block" aria-hidden /> : null}</div>)}
-        </div>
+      <div className="relative">
+        <AcquisitionShowcase />
+        <DesktopStory />
+        <MobileStory />
       </div>
-      <DesktopStory />
-      <MobileStory />
     </section>
   );
 }

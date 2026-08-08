@@ -20,7 +20,7 @@ type ChannelLogoProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> & {
 export { LINKEDIN_BRAND_LOGO_SRC };
 
 // Same static brand marks used in the dashboard's channel picker
-// (ChannelsWorkspace's ConnectChannelMark) — kept in sync so onboarding and
+// (ChannelsWorkspace's ConnectChannelMark) - kept in sync so onboarding and
 // dashboard always show identical logos for a given channel.
 const BRAND_IMAGE_SRC: Record<BrandImageName, string> = {
   linkedin: LINKEDIN_BRAND_LOGO_SRC,
@@ -37,7 +37,7 @@ export function ChannelLogo({ name, className, ...props }: ChannelLogoProps) {
   }
 
   // Full-color WhatsApp app mark (rounded bubble + phone glyph), same as
-  // the dashboard's "Connect a new channel" picker — self-contained, no
+  // the dashboard's "Connect a new channel" picker - self-contained, no
   // colored background container needed.
   if (name === "whatsapp-mark") {
     return (

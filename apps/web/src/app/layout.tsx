@@ -7,7 +7,7 @@ import "./globals.css";
 // theme-color is intentionally omitted here: themeInitScript and
 // useThemeMode own that meta tag directly (they remove/recreate it on
 // every load and toggle). Letting Next's metadata system also render it
-// gives two owners of the same DOM node — React's reconciler ends up
+// gives two owners of the same DOM node - React's reconciler ends up
 // calling removeChild on a node our script already removed, throwing
 // "Cannot read properties of null (reading 'removeChild')".
 export const viewport: Viewport = {
@@ -48,7 +48,7 @@ export default function RootLayout({
     >
       <head>
         {/* Next's appleWebApp.capable metadata option doesn't emit this tag
-            in the installed Next version — set directly so "Add to Home
+            in the installed Next version - set directly so "Add to Home
             Screen" launches standalone on iOS instead of opening Safari. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script

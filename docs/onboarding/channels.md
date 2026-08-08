@@ -15,7 +15,7 @@ the final onboarding step and requires at least one healthy required channel.
   Instagram is never flagged since the current strategy model does not score it.
 - Gmail and Outlook both connect through the same underlying "email" provider
   family server-side, so connecting either one marks both rows "Connected."
-  This is a deliberate product decision, not a bug — see the implementation
+  This is a deliberate product decision, not a bug - see the implementation
   notes below.
 - The UI refreshes account status after the hosted connection flow returns.
 - **Finish and launch** approves and enrolls the prospects from the persisted
@@ -38,7 +38,7 @@ normal review and launch controls.
   providers to a single `email` platform value server-side
   (`apps/api/src/lib/channels.ts`). Gmail and Outlook are shown as separate
   onboarding rows to match the dashboard's channel picker, but there is no way
-  to distinguish which one a user actually connected once the account exists —
+  to distinguish which one a user actually connected once the account exists -
   both rows match on the same platform set and flip to "Connected" together.
 - Channel logos (LinkedIn, Instagram, Gmail, Outlook images; the WhatsApp
   bubble mark) live in `apps/web/src/components/onboarding/ChannelLogo.tsx`
@@ -49,7 +49,7 @@ normal review and launch controls.
   `channels.recommendations` array via the shared
   `apps/web/src/lib/onboarding/channel-recommendations.ts` helper (also used
   by the Strategy step's own recommended-channels screen). A missing or
-  not-yet-generated strategy fails silently — it never blocks connecting a
+  not-yet-generated strategy fails silently - it never blocks connecting a
   channel.
 - Connected-account health is reused by dashboard engine status and future
   campaign launch validation.

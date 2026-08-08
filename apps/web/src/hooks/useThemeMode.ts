@@ -122,7 +122,7 @@ async function animateThemeToggle(nextIsDark: boolean, origin: ThemeToggleOrigin
 
   // Capture origin in viewport % before the transition. Pixel coords on
   // ::view-transition-* are relative to the snapshot containing block, which
-  // can diverge from the layout viewport on smaller screens — percentages map
+  // can diverge from the layout viewport on smaller screens - percentages map
   // to the transition layer itself and stay anchored to the toggle.
   const { xPercent, yPercent } = resolveOriginPoint(origin);
   const root = document.documentElement;

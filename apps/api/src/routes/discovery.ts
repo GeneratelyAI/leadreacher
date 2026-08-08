@@ -87,13 +87,13 @@ const SUMMARY_SYSTEM_PROMPT = `Extract a structured summary from this onboarding
   "nextStep": string
 }
 
-All values must use formal, professional business language in complete sentences or polished phrases. Every string must begin with a capital letter. Use sentence case throughout — never Title Case or ALL CAPS. End full-sentence fields with proper punctuation.
+All values must use formal, professional business language in complete sentences or polished phrases. Every string must begin with a capital letter. Use sentence case throughout - never Title Case or ALL CAPS. End full-sentence fields with proper punctuation.
 
 Field guidance:
 - businessModel: what the business sells or does (from the first user answer); one concise formal phrase
 - industry: return a specific descriptor like 'B2B SaaS / sales technology' or 'Fintech / payments infrastructure', not just 'SaaS' or 'tech'. Be specific. (from the first user answer)
 - strengths: differentiators (from the second user answer); one concise formal phrase
-- idealCustomer: ICP — title, company size, location (from the third user answer); one concise formal phrase
+- idealCustomer: ICP - title, company size, location (from the third user answer); one concise formal phrase
 - suggestedChannels: best outreach channels for their goal (from the fourth user answer); values must be from ["linkedin","whatsapp","instagram","facebook","email"]
 - nextStep: Write one formal, concrete forward-looking action sentence based on the business, ICP, and suggested channels. Example: 'Launch a LinkedIn sequence targeting RevOps leaders at B2B SaaS companies, leading with your unified data enrichment advantage.' Only populate this once suggestedChannels is non-empty, otherwise return empty string.
 

@@ -163,7 +163,16 @@ export default function HeroSection() {
 
           <h1 className="mt-6 max-w-[930px] text-balance text-[2.6rem] font-semibold leading-[1.06] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem]">
             <span className="hero-headline-line hero-headline-line--one block">Drop your URL.</span>
-            <span className="hero-headline-line hero-headline-line--two block">Go back to <ShimmerText className="hero-business-shimmer">business.</ShimmerText></span>
+            <span className="hero-headline-line hero-headline-line--two block">Go back to <ShimmerText
+              className="hero-business-shimmer"
+              style={
+                {
+                  "--lr-shimmer-base": "#4f46e5",
+                  "--lr-shimmer-core": "#58a6ff",
+                  "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
+                } as CSSProperties
+              }
+            >business.</ShimmerText></span>
           </h1>
           <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9">
             The world&rsquo;s first 100% done-for-you lead gen platform.
@@ -244,7 +253,7 @@ export default function HeroSection() {
             Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
           </p>
 
-          <div className="min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[118px] sm:pt-7" aria-live="polite" aria-atomic="true">
+          <div className="min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[82px] sm:pt-7" aria-live="polite" aria-atomic="true">
             {phase !== "idle" ? (
               <div className="animate-in fade-in duration-300 motion-reduce:animate-none">
                 <p className="flex items-center justify-center gap-3 text-base font-semibold">
@@ -279,7 +288,7 @@ export default function HeroSection() {
               </li>
             ))}
           </ul>
-          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue mt-auto flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden">
+          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mt-auto mb-4 flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden">
             <ArrowDown className="size-6" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
           </button>
         </main>

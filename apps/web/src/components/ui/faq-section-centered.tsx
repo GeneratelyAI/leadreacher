@@ -23,7 +23,7 @@ export function FaqSectionCentered({
   supportEmail,
   className,
 }: FaqSectionCenteredProps) {
-  const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (
     <div className={cn("mx-auto flex w-full max-w-3xl flex-col items-center", className)}>

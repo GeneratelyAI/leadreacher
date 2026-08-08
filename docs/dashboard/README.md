@@ -19,7 +19,7 @@ their computed onboarding resume step.
 ## Current status
 
 All seven listed sections, plus an unlisted `/dashboard/activity` view (same
-data as Overview's live activity, unfiltered by campaign — see
+data as Overview's live activity, unfiltered by campaign - see
 implementation-map.md), are available through real nested
 `/dashboard/<section>` routes and use organization-scoped API data. Current
 scope is intentionally focused:
