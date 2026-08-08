@@ -43,6 +43,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@next/env": "^16.2.7",
     "@playwright/test": "^1.62.0",
     "@tailwindcss/postcss": "^4",

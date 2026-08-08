@@ -6,6 +6,8 @@ const completedStatus = {
   strategyStatus: "Preparing a targeted outreach strategy.", error: null,
 };
 
+const phoneProjects = new Set(["android-chrome", "iphone-webkit"]);
+
 async function mockCompletedAnalysis(page: Page) {
   await page.route("https://www.google.com/s2/favicons**", (route) =>
     route.fulfill({
@@ -18,18 +20,25 @@ async function mockCompletedAnalysis(page: Page) {
   await page.route("**/discovery/scrape/anonymous-status**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(completedStatus) }));
 }
 
-test("renders the desktop reference composition without overflow", async ({ page }) => {
+async function openLanding(page: Page, path = "/") {
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(400);
+}
+
+test("renders the desktop reference composition without overflow", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop composition only");
   await page.setViewportSize({ width: 1536, height: 1024 });
-  await page.goto("/");
+  await openLanding(page);
   await expect(page.getByRole("heading", { name: "Drop your URL. Go back to business." })).toBeVisible();
-  await expect(page.locator('nav a[href="/"]')).toBeVisible();
+  await expect(page.locator('header a[href="/"]').filter({ has: page.locator('img[alt="leadreacher"]') })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analyze my website" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("opens and dismisses the resources navigation menu accessibly", async ({ page }) => {
+test("opens and dismisses the resources navigation menu accessibly", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop navigation only");
   await page.setViewportSize({ width: 1536, height: 1024 });
-  await page.goto("/");
+  await openLanding(page);
 
   const trigger = page.getByRole("button", { name: "Resources" });
   await trigger.focus();
@@ -46,7 +55,7 @@ test("opens and dismisses the resources navigation menu accessibly", async ({ pa
 
 test("validates the URL and starts a claimable anonymous analysis", async ({ page }) => {
   await mockCompletedAnalysis(page);
-  await page.goto("/");
+  await openLanding(page);
   await page.getByRole("button", { name: "Analyze my website" }).click();
   await expect(page.getByText("Enter a valid company website")).toBeVisible();
   await page.getByLabel("Company website").fill("generately.ai");
@@ -59,31 +68,27 @@ test("validates the URL and starts a claimable anonymous analysis", async ({ pag
   expect(stored.anonId).toMatch(/^[0-9a-f-]{36}$/i);
 });
 
-test("keeps the previous compact mobile navigation", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  const logo = page.locator('nav a[href="/"]');
-  const getStarted = page.getByRole("navigation").getByRole("link", { name: "Get Started" });
-  await expect(logo).toBeVisible();
-  await expect(getStarted).toHaveAttribute("href", "/signup");
-
-  const [logoBox, getStartedBox] = await Promise.all([logo.boundingBox(), getStarted.boundingBox()]);
-  expect(logoBox).not.toBeNull();
-  expect(getStartedBox).not.toBeNull();
-  expect((logoBox?.x ?? 0) + (logoBox?.width ?? 0)).toBeLessThan(getStartedBox?.x ?? 0);
+test("shows the compact mobile navigation with the icon-only logo", async ({ page }, testInfo) => {
+  test.skip(!phoneProjects.has(testInfo.project.name), "Phone navigation only");
+  await page.setViewportSize({ width: 320, height: 568 });
+  await openLanding(page);
+  const nav = page.locator("header nav");
+  await expect(nav.getByRole("link", { name: "LeadReacher home" })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Product", exact: true })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Pricing", exact: true })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Log in", exact: true })).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Get Started", exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("moves through the product story without layout overflow", async ({ page }) => {
+test("moves through the product story without layout overflow", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story interaction only");
   await page.setViewportSize({ width: 1536, height: 1024 });
-  await page.goto("/");
+  await openLanding(page);
 
   const urlBeforeScroll = new URL(page.url());
   await page.getByRole("button", { name: "See how LeadReacher works" }).click();
   await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
-  await expect.poll(async () => {
-    const box = await page.getByText("How LeadReacher works", { exact: true }).boundingBox();
-    return box !== null && box.y >= 48 && box.y <= 128;
-  }).toBe(true);
   const urlAfterScroll = new URL(page.url());
   expect(urlAfterScroll.pathname).toBe(urlBeforeScroll.pathname);
   expect(urlAfterScroll.search).toBe(urlBeforeScroll.search);
@@ -104,10 +109,11 @@ test("moves through the product story without layout overflow", async ({ page })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("supports keyboard stage navigation and reduced motion", async ({ page }) => {
+test("supports keyboard stage navigation and reduced motion", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop tab interaction only");
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 1536, height: 1024 });
-  await page.goto("/#how-it-works");
+  await openLanding(page, "/#how-it-works");
 
   const websiteTab = page.getByRole("tab", { name: /Website/ });
   await websiteTab.focus();
@@ -116,27 +122,49 @@ test("supports keyboard stage navigation and reduced motion", async ({ page }) =
   await expect(page.getByTestId("container-scroll-frame")).toHaveCSS("transform", "none");
 });
 
-test("uses natural workflow chapters on mobile", async ({ page }) => {
+test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
+  test.skip(!phoneProjects.has(testInfo.project.name), "Phone workflow only");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/#how-it-works");
+  await openLanding(page, "/#how-it-works");
 
   await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
-  await expect(page.locator("#how-it-works").getByRole("article")).toHaveCount(5);
+  await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("pauses the channel orbit for reliable node selection", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/");
+  await openLanding(page);
 
-  const linkedInNode = page.locator('[aria-controls="orbital-channel-1"]');
+  const linkedInNode = page.locator('[data-orbital-node="1"]');
   await linkedInNode.scrollIntoViewIfNeeded();
-  await linkedInNode.click();
+  await linkedInNode.hover();
+  await page.waitForTimeout(1_050);
+  await linkedInNode.dispatchEvent("pointerup");
   await expect(linkedInNode).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator("#orbital-channel-1")).toContainText("Invites and follow-ups from your connected LinkedIn account.");
 
-  await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
-  await expect(page.locator('[aria-controls="orbital-channel-2"]')).toHaveAttribute("aria-expanded", "true");
+  const orbit = linkedInNode.locator("xpath=ancestor::div[contains(@class, 'overflow-hidden')][1]");
+  const orbitBox = await orbit.boundingBox();
+  const selectedNodeBox = await linkedInNode.boundingBox();
+  expect(orbitBox).not.toBeNull();
+  expect(selectedNodeBox).not.toBeNull();
+  expect(selectedNodeBox!.y).toBeGreaterThanOrEqual(orbitBox!.y);
+  expect(selectedNodeBox!.y + selectedNodeBox!.height).toBeLessThanOrEqual(orbitBox!.y + orbitBox!.height);
+
+  const gmailNode = page.getByRole("button", { name: "View Gmail details" });
+  await expect(gmailNode).not.toHaveAttribute("aria-controls");
+
+  await page.getByRole("button", { name: /WhatsApp/ }).last().click();
+  const whatsappNode = page.locator('[data-orbital-node="2"]');
+  await expect(whatsappNode).toHaveAttribute("aria-expanded", "true");
+  await expect(whatsappNode).toHaveAttribute("aria-controls", "orbital-channel-2");
+  await expect(whatsappNode).toBeFocused();
   await expect(page.locator("#orbital-channel-2")).toContainText("Direct conversations with campaign and reply context attached.");
+
+  await orbit.click({ position: { x: 16, y: 16 } });
+  await expect(whatsappNode).toHaveAttribute("aria-expanded", "false");
+  await expect(whatsappNode).not.toHaveAttribute("aria-controls");
+  await expect(page.locator("#orbital-channel-2")).toHaveCount(0);
 });

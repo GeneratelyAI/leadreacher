@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const productionRun = process.env.PLAYWRIGHT_PRODUCTION === "true";
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 3002);
+const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -7,24 +11,49 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { open: "never" }]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3002",
+    baseURL,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    navigationTimeout: 15_000,
   },
   projects: [
     {
-      name: "mobile",
+      name: "android-chrome",
+      use: { ...devices["Pixel 7"] },
+    },
+    {
+      name: "iphone-webkit",
       use: { ...devices["iPhone 14"] },
     },
     {
-      name: "desktop",
+      name: "tablet-chromium",
+      use: { ...devices["iPad Pro 11"] },
+    },
+    {
+      name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "desktop-firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "desktop-webkit",
+      use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "desktop-chrome",
+      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+    },
+    {
+      name: "desktop-edge",
+      use: { ...devices["Desktop Edge"], channel: "msedge" },
     },
   ],
   webServer: {
-    command: "npx next dev -p 3002",
-    url: "http://localhost:3002",
+    command: productionRun ? `npx next start -p ${port}` : `npx next dev -p ${port}`,
+    url: baseURL,
     reuseExistingServer: true,
-    timeout: 60_000,
+    timeout: 120_000,
   },
 });

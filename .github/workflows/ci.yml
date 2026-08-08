@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [develop, main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * *"
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -70,3 +73,73 @@ jobs:
         run: pnpm --dir apps/api exec prisma migrate status
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level high
+
+  responsive-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
+      PLAYWRIGHT_PRODUCTION: "true"
+      PLAYWRIGHT_PORT: "3002"
+      E2E_EMAIL: ${{ secrets.E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install representative browsers
+        run: pnpm --dir apps/web exec playwright install --with-deps chromium webkit
+      - name: Install extended browser channels
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: pnpm --dir apps/web exec playwright install --with-deps firefox chrome msedge
+      - run: pnpm --filter @leadreacher/web build
+      - name: Public responsive journeys
+        run: >-
+          pnpm --dir apps/web exec playwright test
+          e2e/landing-hero.spec.ts e2e/responsive-production.spec.ts e2e/auth.spec.ts
+          --project=desktop-chromium --project=android-chrome --project=iphone-webkit
+      - name: Extended browser matrix
+        if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+        run: pnpm --dir apps/web exec playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-playwright-${{ github.run_attempt }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 14
+
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:3001
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @leadreacher/web build
+      - run: pnpm --dir apps/web exec lhci autorun --config=./lighthouserc.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-${{ github.run_attempt }}
+          path: apps/web/.lighthouseci
+          retention-days: 14
