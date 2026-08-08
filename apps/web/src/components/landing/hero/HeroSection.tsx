@@ -1,14 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowRight, Link2, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowDown, ArrowRight, Link2, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, SquarePlay, Zap } from "lucide-react";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { analysisStepForElapsedTime, LANDING_ANALYSIS_STEPS, normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
+import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import HeroBackground from "./HeroBackground";
 
 type AnalyzerPhase = "idle" | "running" | "failed";
@@ -133,16 +134,38 @@ export default function HeroSection() {
       <HeroBackground />
       <div className="mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-5 pb-7 pt-24 sm:px-8 sm:pt-28 lg:px-12 lg:pb-8 lg:pt-32">
         <main className="flex flex-1 flex-col items-center text-center">
-          <div className="mt-1 inline-flex items-center gap-2 rounded-full border border-[#ddd8ff]/70 bg-white/55 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] shadow-sm backdrop-blur-sm sm:mt-5 sm:text-sm">
-            <Sparkles className="size-4" aria-hidden /> AI-powered outreach. Human connection.
-          </div>
+          {/* Tailwind classes belong on LiquidButton, not the slotted child: `asChild`
+              concatenates the child's className instead of running it through twMerge,
+              so anything set there loses to the variant defaults. */}
+          <LiquidButton
+            asChild
+            size="default"
+            glassScale={14}
+            className="hero-eyebrow-liquid mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm"
+          >
+            <div>
+              <Sparkles className="size-4" aria-hidden />
+              <ShimmerText
+                duration={4.5}
+                style={
+                  {
+                    "--lr-shimmer-base": "#4525b6",
+                    "--lr-shimmer-core": "rgba(255, 255, 255, 0.82)",
+                    "--lr-shimmer-edge": "rgba(255, 255, 255, 0.4)",
+                  } as CSSProperties
+                }
+              >
+                AI-powered outreach. Human connection.
+              </ShimmerText>
+            </div>
+          </LiquidButton>
 
           <h1 className="mt-6 max-w-[930px] text-balance text-[2.6rem] font-semibold leading-[1.06] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem]">
             <span className="block">Drop your URL.</span>
             <span className="block">Go back to <ShimmerText>business.</ShimmerText></span>
           </h1>
-          <p className="mt-5 max-w-[720px] text-pretty text-base leading-7 text-[#596078] sm:mt-6 sm:text-lg sm:leading-8 lg:text-xl">
-            LeadReacher finds your ideal customers and reaches out to them<br className="hidden sm:block" /> personally, automatically, across the channels they actually use.
+          <p className="mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9">
+            The world&rsquo;s first 100% done-for-you lead gen platform.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-7 w-full max-w-[820px] sm:mt-9" noValidate>
@@ -205,6 +228,20 @@ export default function HeroSection() {
               </button>
             </div>
           </form>
+
+          <p className="mt-5 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-6 sm:text-lg sm:leading-8 lg:text-xl">
+            Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
+          </p>
+
+          <div className="relative mt-4 flex w-full max-w-[860px] items-center justify-center gap-3 text-center sm:mt-5 sm:gap-4">
+            <span className="inline-flex items-center justify-center text-[#4f46e5] md:absolute md:left-1/2 md:top-1/2 md:mr-0 md:-translate-x-[280px] md:-translate-y-1/2" aria-hidden>
+              <SquarePlay className="size-5 sm:size-[1.375rem]" />
+            </span>
+            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8">
+              <span className="block">Including personalized video outreach,</span>
+              <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span> for maximum conversion.</span>
+            </p>
+          </div>
 
           <div className="min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[118px] sm:pt-7" aria-live="polite" aria-atomic="true">
             {phase !== "idle" ? (

@@ -29,7 +29,17 @@ type Particle = {
   lane: number;
   radius: number;
   phase: number;
+  tint: string;
 };
+
+/** Dots riding the fibers. Azure and magenta read as accents against the violet strands. */
+const PARTICLE_TINTS = [
+  "56, 132, 255",
+  "139, 92, 246",
+  "217, 70, 239",
+  "99, 102, 241",
+  "232, 240, 255",
+] as const;
 
 function seededValue(index: number, salt: number) {
   const value = Math.sin(index * 91.713 + salt * 47.321) * 43758.5453;
@@ -50,7 +60,7 @@ export function FiberFlowBackground({
   className,
   backgroundFill = "#f7f6ff",
   density = 88,
-  particleCount = 22,
+  particleCount = 60,
   speed = 1,
   targetSelector = "[data-fiber-flow-target]",
   ...props
@@ -79,8 +89,9 @@ export function FiberFlowBackground({
       offset: seededValue(index, 7),
       speed: 0.018 + seededValue(index, 8) * 0.03,
       lane: seededValue(index, 9) * 2 - 1,
-      radius: 1 + seededValue(index, 10) * 3.6,
+      radius: 1.1 + seededValue(index, 10) * 2.1,
       phase: seededValue(index, 11) * Math.PI * 2,
+      tint: PARTICLE_TINTS[Math.floor(seededValue(index, 15) * PARTICLE_TINTS.length) % PARTICLE_TINTS.length],
     }));
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -147,7 +158,7 @@ export function FiberFlowBackground({
       const startY =
         height * (0.49 + fiber.spread * 0.26) +
         motion -
-        scrollLift * (0.045 + Math.abs(fiber.spread) * 0.012);
+        scrollLift * (0.1 + Math.abs(fiber.spread) * 0.02);
       const pointerPullY = (pointer.y - focalPoint.y) * height * 0.08 * pointer.strength;
       const pointerPullX = (pointer.x - focalPoint.x) * width * 0.06 * pointer.strength;
       const centerX = width * focalPoint.x;
@@ -155,7 +166,7 @@ export function FiberFlowBackground({
       const endY =
         height * (0.46 - fiber.spread * 0.28) +
         motion * 0.65 -
-        scrollLift * (0.06 + Math.abs(fiber.spread) * 0.014);
+        scrollLift * (0.1 + Math.abs(fiber.spread) * 0.024);
 
       return {
         startX: -width * 0.08,
@@ -192,12 +203,13 @@ export function FiberFlowBackground({
 
       // Settle at the outer edges and the URL-bar focal point while the body of each strand flows.
       const envelope = Math.sin(Math.PI * localProgress);
-      const scrollEnergy = Math.min(1, Math.abs(scroll.velocity));
-      const energy = 1 + pointer.strength * 0.7 + scrollEnergy * 0.9;
+      const scrollEnergy = Math.min(1.4, Math.abs(scroll.velocity));
+      const energy = 1 + pointer.strength * 0.7 + scrollEnergy * 1.45;
       const flowPhase =
         progress * Math.PI * 2 * fiber.frequency +
         elapsed * fiber.flowSpeed +
-        scroll.progress * Math.PI * 2.25 * fiber.flowSpeed +
+        scroll.progress * Math.PI * 5.4 * fiber.flowSpeed +
+        scroll.velocity * Math.PI * 1.5 +
         fiber.phase;
       const primaryFlow = Math.sin(flowPhase);
       const secondaryFlow = Math.sin(flowPhase * 0.53 - elapsed * fiber.flowSpeed * 0.34) * 0.38;
@@ -213,12 +225,12 @@ export function FiberFlowBackground({
     };
 
     const drawRibbon = (elapsed: number, offset: number, lineWidth: number, alpha: number) => {
-      const scrollEnergy = Math.min(1, Math.abs(scroll.velocity));
+      const scrollEnergy = Math.min(1.4, Math.abs(scroll.velocity));
       const wave =
         Math.sin(elapsed * 0.35 + offset + scroll.progress * Math.PI * 1.4) *
         height *
-        0.018 *
-        (1 + scrollEnergy * 0.35);
+        0.022 *
+        (1 + scrollEnergy * 0.7);
       const scrollLift = scroll.progress * height;
       const pointerPullX = (pointer.x - focalPoint.x) * width * 0.06 * pointer.strength;
       const pointerPullY = (pointer.y - focalPoint.y) * height * 0.08 * pointer.strength;
@@ -234,11 +246,11 @@ export function FiberFlowBackground({
       context.beginPath();
       context.moveTo(
         -width * 0.08,
-        height * (0.5 + offset * 0.085) + wave - scrollLift * 0.05,
+        height * (0.5 + offset * 0.085) + wave - scrollLift * 0.08,
       );
       context.bezierCurveTo(
         width * 0.16,
-        height * (0.64 + offset * 0.045) - scrollLift * 0.028,
+        height * (0.64 + offset * 0.045) - scrollLift * 0.052,
         centerX - width * 0.18 + pointerPullX,
         centerY + height * (offset * 0.025) - wave + pointerPullY,
         centerX,
@@ -248,9 +260,9 @@ export function FiberFlowBackground({
         centerX + width * 0.18 + pointerPullX,
         centerY - height * (offset * 0.02) + wave + pointerPullY,
         width * 0.84,
-        height * (0.63 - offset * 0.05) - scrollLift * 0.035,
+        height * (0.63 - offset * 0.05) - scrollLift * 0.06,
         width * 1.08,
-        height * (0.46 - offset * 0.1) - wave - scrollLift * 0.065,
+        height * (0.46 - offset * 0.1) - wave - scrollLift * 0.1,
       );
       context.lineWidth = lineWidth;
       context.strokeStyle = gradient;
@@ -262,9 +274,9 @@ export function FiberFlowBackground({
       pointer.x += (pointer.targetX - pointer.x) * 0.07;
       pointer.y += (pointer.targetY - pointer.y) * 0.07;
       pointer.strength += (pointer.targetStrength - pointer.strength) * 0.06;
-      scroll.progress += (scroll.targetProgress - scroll.progress) * 0.08;
-      scroll.velocity += (scroll.targetVelocity - scroll.velocity) * 0.14;
-      scroll.targetVelocity *= 0.84;
+      scroll.progress += (scroll.targetProgress - scroll.progress) * 0.13;
+      scroll.velocity += (scroll.targetVelocity - scroll.velocity) * 0.22;
+      scroll.targetVelocity *= 0.9;
       context.clearRect(0, 0, width, height);
       context.fillStyle = backgroundFill;
       context.fillRect(0, 0, width, height);
@@ -300,8 +312,9 @@ export function FiberFlowBackground({
       });
       context.restore();
 
+      // Drawn source-over, not screen: screen against this near-white canvas
+      // lifts every tint to white, which is why the dots read as colorless.
       context.save();
-      context.globalCompositeOperation = "screen";
       particles.forEach((particle) => {
         const progress = reducedMotion ? particle.offset : (particle.offset + elapsed * particle.speed) % 1;
         const representative: Fiber = {
@@ -320,13 +333,19 @@ export function FiberFlowBackground({
         const { x, y } = point;
         const pulse = 0.72 + Math.sin(elapsed * 1.8 + particle.phase) * 0.28;
         const radius = particle.radius * pulse * (1 + pointer.strength * 0.24);
-        const glow = context.createRadialGradient(x, y, 0, x, y, radius * 5);
-        glow.addColorStop(0, "rgba(255, 255, 255, 0.95)");
-        glow.addColorStop(0.18, "rgba(255, 255, 255, 0.75)");
-        glow.addColorStop(1, "rgba(167, 139, 250, 0)");
-        context.fillStyle = glow;
+        const haloRadius = radius * 4.5;
+        const halo = context.createRadialGradient(x, y, 0, x, y, haloRadius);
+        halo.addColorStop(0, `rgba(${particle.tint}, 0.3)`);
+        halo.addColorStop(0.35, `rgba(${particle.tint}, 0.11)`);
+        halo.addColorStop(1, `rgba(${particle.tint}, 0)`);
+        context.fillStyle = halo;
         context.beginPath();
-        context.arc(x, y, radius * 5, 0, Math.PI * 2);
+        context.arc(x, y, haloRadius, 0, Math.PI * 2);
+        context.fill();
+
+        context.fillStyle = `rgba(${particle.tint}, ${0.9 * pulse})`;
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
         context.fill();
       });
       context.restore();
@@ -375,7 +394,7 @@ export function FiberFlowBackground({
       const deltaTime = Math.max(16, timestamp - scroll.lastTimestamp);
       const deltaY = window.scrollY - scroll.lastY;
       updateScrollProgress();
-      scroll.targetVelocity = Math.min(1, Math.max(-1, (deltaY / deltaTime) * 0.9));
+      scroll.targetVelocity = Math.min(1.4, Math.max(-1.4, (deltaY / deltaTime) * 1.35));
       scroll.lastY = window.scrollY;
       scroll.lastTimestamp = timestamp;
     };
