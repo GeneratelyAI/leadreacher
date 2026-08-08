@@ -192,6 +192,16 @@ body {
   overscroll-behavior-y: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .onboarding-root {
   --radius: var(--onboarding-radius);
   background-color: #ffffff;
@@ -287,6 +297,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: start;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
   pointer-events: none;
 }
 
@@ -3544,4 +3560,24 @@ html[data-page="discovery"].dark body {
 
 .dark .discovery-page .discovery-sidebar__headline-accent {
   color: #c4b5f0;
+}
+@keyframes lr-text-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: -100% 50%;
+  }
+}
+
+.lr-shimmer-text {
+  background-position: 100% 50%;
+  animation: lr-text-shimmer var(--lr-shimmer-duration, 2.8s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lr-shimmer-text {
+    animation: none;
+    background-position: 50% 50%;
+  }
 }

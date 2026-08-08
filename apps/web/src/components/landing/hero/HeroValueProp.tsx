@@ -40,7 +40,7 @@ function platformIcon(icon: (typeof SOCIAL_PLATFORMS)[number]["icon"]) {
 
 export default function HeroValueProp() {
   return (
-    <section className="bg-brand-bg text-white">
+    <section id="product" className="scroll-mt-20 bg-brand-bg text-white">
       <div className="mx-auto max-w-7xl px-6 pb-14 pt-10 sm:pb-16 sm:pt-12 lg:pb-20">
         <div className="text-center">
           <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">

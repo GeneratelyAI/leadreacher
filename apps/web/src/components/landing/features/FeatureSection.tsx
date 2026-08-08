@@ -98,7 +98,7 @@ function DashboardPreview() {
 
 export default function FeatureSection() {
   return (
-    <section className="feature-section-gradient relative -mt-px overflow-hidden pb-20 pt-2 text-neutral-900 sm:pb-24 sm:pt-4 lg:pb-28">
+    <section id="how-it-works" className="feature-section-gradient relative -mt-px scroll-mt-20 overflow-hidden pb-20 pt-2 text-neutral-900 sm:pb-24 sm:pt-4 lg:pb-28">
       <div
         className="feature-top-fade pointer-events-none absolute inset-x-0 top-0 z-1 h-24 backdrop-blur-md sm:h-28"
         aria-hidden
