@@ -192,6 +192,16 @@ body {
   overscroll-behavior-y: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .onboarding-root {
   --radius: var(--onboarding-radius);
   background-color: #ffffff;
@@ -287,6 +297,12 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: start;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
   pointer-events: none;
 }
 
@@ -2384,6 +2400,16 @@ html[data-page="discovery"].dark body {
     inset 0 -1px 0 rgba(83, 38, 183, 0.03);
 }
 
+.hero-eyebrow-liquid > span:first-of-type {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(248, 247, 255, 0.72));
+  box-shadow:
+    0 2px 8px rgba(83, 38, 183, 0.06),
+    inset 3px 3px 0.5px -3px rgba(255, 255, 255, 0.96),
+    inset -3px -3px 0.5px -3px rgba(83, 38, 183, 0.16),
+    inset 0 0 6px 6px rgba(255, 255, 255, 0.08),
+    0 0 12px rgba(124, 58, 237, 0.08);
+}
+
 .auth-analysis-card {
   transition:
     min-height var(--onboarding-motion-slow) var(--onboarding-ease-standard),
@@ -3544,4 +3570,50 @@ html[data-page="discovery"].dark body {
 
 .dark .discovery-page .discovery-sidebar__headline-accent {
   color: #c4b5f0;
+}
+@keyframes lr-text-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0% 50%;
+  }
+}
+
+.lr-shimmer-text {
+  isolation: isolate;
+}
+
+.lr-shimmer-text__base,
+.lr-shimmer-text__shine {
+  grid-area: 1 / 1;
+}
+
+.lr-shimmer-text__base {
+  color: var(--lr-shimmer-base, #4e28df);
+}
+
+.lr-shimmer-text__shine {
+  color: transparent;
+  background-image: linear-gradient(
+    108deg,
+    transparent 42%,
+    var(--lr-shimmer-edge, rgba(147, 190, 253, 0.55)) 47%,
+    var(--lr-shimmer-core, #3884ff) 50%,
+    var(--lr-shimmer-edge, rgba(133, 163, 250, 0.55)) 53%,
+    transparent 58%
+  );
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: lr-text-shimmer var(--lr-shimmer-duration, 2.8s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lr-shimmer-text__shine {
+    animation: none;
+    opacity: 0;
+  }
 }
