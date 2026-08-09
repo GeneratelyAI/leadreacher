@@ -38,20 +38,6 @@ const SUMMARY_ITEMS = [
   },
 ] as const;
 
-type SummaryFieldKey = (typeof SUMMARY_ITEMS)[number]["key"];
-
-function hasSummaryContent(
-  summary: DiscoverySummary,
-  key: SummaryFieldKey,
-): boolean {
-  return summary[key].trim().length > 0;
-}
-
-export function countPopulatedSummaryFields(summary: DiscoverySummary): number {
-  return SUMMARY_ITEMS.filter((item) => hasSummaryContent(summary, item.key))
-    .length;
-}
-
 function CampaignCardSkeleton({ exiting = false }: { exiting?: boolean }) {
   return (
     <div

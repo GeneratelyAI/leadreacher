@@ -40,6 +40,7 @@ import {
 import { ensurePersonalizedVideoReady } from "../services/personalized-video.js";
 import { personalizeSequenceStep } from "../services/personalize-sequence-step.js";
 import { claimFirstChannelOutreach } from "../services/channel-outreach-claim.js";
+import { logOperationalInfo } from "../lib/operational-logger.js";
 
 const PERSONALIZED_VIDEO_WAIT_MS = 30_000;
 
@@ -324,16 +325,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             return { skipped: true, reason: step1Result.reason };
           }
 
-          console.log(
-            JSON.stringify({
-              event: "campaign-sequence-step0",
-              path: "already-connected",
-              campaignLeadId,
-              network_distance: networkDistance,
-              is_relationship: isRelationship,
-              step1: step1Result,
-            }),
-          );
+          logOperationalInfo("campaign-sequence-step0", {
+            path: "already-connected",
+            campaignLeadId,
+            network_distance: networkDistance,
+            is_relationship: isRelationship,
+            step1: step1Result,
+          });
 
           return {
             sent: true,
@@ -432,15 +430,12 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           throw error;
         }
 
-        console.log(
-          JSON.stringify({
-            event: "campaign-sequence-step0",
-            path: "invite-sent",
-            campaignLeadId,
-            network_distance: networkDistance,
-            is_relationship: isRelationship,
-          }),
-        );
+        logOperationalInfo("campaign-sequence-step0", {
+          path: "invite-sent",
+          campaignLeadId,
+          network_distance: networkDistance,
+          is_relationship: isRelationship,
+        });
 
         return { sent: true, step, path: "invite-sent" };
       }

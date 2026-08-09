@@ -8,6 +8,7 @@ import { env, isWorkerEnabled } from "./config/env.js";
 import { apiErrorResponse } from "./lib/errors.js";
 import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { installHttpErrorHandling } from "./lib/http-error-handler.js";
+import { configureOperationalLogger } from "./lib/operational-logger.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
 import { captureException } from "./lib/sentry.js";
@@ -26,6 +27,7 @@ import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
+  configureOperationalLogger(app.log);
   const workers: Array<{ close: () => Promise<void> }> = [];
   const stopHeartbeats: Array<() => void> = [];
 

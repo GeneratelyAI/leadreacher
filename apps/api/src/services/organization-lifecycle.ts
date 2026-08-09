@@ -137,7 +137,6 @@ export async function purgeExpiredOrganizations(limit = 5): Promise<{ purged: nu
       await tx.campaignLead.deleteMany({ where: { campaignId: { in: campaignIds } } });
       await tx.campaignChannelAccount.deleteMany({ where: { campaignId: { in: campaignIds } } });
       await tx.campaign.deleteMany({ where: { orgId: organization.id } });
-      await tx.analyticsEvent.deleteMany({ where: { orgId: organization.id } });
       await tx.auditLog.deleteMany({ where: { orgId: organization.id } });
       await tx.pipelineRun.deleteMany({ where: { orgId: organization.id } });
       await tx.lead.deleteMany({ where: { orgId: organization.id } });

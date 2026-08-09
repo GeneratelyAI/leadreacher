@@ -137,7 +137,3 @@ export function readActiveScopedWebsiteUrl(): string | null {
   }
   return cache.urlKey;
 }
-
-export function clearDiscoveryScrapeCache(): void {
-  if (isBrowser()) window.localStorage.removeItem(CACHE_KEY);
-}

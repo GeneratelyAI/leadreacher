@@ -95,7 +95,7 @@ beforeEach(async () => {
     url: "http://localhost:3000/onboarding?step=checkout&status=success",
   });
   createBillingPortalSession.mockResolvedValue({
-    url: "http://localhost:3000/home?billing=portal",
+    url: "http://localhost:3000/dashboard?billing=portal",
   });
   app = await buildTestApp();
 });
@@ -180,7 +180,7 @@ describe("billing routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      url: "http://localhost:3000/home?billing=portal",
+      url: "http://localhost:3000/dashboard?billing=portal",
     });
     expect(createBillingPortalSession).toHaveBeenCalledWith("cus_123");
   });

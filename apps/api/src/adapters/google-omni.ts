@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { GoogleGenAI, FileState } from "@google/genai";
 import { env } from "../config/env.js";
 import { externalServiceFailure } from "../lib/errors.js";
+import { logOperationalInfo } from "../lib/operational-logger.js";
 import type { VideoJobStatus } from "./google-ai.js";
 
 export const GOOGLE_OMNI_VIDEO_MODEL = "gemini-omni-flash-preview";
@@ -26,7 +27,7 @@ function getGoogleAI(): GoogleGenAI {
 }
 
 function omniLog(payload: Record<string, unknown>): void {
-  console.log(JSON.stringify({ event: "google-omni", ...payload }));
+  logOperationalInfo("google-omni", payload);
 }
 
 function timeoutError(label: string, timeoutMs: number): Error {
