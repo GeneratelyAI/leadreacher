@@ -100,9 +100,12 @@ function WorkflowRail({ activeIndex, onSelect }: { activeIndex: number; onSelect
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     const direction = event.key === "ArrowRight" ? 1 : -1;
-    const nextIndex = (activeIndex + direction + STAGES.length) % STAGES.length;
+    const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+    const focusedIndex = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    const currentIndex = focusedIndex >= 0 ? focusedIndex : activeIndex;
+    const nextIndex = (currentIndex + direction + STAGES.length) % STAGES.length;
     onSelect(nextIndex);
-    event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
+    tabs[nextIndex]?.focus();
   }
   return (
     <div role="tablist" aria-label="LeadReacher workflow stages" onKeyDown={handleKeyDown} className="relative px-5 pb-5 pt-4 lg:px-8 lg:pb-6 lg:pt-6">
@@ -155,7 +158,7 @@ function WorkflowScene({ stage, activeIndex, reducedMotion, onSelect }: { stage:
   return (
     <div className="grid min-h-0 flex-1 grid-cols-[0.4fr_1.6fr] items-center gap-5 px-5 pb-5 lg:gap-8 lg:px-8 lg:pb-8">
       <div className="flex min-w-0 self-stretch flex-col justify-center py-5 lg:py-7">
-        <AnimatePresence mode="wait" initial={false}>
+        <AnimatePresence mode="popLayout" initial={false}>
           <m.div
             key={stage.id}
             initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
@@ -186,25 +189,22 @@ function WorkflowScene({ stage, activeIndex, reducedMotion, onSelect }: { stage:
           <span aria-hidden className="absolute left-1/2 top-1.5 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-white/20 lg:top-2 lg:h-1.5 lg:w-14" />
           <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/10" />
           <div id="product-story-panel" role="tabpanel" aria-labelledby={`product-story-tab-${stage.id}`} className="relative min-h-0 flex-1 overflow-hidden rounded-[19px] bg-[#f7f7fb] lg:rounded-[24px]">
-            <AnimatePresence mode="wait" initial={false}>
-              <m.div
-                key={stage.id}
-                className="size-full"
-                initial={reducedMotion ? false : { opacity: 0, scale: 0.985 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={reducedMotion ? undefined : { opacity: 0, scale: 1.01 }}
-                transition={{ duration: reducedMotion ? 0 : 0.28, ease: "easeOut" }}
-              >
-                <InteractiveDashboardDemo
-                  stageId={stage.id}
-                  reducedMotion={reducedMotion}
-                  onStageChange={(stageId) => {
-                    const index = STAGES.findIndex((candidate) => candidate.id === stageId);
-                    if (index >= 0) onSelect(index);
-                  }}
-                />
-              </m.div>
-            </AnimatePresence>
+            <m.div
+              key={stage.id}
+              className="absolute inset-0 size-full [backface-visibility:hidden] [transform:translateZ(0)]"
+              initial={reducedMotion ? false : { scale: 0.992 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
+            >
+              <InteractiveDashboardDemo
+                stageId={stage.id}
+                reducedMotion={reducedMotion}
+                onStageChange={(stageId) => {
+                  const index = STAGES.findIndex((candidate) => candidate.id === stageId);
+                  if (index >= 0) onSelect(index);
+                }}
+              />
+            </m.div>
           </div>
           <span aria-hidden className="absolute bottom-1.5 left-1/2 z-30 h-1 w-14 -translate-x-1/2 rounded-full bg-white/20 lg:bottom-2 lg:h-1.5 lg:w-20" />
         </m.div>
@@ -262,13 +262,7 @@ function DesktopStory() {
   }, [reducedMotion]);
   return (
     <div data-navbar-theme="dark" className="relative isolate hidden overflow-clip rounded-t-[36px] bg-[#0d1020] text-white [backface-visibility:hidden] [transform:translateZ(0)] md:block lg:rounded-t-[48px]">
-      <div aria-hidden className="pointer-events-none absolute -inset-y-2 inset-x-0 bg-[#0d1020]" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-t-[36px] lg:rounded-t-[48px]">
-        <div className="sticky top-0 h-svh overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(91,57,213,.24),transparent_42%),linear-gradient(180deg,#15182a_0%,#0d1020_48%,#111426_100%)] [backface-visibility:hidden] [transform:translateZ(0)]">
-          <BackgroundPaths reducedMotion={reducedMotion} pathCount={12} className="opacity-95" />
-        </div>
-      </div>
-      <ContainerScroll className="relative h-[460vh] min-h-[3000px]" contentClassName="aspect-[16/10] max-w-[1240px] rounded-[28px] border border-white/12 bg-[#111426]/94 shadow-[0_28px_72px_rgba(0,0,0,.34),0_0_56px_rgba(102,72,233,.1)] large-desktop:max-w-[1360px]" id="product-story-scroll" onProgress={handleProgress} reducedMotion={reducedMotion} titleComponent={<div className="pt-24 lg:pt-28 large-desktop:pt-32"><p className="text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm large-desktop:text-[0.9375rem]">See LeadReacher in action</p><h2 className="mx-auto mt-3 max-w-4xl text-balance text-4xl font-semibold text-white lg:text-5xl 2xl:text-6xl large-desktop:max-w-5xl large-desktop:text-[4.125rem]">We handle everything. You close the deal.</h2><p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 lg:text-base large-desktop:max-w-3xl large-desktop:text-lg large-desktop:leading-7">Follow the full journey from your website to a qualified conversation.</p></div>}>
+      <ContainerScroll backgroundComponent={<div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(91,57,213,.24),transparent_42%),linear-gradient(180deg,#15182a_0%,#0d1020_48%,#111426_100%)]"><BackgroundPaths reducedMotion={reducedMotion} pathCount={12} className="opacity-95" /></div>} className="relative h-[460vh] min-h-[3000px]" contentClassName="aspect-[16/10] max-w-[1240px] rounded-[28px] border border-white/12 bg-[#111426]/94 shadow-[0_28px_72px_rgba(0,0,0,.34),0_0_56px_rgba(102,72,233,.1)] large-desktop:max-w-[1360px]" id="product-story-scroll" onProgress={handleProgress} reducedMotion={reducedMotion} titleComponent={<div className="pt-24 lg:pt-28 large-desktop:pt-32"><p className="text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm large-desktop:text-[0.9375rem]">See LeadReacher in action</p><h2 className="mx-auto mt-3 max-w-4xl text-balance text-4xl font-semibold text-white lg:text-5xl 2xl:text-6xl large-desktop:max-w-5xl large-desktop:text-[4.125rem]">We handle everything. You close the deal.</h2><p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 lg:text-base large-desktop:max-w-3xl large-desktop:text-lg large-desktop:leading-7">Follow the full journey from your website to a qualified conversation.</p></div>}>
         <div className="flex h-full flex-col">
           <WorkflowRail activeIndex={activeIndex} onSelect={selectStage} />
           <WorkflowScene stage={activeStage} activeIndex={activeIndex} reducedMotion={reducedMotion} onSelect={selectStage} />
