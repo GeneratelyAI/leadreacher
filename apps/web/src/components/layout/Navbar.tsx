@@ -19,8 +19,8 @@ import { ASSETS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "#product", label: "Product" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/", label: "Product" },
+  { href: "/pricing", label: "Pricing" },
 ] as const;
 
 const RESOURCE_LINKS = [
@@ -84,7 +84,7 @@ export default function Navbar() {
             variant={isDark ? "white" : "colored"}
             align="left"
             crossfade
-            className="h-5 max-w-[8.75rem] min-[360px]:max-w-44 sm:h-6.5 md:max-w-[13.5rem] lg:max-w-[15rem] xl:max-w-none"
+            className="landing-navbar-logo h-5 max-w-[8.75rem] min-[360px]:max-w-44 sm:h-6.5 md:max-w-[13.5rem] lg:max-w-[15rem] xl:max-w-none"
           />
         </Link>
 
