@@ -106,7 +106,7 @@ export async function createBillingPortalSession(
 ): Promise<BillingPortalSession> {
   if (env.STRIPE_MOCK_MODE) {
     return {
-      url: `${env.APP_URL}/home?billing=portal`,
+      url: `${env.APP_URL}/dashboard?billing=portal`,
     };
   }
 

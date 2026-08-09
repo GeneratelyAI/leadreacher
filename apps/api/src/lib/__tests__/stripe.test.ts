@@ -17,7 +17,7 @@ import {
 describe("Stripe mock mode", () => {
   it("creates a local billing portal URL without Stripe credentials", async () => {
     await expect(createBillingPortalSession("cus_mock")).resolves.toEqual({
-      url: "http://localhost:3000/home?billing=portal",
+      url: "http://localhost:3000/dashboard?billing=portal",
     });
   });
 
