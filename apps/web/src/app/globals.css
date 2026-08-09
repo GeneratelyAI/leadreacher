@@ -1,16 +1,4 @@
 @import "tailwindcss";
-
-.pricing-dots {
-  background-color: #f7f6ff;
-  background-image:
-    radial-gradient(circle at 50% -8%, rgba(153, 132, 255, 0.24), transparent 38rem),
-    radial-gradient(circle at 0% 48%, rgba(194, 173, 255, 0.16), transparent 28rem),
-    radial-gradient(circle at 100% 76%, rgba(143, 183, 255, 0.13), transparent 32rem),
-    radial-gradient(circle, rgba(83, 38, 183, 0.1) 1px, transparent 1.2px);
-  background-position: center top, left center, right bottom, 0 0;
-  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
-  background-size: auto, auto, auto, 20px 20px;
-}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "../styles/tokens.css";
@@ -23,6 +11,18 @@
 @custom-variant h-spacious (@media (min-height: 1200px));
 @custom-variant large-desktop (@media (min-width: 96rem) and (min-height: 53.125rem));
 @config "../../tailwind.config.ts";
+
+.pricing-dots {
+  background-color: #f7f6ff;
+  background-image:
+    radial-gradient(circle at 50% -8%, rgba(153, 132, 255, 0.24), transparent 38rem),
+    radial-gradient(circle at 0% 48%, rgba(194, 173, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 100% 76%, rgba(143, 183, 255, 0.13), transparent 32rem),
+    radial-gradient(circle, rgba(83, 38, 183, 0.1) 1px, transparent 1.2px);
+  background-position: center top, left center, right bottom, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 20px 20px;
+}
 
 ::view-transition-group(root) {
   animation-duration: 520ms;
@@ -71,6 +71,8 @@
 :root {
   /* Match the canvas fill used beneath the landing hero's fiber flow. */
   --landing-light-bg: #f7f6ff;
+  /* Composited hero canvas + ambient tint at the lower edge. */
+  --hero-break-bg: #f5f4fe;
   --viewport-gutter: clamp(1rem, 3vw, 2.5rem);
   --viewport-gutter-compact: clamp(0.75rem, 4vw, 1rem);
   --content-max: 100rem;
@@ -1208,11 +1210,6 @@ html {
     margin-top: 0.5rem;
   }
 
-  .hero-composition .hero-status-reserve {
-    min-height: 0;
-    padding-top: 0.25rem;
-  }
-
   .hero-composition .hero-entrance--description {
     font-size: 1rem;
     line-height: 1.5rem;
@@ -1223,9 +1220,10 @@ html {
   }
 
   .hero-composition .hero-scroll-cue {
+    margin-top: 0.75rem;
     margin-bottom: 0;
     gap: 0.125rem;
-    padding-top: 0;
+    padding-top: 0.25rem;
     font-size: 0.75rem;
   }
 }
@@ -1276,16 +1274,6 @@ html {
     line-height: 1.625rem;
   }
 
-  .hero-composition .hero-status-reserve {
-    min-height: 3.75rem;
-    padding-top: clamp(0.75rem, 1.75vh, 1rem);
-  }
-
-  .hero-composition .hero-status-reserve:empty {
-    min-height: 1rem;
-    padding-top: 0.5rem;
-  }
-
   .hero-composition .hero-entrance--trust {
     margin-top: clamp(0.75rem, 1.75vh, 1.25rem);
     font-size: 0.8125rem;
@@ -1296,14 +1284,10 @@ html {
     margin-top: 0.5rem;
   }
 
-  .hero-composition[data-analysis-phase="running"] .hero-scroll-cue {
-    display: none;
-  }
-
   .hero-composition .hero-scroll-cue {
     position: relative;
     bottom: auto;
-    margin-top: auto;
+    margin-top: clamp(0.75rem, 1.5vh, 1rem);
     margin-bottom: 0.25rem;
     flex-shrink: 0;
     gap: 0;

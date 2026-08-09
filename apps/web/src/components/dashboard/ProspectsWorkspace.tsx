@@ -375,7 +375,7 @@ export function ProspectsWorkspace() {
     queryFn: () => apiFetch<{ campaigns: Campaign[] }>("/campaigns"),
     staleTime: 60_000,
   });
-  const leads = prospectsQuery.data?.leads ?? [];
+  const leads = useMemo(() => prospectsQuery.data?.leads ?? [], [prospectsQuery.data?.leads]);
   const campaigns = campaignsQuery.data?.campaigns ?? [];
   const counts = prospectsQuery.data?.counts ?? { all: 0, pending: 0, approved: 0, excluded: 0, booked: 0, reached: 0 };
   const total = prospectsQuery.data?.total ?? 0;

@@ -181,9 +181,7 @@ function WorkflowScene({ stage, activeIndex, reducedMotion, onSelect }: { stage:
 
       <div className="relative min-h-0 self-stretch py-1 lg:py-2">
         <m.div
-          layout
-          transition={{ duration: reducedMotion ? 0 : 0.38, ease: "easeOut" }}
-          className="relative mx-auto flex h-full max-w-[920px] overflow-hidden rounded-[26px] border border-white/20 bg-[#070812] p-2 shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_70px_rgba(102,72,233,.16)] lg:rounded-[34px] lg:p-3"
+          className="relative mx-auto flex h-full max-w-[920px] overflow-hidden rounded-[26px] border border-white/20 bg-[#070812] p-2 shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_70px_rgba(102,72,233,.16)] [backface-visibility:hidden] [transform:translateZ(0)] lg:rounded-[34px] lg:p-3"
         >
           <span aria-hidden className="absolute left-1/2 top-1.5 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-white/20 lg:top-2 lg:h-1.5 lg:w-14" />
           <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/10" />
@@ -263,9 +261,12 @@ function DesktopStory() {
     window.scrollTo({ top: top + progressForStageIndex(index) * scrollableDistance, behavior: reducedMotion ? "auto" : "smooth" });
   }, [reducedMotion]);
   return (
-    <div data-navbar-theme="dark" className="relative isolate hidden overflow-clip rounded-t-[36px] bg-[#0d1020] text-white md:block lg:rounded-t-[48px]">
-      <div aria-hidden className="absolute inset-0 overflow-hidden rounded-t-[36px] bg-[radial-gradient(ellipse_at_50%_30%,rgba(91,57,213,.24),transparent_42%),linear-gradient(180deg,#15182a_0%,#0d1020_48%,#111426_100%)] lg:rounded-t-[48px]">
-        <BackgroundPaths reducedMotion={reducedMotion} pathCount={12} className="opacity-95" />
+    <div data-navbar-theme="dark" className="relative isolate hidden overflow-clip rounded-t-[36px] bg-[#0d1020] text-white [backface-visibility:hidden] [transform:translateZ(0)] md:block lg:rounded-t-[48px]">
+      <div aria-hidden className="pointer-events-none absolute -inset-y-2 inset-x-0 bg-[#0d1020]" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-t-[36px] lg:rounded-t-[48px]">
+        <div className="sticky top-0 h-svh overflow-hidden bg-[radial-gradient(ellipse_at_50%_30%,rgba(91,57,213,.24),transparent_42%),linear-gradient(180deg,#15182a_0%,#0d1020_48%,#111426_100%)] [backface-visibility:hidden] [transform:translateZ(0)]">
+          <BackgroundPaths reducedMotion={reducedMotion} pathCount={12} className="opacity-95" />
+        </div>
       </div>
       <ContainerScroll className="relative h-[460vh] min-h-[3000px]" contentClassName="aspect-[16/10] max-w-[1240px] rounded-[28px] border border-white/12 bg-[#111426]/94 shadow-[0_28px_72px_rgba(0,0,0,.34),0_0_56px_rgba(102,72,233,.1)] large-desktop:max-w-[1360px]" id="product-story-scroll" onProgress={handleProgress} reducedMotion={reducedMotion} titleComponent={<div className="pt-24 lg:pt-28 large-desktop:pt-32"><p className="text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm large-desktop:text-[0.9375rem]">See LeadReacher in action</p><h2 className="mx-auto mt-3 max-w-4xl text-balance text-4xl font-semibold text-white lg:text-5xl 2xl:text-6xl large-desktop:max-w-5xl large-desktop:text-[4.125rem]">We handle everything. You close the deal.</h2><p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/55 lg:text-base large-desktop:max-w-3xl large-desktop:text-lg large-desktop:leading-7">Follow the full journey from your website to a qualified conversation.</p></div>}>
         <div className="flex h-full flex-col">
@@ -313,8 +314,8 @@ function MobileStory() {
 export default function ProductStorySection() {
   return (
     <section data-navbar-theme="light" className="landing-light-surface relative z-[5] overflow-clip text-[#111527]">
-      <div aria-hidden className="pointer-events-none absolute inset-0 hero-ambient-gradient" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.34),transparent_46%)]" />
+      <div aria-hidden style={{ maskImage: "linear-gradient(to bottom, transparent, black 128px)" }} className="pointer-events-none absolute inset-x-0 bottom-0 top-20 hero-ambient-gradient sm:top-26 lg:top-32" />
+      <div aria-hidden style={{ maskImage: "linear-gradient(to bottom, transparent, black 128px)" }} className="pointer-events-none absolute inset-x-0 bottom-0 top-20 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.34),transparent_46%)] sm:top-26 lg:top-32" />
       <HeroSectionBreak />
       <span id="how-it-works" className="absolute top-28 scroll-mt-24 sm:top-32 lg:top-36" aria-hidden />
       <span id="product" className="absolute top-0 scroll-mt-24" aria-hidden />

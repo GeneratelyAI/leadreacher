@@ -48,14 +48,14 @@ test.describe("responsive production matrix", () => {
       await openLanding(page);
       await expectNoPageOverflow(page);
 
-      const analyzer = page.getByRole("button", { name: "Analyze my website" });
+      const analyzer = page.getByRole("button", { name: "Get Started", exact: true });
       const analyzerBox = await analyzer.boundingBox();
       expect(analyzerBox).not.toBeNull();
       expect(analyzerBox?.x ?? -1).toBeGreaterThanOrEqual(0);
       expect((analyzerBox?.x ?? 0) + (analyzerBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
 
       if (viewport.width >= 1024 && viewport.height >= 600) {
-        await expect(page.getByText("No credit card required", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("Setup in 60 seconds", { exact: true }).first()).toBeVisible();
         await expect(page.getByRole("button", { name: "See how LeadReacher works" })).toBeVisible();
         const nextBox = await page.locator("#product").boundingBox();
         expect(nextBox).not.toBeNull();
@@ -101,6 +101,38 @@ test.describe("mobile landing journey", () => {
     await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
     await expectNoPageOverflow(page);
   });
+});
+
+test.describe("mobile pricing", () => {
+  test.beforeEach(({}, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-chromium", "The compact pricing matrix runs once in Chromium");
+  });
+
+  for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
+    test(`${viewport.width}px keeps pricing controls and comparisons in the viewport`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/pricing", { waitUntil: "domcontentloaded" });
+      await expect(page.getByRole("heading", { name: "Pricing designed for effortless outreach." })).toBeVisible();
+      await page.waitForTimeout(400);
+      await expectNoPageOverflow(page);
+
+      const billingControl = page.getByRole("group", { name: "Billing cycle" });
+      await expect(billingControl).toBeVisible();
+      const billingBox = await billingControl.boundingBox();
+      expect(billingBox).not.toBeNull();
+      expect(billingBox?.x ?? -1).toBeGreaterThanOrEqual(0);
+      expect((billingBox?.x ?? 0) + (billingBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
+
+      await expect(page.getByTestId("pricing-comparison-mobile")).toBeVisible();
+      await expect(page.getByTestId("pricing-comparison-scroll")).toBeHidden();
+      await expect(page.getByTestId("pricing-comparison-mobile").getByRole("article")).toHaveCount(3);
+
+      const cycleSwitch = page.getByRole("switch", { name: "Switch between monthly and yearly billing" });
+      await cycleSwitch.click();
+      await expect(cycleSwitch).toHaveAttribute("aria-checked", "true");
+      await expectNoPageOverflow(page);
+    });
+  }
 });
 
 test.describe("visual baselines", () => {

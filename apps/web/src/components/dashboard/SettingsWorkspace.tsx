@@ -215,7 +215,7 @@ export function SettingsWorkspace() {
     },
   });
   const settings = settingsQuery.data ?? null;
-  const accounts = accountsQuery.data?.accounts ?? [];
+  const accounts = useMemo(() => accountsQuery.data?.accounts ?? [], [accountsQuery.data?.accounts]);
   const isLoading = settingsQuery.isLoading && !settingsQuery.data;
   const error = actionError ?? (settingsQuery.error instanceof Error ? settingsQuery.error.message : null);
 

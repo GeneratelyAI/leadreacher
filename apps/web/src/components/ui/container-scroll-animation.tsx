@@ -105,7 +105,7 @@ export function ContainerScroll({
       id={id}
       className={cn("relative h-[300vh] min-h-[1800px]", className)}
     >
-      <div className="sticky top-0 flex h-svh [transform:translateZ(0)] flex-col items-center justify-center overflow-hidden px-5 py-6 sm:px-8 lg:px-10">
+      <div className="sticky top-0 flex h-svh flex-col items-center justify-center overflow-hidden px-5 py-6 [backface-visibility:hidden] [contain:layout_paint] [transform:translateZ(0)] sm:px-8 lg:px-10">
         {titleComponent ? (
           <m.div
             style={shouldReduceMotion ? { opacity: 1, transform: "none" } : { opacity: titleOpacity, y: titleY }}
@@ -129,7 +129,7 @@ export function ContainerScroll({
                 }
           }
           className={cn(
-            "relative z-10 aspect-[5/3] w-[min(100%,calc((100svh-180px)*1.667))] max-w-[1180px] shrink-0 overflow-hidden rounded-2xl bg-white shadow-[0_38px_100px_rgba(61,42,127,0.18),0_8px_30px_rgba(61,42,127,0.10)] motion-reduce:transform-none! sm:rounded-3xl",
+            "relative z-10 aspect-[5/3] w-[min(100%,calc((100svh-180px)*1.667))] max-w-[1180px] shrink-0 overflow-hidden rounded-2xl bg-white shadow-[0_38px_100px_rgba(61,42,127,0.18),0_8px_30px_rgba(61,42,127,0.10)] [backface-visibility:hidden] [transform:translateZ(0)] motion-reduce:transform-none! sm:rounded-3xl",
             contentClassName,
           )}
         >

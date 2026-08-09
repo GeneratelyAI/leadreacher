@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowRight, Link2, LoaderCircle, LockKeyhole, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowDown, ArrowRight, Link2, LoaderCircle, RefreshCw, ShieldCheck, Sparkles, UserRound, Zap } from "lucide-react";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { analysisStepForElapsedTime, LANDING_ANALYSIS_STEPS, normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
@@ -15,14 +15,71 @@ import HeroBackground from "./HeroBackground";
 type AnalyzerPhase = "idle" | "running" | "failed";
 
 const TRUST_ITEMS = [
-  { label: "No credit card required", icon: ShieldCheck },
-  { label: "Takes 60 seconds", icon: Zap },
-  { label: "Cancel anytime", icon: LockKeyhole },
+  { label: "Setup in 60 seconds", icon: Zap },
+  { label: "Personalized. Never spam.", icon: ShieldCheck },
+  { label: "You approve everything", icon: UserRound },
+  { label: "Cancel anytime", icon: RefreshCw },
 ] as const;
 
 const MINIMUM_PROGRESS_MS = 1_500;
 const NAVIGATION_WAIT_MS = 5_000;
 const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
+
+function AnalysisStatusPanel({
+  phase,
+  activeStep,
+  errorMessage,
+  onRetry,
+}: {
+  phase: AnalyzerPhase;
+  activeStep: number;
+  errorMessage: string | null;
+  onRetry: () => void;
+}) {
+  const isVisible = phase !== "idle" || Boolean(errorMessage);
+
+  return (
+    <div
+      className={cn(
+        "hero-status-panel grid w-full max-w-[760px] transition-[grid-template-rows,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+        isVisible ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+      )}
+      aria-live="polite"
+      aria-atomic="true"
+    >
+      <div className="min-h-0 overflow-hidden">
+        {phase !== "idle" ? (
+          <div className="animate-in fade-in pb-3 pt-5 duration-300 motion-reduce:animate-none sm:pb-4 sm:pt-7 h-compact:lg:pb-2 h-compact:lg:pt-3">
+            <p className="flex items-center justify-center gap-3 text-base font-semibold">
+              {phase === "running" ? <LoaderCircle className="size-5 animate-spin text-[#4e28df] motion-reduce:animate-none" aria-hidden /> : null}
+              {phase === "running" ? "LeadReacher is getting to work…" : "Website analysis needs attention"}
+            </p>
+            {phase === "running" ? (
+              <ol className="mt-5 grid grid-cols-2 gap-x-5 gap-y-3 text-sm text-[#596078] sm:grid-cols-4 sm:gap-4">
+                {LANDING_ANALYSIS_STEPS.map((step, index) => (
+                  <li key={step} className={cn("flex items-center justify-center gap-2 transition-colors duration-300", index <= activeStep && "font-medium text-[#35208f]")}>
+                    <span className={cn("size-2 rounded-full bg-[#c9c4e8] transition-[background-color,box-shadow] duration-300", index <= activeStep && "bg-[#4e28df] shadow-[0_0_0_4px_rgba(78,40,223,0.1)]")} aria-hidden />
+                    {step}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div id="landing-analyzer-message" className="mt-3 text-sm text-red-700">
+                <p>{errorMessage}</p>
+                <div className="mt-3 flex items-center justify-center gap-3">
+                  <button type="button" onClick={onRetry} className="font-semibold text-[#4e28df] hover:underline">Retry</button>
+                  <Link href="/signup" className="font-semibold text-[#596078] hover:text-[#090d1d]">Continue manually</Link>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : errorMessage ? (
+          <p id="landing-analyzer-message" className="pb-2 pt-4 text-sm font-medium text-red-700">{errorMessage}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
 
 export default function HeroSection() {
   const router = useRouter();
@@ -175,7 +232,7 @@ export default function HeroSection() {
             >business.</ShimmerText></span>
           </h1>
           <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9 h-compact:sm:mt-4 h-compact:lg:text-xl h-compact:lg:leading-8 h-short:lg:mt-2 h-short:lg:text-lg h-short:lg:leading-7 2xl:text-[1.625rem]">
-            The world&rsquo;s first 100% done-for-you lead gen platform.
+            Finds prospects. Reaches out. Converts. You close.
           </p>
 
           <form onSubmit={handleSubmit} className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] sm:mt-9 h-compact:sm:mt-6 h-short:lg:mt-3" noValidate>
@@ -233,7 +290,7 @@ export default function HeroSection() {
               </div>
               <button type="submit" disabled={phase === "running"} className="inline-flex h-14 shrink-0 items-center justify-center gap-3 rounded-[14px] bg-[#4e28df] px-7 text-base font-semibold text-white shadow-[0_10px_25px_rgba(78,40,223,0.25)] transition-[background-color,transform] duration-200 hover:bg-[#4020c9] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#8b7fd4]/45 active:translate-y-px disabled:pointer-events-none disabled:opacity-75 sm:min-w-[252px] sm:text-lg">
                 {phase === "running" ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
-                {phase === "running" ? "Analyzing website" : "Analyze my website"}
+                {phase === "running" ? "Analyzing website" : "Get Started"}
                 {phase !== "running" ? <ArrowRight className="size-5" aria-hidden /> : null}
               </button>
             </div>
@@ -242,48 +299,15 @@ export default function HeroSection() {
           <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center text-center sm:mt-5 h-compact:sm:mt-3 h-short:lg:mt-2">
             <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
               <span className="block">Including personalized video outreach,</span>
-              <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span> for maximum conversion.</span>
+              <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span>, delivered via social media DM.</span>
             </p>
           </div>
 
           <p className="hero-entrance hero-entrance--description mt-4 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-5 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
-            Leadreacher finds your ideal customers and reaches out to them for you, personally, automatically, across the channels they actually use.
+            LeadReacher is an automated customer acquisition engine that finds prospects, creates personalized content and runs social outreach campaigns that convert. <span className="font-medium text-[#4f46e5]">All you have to do is reply.</span>
           </p>
 
-          <div
-            className={cn(
-              "hero-status-reserve min-h-[68px] w-full max-w-[760px] pt-4 sm:min-h-[82px] sm:pt-7 h-compact:sm:min-h-[42px] h-compact:sm:pt-3 h-short:lg:min-h-0 h-short:lg:pt-1",
-              phase === "idle" && "h-compact:sm:min-h-0 h-compact:sm:pt-1",
-            )}
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {phase !== "idle" ? (
-              <div className="animate-in fade-in duration-300 motion-reduce:animate-none">
-                <p className="flex items-center justify-center gap-3 text-base font-semibold">
-                  {phase === "running" ? <LoaderCircle className="size-5 animate-spin text-[#4e28df] motion-reduce:animate-none" aria-hidden /> : null}
-                  {phase === "running" ? "LeadReacher is getting to work…" : "Website analysis needs attention"}
-                </p>
-                {phase === "running" ? (
-                  <ol className="mt-5 grid grid-cols-2 gap-x-5 gap-y-3 text-sm text-[#596078] sm:grid-cols-4 sm:gap-4">
-                    {LANDING_ANALYSIS_STEPS.map((step, index) => (
-                      <li key={step} className={cn("flex items-center justify-center gap-2 transition-colors duration-300", index <= activeStep && "font-medium text-[#35208f]")}>
-                        <span className={cn("size-2 rounded-full bg-[#c9c4e8] transition-[background-color,box-shadow] duration-300", index <= activeStep && "bg-[#4e28df] shadow-[0_0_0_4px_rgba(78,40,223,0.1)]")} aria-hidden />{step}
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <div id="landing-analyzer-message" className="mt-3 text-sm text-red-700">
-                    <p>{errorMessage}</p>
-                    <div className="mt-3 flex items-center justify-center gap-3">
-                      <button type="button" onClick={handleRetry} className="font-semibold text-[#4e28df] hover:underline">Retry</button>
-                      <Link href="/signup" className="font-semibold text-[#596078] hover:text-[#090d1d]">Continue manually</Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : errorMessage ? <p id="landing-analyzer-message" className="text-sm font-medium text-red-700">{errorMessage}</p> : null}
-          </div>
+          <AnalysisStatusPanel phase={phase} activeStep={activeStep} errorMessage={errorMessage} onRetry={handleRetry} />
 
           <ul className="hero-entrance hero-entrance--trust mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5] h-compact:lg:text-[0.8125rem] h-short:lg:mt-0 2xl:text-base">
             {TRUST_ITEMS.map(({ label, icon: Icon }) => (
@@ -292,7 +316,7 @@ export default function HeroSection() {
               </li>
             ))}
           </ul>
-          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mt-auto mb-4 flex flex-col items-center gap-2 pt-6 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden h-compact:lg:mb-3 h-compact:lg:gap-1 h-compact:lg:pt-2 h-compact:lg:text-xs h-short:lg:mb-0 h-short:lg:pt-0">
+          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" style={{ marginTop: "clamp(0.75rem, 1.5vh, 1rem)" }} className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mb-4 flex flex-col items-center gap-2 pt-2 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden h-compact:lg:mb-3 h-compact:lg:gap-1 h-compact:lg:text-xs h-short:lg:mb-0">
             <ArrowDown className="size-6 h-compact:lg:size-5" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
           </button>
         </main>

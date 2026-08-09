@@ -33,7 +33,40 @@ export default function PricingComparisonTable({ eyebrow, heading, plans, rows, 
       {eyebrow ? <p className="text-center text-xs font-semibold uppercase tracking-[0.18em] text-[#6b5fbf]">{eyebrow}</p> : null}
       <h2 className="mt-3 text-center text-3xl font-semibold sm:text-[2.6rem]">{heading}</h2>
 
-      <div data-testid="pricing-comparison-scroll" className="mt-12 overflow-x-auto md:overflow-visible" role="region" aria-label={heading} tabIndex={0}>
+      <div className="mt-8 space-y-4 lg:hidden" data-testid="pricing-comparison-mobile">
+        {plans.map((plan, planIndex) => (
+          <article key={plan.id} className={cn("overflow-hidden rounded-[20px] border bg-white/85 shadow-[0_16px_40px_rgba(66,42,148,0.07)] backdrop-blur-xl", plan.featured ? "border-[#5a32ed]/25" : "border-white")}>
+            <header className={cn("flex items-start justify-between gap-4 border-b px-5 py-5", plan.featured ? "border-[#5a32ed]/15 bg-[#5a32ed]/[0.04]" : "border-[#e8e6ed]")}>
+              <div>
+                <p className="text-lg font-semibold leading-6 text-[#111322]">{plan.name}</p>
+                <p className="mt-1 text-sm font-medium text-[#777784]">{plan.price}<span className="ml-1 text-xs font-normal">{plan.priceSuffix ?? ""}</span></p>
+              </div>
+              {plan.featured ? <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#171223] px-2.5 py-1.5 text-[11px] font-semibold text-[#d9cfff]"><Check className="size-3" aria-hidden />Best value</span> : null}
+            </header>
+            <dl className="divide-y divide-[#e8e6ed] px-5">
+              {rows.map((row) => {
+                const value = row.values[planIndex];
+                return (
+                  <div key={row.label} className="flex min-h-12 items-center justify-between gap-4 py-3">
+                    <dt className="text-sm font-medium text-[#3f4252]">{row.label}</dt>
+                    <dd className="shrink-0">
+                      {typeof value === "boolean" ? (
+                        value ? <span className="flex size-7 items-center justify-center rounded-full bg-[#eeeaff] text-[#5a32ed]"><Check className="size-4" aria-hidden /><span className="sr-only">Included</span></span>
+                          : <span className="flex size-7 items-center justify-center rounded-full bg-[#f4f3f6] text-[#aaa8b1]"><Minus className="size-4" aria-hidden /><span className="sr-only">Not included</span></span>
+                      ) : <span className="text-sm font-medium text-[#30313d]">{value}</span>}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+            <div className="p-5">
+              <Link href={plan.href} className={cn("inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-semibold transition-colors", plan.featured ? "border-[#5a32ed] bg-[#5a32ed] text-white" : "border-[#5a32ed]/25 text-[#4e28df]")}>{ctaLabel}<ArrowRight className="size-4" aria-hidden /></Link>
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div data-testid="pricing-comparison-scroll" className="mt-12 hidden overflow-x-auto lg:block lg:overflow-visible" role="region" aria-label={heading} tabIndex={0}>
         <div className="relative min-w-[980px]" role="table" aria-label={`${heading} details`}>
           {featuredIndex >= 0 ? (
             <div

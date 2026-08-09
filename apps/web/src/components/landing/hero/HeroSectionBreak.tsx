@@ -35,6 +35,7 @@ export default function HeroSectionBreak() {
           </linearGradient>
         </defs>
 
+        <path d="M-20 0 H1460 V17 Q720 111 -20 17 Z" fill="var(--hero-break-bg)" />
         <path d="M-20 17 Q720 111 1460 17 L1460 128 L-20 128 Z" fill="var(--landing-light-bg)" />
         <path
           d="M-20 17 Q720 111 1460 17"

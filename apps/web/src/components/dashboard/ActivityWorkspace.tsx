@@ -250,7 +250,7 @@ export function ActivityWorkspace() {
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
-  const activity = activityQuery.data?.activity ?? [];
+  const activity = useMemo(() => activityQuery.data?.activity ?? [], [activityQuery.data?.activity]);
   const total = activityQuery.data?.total ?? 0;
   const summary = activityQuery.data?.summary ?? null;
   const campaigns = activityQuery.data?.filters.campaigns ?? [];

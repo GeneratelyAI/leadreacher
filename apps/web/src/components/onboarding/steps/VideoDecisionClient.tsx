@@ -63,10 +63,6 @@ function parseVideoConfig(value: unknown, campaignType: CampaignType): VideoConf
     return disabledVideoConfig();
   }
 
-  const source =
-    config.source === "generated" || config.source === "uploaded"
-      ? config.source
-      : null;
   const uploadedVideoUrl =
     typeof config.uploadedVideoUrl === "string" ? config.uploadedVideoUrl : null;
 

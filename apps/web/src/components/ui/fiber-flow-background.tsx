@@ -139,19 +139,6 @@ export function FiberFlowBackground({
       pointer.targetY = focalPoint.y;
     };
 
-    const resize = () => {
-      const bounds = container.getBoundingClientRect();
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-      width = Math.max(1, bounds.width);
-      height = Math.max(1, bounds.height);
-      canvas.width = Math.round(width * pixelRatio);
-      canvas.height = Math.round(height * pixelRatio);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      updateFocalPoint();
-    };
-
     const fiberGeometry = (fiber: Fiber, elapsed: number) => {
       const motion = Math.sin(elapsed * fiber.drift + fiber.phase) * height * 0.012;
       const scrollLift = scroll.progress * height;
@@ -269,7 +256,7 @@ export function FiberFlowBackground({
       context.stroke();
     };
 
-    const draw = (timestamp: number) => {
+    const draw = (timestamp: number, scheduleNextFrame = true) => {
       const elapsed = reducedMotion ? 0 : ((timestamp - startTime) / 1000) * speed;
       pointer.x += (pointer.targetX - pointer.x) * 0.07;
       pointer.y += (pointer.targetY - pointer.y) * 0.07;
@@ -350,7 +337,29 @@ export function FiberFlowBackground({
       });
       context.restore();
 
-      if (!reducedMotion) animationFrame = window.requestAnimationFrame(draw);
+      if (!reducedMotion && scheduleNextFrame) animationFrame = window.requestAnimationFrame(draw);
+    };
+
+    const resize = () => {
+      const bounds = container.getBoundingClientRect();
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const nextWidth = Math.max(1, bounds.width);
+      const nextHeight = Math.max(1, bounds.height);
+      const nextCanvasWidth = Math.round(nextWidth * pixelRatio);
+      const nextCanvasHeight = Math.round(nextHeight * pixelRatio);
+      width = nextWidth;
+      height = nextHeight;
+      if (canvas.width === nextCanvasWidth && canvas.height === nextCanvasHeight) {
+        updateFocalPoint();
+        return;
+      }
+      canvas.width = nextCanvasWidth;
+      canvas.height = nextCanvasHeight;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      updateFocalPoint();
+      draw(performance.now(), false);
     };
 
     resize();
@@ -358,10 +367,14 @@ export function FiberFlowBackground({
     scroll.progress = scroll.targetProgress;
     startTime = performance.now();
     draw(startTime);
-    const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(container);
-    const target = document.querySelector<HTMLElement>(targetSelector);
-    if (target) resizeObserver.observe(target);
+    let resizeTimeout = 0;
+    const scheduleResize = () => {
+      updateFocalPoint();
+      window.clearTimeout(resizeTimeout);
+      resizeTimeout = window.setTimeout(resize, 90);
+    };
+    window.addEventListener("resize", scheduleResize, { passive: true });
+    window.addEventListener("orientationchange", scheduleResize, { passive: true });
 
     const handlePointerMove = (event: PointerEvent) => {
       const bounds = container.getBoundingClientRect();
@@ -438,8 +451,10 @@ export function FiberFlowBackground({
     }
 
     return () => {
-      resizeObserver.disconnect();
+      window.clearTimeout(resizeTimeout);
       window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", scheduleResize);
+      window.removeEventListener("orientationchange", scheduleResize);
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("blur", clearPointer);

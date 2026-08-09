@@ -31,7 +31,7 @@ test("renders the desktop reference composition without overflow", async ({ page
   await openLanding(page);
   await expect(page.getByRole("heading", { name: "Drop your URL. Go back to business." })).toBeVisible();
   await expect(page.locator('header a[href="/"]').filter({ has: page.locator('img[alt="leadreacher"]') })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Analyze my website" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Get Started", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -56,11 +56,11 @@ test("opens and dismisses the resources navigation menu accessibly", async ({ pa
 test("validates the URL and starts a claimable anonymous analysis", async ({ page }) => {
   await mockCompletedAnalysis(page);
   await openLanding(page);
-  await page.getByRole("button", { name: "Analyze my website" }).click();
+  await page.getByRole("button", { name: "Get Started", exact: true }).click();
   await expect(page.getByText("Enter a valid company website")).toBeVisible();
   await page.getByLabel("Company website").fill("generately.ai");
   await expect.poll(() => page.getByTestId("landing-website-favicon").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
-  await page.getByRole("button", { name: "Analyze my website" }).click();
+  await page.getByRole("button", { name: "Get Started", exact: true }).click();
   await expect(page.getByText("LeadReacher is getting to work…")).toBeVisible();
   await expect(page).toHaveURL(/\/signup$/, { timeout: 8_000 });
   const stored = await page.evaluate(() => ({ url: localStorage.getItem("lr_website_url"), anonId: localStorage.getItem("lr_anon_scrape_id") }));
