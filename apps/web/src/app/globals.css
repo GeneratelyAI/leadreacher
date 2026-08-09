@@ -2702,6 +2702,18 @@ html[data-page="discovery"].dark body {
   }
 }
 
+@keyframes hero-section-strand-breathe {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translateY(0) scaleY(0.92);
+  }
+  50% {
+    opacity: 0.92;
+    transform: translateY(-2px) scaleY(1.06);
+  }
+}
+
 .hero-ambient-gradient {
   background:
     linear-gradient(
@@ -2822,6 +2834,12 @@ html[data-page="discovery"].dark body {
   animation: hero-scroll-cue 3.6s ease-in-out infinite;
 }
 
+.hero-section-break__strand {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-section-strand-breathe 4.2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-ambient-gradient,
   .hero-entrance,
@@ -2830,6 +2848,12 @@ html[data-page="discovery"].dark body {
   .hero-video-icon::after,
   .hero-scroll-cue > svg {
     animation: none;
+  }
+
+  .hero-section-break__strand {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
   }
 
   .hero-entrance,

@@ -18,6 +18,7 @@ import {
 import { siWhatsapp } from "simple-icons";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import AcquisitionShowcase from "./AcquisitionShowcase";
+import HeroSectionBreak from "@/components/landing/hero/HeroSectionBreak";
 import {
   PRODUCT_STORY_STAGE_IDS,
   progressForStageIndex,
@@ -342,6 +343,7 @@ export default function ProductStorySection() {
     <section data-navbar-theme="light" className="landing-light-surface relative z-[5] -mt-7 overflow-clip text-[#111527] sm:-mt-9">
       <div aria-hidden className="pointer-events-none absolute inset-0 hero-ambient-gradient" />
       <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.34),transparent_46%)]" />
+      <HeroSectionBreak />
       <span id="how-it-works" className="absolute top-28 scroll-mt-24 sm:top-32 lg:top-36" aria-hidden />
       <span id="product" className="absolute top-0 scroll-mt-24" aria-hidden />
       <div className="relative">
