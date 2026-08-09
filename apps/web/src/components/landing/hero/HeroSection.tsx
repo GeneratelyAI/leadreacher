@@ -163,7 +163,16 @@ export default function HeroSection() {
 
           <h1 className="hero-headline mt-6 max-w-[930px] text-balance text-[2.25rem] font-semibold leading-[1.06] min-[360px]:text-[2.6rem] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem] h-compact:sm:mt-6 h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:mt-4 h-short:lg:text-[3rem]">
             <span className="block">Drop your URL.</span>
-            <span className="block">Go back to <span className="text-[#4f46e5]">business.</span></span>
+            <span className="block">Go back to <ShimmerText
+              className="hero-business-shimmer"
+              style={
+                {
+                  "--lr-shimmer-base": "#4f46e5",
+                  "--lr-shimmer-core": "#58a6ff",
+                  "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
+                } as CSSProperties
+              }
+            >business.</ShimmerText></span>
           </h1>
           <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9 h-compact:sm:mt-4 h-compact:lg:text-xl h-compact:lg:leading-8 h-short:lg:mt-2 h-short:lg:text-lg h-short:lg:leading-7 2xl:text-[1.625rem]">
             The world&rsquo;s first 100% done-for-you lead gen platform.

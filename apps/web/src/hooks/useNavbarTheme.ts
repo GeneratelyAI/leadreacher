@@ -12,22 +12,13 @@ export function useNavbarTheme() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       const probeY = 88;
-      const themedSection = Array.from(
-        document.querySelectorAll<HTMLElement>("[data-navbar-theme]"),
-      )
-        .map((section, index) => ({
-          section,
-          index,
-          bounds: section.getBoundingClientRect(),
-        }))
-        .filter(({ bounds }) => bounds.top <= probeY && bounds.bottom > probeY)
-        // Landing blocks may contain a nested, differently themed experience.
-        // Prefer the smallest matching region so that inner dark stories take
-        // precedence over their light page-level parent section.
-        .sort(
-          (left, right) =>
-            left.bounds.height - right.bounds.height || right.index - left.index,
-        )[0]?.section;
+      // Fixed footer content can geometrically overlap the viewport while a
+      // white foreground section is still painted over it. Resolve the theme
+      // from the element the user can actually see behind the navbar instead.
+      const themedSection = document
+        .elementsFromPoint(window.innerWidth / 2, probeY)
+        .map((element) => element.closest<HTMLElement>("[data-navbar-theme]"))
+        .find((section): section is HTMLElement => section !== null);
 
       setIsDark(themedSection?.dataset.navbarTheme === "dark");
       setScrollProgress(Math.min(Math.max(currentScrollY / 180, 0), 1));
