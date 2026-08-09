@@ -20,6 +20,7 @@ import { anonymousDiscoveryRoutes } from "./routes/discovery.js";
 import { healthRoutes } from "./routes/health.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { stripeWebhookRoutes } from "./routes/stripe-webhook.js";
+import { publicPricingRoutes } from "./routes/public-pricing.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
 import { startVideoGenerationWorker } from "./workers/video-generation.js";
@@ -94,6 +95,7 @@ export async function buildServer() {
   await app.register(stripeWebhookRoutes);
   await app.register(authRoutes);
   await app.register(anonymousDiscoveryRoutes);
+  await app.register(publicPricingRoutes);
   await app.register(protectedRoutes);
 
   const campaignWorkerEnabled = isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER);
