@@ -277,6 +277,15 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
 
     for (const account of items) {
       if (!account.id || !account.type) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id ?? null,
+            unipileAccountType: account.type ?? null,
+            reason: "malformed-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
         continue;
       }
 
@@ -285,6 +294,15 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       // Unipile's account list is shared by the API key. Never create or
       // mutate an organization row from an unowned external account.
       if (!ownedAccount || ownedAccount.platform !== platform) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id,
+            platform,
+            reason: ownedAccount ? "platform-mismatch" : "unknown-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
         continue;
       }
       const accountStatus = await resolveAccountStatus(adapter, account.id);
