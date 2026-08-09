@@ -367,6 +367,12 @@ export function FiberFlowBackground({
     scroll.progress = scroll.targetProgress;
     startTime = performance.now();
     draw(startTime);
+    const focalPointFrame = window.requestAnimationFrame(updateFocalPoint);
+    const focalTarget = document.querySelector<HTMLElement>(targetSelector);
+    const focalTargetObserver = focalTarget
+      ? new ResizeObserver(updateFocalPoint)
+      : null;
+    if (focalTarget && focalTargetObserver) focalTargetObserver.observe(focalTarget);
     let resizeTimeout = 0;
     const scheduleResize = () => {
       updateFocalPoint();
@@ -453,6 +459,8 @@ export function FiberFlowBackground({
     return () => {
       window.clearTimeout(resizeTimeout);
       window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(focalPointFrame);
+      focalTargetObserver?.disconnect();
       window.removeEventListener("resize", scheduleResize);
       window.removeEventListener("orientationchange", scheduleResize);
       window.removeEventListener("pointermove", handlePointerMove);

@@ -3,22 +3,21 @@
 import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowRight, Link2, LoaderCircle, RefreshCw, ShieldCheck, Sparkles, UserRound, Zap } from "lucide-react";
+import { ArrowRight, DollarSign, Link2, LoaderCircle, ShieldCheck, SquarePlay, UserRound, Zap } from "lucide-react";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { analysisStepForElapsedTime, LANDING_ANALYSIS_STEPS, normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
-import { LiquidButton } from "@/components/ui/liquid-glass-button";
 import HeroBackground from "./HeroBackground";
 
 type AnalyzerPhase = "idle" | "running" | "failed";
 
 const TRUST_ITEMS = [
-  { label: "Setup in 60 seconds", icon: Zap },
-  { label: "Personalized. Never spam.", icon: ShieldCheck },
-  { label: "You approve everything", icon: UserRound },
-  { label: "Cancel anytime", icon: RefreshCw },
+  { label: "Fraction of agency cost.", icon: DollarSign },
+  { label: "Setup in 60 seconds.", icon: Zap },
+  { label: "Personalized. No Spam Guarantee.", icon: ShieldCheck },
+  { label: "You approve everything.", icon: UserRound },
 ] as const;
 
 const MINIMUM_PROGRESS_MS = 1_500;
@@ -84,6 +83,7 @@ function AnalysisStatusPanel({
 export default function HeroSection() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const fiberTargetRef = useRef<HTMLFormElement>(null);
   const waveTargetRef = useRef<HTMLDivElement>(null);
   const submissionPending = useRef(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
@@ -94,16 +94,6 @@ export default function HeroSection() {
   const [faviconLoaded, setFaviconLoaded] = useState(false);
   const [faviconFailed, setFaviconFailed] = useState(false);
   const { start, waitForReadyToNavigate } = useWebsiteScrapeStatus({ autoStart: false, context: "anonymous" });
-
-  function handleHowItWorksScroll() {
-    const target = document.getElementById("how-it-works");
-    if (!target) return;
-
-    target.scrollIntoView({
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-      block: "start",
-    });
-  }
 
   useEffect(() => {
     if (phase !== "running") return;
@@ -191,34 +181,9 @@ export default function HeroSection() {
     <section id="top" data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
       <HeroBackground />
       <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-22 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
-        <main data-analysis-phase={phase} className="hero-composition flex flex-1 flex-col items-center text-center">
-          {/* Tailwind classes belong on LiquidButton, not the slotted child: `asChild`
-              concatenates the child's className instead of running it through twMerge,
-              so anything set there loses to the variant defaults. */}
-          <LiquidButton
-            asChild
-            size="default"
-            glassScale={14}
-            className="hero-eyebrow-liquid hero-entrance hero-entrance--badge mt-1 h-auto border border-white/80 bg-white/70 px-4 py-2 text-xs font-semibold uppercase text-[#4525b6] backdrop-blur-[2px] has-[>svg]:px-4 sm:mt-5 sm:text-sm 2xl:text-base"
-          >
-            <div>
-              <Sparkles className="size-4" aria-hidden />
-              <ShimmerText
-                duration={4.5}
-                style={
-                  {
-                    "--lr-shimmer-base": "#4525b6",
-                    "--lr-shimmer-core": "rgba(255, 255, 255, 0.82)",
-                    "--lr-shimmer-edge": "rgba(255, 255, 255, 0.4)",
-                  } as CSSProperties
-                }
-              >
-                AI-powered outreach. Human connection.
-              </ShimmerText>
-            </div>
-          </LiquidButton>
-
-          <h1 className="hero-headline mt-6 max-w-[930px] text-balance text-[2.25rem] font-semibold leading-[1.06] min-[360px]:text-[2.6rem] sm:mt-9 sm:text-[4rem] xl:text-[5.5rem] h-compact:sm:mt-6 h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:mt-4 h-short:lg:text-[3rem]">
+        <main data-analysis-phase={phase} className="hero-composition flex flex-1 flex-col items-center text-center lg:grid lg:grid-cols-1 lg:grid-rows-[1fr_auto_1fr]">
+          <div className="flex flex-col items-center lg:self-end lg:pb-[clamp(1.25rem,4vh,3rem)]">
+          <h1 className="hero-headline max-w-[930px] text-balance text-[2.25rem] font-semibold leading-[1.06] min-[360px]:text-[2.6rem] sm:text-[4rem] xl:text-[5.5rem] h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:text-[3rem]">
             <span className="block">Drop your URL.</span>
             <span className="block">Go back to <ShimmerText
               className="hero-business-shimmer"
@@ -231,14 +196,20 @@ export default function HeroSection() {
               }
             >business.</ShimmerText></span>
           </h1>
-          <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-lg font-semibold leading-8 text-[#090d1d] sm:mt-6 sm:text-xl lg:text-2xl lg:leading-9 h-compact:sm:mt-4 h-compact:lg:text-xl h-compact:lg:leading-8 h-short:lg:mt-2 h-short:lg:text-lg h-short:lg:leading-7 2xl:text-[1.625rem]">
+          <p className="hero-entrance hero-entrance--category mt-5 max-w-[820px] text-balance text-[1.375rem] font-medium leading-8 tracking-[0.0125em] text-[#596078] sm:mt-6 sm:text-[1.5625rem] lg:text-[1.875rem] lg:leading-9 h-compact:sm:mt-4 h-compact:lg:text-[1.5625rem] h-compact:lg:leading-8 h-short:lg:mt-2 h-short:lg:text-[1.375rem] h-short:lg:leading-7 2xl:text-[2rem]">
             Finds prospects. Reaches out. Converts. You close.
           </p>
+          </div>
 
-          <form onSubmit={handleSubmit} className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] sm:mt-9 h-compact:sm:mt-6 h-short:lg:mt-3" noValidate>
+          <form
+            ref={fiberTargetRef}
+            data-fiber-flow-target
+            onSubmit={handleSubmit}
+            className="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] justify-self-center sm:mt-9 lg:row-start-2 lg:mt-0 h-compact:sm:mt-6 h-short:lg:mt-3"
+            noValidate
+          >
             <div
               ref={waveTargetRef}
-              data-fiber-flow-target
               data-invalid={errorMessage && phase === "idle" ? "true" : undefined}
               className={cn(
                 "hero-analyzer flex min-h-20 items-center rounded-[22px] border border-transparent p-2 shadow-[0_18px_45px_rgba(66,42,148,0.10)] transition-[box-shadow] duration-300 focus-within:shadow-[0_18px_45px_rgba(66,42,148,0.16),0_0_0_3px_rgba(124,58,237,0.10),0_0_30px_rgba(99,102,241,0.14)] max-sm:flex-col max-sm:items-stretch max-sm:gap-2 max-sm:rounded-2xl",
@@ -296,16 +267,18 @@ export default function HeroSection() {
             </div>
           </form>
 
+          <div className="flex w-full flex-col items-center lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
+          <p className="hero-entrance hero-entrance--description mt-6 max-w-[900px] text-balance text-base leading-7 text-[#66708b] sm:mt-7 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
+            <span className="font-semibold text-[#171729]">LeadReacher automates customer acquisition from start to finish.</span>{" "}
+            It scrapes for prospects, creates personalized content and runs social outreach campaigns that convert. <span className="font-semibold text-[#5b41ef]">All you have to do is reply.</span>
+          </p>
+
           <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center text-center sm:mt-5 h-compact:sm:mt-3 h-short:lg:mt-2">
-            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#090d1d] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
-              <span className="block">Including personalized video outreach,</span>
-              <span className="block">created <span className="text-[#4f46e5]">one prospect at a time</span>, delivered via social media DM.</span>
+            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#171729] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
+              <span className="block"><span className="inline-flex items-center gap-1.5"><SquarePlay className="size-4 text-[#5b41ef] sm:size-5" aria-hidden />The net's first <span className="text-[#5b41ef]">personalized video outreach</span>,</span></span>
+              <span className="block">created <span className="text-[#5b41ef]">one prospect at a time</span>, delivered via social media DM.</span>
             </p>
           </div>
-
-          <p className="hero-entrance hero-entrance--description mt-4 max-w-[900px] text-balance text-base leading-7 text-[#596078] sm:mt-5 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
-            LeadReacher is an automated customer acquisition engine that finds prospects, creates personalized content and runs social outreach campaigns that convert. <span className="font-medium text-[#4f46e5]">All you have to do is reply.</span>
-          </p>
 
           <AnalysisStatusPanel phase={phase} activeStep={activeStep} errorMessage={errorMessage} onRetry={handleRetry} />
 
@@ -316,9 +289,7 @@ export default function HeroSection() {
               </li>
             ))}
           </ul>
-          <button type="button" onClick={handleHowItWorksScroll} aria-label="See how LeadReacher works" style={{ marginTop: "clamp(0.75rem, 1.5vh, 1rem)" }} className="hero-entrance hero-entrance--scroll hero-scroll-cue relative z-10 mb-4 flex flex-col items-center gap-2 pt-2 text-sm font-medium text-[#656b80] transition-colors hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] max-sm:hidden h-compact:lg:mb-3 h-compact:lg:gap-1 h-compact:lg:text-xs h-short:lg:mb-0">
-            <ArrowDown className="size-6 h-compact:lg:size-5" aria-hidden /> <span className="max-sm:sr-only">See how it works</span>
-          </button>
+          </div>
         </main>
       </div>
     </section>
