@@ -370,22 +370,6 @@ model ManualDeliveryAttempt {
   @@index([state, reservedAt])
 }
 
-model AnalyticsEvent {
-  id             String   @id @default(cuid())
-  orgId          String
-  campaignId     String?
-  messageId      String?
-  leadId         String?
-  eventType      String // 'sent' | 'delivered' | 'opened' | 'replied' | 'bounced' | 'converted' | 'skipped'
-  channel        String
-  metadata       Json?
-  webhookEventId String?  @unique
-  timestamp      DateTime @default(now())
-
-  @@index([orgId, campaignId])
-  @@index([orgId, timestamp])
-}
-
 model SocialAccount {
   id                      String                   @id @default(cuid())
   orgId                   String
