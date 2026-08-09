@@ -35,20 +35,6 @@ export async function acquireDeliveryReservation(
   }
 }
 
-export async function markDeliveryReservationSent(
-  attemptId: string,
-  providerRef?: string,
-): Promise<void> {
-  await prisma.deliveryAttempt.update({
-    where: { id: attemptId },
-    data: {
-      state: "sent",
-      sentAt: new Date(),
-      ...(providerRef ? { providerRef } : {}),
-    },
-  });
-}
-
 /**
  * Network failures and crashes can occur after the provider accepted a send.
  * Such reservations are deliberately never retried automatically.

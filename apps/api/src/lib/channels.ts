@@ -31,8 +31,6 @@ export const UNIPILE_CONNECT_PROVIDERS = [
   "MAIL",
 ] as const;
 
-export type UnipileConnectProvider = (typeof UNIPILE_CONNECT_PROVIDERS)[number];
-
 const STEP_CHANNEL: Record<SequenceStepType, OutreachChannel> = {
   linkedin_invite: "linkedin",
   linkedin_message: "linkedin",
@@ -72,21 +70,6 @@ export function normalizeUnipilePlatform(raw: string): OutreachChannel | string 
   }
   if (isOutreachChannel(value)) return value;
   return value;
-}
-
-export function connectProviderForPlatform(platform: string): UnipileConnectProvider {
-  switch (normalizeUnipilePlatform(platform)) {
-    case "whatsapp":
-      return "WHATSAPP";
-    case "facebook":
-      return "MESSENGER";
-    case "instagram":
-      return "INSTAGRAM";
-    case "email":
-      return "GOOGLE";
-    default:
-      return "LINKEDIN";
-  }
 }
 
 /** WhatsApp Unipile attendee id from an E.164-ish phone. */
