@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type FaqItem = readonly [question: string, answer: string];
@@ -44,10 +44,16 @@ export function FaqSectionCentered({
                 aria-expanded={isOpen}
                 aria-controls={panelId}
                 onClick={() => setOpenIndex(isOpen ? null : index)}
-                className="flex min-h-16 w-full items-center justify-between gap-5 py-4 text-left text-base font-medium text-[#1a1e30] outline-none transition-colors hover:text-[#4e28df] focus-visible:text-[#4e28df] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8b7fd4]"
+                className="group flex min-h-16 w-full items-center justify-between gap-5 py-4 text-left text-base font-medium text-[#1a1e30] outline-none transition-colors hover:text-[#4e28df] focus-visible:text-[#4e28df] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#8b7fd4]"
               >
                 <span>{question}</span>
-                <ChevronDown className={cn("size-5 shrink-0 text-[#6c7284] transition-transform duration-500 ease-in-out", isOpen && "rotate-180 text-[#4e28df]")} aria-hidden />
+                <span
+                  aria-hidden
+                  className={cn("relative size-5 shrink-0 text-[#6c7284] transition-transform duration-300 ease-out", isOpen && "rotate-45 text-[#4e28df]")}
+                >
+                  <span className="absolute left-1/2 top-1/2 h-px w-4 -translate-x-1/2 -translate-y-1/2 bg-current" />
+                  <span className="absolute left-1/2 top-1/2 h-4 w-px -translate-x-1/2 -translate-y-1/2 bg-current" />
+                </span>
               </button>
               <div id={panelId} role="region" aria-labelledby={triggerId} className={cn("grid transition-[grid-template-rows,opacity] duration-500 ease-in-out", isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0")}>
                 <div className="overflow-hidden"><p className="max-w-2xl pb-5 pr-10 text-sm leading-6 text-[#62697e]">{answer}</p></div>

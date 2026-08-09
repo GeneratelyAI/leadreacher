@@ -209,9 +209,9 @@ const SHOWCASE_CARDS = [
 
 export default function AcquisitionShowcase() {
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-16 pt-24 text-center sm:px-8 sm:pb-20 sm:pt-28 lg:px-10 lg:pb-24 lg:pt-32">
+    <div className="mx-auto max-w-7xl px-5 pb-16 pt-24 text-center sm:px-8 sm:pb-20 sm:pt-28 lg:px-10 lg:pb-24 lg:pt-32 large-desktop:max-w-[88rem] large-desktop:px-12 large-desktop:pb-28 large-desktop:pt-36">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#3034d7] 2xl:text-sm">What LeadReacher does</p>
-      <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-7xl">
+      <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-7xl large-desktop:max-w-5xl large-desktop:text-[5rem]">
         Customer acquisition
         <br />
         that runs <ShimmerText className="text-[#4f46e5]">itself.</ShimmerText>
@@ -220,11 +220,11 @@ export default function AcquisitionShowcase() {
         We combine AI, social channels and personalized video to find, reach and convert your ideal customers - on autopilot.
       </p>
 
-      <div className="relative mt-12 grid gap-10 text-left sm:mt-16 lg:grid-cols-3 lg:gap-8">
+      <div className="relative mt-12 grid gap-10 text-left sm:mt-16 lg:grid-cols-3 lg:gap-8 large-desktop:gap-10">
         {SHOWCASE_CARDS.map((card, index) => (
           <div key={card.label} className="relative">
             <SpotlightCard className="overflow-visible border-[#e5e2f0]/80 bg-white/35 p-4 shadow-[0_18px_38px_rgba(55,42,112,.045)] sm:p-5">
-              <div className="flex min-h-[290px] items-center justify-center rounded-xl bg-[radial-gradient(circle_at_50%_52%,rgba(233,229,255,.9),rgba(248,248,253,.35)_62%,transparent)]">
+              <div className="flex min-h-[290px] items-center justify-center rounded-xl bg-[radial-gradient(circle_at_50%_52%,rgba(233,229,255,.9),rgba(248,248,253,.35)_62%,transparent)] large-desktop:min-h-[320px]">
                 {index === 0 ? <OrbitNetwork /> : index === 1 ? <ChannelFlow /> : <ReviewPreview />}
               </div>
             </SpotlightCard>
@@ -243,7 +243,7 @@ export default function AcquisitionShowcase() {
         ))}
       </div>
 
-      <div className="mx-auto mt-14 flex max-w-3xl items-center gap-4 rounded-2xl border border-[#e3e0ef] bg-white/45 px-5 py-4 text-left shadow-[0_12px_28px_rgba(55,42,112,.045)] backdrop-blur-sm sm:mt-16 sm:px-7 sm:py-5">
+      <div className="mx-auto mt-14 flex max-w-3xl items-center gap-4 rounded-2xl border border-[#e3e0ef] bg-white/45 px-5 py-4 text-left shadow-[0_12px_28px_rgba(55,42,112,.045)] backdrop-blur-sm sm:mt-16 sm:px-7 sm:py-5 large-desktop:max-w-[52rem] large-desktop:px-8 large-desktop:py-6">
         <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-[#4f46e5] shadow-sm"><Check className="size-6" strokeWidth={3} aria-hidden /></span>
         <p className="text-sm leading-6 text-[#394064] sm:text-base"><strong className="font-semibold">AI + human touch. Built for B2B. Focused on results.</strong><br />Fully done-for-you. You reply and close.</p>
       </div>

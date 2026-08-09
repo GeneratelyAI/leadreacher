@@ -6,7 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 
 export default function Home() {
   return (
-    <div className="relative min-h-dvh overflow-x-clip bg-brand-bg text-neutral-900">
+    <div className="landing-page relative min-h-dvh overflow-x-clip bg-brand-bg text-neutral-900">
       <Navbar />
       <HeroSection />
       <LandingMotionProvider>

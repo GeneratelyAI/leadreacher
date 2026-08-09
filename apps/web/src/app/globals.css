@@ -1,4 +1,16 @@
 @import "tailwindcss";
+
+.pricing-dots {
+  background-color: #f7f6ff;
+  background-image:
+    radial-gradient(circle at 50% -8%, rgba(153, 132, 255, 0.24), transparent 38rem),
+    radial-gradient(circle at 0% 48%, rgba(194, 173, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 100% 76%, rgba(143, 183, 255, 0.13), transparent 32rem),
+    radial-gradient(circle, rgba(83, 38, 183, 0.1) 1px, transparent 1.2px);
+  background-position: center top, left center, right bottom, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 20px 20px;
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "../styles/tokens.css";
@@ -9,7 +21,52 @@
 @custom-variant h-short (@media (max-height: 680px));
 @custom-variant h-comfortable (@media (min-height: 1000px));
 @custom-variant h-spacious (@media (min-height: 1200px));
+@custom-variant large-desktop (@media (min-width: 96rem) and (min-height: 53.125rem));
 @config "../../tailwind.config.ts";
+
+::view-transition-group(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+  mix-blend-mode: normal;
+}
+
+.route-transition-forward::view-transition-old(root) {
+  animation-name: route-page-exit-left;
+}
+
+.route-transition-forward::view-transition-new(root) {
+  animation-name: route-page-enter-right;
+}
+
+.route-transition-backward::view-transition-old(root) {
+  animation-name: route-page-exit-right;
+}
+
+.route-transition-backward::view-transition-new(root) {
+  animation-name: route-page-enter-left;
+}
+
+@keyframes route-page-exit-left {
+  to { transform: translate3d(-100%, 0, 0); }
+}
+
+@keyframes route-page-enter-right {
+  from { transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes route-page-exit-right {
+  to { transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes route-page-enter-left {
+  from { transform: translate3d(-100%, 0, 0); }
+}
 
 :root {
   /* Match the canvas fill used beneath the landing hero's fiber flow. */
@@ -76,13 +133,6 @@
 
 .landing-light-surface {
   background-color: var(--landing-light-bg);
-}
-
-/* Keep lower landing sections in the accessibility tree while deferring their
-   layout and paint cost until they approach the viewport. */
-.landing-deferred-render {
-  content-visibility: auto;
-  contain-intrinsic-block-size: auto 900px;
 }
 
 @theme inline {
@@ -1180,64 +1230,166 @@ html {
   }
 }
 
-/* Preserve the original large-desktop composition. Responsive height
-   compression is reserved for narrower laptops, where the full composition
-   genuinely needs to be reflowed to stay visible. */
+/* Use one deliberately dense desktop composition instead of treating every
+   1280px+ viewport as an ultra-wide canvas. This matches the complete, calm
+   layout users see when zooming out while keeping browser zoom untouched. */
 @media (min-width: 80rem) {
   #top {
-    min-height: 100svh;
+    min-height: calc(100svh - 2rem);
   }
 
   .hero-shell {
-    min-height: 100svh;
-    padding-top: 8rem;
-    padding-bottom: 2rem;
+    min-height: calc(100svh - 2rem);
+    padding-top: clamp(5.75rem, 10vh, 7rem);
+    padding-bottom: clamp(1.25rem, 2.5vh, 1.75rem);
   }
 
   .hero-composition .hero-eyebrow-liquid {
-    margin-top: 1.25rem;
+    margin-top: clamp(0.75rem, 1.5vh, 1.125rem);
   }
 
   .hero-composition h1 {
-    margin-top: 2.25rem;
-    font-size: 5.5rem;
+    margin-top: clamp(1.5rem, 3.25vh, 2rem);
+    font-size: clamp(4.75rem, 5.6vw, 5rem);
     line-height: 1.06;
   }
 
   .hero-composition .hero-entrance--category {
-    margin-top: 1.5rem;
-    font-size: 1.5rem;
-    line-height: 2.25rem;
+    margin-top: clamp(1rem, 2.5vh, 1.25rem);
+    font-size: clamp(1.25rem, 1.5vw, 1.375rem);
+    line-height: 1.875rem;
   }
 
   .hero-composition .hero-entrance--analyzer {
-    margin-top: 2.25rem;
+    margin-top: clamp(1.25rem, 3vh, 1.75rem);
+    max-width: 46rem;
   }
 
   .hero-composition .hero-entrance--video {
-    margin-top: 1.25rem;
+    margin-top: clamp(0.75rem, 1.75vh, 1rem);
   }
 
   .hero-composition .hero-entrance--description {
-    margin-top: 1.25rem;
-    font-size: 1.25rem;
-    line-height: 1.75rem;
+    margin-top: clamp(0.75rem, 1.75vh, 1rem);
+    max-width: 48rem;
+    font-size: clamp(1.0625rem, 1.3vw, 1.125rem);
+    line-height: 1.625rem;
   }
 
   .hero-composition .hero-status-reserve {
-    min-height: 5.125rem;
-    padding-top: 1.75rem;
+    min-height: 3.75rem;
+    padding-top: clamp(0.75rem, 1.75vh, 1rem);
+  }
+
+  .hero-composition .hero-status-reserve:empty {
+    min-height: 1rem;
+    padding-top: 0.5rem;
   }
 
   .hero-composition .hero-entrance--trust {
+    margin-top: clamp(0.75rem, 1.75vh, 1.25rem);
+    font-size: 0.8125rem;
+  }
+
+  .hero-composition[data-analysis-phase="running"] .hero-entrance--trust,
+  .hero-composition[data-analysis-phase="failed"] .hero-entrance--trust {
     margin-top: 0.5rem;
-    font-size: 0.875rem;
+  }
+
+  .hero-composition[data-analysis-phase="running"] .hero-scroll-cue {
+    display: none;
   }
 
   .hero-composition .hero-scroll-cue {
-    margin-bottom: 1rem;
-    gap: 0.5rem;
-    padding-top: 1.5rem;
+    position: relative;
+    bottom: auto;
+    margin-top: auto;
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+    gap: 0;
+    padding-top: 0;
+    font-size: 0.8125rem;
+  }
+
+  .hero-composition .hero-scroll-cue > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* A roomy desktop gets the visual density of one browser zoom step without
+   changing browser zoom or scaling the page as a bitmap. MacBook-sized
+   viewports remain on the 80rem composition above. */
+@media (min-width: 96rem) and (min-height: 53.125rem) {
+  .landing-page .landing-navbar-logo {
+    height: 1.8rem;
+  }
+
+  .landing-page .hero-shell {
+    max-width: 105rem;
+    padding-right: 4rem;
+    padding-left: 4rem;
+  }
+
+  .landing-page .hero-composition .hero-eyebrow-liquid {
+    font-size: 0.9375rem;
+  }
+
+  .landing-page .hero-composition h1 {
+    max-width: 64rem;
+    font-size: 5.5rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--category {
+    max-width: 56rem;
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--analyzer {
+    max-width: 51rem;
+  }
+
+  .landing-page .hero-analyzer {
+    min-height: 5.5rem;
+  }
+
+  .landing-page .hero-analyzer input,
+  .landing-page .hero-analyzer button {
+    height: 3.75rem;
+    font-size: 1.125rem;
+  }
+
+  .landing-page .hero-analyzer button {
+    min-width: 17rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--video p {
+    max-width: 52rem;
+    font-size: 1.25rem;
+    line-height: 2rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--description {
+    max-width: 54rem;
+    font-size: 1.25rem;
+    line-height: 1.875rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--trust {
+    font-size: 0.9375rem;
+  }
+
+  .landing-page .hero-composition .hero-trust-item {
+    min-width: 15rem;
+  }
+
+  .landing-page .hero-composition .hero-trust-icon {
+    width: 2.625rem;
+    height: 2.625rem;
+  }
+
+  .landing-page .hero-composition .hero-scroll-cue {
     font-size: 0.875rem;
   }
 }
@@ -3605,8 +3757,8 @@ html[data-page="discovery"].dark body {
 
 /* Theme toggle view transition - disable default crossfade so the circle reveal owns the motion */
 @supports (view-transition-name: none) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-old(root),
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
   }

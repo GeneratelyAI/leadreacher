@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { m, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
@@ -56,12 +56,12 @@ const faqs = [
 
 function DifferentiationSection() {
   return (
-    <section data-navbar-theme="light" className="landing-deferred-render relative z-10 -mt-7 rounded-t-[28px] bg-white py-16 sm:-mt-9 sm:rounded-t-[40px] sm:py-24 lg:py-28">
-      <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10">
+    <section data-navbar-theme="light" className="relative z-10 -mt-7 isolate overflow-hidden rounded-t-[28px] bg-white py-16 sm:-mt-9 sm:rounded-t-[40px] sm:py-24 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
         <div className="grid items-center gap-14 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
           <div>
             <p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Trust and differentiation</p>
-            <h2 className="mt-4 max-w-lg text-balance text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl 2xl:text-6xl">Why LeadReacher is different.</h2>
+            <h2 className="mt-4 max-w-lg text-balance text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl 2xl:text-6xl large-desktop:max-w-xl large-desktop:text-[4.125rem]">Why LeadReacher is different.</h2>
             <p className="mt-6 max-w-lg text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">The repetitive work stays visible, reviewable, and coordinated. You keep control of what reaches a prospect.</p>
           </div>
           <div className="grid overflow-hidden rounded-lg border border-[#dedbea] shadow-[0_20px_60px_rgba(38,27,87,0.08)] sm:grid-cols-2">
@@ -137,10 +137,10 @@ function ApprovalSection() {
     setActiveTab(approvalTabs[(current + direction + approvalTabs.length) % approvalTabs.length]);
   };
   return (
-    <section data-navbar-theme="dark" className="landing-deferred-render relative z-20 -mt-7 overflow-hidden rounded-t-[28px] bg-[#111318] py-16 text-white sm:-mt-9 sm:rounded-t-[40px] sm:py-24 lg:py-28">
+    <section data-navbar-theme="dark" className="relative z-20 -mt-7 isolate overflow-hidden rounded-t-[28px] bg-[#111318] py-16 text-white sm:-mt-9 sm:rounded-t-[40px] sm:py-24 lg:py-28">
       <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,rgba(17,19,24,.86),rgba(17,19,24,.48)_48%,rgba(17,19,24,.7))]" />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[0.62fr_1.38fr] lg:px-10">
-        <div><p className="text-xs font-semibold uppercase text-[#ae9bff]">You are always in control</p><h2 className="mt-4 text-balance text-4xl font-semibold leading-tight text-white">Nothing goes live until you approve it.</h2><p className="mt-5 text-base leading-7 text-white/64">Review the people, message sequence, channel routing, and video choice before launch.</p><ul className="mt-7 space-y-4 text-sm font-medium text-white/82">{[[UserCheck, "Review and approve prospects"], [FilePenLine, "Edit personalized messages"], [Video, "Watch and approve video choices"]].map(([Icon, text]) => { const ItemIcon = Icon as typeof UserCheck; return <li key={text as string} className="flex items-center gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#6842f5] text-white ring-1 ring-white/15"><ItemIcon className="size-3.5" /></span>{text as string}</li>; })}</ul></div>
+      <div className="relative mx-auto grid max-w-7xl items-center gap-14 px-5 sm:px-8 lg:grid-cols-[0.62fr_1.38fr] lg:px-10 large-desktop:max-w-[88rem] large-desktop:gap-16 large-desktop:px-12">
+        <div><p className="text-xs font-semibold uppercase text-[#ae9bff] large-desktop:text-sm">You are always in control</p><h2 className="mt-4 text-balance text-4xl font-semibold leading-tight text-white large-desktop:text-[2.75rem]">Nothing goes live until you approve it.</h2><p className="mt-5 text-base leading-7 text-white/64 large-desktop:text-lg large-desktop:leading-8">Review the people, message sequence, channel routing, and video choice before launch.</p><ul className="mt-7 space-y-4 text-sm font-medium text-white/82 large-desktop:text-base">{[[UserCheck, "Review and approve prospects"], [FilePenLine, "Edit personalized messages"], [Video, "Watch and approve video choices"]].map(([Icon, text]) => { const ItemIcon = Icon as typeof UserCheck; return <li key={text as string} className="flex items-center gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#6842f5] text-white ring-1 ring-white/15"><ItemIcon className="size-3.5" /></span>{text as string}</li>; })}</ul></div>
         <ScrollExpansion><div onKeyDown={(event) => { if (event.key === "ArrowRight") moveTab(1); if (event.key === "ArrowLeft") moveTab(-1); }}><ApprovalPreview activeTab={activeTab} onTabChange={setActiveTab} /></div></ScrollExpansion>
       </div>
     </section>
@@ -154,8 +154,8 @@ function PricingAndFaqSection() {
     { title: "Conversations visible", description: "Replies arrive with their campaign context intact.", icon: MessagesSquare, eyebrow: "Chat", status: "Live context", accent: "green" as const },
   ] as const;
   return (
-    <section id="pricing" data-navbar-theme="light" className="landing-deferred-render relative z-40 -mt-7 overflow-hidden scroll-mt-20 rounded-t-[28px] rounded-b-[28px] bg-white py-16 sm:-mt-9 sm:rounded-t-[40px] sm:rounded-b-[40px] sm:py-24 lg:py-28">
-      <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10">
+    <section id="pricing" data-navbar-theme="light" className="relative z-40 -mt-7 isolate overflow-hidden scroll-mt-20 rounded-[28px] bg-white py-16 sm:-mt-9 sm:rounded-[40px] sm:py-24 lg:py-28">
+      <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
         <div id="resources" className="scroll-mt-24">
           <FaqSectionCentered items={faqs} eyebrow="Questions? We have answers." heading="Know what happens before you start." description="Clear answers about setup, channels, review, personalization, and campaign control." supportEmail="support@leadreacher.com" />
         </div>
@@ -168,28 +168,30 @@ function PricingAndFaqSection() {
   );
 }
 
-function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
+export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
   const reducedMotion = useReducedMotion();
 
   return (
     <footer data-navbar-theme={navbarDark ? "dark" : undefined} className="relative z-30 mt-0 overflow-hidden bg-[linear-gradient(180deg,#0b0d19_0%,#080a14_100%)] px-4 pb-[max(2rem,var(--safe-area-bottom))] pt-20 text-white min-[360px]:px-5 sm:px-8 sm:pb-10 sm:pt-28 md:pt-32">
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-80 bg-[radial-gradient(circle_at_50%_0%,rgba(93,64,224,.14),transparent_62%)]" />
       <m.div
-        initial={reducedMotion ? false : { opacity: 0, y: 28 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.12 }}
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ duration: reducedMotion ? 0.1 : 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10"
       >
-        <section className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-[#111427] px-6 py-10 shadow-[0_30px_90px_rgba(0,0,0,.28)] sm:px-10 sm:py-12 lg:px-14">
+        <section className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-[#111427] px-6 py-10 shadow-[0_30px_90px_rgba(0,0,0,.28)] sm:px-10 sm:py-12 lg:px-14 large-desktop:max-w-[88rem] large-desktop:px-16 large-desktop:py-14">
           <div className="relative grid items-center gap-9 lg:grid-cols-[1.2fr_.8fr] lg:gap-16">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm"><Sparkles className="size-4" /> Start with your website</div>
-              <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl 2xl:text-6xl">Drop your URL. We’ll take it from there.</h2>
+              <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl 2xl:text-6xl large-desktop:max-w-4xl large-desktop:text-[4.125rem]">Drop your URL. We’ll take it from there.</h2>
               <p className="mt-4 max-w-xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">See how LeadReacher turns your business into a reviewable audience, campaign, and outreach workflow.</p>
             </div>
             <div className="lg:justify-self-end">
-              <Link href="#top" className="group flex h-14 w-full items-center justify-between rounded-lg bg-[#5a32ed] px-5 font-semibold text-white shadow-[0_14px_36px_rgba(90,50,237,.36)] transition-colors hover:bg-[#6842f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-80">Analyze my website <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" /></Link>
+              <Link href="#top" className="group relative flex h-14 w-full items-center justify-center rounded-lg bg-[#5a32ed] px-12 font-semibold text-white shadow-[0_14px_36px_rgba(90,50,237,.36)] transition-colors hover:bg-[#6842f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:w-80">
+                <span>Analyze my website</span>
+                <ArrowRight className="absolute right-5 size-5 transition-transform group-hover:translate-x-1" aria-hidden />
+              </Link>
               <p className="mt-3 text-center text-xs text-white/50">No credit card required</p>
             </div>
           </div>
@@ -200,72 +202,30 @@ function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
           </div>
         </section>
 
-        <div className="mx-auto grid max-w-7xl gap-12 px-1 pb-4 pt-14 md:grid-cols-[1.5fr_repeat(3,1fr)] lg:gap-16">
+        <div className="mx-auto grid max-w-7xl gap-12 px-1 pb-4 pt-14 md:grid-cols-[1.5fr_repeat(3,1fr)] lg:gap-16 large-desktop:max-w-[88rem] large-desktop:pt-16">
           <div>
             <Logo variant="white" align="left" className="h-8" />
             <p className="mt-5 max-w-sm text-sm leading-6 text-white/62">Multi-channel outreach and personalized video in one clear, reviewable workflow.</p>
             <a href="mailto:support@leadreacher.com" className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-white/78 transition-colors hover:text-white"><Mail className="size-4 text-[#a994ff]" /> support@leadreacher.com</a>
           </div>
-          <nav aria-label="Product links"><p className="text-sm font-semibold text-white">Product</p><div className="mt-5 space-y-3 text-sm text-white/58"><a href="#product" className="block transition-colors hover:text-white">Product tour</a><a href="#how-it-works" className="block transition-colors hover:text-white">How it works</a><a href="#pricing" className="block transition-colors hover:text-white">Pricing</a></div></nav>
+          <nav aria-label="Product links"><p className="text-sm font-semibold text-white">Product</p><div className="mt-5 space-y-3 text-sm text-white/58"><a href="/#product" className="block transition-colors hover:text-white">Product tour</a><a href="/#how-it-works" className="block transition-colors hover:text-white">How it works</a><a href="/pricing" className="block transition-colors hover:text-white">Pricing</a></div></nav>
           <nav aria-label="Resource links"><p className="text-sm font-semibold text-white">Resources</p><div className="mt-5 space-y-3 text-sm text-white/58"><a href="mailto:support@leadreacher.com" className="block transition-colors hover:text-white">Help center</a><Link href="/privacy" className="block transition-colors hover:text-white">Privacy</Link><Link href="/terms" className="block transition-colors hover:text-white">Terms</Link></div></nav>
           <nav aria-label="Account links"><p className="text-sm font-semibold text-white">Account</p><div className="mt-5 space-y-3 text-sm text-white/58"><Link href="/signup" className="block transition-colors hover:text-white">Get started</Link><Link href="/login" className="block transition-colors hover:text-white">Log in</Link></div></nav>
         </div>
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-1 pt-6 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between"><p>© 2026 LeadReacher. All rights reserved.</p><p>Built for visible, reviewable outreach.</p></div>
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-1 pt-6 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between large-desktop:max-w-[88rem]"><p>© 2026 LeadReacher. All rights reserved.</p><p>Built for visible, reviewable outreach.</p></div>
       </m.div>
     </footer>
   );
 }
 
 function FooterReveal() {
-  const footerShellRef = useRef<HTMLDivElement>(null);
-  const [footerHeight, setFooterHeight] = useState(0);
-  const [navbarDark, setNavbarDark] = useState(false);
-
-  useEffect(() => {
-    const footerShell = footerShellRef.current;
-    if (!footerShell) return;
-
-    const updateHeight = () => setFooterHeight(footerShell.getBoundingClientRect().height);
-    const resizeObserver = new ResizeObserver(updateHeight);
-    resizeObserver.observe(footerShell);
-    updateHeight();
-
-    return () => resizeObserver.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const updateTheme = () => {
-      const pricing = document.querySelector<HTMLElement>("#pricing");
-      if (!pricing) return;
-      setNavbarDark(pricing.getBoundingClientRect().bottom <= window.innerHeight - 1);
-    };
-
-    updateTheme();
-    window.addEventListener("scroll", updateTheme, { passive: true });
-    window.addEventListener("resize", updateTheme);
-
-    return () => {
-      window.removeEventListener("scroll", updateTheme);
-      window.removeEventListener("resize", updateTheme);
-    };
-  }, []);
-
   return (
-    <div
-      className="relative bg-[#111318] pt-7 sm:pt-9 md:pb-[var(--landing-footer-height)]"
-      style={{ ["--landing-footer-height" as string]: `${footerHeight}px` }}
-    >
-      <div className="relative z-10">
+    <div className="relative z-30 isolate bg-[#111318]">
+      <div className="relative z-10 bg-[#111318]">
         <PricingAndFaqSection />
       </div>
-      <div
-        ref={footerShellRef}
-        className={cn(
-          "relative z-0 md:fixed md:inset-x-0 md:bottom-0",
-          navbarDark ? "md:visible" : "md:invisible",
-        )}
-      >
-        <FinalCtaAndFooter navbarDark={navbarDark} />
+      <div className="relative z-0 md:sticky md:bottom-0">
+        <FinalCtaAndFooter navbarDark />
       </div>
     </div>
   );

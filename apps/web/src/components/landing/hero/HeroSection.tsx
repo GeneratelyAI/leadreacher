@@ -134,7 +134,7 @@ export default function HeroSection() {
     <section id="top" data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
       <HeroBackground />
       <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-22 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
-        <main className="hero-composition flex flex-1 flex-col items-center text-center">
+        <main data-analysis-phase={phase} className="hero-composition flex flex-1 flex-col items-center text-center">
           {/* Tailwind classes belong on LiquidButton, not the slotted child: `asChild`
               concatenates the child's className instead of running it through twMerge,
               so anything set there loses to the variant defaults. */}

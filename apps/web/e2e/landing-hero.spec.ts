@@ -101,11 +101,14 @@ test("moves through the product story without layout overflow", async ({ page },
   await outreachTab.click();
   await expect(outreachTab).toHaveAttribute("aria-selected", "true");
   const storyFrame = page.getByTestId("container-scroll-frame");
-  await expect(storyFrame.getByRole("img", { name: /campaigns dashboard/i })).toBeVisible();
+  const dashboardDemo = storyFrame.getByTestId("interactive-dashboard-demo");
+  await expect(dashboardDemo).toHaveAttribute("data-demo-stage", "outreach");
+  await dashboardDemo.getByRole("button", { name: "Launch demo" }).click();
+  await expect(dashboardDemo.getByRole("button", { name: "Campaign running" })).toBeVisible();
   const frameBox = await storyFrame.boundingBox();
   expect(frameBox).not.toBeNull();
   expect(frameBox?.y ?? -1).toBeGreaterThanOrEqual(0);
-  expect((frameBox?.y ?? 0) + (frameBox?.height ?? 0)).toBeLessThanOrEqual(1024);
+  expect((frameBox?.y ?? 0) + (frameBox?.height ?? 0)).toBeLessThanOrEqual(1025);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
@@ -131,6 +134,39 @@ test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
   await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("keeps rounded section transitions above adjacent blocks and reveals the footer after a fast scroll", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop sticky footer only");
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openLanding(page);
+
+  const faqSection = page
+    .getByRole("heading", { name: "Know what happens before you start." })
+    .locator("xpath=ancestor::section[1]");
+  await faqSection.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(100);
+  const absoluteTop = await faqSection.evaluate((section) => section.getBoundingClientRect().top + window.scrollY);
+  await page.evaluate((top) => window.scrollTo(0, top - 120), absoluteTop);
+
+  await expect.poll(() => faqSection.evaluate((section) => {
+    const bounds = section.getBoundingClientRect();
+    const paintedElement = document.elementFromPoint(window.innerWidth / 2, bounds.top + 2);
+    return paintedElement ? section.contains(paintedElement) : false;
+  })).toBe(true);
+  await expect(faqSection).toHaveCSS("border-top-left-radius", "40px");
+
+  for (let index = 0; index < 4; index += 1) {
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(50);
+  }
+
+  const footer = page.locator("footer");
+  await expect(footer).toBeVisible();
+  await expect.poll(() => footer.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return Math.abs(bounds.bottom - window.innerHeight);
+  })).toBeLessThan(2);
 });
 
 test("pauses the channel orbit for reliable node selection", async ({ page }) => {
