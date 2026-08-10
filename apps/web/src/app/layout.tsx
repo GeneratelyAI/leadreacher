@@ -28,9 +28,9 @@ export const metadata: Metadata = {
     title: "leadreacher",
   },
   icons: {
-    icon: [{ url: "/logo/leadreacher_icon_colored.svg?v=2", type: "image/svg+xml" }],
-    shortcut: ["/logo/leadreacher_icon_colored.svg?v=2"],
-    apple: [{ url: "/logo/leadreacher_icon_colored.svg?v=2", type: "image/svg+xml" }],
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    shortcut: ["/icon.svg"],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
 };
 

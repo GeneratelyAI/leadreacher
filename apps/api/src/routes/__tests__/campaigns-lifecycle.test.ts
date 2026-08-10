@@ -323,7 +323,7 @@ describe("campaign lifecycle routes", () => {
       channels: ["linkedin"],
       sequence: [{ type: "linkedin_invite", message: "Review this connection note before launch.", delayHours: 0 }],
       aiConfig: { source: "onboarding", requiresSequenceReview: true },
-      leads: [{ id: "campaign-lead-1" }],
+      leads: [{ id: "campaign-lead-1", lead: { reviewStatus: "approved" } }],
       senderAccount: { id: "sender-1", platform: "linkedin", status: "active" },
     });
 

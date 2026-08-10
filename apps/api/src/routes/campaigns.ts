@@ -545,7 +545,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         },
       });
       await Promise.all(retryableAssets.map((asset) => videoGenerationQueue.add(
-        "retry-personalized-video",
+        "retry-campaign-video",
         {
           orgId,
           campaignId,

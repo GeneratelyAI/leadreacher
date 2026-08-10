@@ -329,8 +329,9 @@ describe("onboarding backend in Stripe mock mode", () => {
     expect(complete.json()).toEqual({
       completed: true,
       campaignId: "campaign-onboarding-e2e",
-      launched: true,
-      jobCount: 1,
+      launched: false,
+      reviewRequired: true,
+      prospectCount: 1,
     });
     expect(state.organization.onboardedAt).toBeInstanceOf(Date);
   });

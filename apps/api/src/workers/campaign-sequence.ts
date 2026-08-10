@@ -37,7 +37,7 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "../services/delivery-attempt.js";
-import { ensurePersonalizedVideoReady } from "../services/personalized-video.js";
+import { ensureCampaignVideoReady } from "../services/campaign-video.js";
 import { personalizeSequenceStep } from "../services/personalize-sequence-step.js";
 import { claimFirstChannelOutreach } from "../services/channel-outreach-claim.js";
 import { logOperationalInfo } from "../lib/operational-logger.js";
@@ -155,20 +155,20 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       });
 
       if (step === 0 && channel === "linkedin") {
-        const personalizedVideo = await ensurePersonalizedVideoReady({
+        const campaignVideo = await ensureCampaignVideoReady({
           orgId,
           campaignId: campaignLead.campaignId,
           leadId: campaignLead.leadId,
         });
-        if (personalizedVideo.state === "pending") {
+        if (campaignVideo.state === "pending") {
           await job.moveToDelayed(
             Date.now() + PERSONALIZED_VIDEO_WAIT_MS,
             job.token,
           );
           throw new DelayedError();
         }
-        if (personalizedVideo.state === "failed") {
-          throw new Error(`Personalized video is unavailable: ${personalizedVideo.reason}`);
+        if (campaignVideo.state === "failed") {
+          throw new Error(`Campaign video is unavailable: ${campaignVideo.reason}`);
         }
       }
 

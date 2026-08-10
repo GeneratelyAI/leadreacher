@@ -8,7 +8,7 @@
   "theme_color": "#020617",
   "icons": [
     {
-      "src": "/logo/leadreacher_icon_colored.svg?v=2",
+      "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml"
     }

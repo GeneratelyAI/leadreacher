@@ -119,6 +119,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           createdAt: true,
           updatedAt: true,
           unipileId: true,
+          metadata: true,
           campaignChannelAccounts: {
             select: {
               channel: true,
@@ -173,6 +174,13 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
         accountName: account.accountName,
         avatarUrl: account.avatarUrl,
         status: account.status,
+        providerType:
+          typeof account.metadata === "object" &&
+          account.metadata !== null &&
+          !Array.isArray(account.metadata) &&
+          typeof (account.metadata as Record<string, unknown>).providerType === "string"
+            ? (account.metadata as Record<string, unknown>).providerType
+            : null,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
         health,
@@ -313,6 +321,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           unipileId: account.id,
           accountName: account.name ?? account.id,
           status: accountStatus,
+          metadata: { providerType: account.type.toLowerCase() },
         },
       });
 

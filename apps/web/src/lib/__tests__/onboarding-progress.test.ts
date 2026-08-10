@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { resolveOnboardingResumeTarget } from "../onboarding-progress";
+import {
+  resolveAllowedOnboardingStep,
+  resolveOnboardingResumeTarget,
+} from "../onboarding-progress";
 
 const audienceComplete = {
   audienceAnalysisComplete: true,
@@ -45,5 +48,16 @@ describe("resolveOnboardingResumeTarget", () => {
         subscriptionStatus: "active",
       }),
     ).toEqual({ step: "channels" });
+  });
+});
+
+describe("resolveAllowedOnboardingStep", () => {
+  it("allows revisiting completed steps", () => {
+    expect(resolveAllowedOnboardingStep("strategy", "checkout")).toBe("strategy");
+  });
+
+  it("prevents direct URL jumps past persisted progress", () => {
+    expect(resolveAllowedOnboardingStep("channels", "strategy")).toBe("strategy");
+    expect(resolveAllowedOnboardingStep(null, "campaign-type")).toBe("campaign-type");
   });
 });

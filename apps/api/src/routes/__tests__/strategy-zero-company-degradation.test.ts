@@ -1,7 +1,6 @@
 import type { Strategy } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ValidationError } from "../../lib/errors.js";
-import { COMPANY_SEARCH_NO_RESULTS_REASON } from "../strategy-filters.js";
 
 const {
   searchCompanies,
@@ -87,7 +86,7 @@ beforeEach(() => {
 });
 
 describe("Strategy company-search degradation", () => {
-  it("keeps real decision-maker data when an attempted company search returns zero results", async () => {
+  it("keeps onboarding fast by deferring optional company enrichment", async () => {
     searchCompanies.mockResolvedValue({
       companies: [],
       totalFound: 0,
@@ -109,13 +108,14 @@ describe("Strategy company-search degradation", () => {
     expect(updateData.icpDefinition.audienceAnalysis).toMatchObject({
       companies: {
         status: "unavailable",
-        reason: COMPANY_SEARCH_NO_RESULTS_REASON,
+        reason: "Company-level insights are enriched after onboarding.",
         totalFound: 0,
       },
       decisionMakers: { totalFound: 1 },
       topIndustries: [],
     });
     expect(importScrapedProfiles).toHaveBeenCalledWith("org-1", [profile]);
+    expect(searchCompanies).not.toHaveBeenCalled();
   });
 
   it("still fails when the profile search returns zero decision makers", async () => {
@@ -132,6 +132,42 @@ describe("Strategy company-search degradation", () => {
       ValidationError,
     );
     expect(scrapeLeadsWithTotal).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects an off-target sample instead of importing irrelevant prospects", async () => {
+    const offTargetStrategy = {
+      ...strategy,
+      icpDefinition: { idealCustomer: "Marketing leaders" },
+    } as Strategy;
+    const offTargetProfile = {
+      ...profile,
+      title: "Clinical Hypnotherapist",
+    };
+    scrapeLeadsWithTotal.mockResolvedValue({
+      profiles: [offTargetProfile],
+      totalFound: 1,
+    });
+
+    await expect(generateStrategy(offTargetStrategy, "org-1")).rejects.toMatchObject({
+      message: expect.stringContaining("outside the selected decision-maker roles"),
+    });
+    expect(importScrapedProfiles).not.toHaveBeenCalled();
+  });
+
+  it("imports only matching roles when the provider returns a mixed sample", async () => {
+    const offTargetProfile = {
+      ...profile,
+      linkedinUrl: "https://www.linkedin.com/in/off-target",
+      title: "Clinical Hypnotherapist",
+    };
+    scrapeLeadsWithTotal.mockResolvedValue({
+      profiles: [profile, offTargetProfile],
+      totalFound: 2,
+    });
+
+    await expect(generateStrategy(strategy, "org-1")).resolves.toBeDefined();
+
+    expect(importScrapedProfiles).toHaveBeenCalledWith("org-1", [profile]);
   });
 
   it("uses a bounded role-keyword fallback when exact title filtering returns no rows", async () => {
@@ -152,7 +188,23 @@ describe("Strategy company-search degradation", () => {
         jobTitles: [],
         keywords: ["Founder", "CEO"],
       }),
-      50,
+      25,
+      { profileScraperMode: "Full" },
     );
+  });
+
+  it("still rejects an off-target keyword fallback sample", async () => {
+    const offTargetProfile = {
+      ...profile,
+      title: "Clinical Hypnotherapist",
+    };
+    scrapeLeadsWithTotal
+      .mockResolvedValueOnce({ profiles: [], totalFound: 0 })
+      .mockResolvedValueOnce({ profiles: [offTargetProfile], totalFound: 1 });
+
+    await expect(generateStrategy(strategy, "org-1")).rejects.toMatchObject({
+      message: expect.stringContaining("outside the selected decision-maker roles"),
+    });
+    expect(importScrapedProfiles).not.toHaveBeenCalled();
   });
 });

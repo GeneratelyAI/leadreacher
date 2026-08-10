@@ -2,7 +2,7 @@ import type { Strategy } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { ValidationError } from "../lib/errors.js";
+import { ForbiddenError, ValidationError } from "../lib/errors.js";
 import {
   buildPricingCatalog,
   parseVideoConfig,
@@ -20,8 +20,10 @@ import {
   createBillingPortalSession,
   createSubscriptionCheckoutSession,
   getStripePrice,
+  retrieveSubscriptionCheckoutSession,
   type StripePriceDisplay,
 } from "../lib/stripe.js";
+import { reconcileCompletedStripeCheckout } from "../services/stripe-subscription-sync.js";
 
 type BillingLineItem = CatalogLineItem & StripePriceDisplay;
 
@@ -76,6 +78,9 @@ async function getLatestStrategy(orgId: string): Promise<Strategy> {
 }
 
 const UrlResponseSchema = z.object({ url: z.string().nullable() });
+const CheckoutSessionReconcileSchema = z.object({
+  sessionId: z.string().min(1).max(255),
+});
 
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -146,6 +151,41 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
 
       const session = await createBillingPortalSession(organization.stripeCustomerId);
       return reply.send({ url: session.url });
+    },
+  );
+
+  r.post(
+    "/billing/checkout-session/reconcile",
+    {
+      schema: {
+        ...authenticatedRoute("Billing", "Reconcile a completed Stripe Checkout session"),
+        body: CheckoutSessionReconcileSchema,
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const session = await retrieveSubscriptionCheckoutSession(request.body.sessionId);
+      const sessionOrgId = session.metadata?.orgId ?? session.client_reference_id;
+      if (sessionOrgId !== orgId) {
+        throw new ForbiddenError("This checkout session does not belong to your organization");
+      }
+
+      if (session.status !== "complete") {
+        const organization = await prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { subscriptionStatus: true },
+        });
+        return reply.send({
+          checkoutStatus: session.status ?? "open",
+          subscriptionStatus: organization?.subscriptionStatus ?? null,
+        });
+      }
+
+      const result = await reconcileCompletedStripeCheckout(session);
+      return reply.send({
+        checkoutStatus: "complete",
+        subscriptionStatus: result.subscriptionStatus,
+      });
     },
   );
 }

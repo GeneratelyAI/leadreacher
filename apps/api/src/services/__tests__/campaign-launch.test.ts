@@ -55,8 +55,8 @@ const campaign = {
   aiConfig: { requiresSequenceReview: false },
   senderAccount: { id: "sender-1" },
   leads: [
-    { id: "campaign-lead-1", lead: { phone: null, providerWhatsappId: null } },
-    { id: "campaign-lead-2", lead: { phone: null, providerWhatsappId: null } },
+    { id: "campaign-lead-1", lead: { phone: null, providerWhatsappId: null, reviewStatus: "approved" } },
+    { id: "campaign-lead-2", lead: { phone: null, providerWhatsappId: null, reviewStatus: "approved" } },
   ],
 };
 
@@ -91,6 +91,28 @@ beforeEach(() => {
 });
 
 describe("launchCampaign", () => {
+  it("blocks launch while any enrolled prospect is still pending review", async () => {
+    campaignFindUnique.mockResolvedValue({
+      ...campaign,
+      leads: [
+        campaign.leads[0],
+        {
+          ...campaign.leads[1],
+          lead: { ...campaign.leads[1].lead, reviewStatus: "pending" },
+        },
+      ],
+    });
+
+    await expect(launchCampaign({
+      campaignId: "campaign-1",
+      orgId: "org-1",
+    })).rejects.toBeInstanceOf(ValidationError);
+
+    expect(resolveAndSyncCampaignChannelAccounts).not.toHaveBeenCalled();
+    expect(ensureCampaignStepZeroQueued).not.toHaveBeenCalled();
+    expect(campaignUpdate).not.toHaveBeenCalled();
+  });
+
   it("uses the shared guards and activates a campaign after all step-zero jobs are pending", async () => {
     ensureCampaignStepZeroQueued
       .mockResolvedValueOnce("enqueued")
@@ -165,6 +187,7 @@ describe("launchCampaign", () => {
           whatsappConsentAt: new Date("2026-07-20T12:00:00.000Z"),
           whatsappConsentSource: "website form",
           outreachSuppressedAt: null,
+          reviewStatus: "approved",
         },
       }],
     });

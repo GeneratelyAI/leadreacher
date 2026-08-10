@@ -20,7 +20,7 @@ const {
   sendConnectionInvite,
   sendMessageToChat,
   deliverSequenceStep1ViaChat,
-  ensurePersonalizedVideoReady,
+  ensureCampaignVideoReady,
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
   checkAndIncrementDailySendLimit,
@@ -37,7 +37,7 @@ const {
   sendConnectionInvite: vi.fn(),
   sendMessageToChat: vi.fn(),
   deliverSequenceStep1ViaChat: vi.fn(),
-  ensurePersonalizedVideoReady: vi.fn(),
+  ensureCampaignVideoReady: vi.fn(),
   acquireDeliveryReservation: vi.fn(),
   markDeliveryReservationUnknown: vi.fn(),
   checkAndIncrementDailySendLimit: vi.fn(),
@@ -97,8 +97,8 @@ vi.mock("../../services/entitlements.js", () => ({
     status: "active",
   })),
 }));
-vi.mock("../../services/personalized-video.js", () => ({
-  ensurePersonalizedVideoReady,
+vi.mock("../../services/campaign-video.js", () => ({
+  ensureCampaignVideoReady,
 }));
 vi.mock("../../services/delivery-attempt.js", () => ({
   acquireDeliveryReservation,
@@ -176,7 +176,7 @@ beforeEach(() => {
   sendConnectionInvite.mockReset().mockResolvedValue({});
   sendMessageToChat.mockReset().mockResolvedValue({ message_id: "message-1" });
   deliverSequenceStep1ViaChat.mockReset().mockResolvedValue({ delivered: true, chatId: "chat-1" });
-  ensurePersonalizedVideoReady.mockReset().mockResolvedValue({ state: "ready" });
+  ensureCampaignVideoReady.mockReset().mockResolvedValue({ state: "ready" });
   acquireDeliveryReservation.mockReset().mockResolvedValue({ acquired: true, attemptId: "attempt-1" });
   markDeliveryReservationUnknown.mockReset();
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 19 });

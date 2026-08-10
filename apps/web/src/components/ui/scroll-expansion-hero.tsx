@@ -1,152 +1,307 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode, type RefObject } from "react";
 import {
   m,
+  type MotionValue,
   useReducedMotion,
   useScroll,
   useTransform,
 } from "framer-motion";
-import { ArrowDown } from "lucide-react";
+import { Check, UserRound } from "lucide-react";
+import VideoPlayer from "@/components/ui/video-player";
 import { cn } from "@/lib/utils";
+import { EdgeSurface } from "@/components/ui/edge-surface";
+import { VideoMagicMove } from "@/components/ui/video-magic-move";
 
 type ScrollExpandMediaProps = {
   mediaSrc: string;
   mediaAlt: string;
-  title: string;
+  mediaType?: "image" | "video";
+  posterSrc?: string;
+  title: ReactNode;
   eyebrow?: string;
-  description?: string;
+  description?: ReactNode;
   children?: ReactNode;
   className?: string;
+  magicMoveTargetRef?: RefObject<HTMLDivElement | null>;
 };
+
+function PersonalizationCallout({
+  arrowProgress,
+  textRotate,
+}: {
+  arrowProgress: MotionValue<number> | number;
+  textRotate: MotionValue<number>;
+}) {
+  const filterId = `crayon-${useId().replaceAll(":", "")}`;
+
+  return (
+    <div className="relative h-36 w-36 text-left large-desktop:h-44 large-desktop:w-52">
+      <m.p
+        className="relative z-10 w-36 pt-1 text-[1.5rem] font-semibold leading-[1.05] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.65)] large-desktop:w-52 large-desktop:text-[2.15rem]"
+        style={{ fontFamily: '"Bradley Hand", "Comic Sans MS", cursive', rotate: textRotate, x: -16, y: -20 }}
+      >
+        &quot;Customer Name&quot;
+        <br />
+        will be
+        <br />
+        personalized
+        <br />
+        to each prospect
+      </m.p>
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 208 176"
+        fill="none"
+        className="pointer-events-none absolute inset-0 h-full w-40 overflow-visible large-desktop:w-[15.5rem]"
+      >
+        <defs>
+          <filter id={filterId} x="-8%" y="-12%" width="116%" height="124%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="8" result="grain" />
+            <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.8" />
+          </filter>
+        </defs>
+        <m.path
+          className="xl:hidden"
+          d="M70 146C70 180 92 205 135 214C153 218 171 215 185 205M163 190L185 205L162 222"
+          stroke="#70a8ff"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          filter={`url(#${filterId})`}
+          style={{ pathLength: arrowProgress }}
+        />
+        <m.path
+          className="hidden xl:block"
+          d="M82 170C80 224 100 272 145 292C160 299 173 300 185 292M164 277L185 292L162 309"
+          stroke="#70a8ff"
+          strokeWidth="9"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+          filter={`url(#${filterId})`}
+          style={{ pathLength: arrowProgress }}
+        />
+      </svg>
+    </div>
+  );
+}
 
 export function ScrollExpandMedia({
   mediaSrc,
   mediaAlt,
+  mediaType = "image",
+  posterSrc,
   title,
   eyebrow = "See LeadReacher in action",
   description,
   children,
   className,
+  magicMoveTargetRef,
 }: ScrollExpandMediaProps) {
-  const sectionRef = useRef<HTMLElement>(null);
+  const flowRef = useRef<HTMLDivElement>(null);
+  const videoFrameRef = useRef<HTMLDivElement>(null);
   const reducedMotion = Boolean(useReducedMotion());
+  const isVideo = mediaType === "video";
+
   const { scrollYProgress } = useScroll({
-    target: sectionRef,
+    target: flowRef,
     offset: ["start start", "end end"],
   });
 
-  const frameWidth = useTransform(
+  const frameScale = useTransform(
     scrollYProgress,
-    [0, 0.72],
-    reducedMotion ? ["92vw", "92vw"] : ["46vw", "92vw"],
-  );
-  const frameHeight = useTransform(
-    scrollYProgress,
-    [0, 0.72],
-    reducedMotion ? ["76vh", "76vh"] : ["44vh", "76vh"],
+    [0, 0.12, 0.62, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0.36, 0.36, 1, 1],
   );
   const frameY = useTransform(
     scrollYProgress,
-    [0, 0.72],
-    reducedMotion ? [0, 0] : [72, 0],
+    [0, 0.62],
+    reducedMotion ? [0, 0] : [116, 0],
   );
-  const frameRadius = useTransform(scrollYProgress, [0, 0.72], [28, 14]);
-  const backgroundOpacity = useTransform(scrollYProgress, [0, 0.72], [0.26, 0.08]);
-  const titleScale = useTransform(scrollYProgress, [0, 0.48], [1, 0.9]);
-  const titleOpacity = useTransform(scrollYProgress, [0, 0.42, 0.68], [1, 1, 0]);
-  const contentOpacity = useTransform(scrollYProgress, [0.55, 0.82], [0, 1]);
-  const mediaScale = useTransform(scrollYProgress, [0, 0.72], [1.08, 1]);
+  const introOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.16, 0.36, 1],
+    reducedMotion ? [0, 0, 0, 0] : [1, 1, 0, 0],
+  );
+  const introY = useTransform(scrollYProgress, [0, 0.36, 1], [0, -42, -42]);
+  const contextOpacity = useTransform(scrollYProgress, [0, 0.18, 0.42, 1], [1, 1, 0, 0]);
+  const contextY = useTransform(scrollYProgress, [0, 0.42, 1], [0, -18, -18]);
+  const calloutOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.7, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0, 0, 1, 1],
+  );
+  const calloutScale = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.7, 0.77, 1],
+    reducedMotion ? [1, 1, 1, 1, 1] : [0.76, 0.76, 1.06, 1, 1],
+  );
+  const arrowRotate = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.7, 0.77, 1],
+    reducedMotion ? [-5, -5, -5, -5, -5] : [-12, -12, -3, -5, -5],
+  );
+  const textRotate = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.7, 0.77, 1],
+    reducedMotion ? [-8, -8, -8, -8, -8] : [-9, -9, -5, -8, -8],
+  );
+  const calloutY = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.7, 0.77, 1],
+    reducedMotion ? [0, 0, 0, 0, 0] : [24, 24, -5, 0, 0],
+  );
+  const arrowProgress = useTransform(
+    scrollYProgress,
+    [0, 0.69, 0.84, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0, 0, 1, 1],
+  );
+  const approvalOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.58, 0.76, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0, 0, 1, 1],
+  );
+  const approvalY = useTransform(scrollYProgress, [0, 0.58, 0.76, 1], [16, 16, 0, 0]);
+  const greetingOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.72, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0, 0, 1, 1],
+  );
+  const greetingY = useTransform(scrollYProgress, [0, 0.62, 0.72, 1], [12, 12, 0, 0]);
+  const greetingScale = useTransform(
+    scrollYProgress,
+    [0, 0.62, 0.72, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0.94, 0.94, 1, 1],
+  );
+  const backgroundOpacity = useTransform(scrollYProgress, [0, 0.68, 1], [0.32, 0.08, 0.08]);
+  const contentOpacity = useTransform(
+    scrollYProgress,
+    [0, 0.76, 0.96, 1],
+    reducedMotion ? [1, 1, 1, 1] : [0, 0, 1, 1],
+  );
+  const contentY = useTransform(scrollYProgress, [0, 0.76, 0.96, 1], [18, 18, 0, 0]);
 
-  const mobileContent = (
-    <section data-navbar-theme="dark" className="relative z-20 -mt-7 overflow-hidden bg-[#0d1020] px-4 py-16 text-white sm:px-8 md:hidden">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold uppercase text-[#aa96ff]">{eyebrow}</p>
-        <h2 className="mt-4 text-balance text-4xl font-semibold leading-tight">{title}</h2>
-        {description ? <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-white/65">{description}</p> : null}
-      </div>
-      <div className="relative mx-auto mt-8 aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-xl border border-white/15 bg-white shadow-[0_24px_70px_rgba(0,0,0,.42)]">
-        <Image src={mediaSrc} alt={mediaAlt} fill sizes="(max-width: 768px) 100vw, 672px" className="object-cover object-center" />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[#090b16]/76 via-transparent to-transparent" />
-        {children ? <div className="absolute inset-x-0 bottom-0 z-10 p-4">{children}</div> : null}
-      </div>
-    </section>
+  const media = isVideo ? (
+    <VideoPlayer
+      src={mediaSrc}
+      poster={posterSrc}
+      ariaLabel={mediaAlt}
+      autoPlay
+      startWhenVisible
+      muted
+      loop
+    />
+  ) : (
+    <Image src={mediaSrc} alt={mediaAlt} fill sizes="(max-width: 768px) 100vw, 90vw" className="object-cover object-center" />
   );
 
-  return <>
-    {mobileContent}
+  return (
     <section
-      ref={sectionRef}
       data-navbar-theme="dark"
-      className={cn(
-        "relative z-20 -mt-7 hidden h-[150vh] min-h-[1000px] overflow-clip rounded-t-[28px] bg-[#0d1020] text-white sm:-mt-9 sm:rounded-t-[40px] md:block",
-        className,
-      )}
+      className={cn("relative z-20 -mt-10 overflow-clip text-white sm:-mt-12", className)}
     >
-      <div className="sticky top-0 flex h-svh items-center justify-center overflow-hidden">
-        <m.div
-          aria-hidden
-          style={{ opacity: backgroundOpacity }}
-          className="absolute inset-0"
-        >
-          <Image
-            src={mediaSrc}
-            alt=""
-            fill
-            sizes="100vw"
-            className="scale-110 object-cover blur-2xl saturate-125"
-          />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,27,.55),rgba(13,16,32,.9))]" />
-        </m.div>
-
-        <m.div
-          style={{ opacity: titleOpacity, scale: titleScale }}
-          className="pointer-events-none absolute inset-x-5 top-[8vh] z-20 text-center sm:top-[7vh]"
-        >
-          <p className="text-xs font-semibold uppercase text-[#aa96ff]">{eyebrow}</p>
-          <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-            {title}
-          </h2>
-          {description ? (
-            <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-white/62 sm:text-base sm:leading-7">
-              {description}
-            </p>
-          ) : null}
-          <span className="mx-auto mt-6 flex w-fit items-center gap-2 text-xs font-medium text-white/48">
-            Scroll to expand <ArrowDown className="size-3.5" aria-hidden />
-          </span>
-        </m.div>
-
-        <m.div
-          style={{
-            width: frameWidth,
-            height: frameHeight,
-            y: frameY,
-            borderRadius: frameRadius,
-          }}
-          className="relative z-10 mt-[18vh] min-h-[300px] min-w-[300px] max-w-[94vw] overflow-hidden border border-white/15 bg-white shadow-[0_38px_120px_rgba(0,0,0,.48)] sm:mt-[20vh]"
-        >
-          <m.div style={{ scale: mediaScale }} className="absolute inset-0">
-            <Image
-              src={mediaSrc}
-              alt={mediaAlt}
-              fill
-              sizes="(max-width: 768px) 94vw, 92vw"
-              className="object-cover object-center"
-            />
-          </m.div>
-          <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-[#090b16]/76 via-transparent to-[#090b16]/8" />
-          {children ? (
-            <m.div
-              style={{ opacity: contentOpacity }}
-              className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-7 lg:p-9"
-            >
-              {children}
+      <div ref={flowRef} className="relative md:h-[200svh]">
+        <EdgeSurface as="div" tone="dark" className="flex flex-col px-4 pb-14 pt-16 sm:px-8 md:sticky md:top-0 md:h-svh md:min-h-[720px] md:items-center md:justify-center md:px-0 md:py-0">
+          {posterSrc ? (
+            <m.div aria-hidden style={{ opacity: backgroundOpacity }} className="pointer-events-none absolute inset-0 hidden md:block">
+              <Image src={posterSrc} alt="" fill sizes="100vw" className="scale-110 object-cover blur-2xl saturate-125" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(10,12,27,.72),rgba(13,16,32,.94))]" />
             </m.div>
           ) : null}
-        </m.div>
+
+          <m.div
+            style={{ opacity: introOpacity, y: introY }}
+            className="relative z-10 mx-auto max-w-5xl text-center max-md:transform-none! max-md:opacity-100! md:absolute md:inset-x-6 md:top-[7vh]"
+          >
+            <p className="text-xs font-semibold uppercase text-[#aa96ff]">{eyebrow}</p>
+            <h2 className="mx-auto mt-4 max-w-4xl text-pretty text-4xl font-semibold leading-[1.08] sm:text-5xl lg:text-[3.5rem]">
+              {title}
+            </h2>
+            {description ? <div className="mx-auto mt-5 max-w-3xl text-base leading-7 text-white/65 lg:text-lg lg:leading-8">{description}</div> : null}
+          </m.div>
+
+          <m.div
+            ref={videoFrameRef}
+            data-testid="scroll-expand-video-source"
+            style={{ scale: frameScale, y: frameY }}
+            className="relative z-20 mx-auto mt-9 aspect-video w-full max-w-3xl origin-center overflow-hidden rounded-xl border border-white/20 bg-[#0b0d18] shadow-[0_38px_120px_rgba(0,0,0,.48)] [backface-visibility:hidden] [transform:translateZ(0)] max-md:transform-none! md:absolute md:mt-0 md:w-[min(90vw,calc(70svh*16/9),80rem)] md:max-w-none md:will-change-transform"
+          >
+            {media}
+
+            <m.div
+              aria-hidden
+              style={{ opacity: contextOpacity, y: contextY }}
+              className="pointer-events-none absolute left-3 top-3 z-20 flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b0d1bcc] px-3 py-2 text-left shadow-lg backdrop-blur-md sm:left-5 sm:top-5 sm:px-4 sm:py-3"
+            >
+              <span className="flex size-8 items-center justify-center rounded-md bg-[#6842f5] text-white"><UserRound className="size-4" /></span>
+              <span><span className="block text-[10px] font-semibold uppercase text-[#b6a6ff]">Prepared for</span><span className="mt-0.5 block text-xs font-semibold text-white sm:text-sm">Sarah · Common Thread</span></span>
+            </m.div>
+
+            <m.div
+              aria-hidden
+              style={{ opacity: approvalOpacity, y: approvalY }}
+              className="pointer-events-none absolute right-3 top-3 z-20 hidden items-center gap-2 rounded-lg border border-white/15 bg-[#0b0d1bcc] px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-md sm:right-5 sm:top-5 md:flex"
+            >
+              <span className="flex size-6 items-center justify-center rounded-full bg-[#33c98b] text-[#07120e]"><Check className="size-3.5" /></span>
+              Ready for your approval
+            </m.div>
+
+            <m.div
+              aria-hidden
+              style={{ opacity: greetingOpacity, y: greetingY, scale: greetingScale }}
+              className="pointer-events-none absolute left-5 top-[60%] z-20 hidden origin-left items-center gap-2 rounded-lg border border-white/20 bg-[#0b0d1be6] px-3 py-2 text-left shadow-xl backdrop-blur-md xl:flex"
+            >
+              <Image
+                src="/landing/portraits/prospect-68.webp"
+                alt=""
+                width={28}
+                height={28}
+                className="size-7 rounded-full border border-white/30 object-cover shadow-[0_2px_8px_rgba(0,0,0,.32)]"
+              />
+              <span>
+                <span className="block text-[9px] font-semibold uppercase tracking-[0.08em] text-[#b6a6ff]">Personalized greeting</span>
+                <span className="mt-0.5 block text-sm font-semibold text-white">Hi, Sarah</span>
+              </span>
+            </m.div>
+          </m.div>
+
+          <m.div
+            style={{ opacity: calloutOpacity, scale: calloutScale, rotate: arrowRotate, y: calloutY }}
+            className="pointer-events-none absolute left-8 top-8 z-30 hidden origin-top-left md:block xl:left-12 xl:top-[calc(48.8vh-10rem)] large-desktop:left-[calc(8.2vw-1.75rem)]"
+          >
+            <PersonalizationCallout arrowProgress={arrowProgress} textRotate={textRotate} />
+          </m.div>
+
+          <m.div
+            style={{ opacity: calloutOpacity, scale: calloutScale, y: calloutY }}
+            className="relative z-30 mx-auto mt-6 block h-48 w-36 md:hidden max-md:transform-none! max-md:opacity-100!"
+          >
+            <PersonalizationCallout arrowProgress={1} textRotate={textRotate} />
+          </m.div>
+
+        </EdgeSurface>
       </div>
+
+      {children ? (
+        <m.div style={{ opacity: contentOpacity, y: contentY }} className="relative z-10 bg-[#0d1020] px-5 pb-28 pt-8 sm:px-8 sm:pb-32 md:px-10 md:pb-40 md:pt-10 max-md:transform-none! max-md:opacity-100!">
+          <div className="mx-auto max-w-7xl large-desktop:max-w-[88rem]">{children}</div>
+        </m.div>
+      ) : null}
+      {isVideo && magicMoveTargetRef ? (
+        <VideoMagicMove
+          flowRef={flowRef}
+          sourceRef={videoFrameRef}
+          targetRef={magicMoveTargetRef}
+          mediaSrc={mediaSrc}
+          posterSrc={posterSrc}
+          mediaAlt={mediaAlt}
+          disabled={reducedMotion}
+        />
+      ) : null}
     </section>
-  </>;
+  );
 }

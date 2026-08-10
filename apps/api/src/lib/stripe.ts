@@ -101,6 +101,34 @@ export async function createSubscriptionCheckoutSession(
   return { id: session.id, url: session.url };
 }
 
+export async function retrieveSubscriptionCheckoutSession(
+  sessionId: string,
+): Promise<Stripe.Checkout.Session> {
+  if (env.STRIPE_MOCK_MODE) {
+    const orgId = sessionId.replace(/^mock_checkout_/, "");
+    return {
+      id: sessionId,
+      status: "complete",
+      payment_status: "paid",
+      client_reference_id: orgId,
+      metadata: { orgId },
+      customer: `mock_customer_${orgId}`,
+      subscription: {
+        id: `mock_subscription_${orgId}`,
+        status: "active",
+        customer: `mock_customer_${orgId}`,
+        current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        metadata: { orgId },
+        items: { data: [] },
+      },
+    } as unknown as Stripe.Checkout.Session;
+  }
+
+  return getStripeClient().checkout.sessions.retrieve(sessionId, {
+    expand: ["subscription"],
+  });
+}
+
 export async function createBillingPortalSession(
   customerId: string,
 ): Promise<BillingPortalSession> {

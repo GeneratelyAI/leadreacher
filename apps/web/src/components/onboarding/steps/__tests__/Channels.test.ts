@@ -1,0 +1,41 @@
+import { describe, expect, it } from "vitest";
+import { returnedConnectionIsActive } from "../Channels";
+
+const linkedInAccount = {
+  platform: "linkedin",
+  providerType: "linkedin",
+  accountName: "QA LinkedIn",
+  avatarUrl: null,
+  status: "active",
+};
+
+describe("returnedConnectionIsActive", () => {
+  it("confirms the exact pending channel when browser state is available", () => {
+    expect(returnedConnectionIsActive([linkedInAccount], "linkedin")).toBe(true);
+    expect(returnedConnectionIsActive([linkedInAccount], "whatsapp")).toBe(false);
+  });
+
+  it("accepts an organization-scoped active account when browser state is missing", () => {
+    expect(returnedConnectionIsActive([linkedInAccount], null)).toBe(true);
+  });
+
+  it("treats Gmail and Outlook as the same connected email channel", () => {
+    const emailAccount = {
+      ...linkedInAccount,
+      platform: "email",
+      providerType: "google",
+    };
+
+    expect(returnedConnectionIsActive([emailAccount], "gmail")).toBe(true);
+    expect(returnedConnectionIsActive([emailAccount], "outlook")).toBe(true);
+  });
+
+  it("keeps polling when the returned account is not active", () => {
+    expect(
+      returnedConnectionIsActive(
+        [{ ...linkedInAccount, status: "reconnecting" }],
+        null,
+      ),
+    ).toBe(false);
+  });
+});

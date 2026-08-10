@@ -187,11 +187,13 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
           unipileId: account.id,
           accountName: account.name,
           status,
+          metadata: { providerType: account.type.toLowerCase() },
         },
         update: {
           unipileId: account.id,
           accountName: account.name,
           status,
+          metadata: { providerType: account.type.toLowerCase() },
         },
       });
 

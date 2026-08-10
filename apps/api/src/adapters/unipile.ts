@@ -87,7 +87,7 @@ export type UnipileMessage = {
 export type UnipileVideoMessage = {
   buffer: Buffer;
   filename: string;
-  contentType: "video/mp4";
+  contentType: string;
 };
 
 export type { UnipileCredentials, UnipileProfile } from "./types.js";

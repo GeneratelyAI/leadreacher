@@ -47,8 +47,8 @@ vi.mock("../delivery-attempt.js", () => ({
   acquireDeliveryReservation: acquireReservation,
   markDeliveryReservationUnknown: markUnknown,
 }));
-vi.mock("../personalized-video.js", () => ({
-  getReadyPersonalizedVideoForDelivery: getReadyVideo,
+vi.mock("../campaign-video.js", () => ({
+  getReadyCampaignVideoForDelivery: getReadyVideo,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({
   checkAndIncrementDailySendLimit,
@@ -88,7 +88,7 @@ beforeEach(() => {
 });
 
 describe("deliverSequenceStep1ViaChat", () => {
-  it("attaches a ready lead-specific MP4 to the first chat without exposing its R2 URL in text", async () => {
+  it("attaches the approved campaign video to the first chat without exposing its URL in text", async () => {
     getReadyVideo.mockResolvedValue({
       videoUrl: "https://media.example/personalized/lead-1.mp4",
       buffer: Buffer.from("video"),

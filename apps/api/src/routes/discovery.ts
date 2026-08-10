@@ -125,10 +125,10 @@ const DiscoverySummaryBodySchema = z.object({
 
 const DiscoveryCompleteBodySchema = z.object({
   summary: z.object({
-    businessModel: z.string().optional(),
-    industry: z.string().optional(),
-    strengths: z.string().optional(),
-    idealCustomer: z.string().optional(),
+    businessModel: z.string().trim().min(1),
+    industry: z.string().trim().min(1),
+    strengths: z.string().trim().min(1),
+    idealCustomer: z.string().trim().min(1),
     suggestedChannels: z.array(z.string()).optional(),
     nextStep: z.string().optional(),
     websiteEnriched: z.boolean().optional(),
