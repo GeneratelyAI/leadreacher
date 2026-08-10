@@ -33,7 +33,7 @@ import {
   normalizeVideoDuration,
 } from "../lib/video-frames.js";
 import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js";
-import { composePersonalizedVideoAsset } from "../services/personalized-video.js";
+import { composePersonalizedVideoAsset } from "../services/campaign-video.js";
 import { buildStandardVideoSeedPrompt } from "../lib/video-prompt-brief.js";
 import { shouldAttemptUnknownVeoRecovery } from "./video-generation-recovery.js";
 import {
