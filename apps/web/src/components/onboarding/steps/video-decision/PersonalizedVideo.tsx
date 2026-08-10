@@ -1,14 +1,11 @@
 import { Clapperboard } from "lucide-react";
-import { OutreachMessageCard } from "./OutreachMessageCard";
-import { VideoToneGrid } from "./VideoToneGrid";
+import { ToneGrid } from "./ToneGrid";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
-export function PersonalizedOutreachVariant({
-  orgId,
+export function PersonalizedVideo({
   videoConfig,
   setVideoConfig,
 }: {
-  orgId: string;
   videoConfig: VideoConfig;
   setVideoConfig: SetVideoConfig;
 }) {
@@ -24,7 +21,6 @@ export function PersonalizedOutreachVariant({
 
   return (
     <div className="space-y-6">
-      <OutreachMessageCard orgId={orgId} />
       <section aria-labelledby="video-tone-heading">
         <div className="flex items-center gap-2">
           <Clapperboard className="size-5 text-onboarding-purple-500" aria-hidden />
@@ -36,7 +32,7 @@ export function PersonalizedOutreachVariant({
           Choose the style for videos personalized to each prospect.
         </p>
         <div className="mt-4">
-          <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+          <ToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
         </div>
       </section>
     </div>

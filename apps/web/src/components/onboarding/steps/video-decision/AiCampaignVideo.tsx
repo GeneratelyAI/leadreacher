@@ -1,9 +1,9 @@
 import { Clapperboard } from "lucide-react";
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
-import { VideoToneGrid } from "./VideoToneGrid";
+import { ToneGrid } from "./ToneGrid";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
-export function AiVideoAdVariant({
+export function AiCampaignVideo({
   videoConfig,
   setVideoConfig,
 }: {
@@ -28,11 +28,11 @@ export function AiVideoAdVariant({
           Select your preferred video style
         </h2>
         <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-          Choose the tone that best fits your message and audience.
+          Choose the tone for the one AI-generated video delivered to your selected prospects.
         </p>
       </div>
       <div className="mt-9">
-        <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+        <ToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
       </div>
     </section>
   );

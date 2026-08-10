@@ -2,13 +2,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { AnimatedStepPresence } from "@/components/onboarding/AnimatedStepPresence";
-import CampaignTypeClient from "@/components/onboarding/steps/CampaignTypeClient";
-import ChannelsClient from "@/components/onboarding/steps/ChannelsClient";
-import CheckoutClient from "@/components/onboarding/steps/CheckoutClient";
-import DiscoveryClient from "@/components/onboarding/steps/DiscoveryClient";
-import StrategyClient from "@/components/onboarding/steps/StrategyClient";
-import VideoDecisionClient from "@/components/onboarding/steps/VideoDecisionClient";
+import { StepTransition } from "@/components/onboarding/StepTransition";
+import { Button } from "@/components/ui/Button";
+import CampaignType from "@/components/onboarding/steps/CampaignType";
+import Channels from "@/components/onboarding/steps/Channels";
+import Checkout from "@/components/onboarding/steps/Checkout";
+import Discovery from "@/components/onboarding/steps/Discovery";
+import Strategy from "@/components/onboarding/steps/Strategy";
+import VideoDecision from "@/components/onboarding/steps/VideoDecision";
 import {
   isOnboardingStep,
   isStrategySubstep,
@@ -29,6 +30,7 @@ function DiscoveryBootstrapBridge({
   activeStep: OnboardingStepParam;
 }) {
   const [ready, setReady] = useState(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +60,14 @@ function DiscoveryBootstrapBridge({
         );
         window.localStorage.removeItem("lr_anon_scrape_id");
         window.localStorage.removeItem("lr_website_url");
+      } catch (error) {
+        if (!cancelled) {
+          setBootstrapError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load your workspace.",
+          );
+        }
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -70,13 +80,39 @@ function DiscoveryBootstrapBridge({
   }, []);
 
   if (!ready) {
-    return <div className="onboarding-page min-h-dvh" />;
+    return (
+      <div
+        className="onboarding-page flex min-h-dvh items-center justify-center px-5"
+        role="status"
+        aria-live="polite"
+      >
+        <p className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Loading your workspace...</p>
+      </div>
+    );
   }
 
-  return <DiscoveryClient activeStep={activeStep} />;
+  if (bootstrapError) {
+    return (
+      <div className="onboarding-page flex min-h-dvh items-center justify-center px-5">
+        <div className="w-full max-w-md text-center" role="alert">
+          <h1 className="text-2xl font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
+            We couldn&apos;t load your workspace
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+            {bootstrapError}
+          </p>
+          <Button className="mt-6" variant="brand" onClick={() => window.location.reload()}>
+            Try again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <Discovery activeStep={activeStep} />;
 }
 
-export default function OnboardingFlowClient({
+export default function Flow({
   initialStep,
   initialStrategySubstep = "how-it-works",
 }: {
@@ -98,24 +134,24 @@ export default function OnboardingFlowClient({
     );
   } else if (activeStep === "strategy") {
     activeStepContent = (
-      <StrategyClient
+      <Strategy
         activeStep={activeStep}
         substep={activeStrategySubstep}
       />
     );
   } else if (activeStep === "campaign-type") {
-    activeStepContent = <CampaignTypeClient />;
+    activeStepContent = <CampaignType />;
   } else if (activeStep === "video-decision") {
-    activeStepContent = <VideoDecisionClient />;
+    activeStepContent = <VideoDecision />;
   } else if (activeStep === "checkout") {
-    activeStepContent = <CheckoutClient />;
+    activeStepContent = <Checkout />;
   } else {
-    activeStepContent = <ChannelsClient />;
+    activeStepContent = <Channels />;
   }
 
   return (
-    <AnimatedStepPresence transitionKey={activeStep} className="min-h-dvh">
+    <StepTransition transitionKey={activeStep} className="min-h-dvh">
       {activeStepContent}
-    </AnimatedStepPresence>
+    </StepTransition>
   );
 }

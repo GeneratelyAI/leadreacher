@@ -7,6 +7,7 @@ import type { SetVideoConfig, VideoConfig } from "./types";
 
 const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/quicktime"];
+const ACCEPTED_VIDEO_EXTENSIONS = [".mp4", ".mov"];
 
 type UploadResponse = {
   videoConfig?: {
@@ -14,7 +15,7 @@ type UploadResponse = {
   };
 };
 
-export function UploadedVideoVariant({
+export function UploadedVideo({
   orgId,
   videoConfig,
   setVideoConfig,
@@ -32,7 +33,10 @@ export function UploadedVideoVariant({
   async function uploadFile(file: File | undefined) {
     if (!file || isUploading) return;
 
-    if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
+    const hasAcceptedExtension = ACCEPTED_VIDEO_EXTENSIONS.some((extension) =>
+      file.name.toLowerCase().endsWith(extension),
+    );
+    if (!ACCEPTED_VIDEO_TYPES.includes(file.type) && !hasAcceptedExtension) {
       onError("Upload an MP4 or MOV video file.");
       return;
     }
@@ -86,6 +90,7 @@ export function UploadedVideoVariant({
         <video
           controls
           preload="metadata"
+          aria-label="Uploaded campaign video preview"
           src={videoConfig.uploadedVideoUrl}
           className="aspect-video w-full bg-onboarding-neutral-950 object-contain"
         >
@@ -115,6 +120,8 @@ export function UploadedVideoVariant({
           type="file"
           accept="video/mp4,video/quicktime,.mp4,.mov"
           className="sr-only"
+          tabIndex={-1}
+          aria-hidden
           onChange={(event) => {
             void uploadFile(event.target.files?.[0]);
             event.target.value = "";
@@ -131,6 +138,8 @@ export function UploadedVideoVariant({
         type="file"
         accept="video/mp4,video/quicktime,.mp4,.mov"
         className="sr-only"
+        tabIndex={-1}
+        aria-hidden
         onChange={(event) => {
           void uploadFile(event.target.files?.[0]);
           event.target.value = "";
@@ -151,6 +160,7 @@ export function UploadedVideoVariant({
           void uploadFile(event.dataTransfer.files[0]);
         }}
         disabled={isUploading}
+        aria-label={isUploading ? "Uploading campaign video" : "Upload campaign video"}
         className={`flex min-h-64 w-full flex-col items-center justify-center rounded-onboarding border border-dashed px-6 text-center transition-colors ${
           isDragging
             ? "border-onboarding-purple-500 bg-onboarding-purple-50 dark:bg-onboarding-purple-900/20"
@@ -162,19 +172,14 @@ export function UploadedVideoVariant({
         ) : (
           <Upload className="size-8 text-onboarding-purple-500" aria-hidden />
         )}
-        <h2 className="mt-4 text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
+        <span className="mt-4 text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
           {isUploading ? "Uploading your video" : "Upload your campaign video"}
-        </h2>
-        <p className="mt-2 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+        </span>
+        <span className="mt-2 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
           {isUploading
             ? "Your video is uploading securely. Keep this page open until it is ready."
             : "Drag and drop an MP4 or MOV file here, or click to browse. Maximum file size: 200MB."}
-        </p>
-        {isUploading ? (
-          <span className="mt-5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-onboarding-neutral-200 dark:bg-onboarding-neutral-800">
-            <span className="block h-full w-2/3 animate-pulse rounded-full bg-onboarding-purple-500" />
-          </span>
-        ) : null}
+        </span>
       </button>
     </OnboardingCard>
   );

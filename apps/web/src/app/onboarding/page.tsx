@@ -1,14 +1,16 @@
 import { redirect } from "next/navigation";
-import OnboardingFlowClient from "@/components/onboarding/OnboardingFlowClient";
+import Flow from "@/components/onboarding/Flow";
 import {
   isOnboardingStep,
   isStrategySubstep,
   type OnboardingStepParam,
-  type StrategySubstepParam,
 } from "@/components/onboarding/steps/steps";
 import { bootstrapOrganizationServer, getStrategyServer } from "@/lib/api/server";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
-import { resolveOnboardingResumeTarget } from "@/lib/onboarding-progress";
+import {
+  resolveAllowedOnboardingStep,
+  resolveOnboardingResumeTarget,
+} from "@/lib/onboarding-progress";
 import { createClient } from "@/lib/supabase/server";
 
 type OnboardingPageProps = {
@@ -34,69 +36,6 @@ function hasAudienceAnalysis(strategy: Awaited<ReturnType<typeof getStrategyServ
   );
 }
 
-async function resolveDefaultStep(input: {
-  accessToken: string;
-  email: string;
-}): Promise<{
-  step: OnboardingStepParam;
-  strategySubstep?: StrategySubstepParam;
-}> {
-  try {
-    const bootstrap = await bootstrapOrganizationServer(
-      input.accessToken,
-      defaultOrgNameFromEmail(input.email),
-    );
-    const strategy = await getStrategyServer(input.accessToken, bootstrap.orgId);
-
-    return resolveOnboardingResumeTarget({
-      strategy: strategy
-        ? {
-            audienceAnalysisComplete: hasAudienceAnalysis(strategy),
-            campaignType: strategy.campaignType,
-            videoConfig: strategy.videoConfig,
-          }
-        : null,
-      subscriptionStatus: bootstrap.subscriptionStatus,
-    });
-  } catch {
-    return { step: "discovery" };
-  }
-}
-
-async function resolveDefaultStrategySubstep(input: {
-  accessToken: string;
-  email: string;
-}): Promise<StrategySubstepParam> {
-  try {
-    const { orgId } = await bootstrapOrganizationServer(
-      input.accessToken,
-      defaultOrgNameFromEmail(input.email),
-    );
-    const strategy = await getStrategyServer(input.accessToken, orgId);
-
-    return hasAudienceAnalysis(strategy) ? "targeting" : "how-it-works";
-  } catch {
-    return "how-it-works";
-  }
-}
-
-async function hasCompletedAudienceAnalysisForUser(input: {
-  accessToken: string;
-  email: string;
-}): Promise<boolean> {
-  try {
-    const { orgId } = await bootstrapOrganizationServer(
-      input.accessToken,
-      defaultOrgNameFromEmail(input.email),
-    );
-    const strategy = await getStrategyServer(input.accessToken, orgId);
-
-    return hasAudienceAnalysis(strategy);
-  } catch {
-    return false;
-  }
-}
-
 export default async function OnboardingPage({
   searchParams,
 }: OnboardingPageProps) {
@@ -113,19 +52,38 @@ export default async function OnboardingPage({
     data: { session },
   } = await supabase.auth.getSession();
 
-  let workspaceAccess: Awaited<ReturnType<typeof bootstrapOrganizationServer>> | null = null;
+  const accessToken = session?.access_token ?? "";
+  let workspaceAccess: Awaited<ReturnType<typeof bootstrapOrganizationServer>>;
   try {
     workspaceAccess = await bootstrapOrganizationServer(
-      session?.access_token ?? "",
+      accessToken,
       defaultOrgNameFromEmail(user.email ?? ""),
     );
   } catch {
-    // Resume logic below retains its existing safe discovery fallback.
+    return <Flow initialStep="discovery" />;
   }
 
-  if (workspaceAccess?.disabledAt) redirect("/recover-organization");
-  if (workspaceAccess && !workspaceAccess.legalAccepted) redirect("/legal-consent");
-  if (workspaceAccess?.onboardedAt) redirect("/dashboard");
+  if (workspaceAccess.disabledAt) redirect("/recover-organization");
+  if (!workspaceAccess.legalAccepted) redirect("/legal-consent");
+  if (workspaceAccess.onboardedAt) redirect("/dashboard");
+
+  let strategy: Awaited<ReturnType<typeof getStrategyServer>> = null;
+  try {
+    strategy = await getStrategyServer(accessToken, workspaceAccess.orgId);
+  } catch {
+    // The client-side Discovery bridge renders a retryable workspace error if
+    // the API remains unavailable after hydration.
+  }
+  const progressDefault = resolveOnboardingResumeTarget({
+    strategy: strategy
+      ? {
+          audienceAnalysisComplete: hasAudienceAnalysis(strategy),
+          campaignType: strategy.campaignType,
+          videoConfig: strategy.videoConfig,
+        }
+      : null,
+    subscriptionStatus: workspaceAccess.subscriptionStatus,
+  });
 
   const params = searchParams ? await searchParams : {};
   const requestedStep = firstParam(params.step);
@@ -133,30 +91,20 @@ export default async function OnboardingPage({
   const requestedOnboardingStep = isOnboardingStep(requestedStep)
     ? requestedStep
     : null;
-  const progressDefault = requestedOnboardingStep
-    ? null
-    : await resolveDefaultStep({
-      accessToken: session?.access_token ?? "",
-      email: user.email ?? "",
-    });
-  const initialStep: OnboardingStepParam =
-    progressDefault?.step ?? requestedOnboardingStep ?? "discovery";
+  const initialStep: OnboardingStepParam = resolveAllowedOnboardingStep(
+    requestedOnboardingStep,
+    progressDefault.step,
+  );
   const initialStrategySubstep =
     initialStep === "strategy"
       ? isStrategySubstep(requestedSubstep)
         ? requestedSubstep
-        : progressDefault?.strategySubstep ??
-          (await resolveDefaultStrategySubstep({
-            accessToken: session?.access_token ?? "",
-            email: user.email ?? "",
-          }))
+        : progressDefault.strategySubstep ??
+          (hasAudienceAnalysis(strategy) ? "targeting" : "how-it-works")
       : undefined;
   const canonicalStrategySubstep =
     initialStep === "strategy" && initialStrategySubstep === "channels"
-      ? (await hasCompletedAudienceAnalysisForUser({
-          accessToken: session?.access_token ?? "",
-          email: user.email ?? "",
-        }))
+      ? hasAudienceAnalysis(strategy)
         ? initialStrategySubstep
         : "how-it-works"
       : initialStrategySubstep;
@@ -172,7 +120,7 @@ export default async function OnboardingPage({
   }
 
   return (
-    <OnboardingFlowClient
+    <Flow
       initialStep={initialStep}
       initialStrategySubstep={canonicalStrategySubstep}
     />

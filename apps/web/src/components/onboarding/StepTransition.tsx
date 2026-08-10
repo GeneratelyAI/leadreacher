@@ -9,7 +9,7 @@ import {
 } from "@/components/onboarding/steps/steps";
 import { cn } from "@/lib/utils";
 
-const STEP_TRANSITION_MS = 500;
+const STEP_TRANSITION_MS = 160;
 
 type SlideDirection = "forward" | "backward";
 type RenderedStep = {
@@ -33,7 +33,7 @@ export function getSlideDirection(currentKey: string, nextKey: string): SlideDir
   return "forward";
 }
 
-export function AnimatedStepPresence({
+export function StepTransition({
   transitionKey,
   children,
   className,
@@ -48,8 +48,12 @@ export function AnimatedStepPresence({
   const [isAnimating, setIsAnimating] = useState(false);
   const currentRef = useRef(current);
   const latestRef = useRef<RenderedStep>({ key: transitionKey, children });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const restoreFocusRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
   const transitionTimerRef = useRef<number | null>(null);
+
+  const isTransitioning = incoming !== null;
 
   useEffect(() => {
     latestRef.current = { key: transitionKey, children };
@@ -72,6 +76,11 @@ export function AnimatedStepPresence({
 
     clearScheduledTransition();
     setDirection(getSlideDirection(currentRef.current.key, next.key));
+    restoreFocusRef.current = Boolean(
+      containerRef.current?.querySelector(
+        ".onboarding-step-presence__pane--outgoing",
+      )?.contains(document.activeElement),
+    );
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       currentRef.current = next;
@@ -98,11 +107,24 @@ export function AnimatedStepPresence({
     return clearScheduledTransition;
   }, [transitionKey]);
 
-  const isTransitioning = incoming !== null;
+  useEffect(() => {
+    if (isTransitioning || !restoreFocusRef.current) return;
+
+    const heading = containerRef.current?.querySelector<HTMLElement>(
+      ".onboarding-step-presence__pane--outgoing h1, .onboarding-step-presence__pane--outgoing [data-onboarding-focus]",
+    );
+    restoreFocusRef.current = false;
+    if (!heading) return;
+
+    heading.tabIndex = -1;
+    heading.focus({ preventScroll: true });
+  }, [current.key, isTransitioning]);
+
   const visibleChildren = current.key === transitionKey && !isTransitioning ? children : current.children;
 
   return (
     <div
+      ref={containerRef}
       className={cn(
         "onboarding-step-presence",
         isTransitioning && "onboarding-step-presence--transitioning",
@@ -115,6 +137,7 @@ export function AnimatedStepPresence({
         key={current.key}
         className="onboarding-step-presence__pane onboarding-step-presence__pane--outgoing"
         aria-hidden={isTransitioning}
+        inert={isTransitioning}
       >
         {visibleChildren}
       </div>
@@ -122,6 +145,7 @@ export function AnimatedStepPresence({
         <div
           key={incoming.key}
           className="onboarding-step-presence__pane onboarding-step-presence__pane--incoming"
+          inert={!isAnimating}
         >
           {incoming.children}
         </div>

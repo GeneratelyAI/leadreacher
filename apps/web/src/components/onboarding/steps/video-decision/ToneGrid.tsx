@@ -31,7 +31,7 @@ const TONES: Array<{
   },
 ];
 
-export function VideoToneGrid({
+export function ToneGrid({
   selectedTone,
   onSelect,
 }: {
@@ -39,7 +39,7 @@ export function VideoToneGrid({
   onSelect: (tone: VideoTone) => void;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-3" role="group" aria-label="Select video tone">
       {TONES.map((tone) => {
         const Icon = tone.icon;
         const selected = selectedTone === tone.value;
@@ -72,7 +72,7 @@ export function VideoToneGrid({
             </p>
             </div>
             {selected ? (
-              <span className="onboarding-selection-mark" aria-label="Selected">
+              <span className="onboarding-selection-mark" aria-hidden>
                 <Check className="size-3" aria-hidden />
               </span>
             ) : null}
