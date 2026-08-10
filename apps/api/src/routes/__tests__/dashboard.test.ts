@@ -483,6 +483,29 @@ describe("dashboard overview", () => {
   it("builds primary campaign video summaries for unused and ready assets", () => {
     expect(
       buildPrimaryCampaignVideoSummary({
+        aiConfig: {
+          video: {
+            enabled: true,
+            source: "uploaded",
+            uploadedVideoUrl: "https://cdn.example/uploaded.mp4",
+          },
+        },
+        assets: [],
+        outboundContents: [],
+      }),
+    ).toEqual({
+      id: null,
+      status: "ready",
+      videoUrl: "https://cdn.example/uploaded.mp4",
+      thumbnailUrl: null,
+      videosSent: 0,
+      paused: false,
+      needsReview: false,
+      criticScore: null,
+    });
+
+    expect(
+      buildPrimaryCampaignVideoSummary({
         aiConfig: null,
         assets: [],
         outboundContents: [],
