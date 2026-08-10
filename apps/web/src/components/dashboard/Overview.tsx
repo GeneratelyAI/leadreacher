@@ -537,7 +537,7 @@ function AdvancedOverview({ overview, analytics }: { overview: DashboardOverview
   return <div className="space-y-4"><div className="grid items-stretch gap-4 2xl:grid-cols-[minmax(26rem,0.95fr)_minmax(0,1.35fr)]"><AutomationStatusCard overview={overview} />{analytics ? <AdvancedMetrics analytics={analytics} /> : <Skeleton className="h-full min-h-[20rem] rounded-lg" />}</div><div className="grid items-stretch gap-4 2xl:grid-cols-3"><RecentMessagesCard overview={overview} /><CampaignPerformanceCard analytics={analytics} /><ChannelPerformanceCard analytics={analytics} /></div><ConnectChannels overview={overview} /></div>;
 }
 
-export function DashboardOverviewClient() {
+export function Overview() {
   const { memberName } = useDashboardShell();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<OverviewMode>("casual");

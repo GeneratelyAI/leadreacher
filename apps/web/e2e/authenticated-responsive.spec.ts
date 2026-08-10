@@ -20,7 +20,10 @@ test.describe("authenticated responsive staging", () => {
   });
 
   test("keeps onboarding and every dashboard route reachable on a phone", async ({ page }) => {
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
+    // The auth form is server-rendered before React attaches its handlers.
+    // WebKit can otherwise hydrate between the two fills and replace the
+    // email input, leaving the visually completed form unable to submit.
+    await page.goto("/login", { waitUntil: "networkidle" });
     const authView = page.getByTestId("mobile-auth-view");
     await authView.getByPlaceholder("Enter your work email").fill(email!);
     await authView.getByPlaceholder("Enter your password").fill(password!);

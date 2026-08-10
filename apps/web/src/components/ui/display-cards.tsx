@@ -21,10 +21,22 @@ const accents = {
   green: { icon: "bg-[#36b87d]/18 text-[#78ddb0]", line: "bg-[#43c58d]", glow: "from-[#36b87d]/15" },
 } as const;
 
-export function DisplayCards({ cards, className }: { cards: readonly DisplayCard[]; className?: string }) {
+type DisplayCardsProps = {
+  cards: readonly DisplayCard[];
+  className?: string;
+  activeIndex?: number;
+  onActiveChange?: (index: number) => void;
+};
+
+export function DisplayCards({ cards, className, activeIndex: controlledActiveIndex, onActiveChange }: DisplayCardsProps) {
   const reducedMotion = Boolean(useReducedMotion());
-  const [activeIndex, setActiveIndex] = useState(cards.length - 1);
+  const [uncontrolledActiveIndex, setUncontrolledActiveIndex] = useState(cards.length - 1);
+  const activeIndex = controlledActiveIndex ?? uncontrolledActiveIndex;
   const center = (cards.length - 1) / 2;
+  const selectCard = (index: number) => {
+    setUncontrolledActiveIndex(index);
+    onActiveChange?.(index);
+  };
 
   return (
     <div className={cn("flex min-h-[350px] items-center justify-center overflow-visible py-8 sm:min-h-[390px]", className)}>
@@ -38,8 +50,9 @@ export function DisplayCards({ cards, className }: { cards: readonly DisplayCard
               key={title}
               tabIndex={0}
               aria-label={`${title}: ${description}`}
-              onHoverStart={() => setActiveIndex(index)}
-              onFocus={() => setActiveIndex(index)}
+            onHoverStart={() => selectCard(index)}
+            onFocus={() => selectCard(index)}
+            onClick={() => selectCard(index)}
               initial={reducedMotion ? false : { opacity: 0, y: 26 }}
               whileInView={{ opacity: isActive ? 1 : 0.84, x: offset * 24, y: index * 42, rotate: reducedMotion ? 0 : offset * 1.8, scale: isActive ? 1.025 : 0.985 }}
               whileHover={reducedMotion ? undefined : { y: index * 42 - 16, rotate: 0, scale: 1.035 }}

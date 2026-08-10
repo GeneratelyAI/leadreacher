@@ -1,7 +1,12 @@
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type JsonRecord = { [key: string]: JsonValue };
 
-export type ChannelRecommendationKey = "linkedin" | "email" | "whatsapp";
+export type ChannelRecommendationKey =
+  | "linkedin"
+  | "email"
+  | "whatsapp"
+  | "instagram"
+  | "facebook";
 
 export type ChannelRecommendation = {
   channel: ChannelRecommendationKey;
@@ -29,6 +34,19 @@ function getRecord(value: JsonValue | undefined): JsonRecord {
   return isRecord(value) ? value : {};
 }
 
+function normalizeChannel(value: string): ChannelRecommendationKey | null {
+  if (value === "linkedin" || value === "email" || value === "whatsapp") {
+    return value;
+  }
+  if (value === "instagram" || value === "facebook") {
+    return value;
+  }
+  if (value === "gmail" || value === "outlook" || value === "mail") {
+    return "email";
+  }
+  return null;
+}
+
 /** Parses the `channels` field of a Strategy API response into typed recommendations. */
 export function getChannelRecommendations(channelsJson: JsonValue | undefined): ChannelRecommendation[] {
   const channels = getRecord(channelsJson);
@@ -38,10 +56,8 @@ export function getChannelRecommendations(channelsJson: JsonValue | undefined): 
 
   return channels.recommendations.flatMap((item) => {
     if (!isRecord(item)) return [];
-    const channel = toStringValue(item.channel);
-    if (channel !== "linkedin" && channel !== "email" && channel !== "whatsapp") {
-      return [];
-    }
+    const channel = normalizeChannel(toStringValue(item.channel).toLowerCase());
+    if (!channel) return [];
 
     return [{
       channel,
