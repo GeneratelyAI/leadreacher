@@ -197,7 +197,7 @@ export async function generateImageWithAssets(
     const contents = [
       ...assetParts,
       {
-        text: `Generate an image for this video ad. ${prompt}. Aspect ratio: ${aspectRatio}.`,
+        text: `Generate an image for this outbound campaign video. ${prompt}. Aspect ratio: ${aspectRatio}.`,
       },
     ];
 
