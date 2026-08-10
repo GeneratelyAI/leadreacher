@@ -51,12 +51,40 @@ type CampaignType = (typeof CAMPAIGN_TYPES)[number];
 const CampaignTypeBodySchema = z.object({
   campaignType: z.string(),
 });
+const StrategyGenerationBodySchema = z.object({
+  force: z.boolean().optional().default(false),
+}).default({ force: false });
 
 const VideoDecisionBodySchema = VideoConfigSchema;
-const OutreachMessageBodySchema = z.object({
-  message: z.string().trim().min(1).max(1000),
-});
+const OutreachMessageBodySchema = z
+  .object({
+    message: z.string().trim().min(1).max(1000),
+    ctaLabel: z.string().trim().min(1).max(80).nullable().default(null),
+    ctaUrl: z.string().url().nullable().default(null),
+  })
+  .superRefine((value, ctx) => {
+    if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A CTA needs both a label and a destination URL",
+        path: value.ctaLabel ? ["ctaUrl"] : ["ctaLabel"],
+      });
+    }
+  });
 const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
+const STRATEGY_GENERATION_LOCK_TTL_MS = 10 * 60 * 1000;
+
+async function releaseOwnedLock(lockKey: string, ownerToken: string): Promise<void> {
+  await redis.eval(
+    `if redis.call("get", KEYS[1]) == ARGV[1] then
+      return redis.call("del", KEYS[1])
+    end
+    return 0`,
+    1,
+    lockKey,
+    ownerToken,
+  );
+}
 
 function parseCampaignType(value: string): CampaignType {
   if (!CAMPAIGN_TYPES.includes(value as CampaignType)) {
@@ -100,7 +128,7 @@ function validateVideoDecisionForCampaign(
   if (campaignType === "ai_video_ad") {
     if (videoConfig.tone === null) {
       throw new ValidationError(
-        "AI video ads require a professional, casual, or aggressive tone",
+        "AI campaign video requires a professional, casual, or aggressive tone",
       );
     }
 
@@ -108,7 +136,7 @@ function validateVideoDecisionForCampaign(
       videoConfig.mode !== "standardized" ||
       videoConfig.source !== "generated"
     ) {
-      throw new ValidationError("AI video ads use standardized AI-generated video");
+      throw new ValidationError("AI campaign video uses one standardized AI-generated video");
     }
 
     return;
@@ -247,6 +275,35 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
+  r.get("/strategy/:orgId/outreach-message", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Get persisted outreach message"),
+      params: StrategyParamsSchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { orgId: requestedOrgId } = request.params;
+    if (requestedOrgId !== orgId) {
+      throw new ForbiddenError();
+    }
+
+    const strategy = await prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!strategy) {
+      throw new NotFoundError("Strategy");
+    }
+
+    const messagingAngles = asRecord(strategy.messagingAngles);
+    const existingCta = asRecord(messagingAngles.cta);
+    return reply.send({
+      message: recordString(messagingAngles, "outreachMessage") || null,
+      ctaLabel: recordString(existingCta, "label") || null,
+      ctaUrl: recordString(existingCta, "url") || null,
+    });
+  });
+
   r.post("/strategy/:orgId/outreach-message", {
     schema: {
       ...authenticatedRoute("Strategy", "Generate outreach message"),
@@ -269,8 +326,11 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
 
     const messagingAngles = asRecord(strategy.messagingAngles);
     const existingMessage = recordString(messagingAngles, "outreachMessage");
+    const existingCta = asRecord(messagingAngles.cta);
+    const ctaLabel = recordString(existingCta, "label") || null;
+    const ctaUrl = recordString(existingCta, "url") || null;
     if (existingMessage) {
-      return reply.send({ message: existingMessage });
+      return reply.send({ message: existingMessage, ctaLabel, ctaUrl });
     }
 
     const positioning = asRecord(strategy.positioning);
@@ -310,7 +370,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    return reply.send({ message: result.message });
+    return reply.send({ message: result.message, ctaLabel, ctaUrl });
   });
 
   r.patch("/strategy/:orgId/outreach-message", {
@@ -326,7 +386,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw new ForbiddenError();
     }
 
-    const { message } = request.body;
+    const { message, ctaLabel, ctaUrl } = request.body;
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
@@ -339,11 +399,15 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     await prisma.strategy.update({
       where: { id: strategy.id },
       data: {
-        messagingAngles: toJson({ ...messagingAngles, outreachMessage: message }),
+        messagingAngles: toJson({
+          ...messagingAngles,
+          outreachMessage: message,
+          cta: ctaLabel && ctaUrl ? { label: ctaLabel, url: ctaUrl } : null,
+        }),
       },
     });
 
-    return reply.send({ message });
+    return reply.send({ message, ctaLabel, ctaUrl });
   });
 
   r.post("/strategy/:orgId/video-upload", {
@@ -427,12 +491,20 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
       schema: {
         ...authenticatedRoute("Strategy", "Generate strategy from discovery scrape"),
+        body: StrategyGenerationBodySchema,
       },
     },
     async (request, reply) => {
       const orgId = requireOrgId(request);
       const lockKey = `strategy:generate:lock:${orgId}`;
-      const acquired = await redis.set(lockKey, "1", "PX", 300000, "NX");
+      const ownerToken = randomUUID();
+      const acquired = await redis.set(
+        lockKey,
+        ownerToken,
+        "PX",
+        STRATEGY_GENERATION_LOCK_TTL_MS,
+        "NX",
+      );
       if (acquired !== "OK") {
         throw new AppError(
           "Strategy generation is already in progress for this organization.",
@@ -441,36 +513,73 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      try {
-        const existing = await prisma.strategy.findFirst({
-          where: { orgId },
-          orderBy: { updatedAt: "desc" },
+      const existing = await prisma.strategy.findFirst({
+        where: { orgId },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      const strategy =
+        existing ??
+        (await prisma.strategy.create({
+          data: {
+            orgId,
+            icpDefinition: toJson({}),
+            positioning: toJson({}),
+            channels: toJson({}),
+            messagingAngles: toJson({}),
+            creativeAssets: toJson({}),
+            executionPlan: toJson([]),
+            completedSteps: [],
+          },
+        }));
+
+      if (hasCompletedAudienceAnalysis(strategy) && !request.body.force) {
+        await releaseOwnedLock(lockKey, ownerToken);
+        return reply.send(strategy);
+      }
+
+      const icpDefinition = asRecord(strategy.icpDefinition);
+      const runningStrategy = await prisma.strategy.update({
+        where: { id: strategy.id },
+        data: {
+          icpDefinition: toJson({
+            ...icpDefinition,
+            audienceAnalysis: {
+              status: "running",
+              startedAt: new Date().toISOString(),
+            },
+          }),
+        },
+      });
+
+      void generateStrategy(runningStrategy, orgId, request.dbUserId)
+        .catch(async (error: unknown) => {
+          request.log.error({ err: error, orgId }, "Strategy generation failed");
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to complete audience analysis.";
+          await prisma.strategy.update({
+            where: { id: runningStrategy.id },
+            data: {
+              icpDefinition: toJson({
+                ...icpDefinition,
+                audienceAnalysis: {
+                  status: "failed",
+                  error: message,
+                  generatedAt: new Date().toISOString(),
+                },
+              }),
+            },
+          });
+        })
+        .finally(async () => {
+          await releaseOwnedLock(lockKey, ownerToken).catch((error: unknown) => {
+            request.log.error({ err: error, orgId }, "Failed to release strategy lock");
+          });
         });
 
-        const strategy =
-          existing ??
-          (await prisma.strategy.create({
-            data: {
-              orgId,
-              icpDefinition: toJson({}),
-              positioning: toJson({}),
-              channels: toJson({}),
-              messagingAngles: toJson({}),
-              creativeAssets: toJson({}),
-              executionPlan: toJson([]),
-              completedSteps: [],
-            },
-          }));
-
-        if (hasCompletedAudienceAnalysis(strategy)) {
-          return reply.send(strategy);
-        }
-
-        const generated = await generateStrategy(strategy, orgId, request.dbUserId);
-        return reply.send(generated);
-      } finally {
-        await redis.del(lockKey);
-      }
+      return reply.status(202).send(runningStrategy);
     },
   );
 }
