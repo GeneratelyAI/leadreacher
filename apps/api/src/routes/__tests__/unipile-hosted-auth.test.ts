@@ -96,11 +96,13 @@ describe("Unipile hosted-auth account callback", () => {
         unipileId: "unipile-account-1",
         accountName: "Ada Lovelace",
         status: "active",
+        metadata: { providerType: "linkedin" },
       },
       update: {
         unipileId: "unipile-account-1",
         accountName: "Ada Lovelace",
         status: "active",
+        metadata: { providerType: "linkedin" },
       },
     });
   });
