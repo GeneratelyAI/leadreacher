@@ -58,11 +58,19 @@ export function buildPrimaryCampaignVideoSummary(input: {
 } {
   const asset = pickPrimaryCampaignVideo(input.assets);
   const template = input.template ?? null;
+  const videoConfig = asRecord(asRecord(input.aiConfig)?.video);
+  const uploadedVideoUrl =
+    videoConfig?.enabled === true &&
+    videoConfig.source === "uploaded" &&
+    typeof videoConfig.uploadedVideoUrl === "string" &&
+    videoConfig.uploadedVideoUrl.length > 0
+      ? videoConfig.uploadedVideoUrl
+      : null;
   const videosSent = input.outboundContents.filter((content) => messageHasVideoAttachment(content)).length;
   return {
     id: asset?.id ?? template?.id ?? null,
-    status: asset?.status ?? template?.status ?? "unused",
-    videoUrl: asset?.videoUrl ?? null,
+    status: asset?.status ?? template?.status ?? (uploadedVideoUrl ? "ready" : "unused"),
+    videoUrl: asset?.videoUrl ?? uploadedVideoUrl,
     thumbnailUrl: asset?.thumbnailUrl ?? null,
     videosSent,
     paused: campaignVideoPaused(input.aiConfig),
