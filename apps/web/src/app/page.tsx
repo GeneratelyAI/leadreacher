@@ -1,5 +1,5 @@
-import HeroSection from "@/components/landing/hero/HeroSection";
-import ProductStorySection from "@/components/landing/product-story/ProductStorySection";
+import Hero from "@/components/landing/hero/Hero";
+import ProductStory from "@/components/landing/product-story/ProductStory";
 import LandingRemainder from "@/components/landing/remainder/LandingRemainder";
 import { LandingMotionProvider } from "@/components/landing/LandingMotionProvider";
 import Navbar from "@/components/layout/Navbar";
@@ -8,9 +8,9 @@ export default function Home() {
   return (
     <div className="landing-page relative min-h-dvh overflow-x-clip bg-brand-bg text-neutral-900">
       <Navbar />
-      <HeroSection />
+      <Hero />
       <LandingMotionProvider>
-        <ProductStorySection />
+        <ProductStory />
         <LandingRemainder />
       </LandingMotionProvider>
     </div>
