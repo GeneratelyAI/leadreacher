@@ -70,6 +70,14 @@ export async function launchCampaign(input: {
   if (campaign.leads.length === 0) {
     throw new ValidationError("Campaign has no enrolled leads");
   }
+  const unapprovedLeadCount = campaign.leads.filter(
+    ({ lead }) => lead.reviewStatus !== "approved",
+  ).length;
+  if (unapprovedLeadCount > 0) {
+    throw new ValidationError(
+      `Review every enrolled prospect before launch (${unapprovedLeadCount} remaining)`,
+    );
+  }
   if (asRecord(campaign.aiConfig)?.requiresSequenceReview === true) {
     throw new ValidationError("Review and save the connection note before launching");
   }

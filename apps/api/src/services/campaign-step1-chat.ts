@@ -10,7 +10,7 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "./delivery-attempt.js";
-import { getReadyPersonalizedVideoForDelivery } from "./personalized-video.js";
+import { getReadyCampaignVideoForDelivery } from "./campaign-video.js";
 import {
   checkAndIncrementDailySendLimit,
   millisecondsUntilNextUtcDay,
@@ -88,7 +88,7 @@ export async function deliverSequenceStep1ViaChat(
     sequenceStep: step1,
   });
 
-  const personalizedVideo = await getReadyPersonalizedVideoForDelivery({
+  const campaignVideo = await getReadyCampaignVideoForDelivery({
     campaignId,
     leadId,
   });
@@ -125,12 +125,12 @@ export async function deliverSequenceStep1ViaChat(
       unipileAccountId,
       attendeeProviderId,
       messageText,
-      personalizedVideo
+      campaignVideo
         ? {
             videoMessage: {
-              buffer: personalizedVideo.buffer,
-              filename: personalizedVideo.filename,
-              contentType: personalizedVideo.contentType,
+              buffer: campaignVideo.buffer,
+              filename: campaignVideo.filename,
+              contentType: campaignVideo.contentType,
             },
           }
         : undefined,
@@ -156,16 +156,16 @@ export async function deliverSequenceStep1ViaChat(
           leadId,
           orgId,
           channel: "linkedin",
-          content: personalizedVideo
+          content: campaignVideo
             ? {
                 type: "text",
                 message: messageText,
                 attachments: [
                   {
                     type: "video",
-                    contentType: personalizedVideo.contentType,
-                    filename: personalizedVideo.filename,
-                    videoUrl: personalizedVideo.videoUrl,
+                    contentType: campaignVideo.contentType,
+                    filename: campaignVideo.filename,
+                    videoUrl: campaignVideo.videoUrl,
                   },
                 ],
               }
