@@ -33,7 +33,7 @@ type DiscoveryScrapeStatus = {
   updatedAt: string;
 };
 
-type ChannelKey = "linkedin" | "email" | "whatsapp";
+type ChannelKey = "linkedin" | "email" | "whatsapp" | "instagram" | "facebook";
 
 type ChannelRecommendation = {
   channel: ChannelKey;
@@ -159,6 +159,42 @@ function normalizeTitle(title: string): string {
   return cleaned || "Unknown title";
 }
 
+function normalizedRoleTitle(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/chief\s+executive\s+officer/g, "ceo")
+    .replace(/chief\s+marketing\s+officer/g, "cmo")
+    .replace(/vice\s+president/g, "vp")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function titleMatchesRequestedRole(title: string, requestedTitles: readonly string[]): boolean {
+  const normalizedTitle = normalizedRoleTitle(title);
+  return requestedTitles.some((requestedTitle) => {
+    const normalizedRequested = normalizedRoleTitle(requestedTitle);
+    return normalizedRequested.length > 0 && normalizedTitle.includes(normalizedRequested);
+  });
+}
+
+function filterTargetedProfiles(
+  profiles: ScrapedProfile[],
+  requestedTitles: readonly string[],
+): ScrapedProfile[] {
+  if (requestedTitles.length === 0) return profiles;
+
+  const matchingProfiles = profiles.filter((profile) =>
+    titleMatchesRequestedRole(profile.title, requestedTitles),
+  );
+  if (matchingProfiles.length === 0) {
+    throw new ValidationError(
+      "The audience provider returned profiles outside the selected decision-maker roles. Retry the analysis to run the corrected targeting query.",
+    );
+  }
+
+  return matchingProfiles;
+}
+
 export function topBuyerPersonas(
   profiles: ScrapedProfile[],
 ): AudienceAnalysis["topBuyerPersonas"] {
@@ -182,6 +218,18 @@ function hasText(value: string | undefined): boolean {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function hasProfileEnrichmentSignal(
+  profile: ScrapedProfile,
+  keys: readonly string[],
+): boolean {
+  return keys.some((key) => {
+    const value = profile.enrichmentData[key];
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    return Boolean(value && typeof value === "object");
+  });
+}
+
 export function resolveCompanySearchOutcome(
   companyResult: PromiseSettledResult<CompanySearchResult>,
 ): CompanySearchResult {
@@ -200,8 +248,14 @@ function buildChannelRecommendations(profiles: ScrapedProfile[]): ChannelRecomme
   const linkedinCount = profiles.filter((profile) => isValidLinkedInUrl(profile.linkedinUrl)).length;
   const emailCount = profiles.filter((profile) => hasText(profile.email)).length;
   const phoneCount = profiles.filter((profile) => hasText(profile.phone)).length;
+  const instagramCount = profiles.filter((profile) =>
+    hasProfileEnrichmentSignal(profile, ["instagramUsername", "instagramUrl", "instagram"]),
+  ).length;
+  const facebookCount = profiles.filter((profile) =>
+    hasProfileEnrichmentSignal(profile, ["facebookUsername", "facebookUrl", "facebook"]),
+  ).length;
 
-  return [
+  const recommendations: ChannelRecommendation[] = [
     {
       channel: "linkedin",
       label: "LinkedIn",
@@ -227,9 +281,31 @@ function buildChannelRecommendations(profiles: ScrapedProfile[]): ChannelRecomme
       signalCount: phoneCount,
       totalProfiles: total,
       tag: `${phoneCount}/${total} profiles include phone data`,
-      description: "Useful only when phone coverage is present in the scraped profiles.",
+      description: "Useful when phone coverage is present in the scraped profiles.",
     },
-  ].sort((a, b) => b.confidence - a.confidence) as ChannelRecommendation[];
+    {
+      channel: "instagram",
+      label: "Instagram",
+      confidence: percentage(instagramCount, total),
+      signalCount: instagramCount,
+      totalProfiles: total,
+      tag: `${instagramCount}/${total} profiles include Instagram data`,
+      description: "Useful when Instagram identities are available for direct messaging.",
+    },
+    {
+      channel: "facebook",
+      label: "Facebook",
+      confidence: percentage(facebookCount, total),
+      signalCount: facebookCount,
+      totalProfiles: total,
+      tag: `${facebookCount}/${total} profiles include Facebook data`,
+      description: "Useful when Facebook identities are available for direct messaging.",
+    },
+  ];
+
+  return recommendations
+    .filter((recommendation) => recommendation.signalCount > 0)
+    .sort((a, b) => b.confidence - a.confidence);
 }
 
 async function writeFilterAuditLog(input: {
@@ -294,7 +370,9 @@ async function scrapeDecisionMakersWithFallback(
   adapter: ApifyAdapter,
   filters: ICPFilters,
 ): Promise<{ profiles: ScrapedProfile[]; totalFound: number; filtersUsed: ICPFilters }> {
-  const primary = await adapter.scrapeLeadsWithTotal(filters, 50);
+  const primary = await adapter.scrapeLeadsWithTotal(filters, 25, {
+    profileScraperMode: "Full",
+  });
   if (primary.profiles.length > 0 || filters.jobTitles.length === 0) {
     return { ...primary, filtersUsed: filters };
   }
@@ -304,7 +382,9 @@ async function scrapeDecisionMakersWithFallback(
     jobTitles: [],
     keywords: filters.jobTitles,
   };
-  const fallback = await adapter.scrapeLeadsWithTotal(keywordFallback, 50);
+  const fallback = await adapter.scrapeLeadsWithTotal(keywordFallback, 25, {
+    profileScraperMode: "Full",
+  });
   return {
     ...fallback,
     filtersUsed: fallback.profiles.length > 0 ? keywordFallback : filters,
@@ -379,14 +459,17 @@ export async function generateStrategy(
 
   const adapter = new ApifyAdapter({ apiKey: env.APIFY_API_KEY });
   try {
-    const companySearchPromise: Promise<CompanySearchResult> = companySearchPlan.canSearch
-      ? adapter.searchCompanies(companySearchPlan.filters, 100)
-      : Promise.resolve({
-          companies: [],
-          totalFound: 0,
-          skipped: true,
-          reason: companySearchPlan.reason ?? COMPANY_SEARCH_UNAVAILABLE_REASON,
-        });
+    // A second company actor made onboarding wait for two independent Apify
+    // queues. Decision-maker profiles are the required output; company-level
+    // enrichment can happen after onboarding without blocking the customer.
+    const companySearchPromise: Promise<CompanySearchResult> = Promise.resolve({
+      companies: [],
+      totalFound: 0,
+      skipped: true,
+      reason: companySearchPlan.canSearch
+        ? "Company-level insights are enriched after onboarding."
+        : (companySearchPlan.reason ?? COMPANY_SEARCH_UNAVAILABLE_REASON),
+    });
     const profileSearchPromise = scrapeDecisionMakersWithFallback(adapter, filters);
     const [companyResult, profileResult] = await Promise.allSettled([
       companySearchPromise,
@@ -420,9 +503,12 @@ export async function generateStrategy(
         "We couldn't find decision makers with the current audience filters. Broaden the market or target roles, add a location, then retry the analysis.",
       );
     }
+    // Keyword fallback improves recall, but it must not broaden the audience
+    // that reaches review. The original role filters remain the contract.
+    const targetedProfiles = filterTargetedProfiles(profiles, filters.jobTitles);
 
-    const importedAudience = await importScrapedProfiles(orgId, profiles);
-    const reachableProfiles = profiles.filter((profile) => hasText(profile.email)).length;
+    const importedAudience = await importScrapedProfiles(orgId, targetedProfiles);
+    const reachableProfiles = targetedProfiles.filter((profile) => hasText(profile.email)).length;
     const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
     const channels = asRecord(strategy.channels) as StrategyChannels;
 
@@ -449,16 +535,16 @@ export async function generateStrategy(
             },
             decisionMakers: {
               totalFound: profileTotalFound,
-              sampleSize: profiles.length,
+              sampleSize: targetedProfiles.length,
               prospectLeadIds: importedAudience.leadIds,
             },
             reachability: {
-              percentage: percentage(reachableProfiles, profiles.length),
+              percentage: percentage(reachableProfiles, targetedProfiles.length),
               reachableProfiles,
-              totalProfiles: profiles.length,
+              totalProfiles: targetedProfiles.length,
             },
             topIndustries: companyDataUnavailable ? [] : topIndustries(companies),
-            topBuyerPersonas: topBuyerPersonas(profiles),
+            topBuyerPersonas: topBuyerPersonas(targetedProfiles),
             filters: {
               ...profileFilters,
               resolvedIndustryIds: profileIndustryIds,
@@ -468,7 +554,7 @@ export async function generateStrategy(
         }),
         channels: toJson({
           ...channels,
-          recommendations: buildChannelRecommendations(profiles),
+          recommendations: buildChannelRecommendations(targetedProfiles),
         }),
         completedSteps: [...new Set([...strategy.completedSteps, 1])],
       },
