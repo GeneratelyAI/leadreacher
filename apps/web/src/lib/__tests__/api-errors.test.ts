@@ -1,18 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiFetch, apiStream, clearAccessTokenCache } from "../api";
 
-const getSession = vi.fn();
+const { getBrowserSession } = vi.hoisted(() => ({ getBrowserSession: vi.fn() }));
 vi.mock("@/lib/supabase/client", () => ({
-  createClient: () => ({ auth: { getSession } }),
+  getBrowserSession,
 }));
 
 describe("API error parsing", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_API_URL = "https://api.example.test";
     clearAccessTokenCache();
-    getSession.mockReset().mockResolvedValue({
-      data: { session: { access_token: "test-token" } },
-    });
+    getBrowserSession.mockReset().mockResolvedValue({ access_token: "test-token" });
   });
 
   afterEach(() => {
@@ -80,6 +78,18 @@ describe("API error parsing", () => {
       code: "EXTERNAL_SERVICE_TIMEOUT",
       requestId: "req-stream",
       details: { service: "Groq" },
+    });
+  });
+
+  it("returns an unauthorized error after a stale browser session is cleared", async () => {
+    getBrowserSession.mockResolvedValueOnce(null);
+
+    const error = await apiFetch("/dashboard/conversations").catch((caught) => caught);
+
+    expect(error).toMatchObject({
+      status: 401,
+      code: "UNAUTHORIZED",
+      message: "Not authenticated",
     });
   });
 });
