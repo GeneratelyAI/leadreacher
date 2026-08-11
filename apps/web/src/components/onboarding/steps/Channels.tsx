@@ -12,11 +12,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { Chrome } from "@/components/onboarding/Chrome";
+import { ActionBar } from "@/components/ui/ActionBar";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
 import {
@@ -305,39 +309,28 @@ export default function Channels() {
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
       <Chrome activeStep="channels" />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
-        <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-          <HeroBadge icon={<Link2 className="size-7" />} tone="success" />
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-            Connect your channels
-          </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            Connect LinkedIn for your first campaign. Other connected channels will be available when you build additional campaign sequences.
-          </p>
-        </div>
+      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+        <PageHeader
+          className="mx-auto"
+          icon={<Link2 className="size-7 text-onboarding-success-500" aria-hidden />}
+          eyebrow="Channel readiness"
+          title="Connect your channels"
+          description="Connect LinkedIn for your first campaign. Other connected channels will be available when you build additional campaign sequences."
+        />
 
         {connectionFailed ? (
-          <p className="mx-auto mt-6 w-full max-w-3xl rounded-onboarding bg-onboarding-warning-50 px-4 py-3 text-sm text-onboarding-warning-900 dark:bg-onboarding-warning-900 dark:text-onboarding-warning-150" role="alert">
-            The connection was not completed. You can try again whenever you&apos;re ready.
-          </p>
+          <Alert tone="warning" className="mx-auto mt-6 w-full max-w-3xl">The connection was not completed. You can try again whenever you&apos;re ready.</Alert>
         ) : null}
         {connectionReturned ? (
-          <p className="mx-auto mt-6 w-full max-w-3xl rounded-onboarding bg-onboarding-success-50 px-4 py-3 text-sm text-onboarding-success-900 dark:bg-onboarding-success-900 dark:text-onboarding-success-50" role="status" aria-live="polite">
-            Connection request received. We&apos;re checking for the activated account now.
-          </p>
+          <Alert tone="success" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">Connection request received. We&apos;re checking for the activated account now.</Alert>
         ) : null}
         {error ? (
-          <p className="mx-auto mt-6 w-full max-w-3xl rounded-onboarding bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
-            {error}
-          </p>
+          <Alert tone="error" className="mx-auto mt-6 w-full max-w-3xl">{error}</Alert>
         ) : null}
 
         <OnboardingCard className="mx-auto mt-8 w-full max-w-3xl overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center gap-3 px-6 py-12 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400" role="status" aria-live="polite">
-              <Loader2 className="size-5 animate-spin text-onboarding-purple-500" aria-hidden />
-              Loading channels
-            </div>
+            <EmptyState icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading channels" role="status" aria-live="polite" />
           ) : (
             <div className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
               {CHANNELS.map((channel) => {
@@ -359,10 +352,10 @@ export default function Channels() {
                           {channel.title}
                         </h2>
                         {isRecommended ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-onboarding-purple-50 px-2 py-0.5 text-xs font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">
+                          <StatusBadge tone="brand" className="gap-1">
                             <Sparkles className="size-3" aria-hidden />
                             Recommended
-                          </span>
+                          </StatusBadge>
                         ) : null}
                       </div>
                       <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
@@ -371,10 +364,10 @@ export default function Channels() {
                     </div>
                     {connected ? (
                       <div className="flex shrink-0 items-center gap-2">
-                        <span className="status-badge bg-onboarding-success-50 text-onboarding-success-900 dark:bg-onboarding-success-900 dark:text-onboarding-success-50">
+                        <StatusBadge tone="success">
                           <Check className="size-3" aria-hidden />
                           Connected
-                        </span>
+                        </StatusBadge>
                         <Button
                           type="button"
                           variant="outline"
@@ -396,9 +389,7 @@ export default function Channels() {
                         {isConnecting ? "Opening..." : "Connect"}
                       </Button>
                     ) : (
-                      <span className="status-badge bg-onboarding-neutral-100 text-onboarding-neutral-600 dark:bg-onboarding-neutral-800 dark:text-onboarding-neutral-400">
-                        Coming soon
-                      </span>
+                      <StatusBadge>Coming soon</StatusBadge>
                     )}
                   </article>
                 );
@@ -424,27 +415,10 @@ export default function Channels() {
 
       </main>
 
-      <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigateOnboarding(onboardingHref("checkout"))}
-          className="pointer-events-auto h-13 px-7 text-base"
-        >
-          <ArrowLeft className="size-5" aria-hidden />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="brand"
-          disabled={!linkedInConnected || isCompleting}
-          onClick={() => void handleComplete()}
-          className="pointer-events-auto h-13 px-8 text-base sm:px-10"
-        >
-          {isCompleting ? "Preparing review..." : "Finish setup and review"}
-          <ArrowRight className="size-5" aria-hidden />
-        </Button>
-      </div>
+      <ActionBar
+        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("checkout"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
+        trailing={<Button type="button" variant="primary" disabled={!linkedInConnected || isCompleting} onClick={() => void handleComplete()} className="h-13 px-8 text-base sm:px-10">{isCompleting ? "Preparing review..." : "Finish setup and review"}<ArrowRight className="size-5" aria-hidden /></Button>}
+      />
     </div>
   );
 }
