@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import type { ScrapedProfile } from "../adapters/apify.js";
+import type { ProspectProfile } from "../adapters/prospect-search.js";
 import { prisma } from "../lib/prisma.js";
 import { normalizePhoneE164 } from "../lib/phone.js";
 
@@ -53,9 +53,10 @@ function isDuplicateLinkedinUrl(
   return false;
 }
 
-export async function importScrapedProfiles(
+export async function importProspectProfiles(
   orgId: string,
-  profiles: ScrapedProfile[],
+  profiles: ProspectProfile[],
+  source: "apify" | "linkedin" | "sales_navigator",
 ): Promise<{ imported: number; skipped: number; leadIds: string[] }> {
   const profileUrls = [...new Set(profiles.map((profile) => profile.linkedinUrl))];
   const existingUrls = await fetchExistingLinkedinUrls(
@@ -74,7 +75,7 @@ export async function importScrapedProfiles(
 
     toCreate.push({
       orgId,
-      source: "apify",
+      source,
       status: "new",
       tags: [],
       notes: [],
@@ -116,6 +117,13 @@ export async function importScrapedProfiles(
     skipped,
     leadIds: importedLeads.map((lead) => lead.id),
   };
+}
+
+export function importScrapedProfiles(
+  orgId: string,
+  profiles: ProspectProfile[],
+): Promise<{ imported: number; skipped: number; leadIds: string[] }> {
+  return importProspectProfiles(orgId, profiles, "apify");
 }
 
 export async function importFromCSV(
