@@ -12,10 +12,13 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
-import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
+import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
+import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
 import { Chrome } from "@/components/onboarding/Chrome";
+import { ActionBar } from "@/components/ui/ActionBar";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapOrganization } from "@/lib/api";
 import {
@@ -68,42 +71,6 @@ type StrategyResponse = {
   orgId: string;
   campaignType: CampaignType | null;
 };
-
-function CampaignTypeActions({
-  canContinue,
-  isSaving,
-  onBack,
-  onContinue,
-}: {
-  canContinue: boolean;
-  isSaving: boolean;
-  onBack: () => void;
-  onContinue: () => void;
-}) {
-  return (
-    <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onBack}
-        className="pointer-events-auto h-13 px-7 text-base"
-      >
-        <ArrowLeft className="size-5" aria-hidden />
-        Back
-      </Button>
-      <Button
-        type="button"
-        variant="brand"
-        disabled={!canContinue || isSaving}
-        onClick={onContinue}
-        className="pointer-events-auto h-13 px-8 text-base sm:px-10"
-      >
-        {isSaving ? "Saving..." : "Continue to next step"}
-        <ArrowRight className="size-5" aria-hidden />
-      </Button>
-    </div>
-  );
-}
 
 export default function CampaignType() {
   useLayoutEffect(() => {
@@ -183,42 +150,32 @@ export default function CampaignType() {
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
       <Chrome activeStep="campaign-type" />
 
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
-        <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-          <HeroBadge icon={<Sparkles className="size-7" />} />
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-            Choose your campaign type
-          </h1>
-          <p className="mt-4 max-w-lg text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            We&apos;ll recommend the best content, channels, and strategy based on your selection.
-          </p>
-        </div>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+        <PageHeader
+          className="mx-auto"
+          icon={<Sparkles className="size-7" aria-hidden />}
+          eyebrow="Campaign brief"
+          title="Choose your campaign type"
+          description="We&apos;ll recommend the best content, channels, and strategy based on your selection."
+        />
 
         {error ? (
-          <div
-            role="alert"
-            className="mx-auto mt-6 flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 rounded-onboarding bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-900 ring-1 ring-onboarding-error-500/20 dark:bg-onboarding-error-900 dark:text-onboarding-error-50"
+          <Alert
+            tone="error"
+            className="mx-auto mt-6 w-full max-w-4xl"
+            action={!isSaving ? <Button type="button" variant="secondary" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button> : null}
           >
-            <p>{error}</p>
-            {!isSaving ? <Button type="button" variant="secondary" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button> : null}
-          </div>
+            {error}
+          </Alert>
         ) : null}
 
-        <OnboardingCard className="mx-auto mt-8 w-full max-w-5xl px-6 py-6 sm:px-7">
+        <ReviewPanel
+          className="mx-auto mt-8 w-full max-w-5xl"
+          icon={<Sparkles className="size-6" strokeWidth={1.75} aria-hidden />}
+          title="Video advantage"
+          description="Video helps capture attention, increase engagement, and improve campaign performance."
+        >
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-            <div className="flex min-w-0 flex-1 items-start gap-4 lg:pr-7">
-              <span className="inline-flex shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200">
-                <Sparkles className="size-6" strokeWidth={1.75} aria-hidden />
-              </span>
-              <div>
-                <p className="text-sm font-bold tracking-wide text-onboarding-purple-600 uppercase dark:text-onboarding-purple-200">
-                  Video Advantage
-                </p>
-                <p className="mt-1 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                  Video helps capture attention, increase engagement, and improve campaign performance.
-                </p>
-              </div>
-            </div>
             <div className="grid grid-cols-3 divide-x divide-onboarding-neutral-150 border-t border-onboarding-neutral-150 pt-5 dark:divide-onboarding-neutral-750 dark:border-onboarding-neutral-750 lg:border-t-0 lg:pt-0">
               {VIDEO_ADVANTAGE_STATS.map((stat) => {
                 const Icon = stat.icon;
@@ -241,7 +198,7 @@ export default function CampaignType() {
               })}
             </div>
           </div>
-        </OnboardingCard>
+        </ReviewPanel>
 
         <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
           {CAMPAIGN_TYPE_OPTIONS.map((option) => {
@@ -249,20 +206,12 @@ export default function CampaignType() {
             const isSelected = selectedType === option.id;
 
             return (
-              <button
+              <ChoiceCard
                 key={option.id}
-                type="button"
                 onClick={() => setSelectedType(option.id)}
-                className={`app-card app-card--interactive relative flex min-h-80 flex-col overflow-hidden text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 ${
-                  isSelected ? "app-card--selected" : ""
-                }`}
-                aria-pressed={isSelected}
+                selected={isSelected}
+                className="min-h-80 flex-col"
               >
-                {isSelected ? (
-                  <span className="absolute top-4 right-4 inline-flex size-7 items-center justify-center rounded-onboarding-pill bg-onboarding-purple-500 text-white shadow-onboarding-button">
-                    <Check className="size-4 stroke-[2.5]" aria-hidden />
-                  </span>
-                ) : null}
                 <div className="flex flex-1 flex-col px-6 pb-6 pt-7">
                   <span className="inline-flex items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200">
                     <Icon className="size-7" strokeWidth={1.75} aria-hidden />
@@ -296,17 +245,25 @@ export default function CampaignType() {
                     {option.tag}
                   </span>
                 </div>
-              </button>
+              </ChoiceCard>
             );
           })}
         </div>
       </main>
 
-      <CampaignTypeActions
-        canContinue={Boolean(selectedType && orgId && !isLoading)}
-        isSaving={isSaving}
-        onBack={() => navigateOnboarding(strategyHref("channels"))}
-        onContinue={() => void handleContinue()}
+      <ActionBar
+        leading={
+          <Button type="button" variant="secondary" onClick={() => navigateOnboarding(strategyHref("channels"))} className="h-13 px-7 text-base">
+            <ArrowLeft className="size-5" aria-hidden />
+            Back
+          </Button>
+        }
+        trailing={
+          <Button type="button" variant="primary" disabled={!selectedType || !orgId || isLoading || isSaving} onClick={() => void handleContinue()} className="h-13 px-8 text-base sm:px-10">
+            {isSaving ? "Saving..." : "Continue to next step"}
+            <ArrowRight className="size-5" aria-hidden />
+          </Button>
+        }
       />
     </div>
   );
