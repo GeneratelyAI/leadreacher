@@ -1,3 +1,5 @@
+export const SITE_URL = "https://www.leadreacher.ai";
+
 export const ASSETS = {
   logoColored: "/logo/leadreacher_logo_colored_transparent.svg",
   logoWhite: "/logo/leadreacher_logo_white_transparent.svg",

@@ -3,11 +3,11 @@ import { geist } from "@/lib/fonts/geist";
 import { themeInitScript } from "@/lib/theme-init-script";
 import { Toaster } from "@/components/ui/sonner";
 import HorizontalRouteTransition from "@/components/layout/HorizontalRouteTransition";
+import { SITE_URL } from "@/lib/constants/brand";
 import "./globals.css";
 
 // The apex domain redirects here. Keep metadata on the serving host so search
 // engines associate one canonical favicon and page identity with the site.
-const SITE_URL = "https://www.leadreacher.ai";
 const SITE_DESCRIPTION =
   "AI-powered multi-channel outreach with personalized video, built for review before launch.";
 const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
