@@ -34,21 +34,22 @@ export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapePr
   const [keywords, setKeywords] = useState("");
   const [industries, setIndustries] = useState("");
   const [companySizes, setCompanySizes] = useState("");
+  const [searchUrl, setSearchUrl] = useState("");
   const [maxResults, setMaxResults] = useState("25");
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   async function submit() {
     const titles = splitList(jobTitles);
-    if (titles.length === 0) {
-      setError("Add at least one job title.");
+    if (titles.length === 0 && !searchUrl.trim()) {
+      setError("Add at least one job title or paste a LinkedIn people search URL.");
       return;
     }
     setIsSaving(true);
     setError(null);
     try {
       const result = await apiFetch<{ imported: number; skipped: number; total: number }>(
-        "/leads/scrape",
+        "/prospects/search",
         {
           method: "POST",
           body: JSON.stringify({
@@ -59,7 +60,8 @@ export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapePr
               industries: splitList(industries),
               companySizes: splitList(companySizes),
             },
-            maxResults: Math.min(100, Math.max(1, Number.parseInt(maxResults, 10) || 25)),
+            maxResults: Math.min(50, Math.max(1, Number.parseInt(maxResults, 10) || 25)),
+            ...(searchUrl.trim() && { searchUrl: searchUrl.trim() }),
           }),
         },
       );
@@ -82,7 +84,7 @@ export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapePr
           <DialogHeader>
             <DialogTitle>Find prospects</DialogTitle>
             <DialogDescription>
-              Run an ICP LinkedIn search. Results land in Prospects as pending review before enrollment.
+              Search through your connected LinkedIn account. Results land in Prospects as pending review before enrollment.
             </DialogDescription>
           </DialogHeader>
           {error ? (
@@ -91,6 +93,19 @@ export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapePr
             </p>
           ) : null}
           <div className="grid gap-3">
+            <label className="grid gap-1.5 text-sm font-medium">
+              LinkedIn search URL <span className="font-normal text-muted-foreground">(optional)</span>
+              <Input
+                value={searchUrl}
+                onChange={(event) => setSearchUrl(event.target.value)}
+                placeholder="https://www.linkedin.com/search/results/people?..."
+              />
+            </label>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or build a search with filters
+              <span className="h-px flex-1 bg-border" />
+            </div>
             <label className="grid gap-1.5 text-sm font-medium">
               Job titles
               <Input
@@ -138,7 +153,7 @@ export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapePr
               <Input
                 type="number"
                 min={1}
-                max={100}
+                max={50}
                 value={maxResults}
                 onChange={(event) => setMaxResults(event.target.value)}
               />
