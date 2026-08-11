@@ -8,6 +8,7 @@ const {
   socialAccountCount,
   socialAccountFindFirst,
   socialAccountUpdate,
+  socialAccountUpsert,
   messageFindMany,
   organizationFindUnique,
   organizationUpdate,
@@ -19,11 +20,13 @@ const {
   leadFindMany,
   leadUpdateMany,
   campaignLeadCreateMany,
+  campaignLeadCount,
 } = vi.hoisted(() => ({
   socialAccountFindMany: vi.fn(),
   socialAccountCount: vi.fn(),
   socialAccountFindFirst: vi.fn(),
   socialAccountUpdate: vi.fn(),
+  socialAccountUpsert: vi.fn(),
   messageFindMany: vi.fn(),
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
@@ -35,6 +38,7 @@ const {
   leadFindMany: vi.fn(),
   leadUpdateMany: vi.fn(),
   campaignLeadCreateMany: vi.fn(),
+  campaignLeadCount: vi.fn(),
 }));
 const { createHostedAuthLink, getAccountStatus, listAccounts } = vi.hoisted(() => ({
   createHostedAuthLink: vi.fn(),
@@ -44,7 +48,20 @@ const { createHostedAuthLink, getAccountStatus, listAccounts } = vi.hoisted(() =
 const { getDailySendLimitStatus } = vi.hoisted(() => ({
   getDailySendLimitStatus: vi.fn(),
 }));
+const { redisGet, redisSet, redisDel } = vi.hoisted(() => ({
+  redisGet: vi.fn(),
+  redisSet: vi.fn(),
+  redisDel: vi.fn(),
+}));
 const { launchCampaign } = vi.hoisted(() => ({ launchCampaign: vi.fn() }));
+const { searchAndImportLinkedInProspects } = vi.hoisted(() => ({
+  searchAndImportLinkedInProspects: vi.fn(),
+}));
+const { onboardingDiscoveryAdd, onboardingDiscoveryGetJob } = vi.hoisted(() => ({
+  onboardingDiscoveryAdd: vi.fn(),
+  onboardingDiscoveryGetJob: vi.fn(),
+}));
+const { publishDashboardEvent } = vi.hoisted(() => ({ publishDashboardEvent: vi.fn() }));
 
 vi.mock("../../config/env.js", () => ({
   env: {
@@ -62,6 +79,7 @@ vi.mock("../../lib/prisma.js", () => ({
       count: socialAccountCount,
       findFirst: socialAccountFindFirst,
       update: socialAccountUpdate,
+      upsert: socialAccountUpsert,
     },
     message: {
       findMany: messageFindMany,
@@ -80,7 +98,7 @@ vi.mock("../../lib/prisma.js", () => ({
       update: campaignUpdate,
     },
     lead: { findMany: leadFindMany, updateMany: leadUpdateMany },
-    campaignLead: { createMany: campaignLeadCreateMany },
+    campaignLead: { createMany: campaignLeadCreateMany, count: campaignLeadCount },
   },
 }));
 vi.mock("../../adapters/unipile.js", () => ({
@@ -94,8 +112,16 @@ vi.mock("../../adapters/unipile.js", () => ({
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({ getDailySendLimitStatus }));
 vi.mock("../../services/campaign-launch.js", () => ({ launchCampaign }));
+vi.mock("../../services/prospect-search.js", () => ({ searchAndImportLinkedInProspects }));
+vi.mock("../../lib/queue.js", () => ({
+  onboardingProspectDiscoveryQueue: {
+    add: onboardingDiscoveryAdd,
+    getJob: onboardingDiscoveryGetJob,
+  },
+}));
+vi.mock("../../lib/dashboard-events.js", () => ({ publishDashboardEvent }));
 vi.mock("../../lib/redis.js", () => ({
-  redis: { get: vi.fn(), set: vi.fn(), del: vi.fn() },
+  redis: { get: redisGet, set: redisSet, del: redisDel },
 }));
 
 import { onboardingRoutes } from "../onboarding.js";
@@ -133,6 +159,7 @@ beforeEach(async () => {
   socialAccountCount.mockReset();
   socialAccountFindFirst.mockReset();
   socialAccountUpdate.mockReset();
+  socialAccountUpsert.mockReset();
   messageFindMany.mockReset();
   organizationFindUnique.mockReset();
   organizationUpdate.mockReset();
@@ -144,11 +171,19 @@ beforeEach(async () => {
   leadFindMany.mockReset();
   leadUpdateMany.mockReset();
   campaignLeadCreateMany.mockReset();
+  campaignLeadCount.mockReset();
   launchCampaign.mockReset();
+  searchAndImportLinkedInProspects.mockReset();
+  onboardingDiscoveryAdd.mockReset();
+  onboardingDiscoveryGetJob.mockReset();
+  publishDashboardEvent.mockReset();
   createHostedAuthLink.mockReset();
   getAccountStatus.mockReset();
   listAccounts.mockReset();
   getDailySendLimitStatus.mockReset();
+  redisGet.mockReset();
+  redisSet.mockReset();
+  redisDel.mockReset();
 
   socialAccountFindMany.mockResolvedValue([
     {
@@ -198,14 +233,30 @@ beforeEach(async () => {
   });
   strategyUpdate.mockResolvedValue({});
   campaignFindFirst.mockResolvedValue(null);
-  campaignCreate.mockResolvedValue({ id: "campaign-onboarding-1" });
+  campaignCreate.mockResolvedValue({ id: "campaign-onboarding-1", status: "review" });
   leadFindMany.mockResolvedValue([
-    { id: "lead-1", reviewStatus: "pending" },
-    { id: "lead-2", reviewStatus: "approved" },
+    {
+      id: "lead-1",
+      reviewStatus: "pending",
+      enrichmentData: { networkDistance: "FIRST_DEGREE" },
+    },
+    {
+      id: "lead-2",
+      reviewStatus: "approved",
+      enrichmentData: { networkDistance: "DISTANCE_2" },
+    },
   ]);
   leadUpdateMany.mockResolvedValue({ count: 1 });
   campaignLeadCreateMany.mockResolvedValue({ count: 2 });
+  campaignLeadCount.mockResolvedValue(0);
   launchCampaign.mockResolvedValue({ launched: true, jobCount: 2, audienceRouting: {} });
+  searchAndImportLinkedInProspects.mockResolvedValue({
+    imported: 2,
+    skipped: 0,
+    total: 2,
+    totalFound: 2,
+    leadIds: ["lead-1", "lead-2"],
+  });
   createHostedAuthLink.mockResolvedValue({
     url: "https://account.unipile.com/hosted-auth-link",
   });
@@ -216,6 +267,8 @@ beforeEach(async () => {
     sources: [{ id: "source-1", status: "OK" }],
   });
   listAccounts.mockResolvedValue({ items: [] });
+  onboardingDiscoveryGetJob.mockResolvedValue(null);
+  onboardingDiscoveryAdd.mockResolvedValue({ id: "onboarding-prospect-discovery:campaign-onboarding-1" });
   socialAccountUpdate.mockResolvedValue({});
   app = await buildTestApp();
 });
@@ -310,6 +363,7 @@ describe("channel connection and onboarding completion", () => {
     expect(connect.statusCode).toBe(200);
     expect(connect.json()).toEqual({
       url: "https://account.unipile.com/hosted-auth-link",
+      connectionToken: expect.any(String),
     });
     expect(createHostedAuthLink).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -320,6 +374,57 @@ describe("channel connection and onboarding completion", () => {
         failureRedirectUrl: "http://localhost:3000/onboarding?step=channels&status=failed",
       }),
     );
+  });
+
+  it("confirms the returned account with the one-time organization token", async () => {
+    const connectionToken = "4e17cd74-bbee-4d42-8e93-75cf9cb12e64";
+    redisGet.mockResolvedValueOnce(JSON.stringify({
+      orgId: "org-1",
+      provider: "LINKEDIN",
+    }));
+    socialAccountFindFirst.mockResolvedValueOnce(null);
+    socialAccountUpsert.mockResolvedValueOnce({ id: "sa-confirmed" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/connect/confirm",
+      payload: {
+        accountId: "unipile-1",
+        connectionToken,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      connected: true,
+      status: "active",
+      platform: "linkedin",
+    });
+    expect(getAccountStatus).toHaveBeenCalledWith("unipile-1");
+    expect(socialAccountUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      create: expect.objectContaining({
+        orgId: "org-1",
+        platform: "linkedin",
+        unipileId: "unipile-1",
+      }),
+    }));
+    expect(redisDel).toHaveBeenCalledWith(`social-account:connection:${connectionToken}`);
+  });
+
+  it("recovers an unclaimed account returned before confirmation tokens were introduced", async () => {
+    socialAccountFindFirst.mockResolvedValueOnce(null);
+    socialAccountUpsert.mockResolvedValueOnce({ id: "sa-recovered" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/connect/confirm",
+      payload: { accountId: "unipile-1" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ connected: true, platform: "linkedin" });
+    expect(redisGet).not.toHaveBeenCalled();
+    expect(socialAccountUpsert).toHaveBeenCalledOnce();
   });
 
   it("isolates usage, campaign assignments, and capacity per connected LinkedIn account", async () => {
@@ -385,7 +490,7 @@ describe("channel connection and onboarding completion", () => {
     const response = await app.inject({
       method: "POST",
       url: "/onboarding/complete",
-      payload: {},
+      payload: { socialAccountId: "sa-1" },
     });
 
     expect(response.statusCode).toBe(200);
@@ -394,7 +499,7 @@ describe("channel connection and onboarding completion", () => {
       campaignId: "campaign-onboarding-1",
       launched: false,
       reviewRequired: true,
-      prospectCount: 2,
+      discoveryStatus: "queued",
     });
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org-1" },
@@ -420,14 +525,93 @@ describe("channel connection and onboarding completion", () => {
         }),
       }),
     );
-    expect(campaignLeadCreateMany).toHaveBeenCalledWith({
-      data: [
-        { campaignId: "campaign-onboarding-1", leadId: "lead-1" },
-        { campaignId: "campaign-onboarding-1", leadId: "lead-2" },
-      ],
-      skipDuplicates: true,
+    expect(onboardingDiscoveryAdd).toHaveBeenCalledWith("discover-onboarding-prospects", {
+      orgId: "org-1",
+      campaignId: "campaign-onboarding-1",
+    }, {
+      jobId: "onboarding-prospect-discovery-campaign-onboarding-1",
     });
+    expect(socialAccountFindFirst).toHaveBeenCalledWith({
+      where: { orgId: "org-1", platform: "linkedin", status: "active", id: "sa-1" },
+      select: { id: true },
+    });
+    expect(campaignLeadCreateMany).not.toHaveBeenCalled();
+    expect(searchAndImportLinkedInProspects).not.toHaveBeenCalled();
     expect(launchCampaign).not.toHaveBeenCalled();
+  });
+
+  it("queues audience discovery even when the scraper has not yet found prospects", async () => {
+    searchAndImportLinkedInProspects.mockResolvedValueOnce({
+      imported: 0,
+      skipped: 0,
+      total: 0,
+      totalFound: 0,
+      leadIds: [],
+    });
+    leadFindMany.mockResolvedValueOnce([]);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/onboarding/complete",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ discoveryStatus: "queued" });
+    expect(campaignLeadCreateMany).not.toHaveBeenCalled();
+    expect(onboardingDiscoveryAdd).toHaveBeenCalledOnce();
+  });
+
+  it("archives an outdated unfinished onboarding campaign before preparing a new strategy", async () => {
+    campaignFindFirst.mockResolvedValueOnce({
+      id: "campaign-outdated",
+      status: "review",
+      sequence: [],
+      aiConfig: { source: "onboarding", strategyFingerprint: "outdated-fingerprint" },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/onboarding/complete",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(campaignUpdate).toHaveBeenCalledWith({
+      where: { id: "campaign-outdated" },
+      data: { aiConfig: { source: "onboarding", strategyFingerprint: "outdated-fingerprint", archived: true } },
+    });
+    expect(campaignCreate).toHaveBeenCalledOnce();
+  });
+
+  it("allows a failed onboarding audience to be queued again from campaign review", async () => {
+    campaignFindFirst.mockResolvedValueOnce({
+      id: "campaign-onboarding-1",
+      aiConfig: {
+        source: "onboarding",
+        onboardingDiscovery: { status: "failed", prospectCount: 0, updatedAt: "2026-08-11T00:00:00.000Z" },
+      },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/onboarding/campaigns/campaign-onboarding-1/discovery/retry",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ queued: true });
+    expect(campaignUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "campaign-onboarding-1" },
+      data: expect.objectContaining({ aiConfig: expect.objectContaining({
+        onboardingDiscovery: expect.objectContaining({ status: "queued", prospectCount: 0 }),
+      }) }),
+    }));
+    expect(onboardingDiscoveryAdd).toHaveBeenCalledWith(
+      "discover-onboarding-prospects",
+      { orgId: "org-1", campaignId: "campaign-onboarding-1" },
+      { jobId: "onboarding-prospect-discovery-campaign-onboarding-1" },
+    );
   });
 
   it("is idempotent when onboarding was already completed", async () => {
@@ -456,7 +640,7 @@ describe("channel connection and onboarding completion", () => {
       campaignId: "campaign-onboarding-1",
       launched: true,
       reviewRequired: false,
-      prospectCount: 0,
+      discoveryStatus: "completed",
     });
     expect(organizationUpdate).not.toHaveBeenCalled();
     expect(launchCampaign).not.toHaveBeenCalled();

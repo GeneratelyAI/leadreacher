@@ -48,8 +48,21 @@ const { getStripePrice, createSubscriptionCheckoutSession, verifyStripeWebhookEv
     createSubscriptionCheckoutSession: vi.fn(),
     verifyStripeWebhookEvent: vi.fn(),
   }));
-const { queueAdd } = vi.hoisted(() => ({ queueAdd: vi.fn() }));
+const { queueAdd, onboardingDiscoveryAdd, onboardingDiscoveryGetJob } = vi.hoisted(() => ({
+  queueAdd: vi.fn(),
+  onboardingDiscoveryAdd: vi.fn(),
+  onboardingDiscoveryGetJob: vi.fn(),
+}));
 const { launchCampaign } = vi.hoisted(() => ({ launchCampaign: vi.fn() }));
+const { searchAndImportLinkedInProspects } = vi.hoisted(() => ({
+  searchAndImportLinkedInProspects: vi.fn(async () => ({
+    imported: 1,
+    skipped: 0,
+    total: 1,
+    totalFound: 1,
+    leadIds: ["lead-e2e"],
+  })),
+}));
 
 vi.mock("../../config/env.js", () => ({
   env: {
@@ -125,7 +138,10 @@ vi.mock("../../lib/prisma.js", () => ({
       findMany: vi.fn(async () => [{ id: "lead-e2e", reviewStatus: "pending" }]),
       updateMany: vi.fn(async () => ({ count: 1 })),
     },
-    campaignLead: { createMany: vi.fn(async () => ({ count: 1 })) },
+    campaignLead: {
+      createMany: vi.fn(async () => ({ count: 1 })),
+      count: vi.fn(async () => 0),
+    },
     message: { findFirst: vi.fn(), findMany: vi.fn(async () => []) },
   },
 }));
@@ -142,11 +158,16 @@ vi.mock("../../lib/queue.js", () => ({
   campaignSequenceJobId: vi.fn(),
   campaignSequenceQueue: { remove: vi.fn() },
   videoGenerationQueue: { add: queueAdd },
+  onboardingProspectDiscoveryQueue: {
+    add: onboardingDiscoveryAdd,
+    getJob: onboardingDiscoveryGetJob,
+  },
 }));
 vi.mock("../../services/campaign-step1-chat.js", () => ({
   deliverSequenceStep1ViaChat: vi.fn(),
 }));
 vi.mock("../../services/campaign-launch.js", () => ({ launchCampaign }));
+vi.mock("../../services/prospect-search.js", () => ({ searchAndImportLinkedInProspects }));
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {
     createHostedAuthLink = vi.fn(async () => ({ url: "https://unipile.test/link" }));
@@ -321,7 +342,10 @@ describe("onboarding backend in Stripe mock mode", () => {
     expect(activation.json()).toEqual({ received: true });
     expect(replay.json()).toEqual({ received: true, duplicate: true });
     expect(state.organization.subscriptionStatus).toBe("active");
-    expect(connect.json()).toEqual({ url: "https://unipile.test/link" });
+    expect(connect.json()).toEqual({
+      url: "https://unipile.test/link",
+      connectionToken: expect.any(String),
+    });
     expect(hostedCallback.json()).toEqual({ received: true, handled: true });
     expect(accounts.json()).toMatchObject({
       accounts: [expect.objectContaining({ platform: "linkedin", status: "active" })],
@@ -331,8 +355,13 @@ describe("onboarding backend in Stripe mock mode", () => {
       campaignId: "campaign-onboarding-e2e",
       launched: false,
       reviewRequired: true,
-      prospectCount: 1,
+      discoveryStatus: "queued",
     });
+    expect(onboardingDiscoveryAdd).toHaveBeenCalledWith(
+      "discover-onboarding-prospects",
+      { orgId: ORG_ID, campaignId: "campaign-onboarding-e2e" },
+      { jobId: "onboarding-prospect-discovery-campaign-onboarding-e2e" },
+    );
     expect(state.organization.onboardedAt).toBeInstanceOf(Date);
   });
 });
