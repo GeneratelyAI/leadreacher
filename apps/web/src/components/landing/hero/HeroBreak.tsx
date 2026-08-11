@@ -15,7 +15,7 @@ const STRANDS = [
 export default function HeroBreak() {
   return (
     <div
-      className="hero-section-break pointer-events-none absolute inset-x-0 top-0 z-10 h-24 sm:h-32 lg:h-40"
+      className="hero-section-break pointer-events-none absolute inset-x-0 top-0 z-30 h-24 bg-white sm:h-32 lg:h-40"
       aria-hidden
     >
       <svg
@@ -27,9 +27,9 @@ export default function HeroBreak() {
         <defs>
           <linearGradient id="hero-break-edge" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
             <stop stopColor="#c6c3f2" stopOpacity="0" />
-            <stop offset="0.2" stopColor="#d8d5f7" stopOpacity="0.52" />
+            <stop offset="0.2" stopColor="#c9c2fa" stopOpacity="0.7" />
             <stop offset="0.5" stopColor="#ffffff" stopOpacity="0.96" />
-            <stop offset="0.8" stopColor="#d8d5f7" stopOpacity="0.52" />
+            <stop offset="0.8" stopColor="#c9c2fa" stopOpacity="0.7" />
             <stop offset="1" stopColor="#c6c3f2" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="hero-break-glow" x1="0" y1="0" x2="1440" y2="0" gradientUnits="userSpaceOnUse">
@@ -39,19 +39,19 @@ export default function HeroBreak() {
           </linearGradient>
         </defs>
 
-        <path d="M-20 0 H1460 V17 Q720 111 -20 17 Z" fill="var(--hero-break-bg)" />
-        <path d="M-20 17 Q720 111 1460 17 L1460 128 L-20 128 Z" fill="var(--landing-light-bg)" />
+        <path d="M-20 0 H1460 V17 Q720 111 -20 17 Z" fill="#ffffff" />
+        <path d="M-20 17 Q720 111 1460 17 L1460 128 L-20 128 Z" fill="#ffffff" />
         <path
           d="M-20 17 Q720 111 1460 17"
           stroke="url(#hero-break-glow)"
-          strokeWidth="7"
+          strokeWidth="9"
           vectorEffect="non-scaling-stroke"
-          opacity="0.2"
+          opacity="0.32"
         />
         <path
           d="M-20 17 Q720 111 1460 17"
           stroke="url(#hero-break-edge)"
-          strokeWidth="1.25"
+          strokeWidth="1.5"
           vectorEffect="non-scaling-stroke"
         />
       </svg>

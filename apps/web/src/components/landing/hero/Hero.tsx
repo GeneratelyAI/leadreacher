@@ -73,10 +73,13 @@ export default function Hero() {
   const submissionPending = useRef(false);
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [phase, setPhase] = useState<AnalyzerPhase>("idle");
+  const [hydrated, setHydrated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [taglineWidth, setTaglineWidth] = useState<number | null>(null);
   const rotatingHeroWord = useRotatingHeroWord();
   const { start, waitForReadyToNavigate } = useWebsiteScrapeStatus({ autoStart: false, context: "anonymous" });
+
+  useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     const tagline = taglineRef.current;
@@ -160,14 +163,14 @@ export default function Hero() {
   }
 
   return (
-    <section id="top" data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
+    <section id="top" data-hydrated={hydrated} data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden bg-white text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
       <HeroBackground />
-      <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-22 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
+      <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-28 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
         <main data-analysis-phase={phase} className="hero-composition flex flex-1 flex-col items-center text-center lg:grid lg:grid-cols-1 lg:grid-rows-[1fr_auto_1fr]">
           <div className="flex flex-col items-center lg:self-end lg:pb-[clamp(1.25rem,4vh,3rem)]">
-          <h1 aria-label="Drop your URL. Go back to your business, store, startup, brokerage, product, or agency." className="hero-headline max-w-[1200px] text-balance text-[2.25rem] font-semibold leading-[1.06] min-[360px]:text-[2.6rem] sm:text-[4rem] xl:text-[5.5rem] h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:text-[3rem]">
+          <h1 aria-label="Drop your URL. Go back to your business, store, startup, brokerage, product, or agency." className="hero-headline max-w-[1200px] text-balance text-[1.75rem] font-semibold leading-[1.06] sm:text-[4rem] xl:text-[5.5rem] h-compact:lg:text-[3.75rem] h-compact:lg:leading-[1.03] h-short:lg:text-[3rem]">
             <span className="block">Drop your URL.</span>
-            <span className="block sm:whitespace-nowrap" aria-hidden>Go back to your <ShimmerText
+            <span className="block whitespace-nowrap" aria-hidden>Go back to your <ShimmerText
               className="hero-business-shimmer"
               style={
                 {
@@ -191,29 +194,29 @@ export default function Hero() {
             formRef={fiberTargetRef}
             barRef={waveTargetRef}
             inputRef={inputRef}
-            formClassName="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] justify-self-center sm:mt-9 lg:row-start-2 lg:mt-0 h-compact:sm:mt-6 h-short:lg:mt-3"
+            formClassName="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] justify-self-center max-sm:!w-[calc(100vw-1.25rem)] max-sm:!max-w-none sm:mt-9 lg:row-start-2 lg:mt-0 h-compact:sm:mt-6 h-short:lg:mt-3"
             formStyle={taglineWidth ? { width: `${taglineWidth}px`, maxWidth: "100%" } : undefined}
             errorMessage={errorMessage && phase === "idle" ? errorMessage : null}
             disabled={phase === "running"}
           />
 
-          <div className="flex w-full flex-col items-center lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
-          <p className="hero-entrance hero-entrance--description mt-6 max-w-[900px] text-balance text-base leading-7 text-[#66708b] sm:mt-7 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
+          <div className="relative z-[1] mt-32 flex w-screen flex-col items-center bg-white px-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-16 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-white sm:mt-0 sm:w-full sm:bg-transparent sm:px-0 sm:before:hidden lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
+          <p className="hero-entrance hero-entrance--description mt-6 max-w-[900px] text-balance text-lg leading-8 text-[#66708b] sm:mt-7 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
             <span className="font-semibold text-[#171729]">LeadReacher automates customer acquisition from start to finish.</span>{" "}
             It scrapes for prospects, creates personalized content and runs social outreach campaigns that convert. <span className="font-semibold text-[#5b41ef]">All you have to do is reply.</span>
           </p>
 
           <div className="hero-entrance hero-entrance--video relative mt-4 flex w-full max-w-[860px] items-center justify-center text-center sm:mt-5 h-compact:sm:mt-3 h-short:lg:mt-2">
-            <p className="max-w-[760px] justify-self-center text-balance text-sm font-semibold leading-6 text-[#171729] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
+            <p className="max-w-[760px] justify-self-center text-balance text-base font-semibold leading-7 text-[#171729] sm:text-base sm:leading-7 lg:text-lg lg:leading-8 2xl:text-xl">
               <span className="block"><span className="inline-flex items-center gap-1.5"><SquarePlay className="size-4 text-[#5b41ef] sm:size-5" aria-hidden />The net&apos;s first <span className="text-[#5b41ef]">personalized video outreach</span>,</span></span>
               <span className="block">created <span className="text-[#5b41ef]">one prospect at a time</span>, delivered via social media DM.</span>
             </p>
           </div>
 
 
-          <ul className="hero-entrance hero-entrance--trust mt-2 flex flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col max-sm:gap-1 sm:divide-x sm:divide-[#d8d9e5] h-compact:lg:text-[0.8125rem] h-short:lg:mt-0 2xl:text-base">
+          <ul className="hero-entrance hero-entrance--trust mt-5 flex w-full max-w-sm flex-wrap items-center justify-center text-sm font-medium text-[#20263a] max-sm:flex-col sm:mt-2 sm:max-w-none sm:divide-x sm:divide-[#d8d9e5] h-compact:lg:text-[0.8125rem] h-short:lg:mt-0 2xl:text-base">
             {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-              <li key={label} className="hero-trust-item flex min-w-[220px] items-center justify-center gap-3 px-7 py-1.5 sm:py-2 h-compact:lg:min-w-[190px] h-compact:lg:px-5 h-compact:lg:py-1">
+              <li key={label} className="hero-trust-item flex min-h-16 w-full items-center justify-start gap-4 border-b border-[#d8d9e5] px-2 py-2 last:border-b-0 sm:min-w-[220px] sm:w-auto sm:justify-center sm:border-b-0 sm:px-7 h-compact:lg:min-w-[190px] h-compact:lg:px-5 h-compact:lg:py-1">
                 <span className="hero-trust-icon inline-flex size-9 items-center justify-center rounded-full bg-white/55 text-[#596078] shadow-sm sm:size-10 h-compact:lg:size-8"><Icon className="size-5 h-compact:lg:size-4" aria-hidden /></span>{label}
               </li>
             ))}

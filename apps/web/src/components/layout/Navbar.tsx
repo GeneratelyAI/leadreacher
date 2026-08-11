@@ -70,11 +70,7 @@ export default function Navbar() {
           }}
         />
 
-        <Link
-          href="/"
-          aria-label="LeadReacher home"
-          className="relative z-10 flex size-9 shrink-0 items-center justify-center md:hidden"
-        >
+        <Link href="/" aria-label="LeadReacher home" className="tap-target relative z-10 flex size-9 shrink-0 items-center justify-center md:hidden">
           <Image src={ASSETS.planeIcon} width={24} height={24} alt="" className="size-6 object-contain" priority />
         </Link>
 
@@ -166,7 +162,7 @@ export default function Navbar() {
           <Link
             href="/login"
             className={cn(
-              "inline-flex min-h-11 items-center px-1 text-xs font-medium min-[360px]:text-sm md:px-0 md:text-sm 2xl:text-base",
+              "hidden min-h-11 items-center px-1 text-sm font-medium md:inline-flex md:px-0 2xl:text-base",
               themeTransition,
               isDark
                 ? "text-white/95 hover:text-white"
@@ -192,7 +188,7 @@ export default function Navbar() {
                 themeTransition,
                 isDark ? "text-white" : "text-brand-purple",
               )}
-            />
+              />
           </Link>
         </div>
       </nav>
