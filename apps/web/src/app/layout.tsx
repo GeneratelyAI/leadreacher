@@ -5,6 +5,12 @@ import { Toaster } from "@/components/ui/sonner";
 import HorizontalRouteTransition from "@/components/layout/HorizontalRouteTransition";
 import "./globals.css";
 
+const SITE_URL = "https://leadreacher.ai";
+const SITE_DESCRIPTION =
+  "AI-powered multi-channel outreach with personalized video, built for review before launch.";
+const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
+const FAVICON_IMAGE = "/leadreacher-favicon-v2.png";
+
 // theme-color is intentionally omitted here: themeInitScript and
 // useThemeMode own that meta tag directly (they remove/recreate it on
 // every load and toggle). Letting Next's metadata system also render it
@@ -18,19 +24,51 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "LeadReacher",
-  description:
-    "Cold calls and emails are dead. AI + social + creative to drive fresh, qualified leads.",
+  description: SITE_DESCRIPTION,
+  applicationName: "LeadReacher",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "leadreacher",
+    title: "LeadReacher",
   },
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    shortcut: ["/icon.svg"],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [
+      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: [
+      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [{ rel: "mask-icon", url: "/safari-pinned-tab.svg" }],
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "LeadReacher",
+    title: "LeadReacher",
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: SOCIAL_PREVIEW_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "LeadReacher",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LeadReacher",
+    description: SITE_DESCRIPTION,
+    images: [SOCIAL_PREVIEW_IMAGE],
   },
 };
 
