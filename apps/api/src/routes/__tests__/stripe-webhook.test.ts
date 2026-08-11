@@ -152,7 +152,7 @@ describe("POST /webhooks/stripe", () => {
         jobType: "template-orchestrate",
       }),
       expect.objectContaining({
-        jobId: "personalized-template:campaign-1:1",
+        jobId: "personalized-template-campaign-1-1",
       }),
     );
   });

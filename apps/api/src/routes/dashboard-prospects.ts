@@ -83,6 +83,7 @@ function messageContent(value: unknown) {
     return [{
       type: item.type,
       ...(typeof item.videoUrl === "string" ? { videoUrl: item.videoUrl } : {}),
+      ...(typeof item.thumbnailUrl === "string" ? { thumbnailUrl: item.thumbnailUrl } : {}),
       ...(typeof item.filename === "string" ? { filename: item.filename } : {}),
     }];
   });

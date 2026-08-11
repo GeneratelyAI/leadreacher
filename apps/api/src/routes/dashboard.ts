@@ -13,7 +13,7 @@ import { cacheDashboardChrome, invalidateDashboardChrome, readDashboardChrome } 
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { buildPrimaryCampaignVideoSummary } from "../lib/campaign-video-summary.js";
-import { chatEventChannel } from "../lib/chat-events.js";
+import { dashboardEventChannel } from "../lib/dashboard-events.js";
 import { createRedisSubscriber } from "../lib/redis.js";
 import { registerDashboardSettingsRoutes } from "./dashboard-settings.js";
 import { registerDashboardProspectRoutes } from "./dashboard-prospects.js";
@@ -202,7 +202,7 @@ export function buildOverviewActivityTrend(
   return [...counts].map(([date, values]) => ({ date, ...values }));
 }
 
-type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; filename?: string }> };
+type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
 
 function jsonText(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
@@ -228,6 +228,7 @@ function messageContent(value: unknown): MessageContent {
     return [{
       type: item.type,
       ...(typeof item.videoUrl === "string" ? { videoUrl: item.videoUrl } : {}),
+      ...(typeof item.thumbnailUrl === "string" ? { thumbnailUrl: item.thumbnailUrl } : {}),
       ...(typeof item.filename === "string" ? { filename: item.filename } : {}),
     }];
   });
@@ -1470,7 +1471,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       if (!reply.raw.destroyed) reply.raw.write(`data: ${payload}\n\n`);
     });
     subscriber.on("error", (error) => request.log.warn({ error }, "dashboard event subscriber error"));
-    await subscriber.subscribe(chatEventChannel(orgId));
+    await subscriber.subscribe(dashboardEventChannel(orgId));
   });
 
   await registerDashboardProspectRoutes(app);
