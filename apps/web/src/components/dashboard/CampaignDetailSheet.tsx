@@ -7,18 +7,21 @@ import {
   Loader2,
   MessageSquare,
   Pause,
+  Pencil,
   Play,
   RefreshCw,
   UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
+import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -29,27 +32,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/Input";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useDashboardEvents } from "@/components/providers/DashboardQueryProvider";
 import { ApiError, apiFetch } from "@/lib/api";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 type SequenceStep = { type: string; message: string; delayHours: number };
+type OnboardingDiscovery = {
+  status: "queued" | "running" | "completed" | "failed";
+  prospectCount: number;
+  error?: string;
+  updatedAt: string;
+};
 
 export type CampaignDetail = {
   id: string;
   name: string;
+  naming: { audience: string; channelLabel: string; goal: string } | null;
   status: string;
   channels: string[];
   sequence: SequenceStep[] | unknown;
   archived: boolean;
+  onboardingDiscovery: OnboardingDiscovery | null;
   socialAccountId: string | null;
   senderAccount: {
     id: string;
@@ -61,6 +66,11 @@ export type CampaignDetail = {
   createdAt: string;
   updatedAt: string;
   prospectCount: number;
+  reviewSummary: {
+    pending: number;
+    approved: number;
+    excluded: number;
+  };
   metrics: {
     sent: number;
     replies: number;
@@ -83,6 +93,7 @@ export type CampaignDetail = {
   }>;
   launchReady: {
     hasLeads: boolean;
+    hasApprovedAudience: boolean;
     hasSequenceReview: boolean;
     hasSender: boolean;
     reasons: string[];
@@ -116,6 +127,10 @@ function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function campaignChannelLabel(channels: string[]): string {
+  return channels.length === 1 ? titleCase(channels[0]) : "Multi-channel";
+}
+
 function asSequence(value: unknown): SequenceStep[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
@@ -134,12 +149,14 @@ export function CampaignDetailSheet({
   onClose,
   onChanged,
 }: CampaignDetailSheetProps) {
-  const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [detail, setDetail] = useState<CampaignDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
+  const [namingAudience, setNamingAudience] = useState("");
+  const [namingGoal, setNamingGoal] = useState("");
   const [sequence, setSequence] = useState<SequenceStep[]>([]);
   const [senderAccountId, setSenderAccountId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +165,9 @@ export function CampaignDetailSheet({
   const [relationshipCursor, setRelationshipCursor] = useState<string | null>(null);
   const [channelPreflight, setChannelPreflight] = useState<ChannelPreflight | null>(null);
   const [isCheckingChannels, setIsCheckingChannels] = useState(false);
+  const [isRetryingDiscovery, setIsRetryingDiscovery] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const sequenceSectionRef = useRef<HTMLElement>(null);
 
   const checkChannels = useCallback(async (id: string) => {
     setIsCheckingChannels(true);
@@ -160,36 +180,66 @@ export function CampaignDetailSheet({
     }
   }, []);
 
+  const applyCampaignDetail = useCallback((next: CampaignDetail, id: string) => {
+    setDetail(next);
+    setName(next.name);
+    setNamingAudience(next.naming?.audience ?? "");
+    setNamingGoal(next.naming?.goal ?? "");
+    setSequence(asSequence(next.sequence));
+    setSenderAccountId(next.socialAccountId ?? "");
+    setRelationshipCursor(null);
+    setEditing(false);
+    if (["draft", "review"].includes(next.status) && next.channels.some((channel) => channel === "instagram" || channel === "whatsapp")) {
+      void checkChannels(id);
+    } else {
+      setChannelPreflight(null);
+    }
+  }, [checkChannels]);
+
   const load = useCallback(async (id: string) => {
-    setIsLoading(true);
+    const queryKey = ["dashboard", "campaign", id] as const;
+    const cached = queryClient.getQueryData<CampaignDetail>(queryKey);
+    setIsLoading(!cached);
     setError(null);
+    if (cached) applyCampaignDetail(cached, id);
     try {
-      const next = await apiFetch<CampaignDetail>(`/campaigns/${id}`);
-      setDetail(next);
-      setName(next.name);
-      setSequence(asSequence(next.sequence));
-      setSenderAccountId(next.socialAccountId ?? "");
-      setRelationshipCursor(null);
-      setEditing(false);
-      if (["draft", "review"].includes(next.status) && next.channels.some((channel) => channel === "instagram" || channel === "whatsapp")) {
-        void checkChannels(id);
-      } else {
-        setChannelPreflight(null);
-      }
+      const next = await queryClient.fetchQuery({
+        queryKey,
+        queryFn: () => apiFetch<CampaignDetail>(`/campaigns/${id}`),
+        staleTime: 0,
+      });
+      applyCampaignDetail(next, id);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load campaign.");
     } finally {
       setIsLoading(false);
     }
-  }, [checkChannels]);
+  }, [applyCampaignDetail, queryClient]);
 
   useEffect(() => {
     if (!campaignId) {
       setDetail(null);
       return;
     }
+    setActiveTab("overview");
     void load(campaignId);
   }, [campaignId, load]);
+
+  useDashboardEvents(useCallback((event) => {
+    if (!campaignId || event.resources.campaignId !== campaignId) return;
+    if (["campaign.updated", "campaign.metrics.updated", "video.updated"].includes(event.type)) {
+      void load(campaignId);
+    }
+  }, [campaignId, load]));
+
+  useEffect(() => {
+    const discoveryStatus = detail?.onboardingDiscovery?.status;
+    if (!campaignId || (discoveryStatus !== "queued" && discoveryStatus !== "running")) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => void load(campaignId), 2_500);
+    return () => window.clearTimeout(timer);
+  }, [campaignId, detail?.onboardingDiscovery?.status, load]);
 
   async function patch(body: Record<string, unknown>, successMessage: string) {
     if (!campaignId) return;
@@ -272,7 +322,9 @@ export function CampaignDetailSheet({
   async function saveEdits() {
     await patch(
       {
-        name,
+        ...(namingAudience.trim() && namingGoal.trim()
+          ? { naming: { audience: namingAudience.trim(), channelLabel: campaignChannelLabel(detail?.channels ?? []), goal: namingGoal.trim() } }
+          : { name }),
         sequence,
         ...(senderAccountId ? { socialAccountId: senderAccountId } : {}),
       },
@@ -281,52 +333,164 @@ export function CampaignDetailSheet({
     setEditing(false);
   }
 
+  async function retryDiscovery() {
+    if (!campaignId || isRetryingDiscovery) return;
+    setIsRetryingDiscovery(true);
+    setError(null);
+    try {
+      await apiFetch(`/onboarding/campaigns/${campaignId}/discovery/retry`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      toast.success("Prospect discovery restarted");
+      await load(campaignId);
+      await onChanged();
+    } catch (requestError) {
+      const message = requestError instanceof ApiError
+        ? requestError.message
+        : "Unable to restart prospect discovery.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setIsRetryingDiscovery(false);
+    }
+  }
+
   const open = Boolean(campaignId);
   const activeSenders = accounts.filter((account) => account.platform === "linkedin" && account.status === "active");
+  const availableSequenceChannels = useMemo(
+    () => [...new Set(accounts.filter((account) => account.status === "active").map((account) => account.platform))],
+    [accounts],
+  );
   const canLaunch =
     detail &&
     ["draft", "review"].includes(detail.status) &&
     detail.launchReady.hasLeads &&
+    detail.launchReady.hasApprovedAudience &&
     detail.launchReady.hasSequenceReview &&
     detail.launchReady.hasSender;
   const sequenceEditable = detail ? ["draft", "review", "paused"].includes(detail.status) : false;
   const sequenceLocked = detail?.status === "active";
 
+  function reviewConnectionNote() {
+    setEditing(true);
+    setActiveTab("sequence");
+    window.requestAnimationFrame(() => {
+      sequenceSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function handleDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    const tabs = ["overview", "audience", "sequence", "delivery", "activity"];
+    const index = tabs.indexOf(activeTab);
+    const next = event.key === "ArrowRight"
+      ? (index + 1) % tabs.length
+      : (index - 1 + tabs.length) % tabs.length;
+    event.preventDefault();
+    setActiveTab(tabs[next]);
+  }
+
   return (
-    <Sheet open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
-      <SheetContent
-        side={isMobile ? "bottom" : "right"}
+    <Dialog open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent
+        onKeyDownCapture={handleDialogKeyDown}
+        className="top-0 left-0 flex h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 p-0 sm:top-1/2 sm:left-1/2 sm:h-[min(92dvh,52rem)] sm:w-[calc(100%_-_2rem)] sm:max-w-5xl sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border"
         showCloseButton
-        className={cn(
-          "flex flex-col gap-0 overflow-hidden p-0",
-          isMobile
-            ? "h-[min(96dvh,100%)] max-h-[96dvh] w-full rounded-t-2xl sm:max-w-none"
-            : "h-full w-full max-w-3xl sm:max-w-3xl",
-        )}
       >
-        {isLoading || !detail ? (
-          <div className="flex min-h-64 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" /> Loading campaign
+        {isLoading ? (
+          <div className="space-y-4 p-6">
+            <Skeleton className="h-7 w-2/3" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-24 w-full" />
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4"><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
+            <Skeleton className="h-48 w-full" />
+          </div>
+        ) : !detail ? (
+          <div className="flex min-h-72 items-center justify-center p-6">
+            <Alert
+              className="w-full max-w-md"
+              tone="error"
+              title="Campaign details could not load"
+              action={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!campaignId}
+                  onClick={() => campaignId && void load(campaignId)}
+                >
+                  <RefreshCw /> Retry
+                </Button>
+              }
+            >
+              {error ?? "Please try again."}
+            </Alert>
           </div>
         ) : (
           <>
-            <SheetHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 text-left sm:px-6">
+            <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 text-left sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
-                <SheetTitle className="text-xl">{detail.name}</SheetTitle>
+                <DialogTitle className="text-xl">{detail.name}</DialogTitle>
                 <Badge variant="outline">{detail.status === "active" ? "Running" : titleCase(detail.status)}</Badge>
                 {detail.archived ? <Badge variant="secondary">Archived</Badge> : null}
               </div>
-              <SheetDescription>
+              <DialogDescription>
                 {detail.channels.map((channel) => titleCase(channel)).join(" · ")} · Updated{" "}
                 {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(detail.updatedAt))}
-              </SheetDescription>
-            </SheetHeader>
+              </DialogDescription>
+            </DialogHeader>
 
             {error ? (
               <p className="mx-5 mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive sm:mx-6">{error}</p>
             ) : null}
 
-            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-5 sm:px-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-0 flex-1 gap-0">
+              <TabsList variant="line" className="mx-5 shrink-0 overflow-x-auto border-b border-border sm:mx-6">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="audience">Audience</TabsTrigger>
+                <TabsTrigger value="sequence">Sequence</TabsTrigger>
+                <TabsTrigger value="delivery">Delivery</TabsTrigger>
+                <TabsTrigger value="activity">Activity</TabsTrigger>
+              </TabsList>
+            <TabsContent value="overview" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><div className="space-y-6">
+              {detail.onboardingDiscovery ? (
+                <Alert
+                  tone={detail.onboardingDiscovery.status === "failed" ? "error" : detail.onboardingDiscovery.status === "completed" ? "success" : "info"}
+                  title={
+                    detail.onboardingDiscovery.status === "queued"
+                      ? "Preparing your LinkedIn audience"
+                      : detail.onboardingDiscovery.status === "running"
+                        ? "Finding prospects in your LinkedIn network"
+                        : detail.onboardingDiscovery.status === "completed"
+                          ? `${detail.onboardingDiscovery.prospectCount} prospects are ready for review`
+                          : "Prospect discovery needs attention"
+                  }
+                  action={
+                    detail.onboardingDiscovery.status === "completed" ? (
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/dashboard/prospects?campaignId=${detail.id}`}>Review prospects</Link>
+                      </Button>
+                    ) : detail.onboardingDiscovery.status === "failed" ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild>
+                          <Link href="/onboarding?step=strategy&substep=targeting">Edit audience</Link>
+                        </Button>
+                        <Button size="sm" variant="brand" disabled={isRetryingDiscovery} onClick={() => void retryDiscovery()}>
+                          <RefreshCw className={cn(isRetryingDiscovery && "animate-spin")} /> Retry
+                        </Button>
+                      </div>
+                    ) : undefined
+                  }
+                >
+                  {detail.onboardingDiscovery.status === "queued" || detail.onboardingDiscovery.status === "running"
+                    ? "This continues in the background. You can keep this review open while the audience is prepared."
+                    : detail.onboardingDiscovery.status === "failed"
+                      ? detail.onboardingDiscovery.error
+                      : "Approve or exclude every prospect, then save the connection note before launch."}
+                </Alert>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 {detail.status === "active" ? (
                   <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" disabled={isSaving} onClick={() => void patch({ status: "paused" }, "Campaign paused")}>
@@ -341,6 +505,17 @@ export function CampaignDetailSheet({
                 {["draft", "review"].includes(detail.status) ? (
                   <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving || !canLaunch} onClick={() => setConfirmLaunchOpen(true)}>
                     {isSaving ? <Loader2 className="animate-spin" /> : <Play />} Launch
+                  </Button>
+                ) : null}
+                {sequenceEditable && !detail.launchReady.hasSequenceReview ? (
+                  <Button
+                    size="sm"
+                    className="min-h-10 sm:min-h-8"
+                    variant="outline"
+                    disabled={isSaving}
+                    onClick={reviewConnectionNote}
+                  >
+                    <Pencil /> Review connection note
                   </Button>
                 ) : null}
                 {["active", "paused"].includes(detail.status) ? (
@@ -395,9 +570,9 @@ export function CampaignDetailSheet({
               <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ["Prospects", detail.prospectCount],
+                  ["Pending review", detail.reviewSummary.pending],
+                  ["Approved", detail.reviewSummary.approved],
                   ["Sent", detail.metrics.sent],
-                  ["Replies", detail.metrics.replies],
-                  ["Meetings", detail.metrics.meetings],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-lg border border-border p-3">
                     <p className="text-xl font-semibold">{value}</p>
@@ -405,8 +580,23 @@ export function CampaignDetailSheet({
                   </div>
                 ))}
               </section>
+              <section className="rounded-lg border border-border bg-muted/20 p-3 text-sm">
+                <h3 className="font-semibold">Channel performance</h3>
+                <div className="mt-3 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+                  <span>Channel</span><span className="text-right">Sent</span><span className="text-right">Reply rate</span><span className="text-right">Replies</span>
+                </div>
+                {detail.channels.map((channel) => (
+                  <div key={channel} className="mt-2 grid grid-cols-4 gap-2 border-t border-border pt-2 text-sm">
+                    <span className="flex items-center gap-1.5"><DashboardChannelLogo platform={channel} className="size-4" />{channelDisplayName(channel)}</span>
+                    <span className="text-right">{detail.metrics.sent}</span>
+                    <span className="text-right">{detail.metrics.replyRate ?? 0}%</span>
+                    <span className="text-right">{detail.metrics.replies}</span>
+                  </div>
+                ))}
+              </section>
+            </div></TabsContent>
 
-              <section className="space-y-3">
+            <TabsContent value="sequence" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><section ref={sequenceSectionRef} className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Sequence</h3>
                   {sequenceLocked ? (
@@ -436,10 +626,23 @@ export function CampaignDetailSheet({
                 ) : null}
                 {editing && sequenceEditable ? (
                   <div className="space-y-3">
-                    <label className="grid gap-1.5 text-sm font-medium">
-                      Name
-                      <Input value={name} onChange={(event) => setName(event.target.value)} />
-                    </label>
+                    {detail.naming ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="grid gap-1.5 text-sm font-medium">
+                          Audience
+                          <Input value={namingAudience} onChange={(event) => setNamingAudience(event.target.value)} />
+                        </label>
+                        <label className="grid gap-1.5 text-sm font-medium">
+                          Goal
+                          <Input value={namingGoal} onChange={(event) => setNamingGoal(event.target.value)} />
+                        </label>
+                      </div>
+                    ) : (
+                      <label className="grid gap-1.5 text-sm font-medium">
+                        Name
+                        <Input value={name} onChange={(event) => setName(event.target.value)} />
+                      </label>
+                    )}
                     <label className="grid gap-1.5 text-sm font-medium">
                       LinkedIn sender
                       <select
@@ -455,7 +658,11 @@ export function CampaignDetailSheet({
                         ))}
                       </select>
                     </label>
-                    <SequenceBuilder value={sequence} onChange={setSequence} />
+                    <SequenceBuilder
+                      value={sequence}
+                      onChange={setSequence}
+                      availableChannels={availableSequenceChannels}
+                    />
                     <Button size="sm" variant="brand" disabled={isSaving} onClick={() => void saveEdits()}>
                       {isSaving ? <Loader2 className="animate-spin" /> : null} Save changes
                     </Button>
@@ -472,9 +679,9 @@ export function CampaignDetailSheet({
                     ))}
                   </ul>
                 )}
-              </section>
+              </section></TabsContent>
 
-              <section className="space-y-3">
+            <TabsContent value="audience" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><section className="space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <h3 className="text-sm font-semibold">Audience routing</h3>
@@ -520,6 +727,17 @@ export function CampaignDetailSheet({
                     ))}
                   </div>
                 ) : null}
+                {detail.prospectCount > 0 ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3 text-sm">
+                    <span>
+                      <span className="font-medium">Audience review:</span>{" "}
+                      {detail.reviewSummary.approved} approved · {detail.reviewSummary.pending} pending · {detail.reviewSummary.excluded} excluded
+                    </span>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={`/dashboard/prospects?campaignId=${detail.id}`}>Review prospects</Link>
+                    </Button>
+                  </div>
+                ) : null}
                 {detail.leads.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No prospects enrolled yet.</p>
                 ) : (
@@ -544,9 +762,9 @@ export function CampaignDetailSheet({
                   </ul>
                 )}
                 <p className="text-xs text-muted-foreground">{detail.prospectCount} enrolled total</p>
-              </section>
+              </section></TabsContent>
 
-              <section className="space-y-3">
+            <TabsContent value="delivery" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><div className="space-y-6"><section className="space-y-3">
                 <h3 className="text-sm font-semibold">Delivery</h3>
                 <div className="rounded-lg border border-border p-3 text-sm">
                   {detail.senderAccount ? (
@@ -617,15 +835,20 @@ export function CampaignDetailSheet({
                     </Button>
                   )}
                 </div>
-              </section>
-            </div>
+              </section></div></TabsContent>
+            <TabsContent value="activity" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><div className="space-y-3">
+              <h3 className="text-sm font-semibold">Campaign activity</h3>
+              <p className="text-sm text-muted-foreground">Open the activity timeline to review delivery, reply, and campaign events.</p>
+              <Button variant="outline" asChild><Link href={`/dashboard/activity?kind=campaign&campaignId=${detail.id}`}>Open activity</Link></Button>
+            </div></TabsContent>
+            </Tabs>
 
-            <SheetFooter className="shrink-0 border-t border-border px-5 py-4 pb-[max(1rem,var(--safe-area-bottom))] sm:px-6 sm:pb-4">
+            <DialogFooter className="shrink-0 border-t border-border px-5 py-4 pb-[max(1rem,var(--safe-area-bottom))] sm:px-6 sm:pb-4">
               <Button variant="outline" className="min-h-10 w-full sm:min-h-8 sm:w-auto" onClick={onClose}>Close</Button>
-            </SheetFooter>
+            </DialogFooter>
           </>
         )}
-      </SheetContent>
+      </DialogContent>
       <Dialog open={confirmLaunchOpen} onOpenChange={setConfirmLaunchOpen}>
         <DialogContent>
           <DialogHeader>
@@ -670,6 +893,6 @@ export function CampaignDetailSheet({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Sheet>
+    </Dialog>
   );
 }
