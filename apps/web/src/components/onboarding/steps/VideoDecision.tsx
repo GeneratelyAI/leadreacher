@@ -2,10 +2,13 @@
 
 import { ArrowLeft, ArrowRight, Clapperboard, Loader2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { Chrome } from "@/components/onboarding/Chrome";
+import { ActionBar } from "@/components/ui/ActionBar";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
@@ -226,7 +229,6 @@ export default function VideoDecision() {
   }
 
   const hero = campaignType ? HERO_COPY[campaignType] : HERO_COPY.ai_video_ad;
-  const showPageHero = campaignType === "uploaded_video";
   const canContinue =
     Boolean(orgId && campaignType) &&
     !isLoading &&
@@ -235,33 +237,49 @@ export default function VideoDecision() {
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
       <Chrome activeStep="video-decision" />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
-        {showPageHero ? (
-          <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-            <HeroBadge icon={<Clapperboard className="size-7" />} />
-            <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-              {hero.title}
-            </h1>
-            <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              {hero.description}
-            </p>
-          </div>
-        ) : null}
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+        <PageHeader
+          className="mx-auto"
+          icon={<Clapperboard className="size-7" aria-hidden />}
+          eyebrow="Video decision"
+          title={hero.title}
+          description={hero.description}
+        />
 
         {error ? (
-          <div className="mx-auto mt-6 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 rounded-onboarding bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
-            <p>{error}</p>
-            {!isSaving ? <Button type="button" variant="secondary" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button> : null}
-          </div>
+          <Alert
+            tone="error"
+            className="mx-auto mt-6 w-full max-w-5xl"
+            action={
+              !isSaving ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+                >
+                  Try again
+                </Button>
+              ) : null
+            }
+          >
+            {error}
+          </Alert>
         ) : null}
 
         {isLoading ? (
-          <OnboardingCard className="mx-auto mt-8 flex w-full max-w-5xl items-center justify-center gap-3 px-6 py-12 text-onboarding-neutral-600 dark:text-onboarding-neutral-400" role="status" aria-live="polite">
-            <Loader2 className="size-5 animate-spin text-onboarding-purple-500" aria-hidden />
-            Loading your video options
+          <OnboardingCard
+            className="mx-auto mt-8 w-full max-w-5xl"
+            role="status"
+            aria-live="polite"
+          >
+            <EmptyState
+              icon={<Loader2 className="size-6 animate-spin" aria-hidden />}
+              title="Loading your video options"
+            />
           </OnboardingCard>
         ) : campaignType ? (
-          <div className={`mx-auto w-full max-w-5xl space-y-6 ${showPageHero ? "mt-8" : "mt-0"}`}>
+          <div className="mx-auto mt-8 w-full max-w-5xl space-y-6">
             {orgId ? <MessageReview orgId={orgId} /> : null}
             {campaignType === "personalized_outreach" ? (
               orgId ? (
@@ -287,33 +305,37 @@ export default function VideoDecision() {
             ) : null}
           </div>
         ) : error ? (
-          <OnboardingCard className="mx-auto mt-8 w-full max-w-5xl px-6 py-10 text-center">
-            <p className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Retry loading your campaign settings to choose a video option.</p>
+          <OnboardingCard className="mx-auto mt-8 w-full max-w-5xl">
+            <EmptyState title="Your video decision is unavailable" description="Retry loading your campaign settings to choose a video option." />
           </OnboardingCard>
         ) : null}
       </main>
 
-      <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigateOnboarding(onboardingHref("campaign-type"))}
-          className="pointer-events-auto h-13 px-7 text-base"
-        >
-          <ArrowLeft className="size-5" aria-hidden />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="brand"
-          disabled={!canContinue || isSaving}
-          onClick={() => void handleContinue()}
-          className="pointer-events-auto h-13 px-8 text-base sm:px-10"
-        >
-          {isSaving ? "Saving..." : "Continue to checkout"}
-          <ArrowRight className="size-5" aria-hidden />
-        </Button>
-      </div>
+      <ActionBar
+        leading={
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigateOnboarding(onboardingHref("campaign-type"))}
+            className="h-13 px-7 text-base"
+          >
+            <ArrowLeft className="size-5" aria-hidden />
+            Back
+          </Button>
+        }
+        trailing={
+          <Button
+            type="button"
+            variant="primary"
+            disabled={!canContinue || isSaving}
+            onClick={() => void handleContinue()}
+            className="h-13 px-8 text-base sm:px-10"
+          >
+            {isSaving ? "Saving..." : "Continue to checkout"}
+            <ArrowRight className="size-5" aria-hidden />
+          </Button>
+        }
+      />
     </div>
   );
 }

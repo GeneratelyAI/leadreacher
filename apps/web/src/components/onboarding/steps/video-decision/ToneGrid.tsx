@@ -1,4 +1,5 @@
-import { Check, MessageCircle, ShieldCheck, Zap } from "lucide-react";
+import { MessageCircle, ShieldCheck, Zap } from "lucide-react";
+import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
 import type { VideoTone } from "./types";
 
 const TONES: Array<{
@@ -45,38 +46,32 @@ export function ToneGrid({
         const selected = selectedTone === tone.value;
 
         return (
-          <button
+          <ChoiceCard
             key={tone.value}
-            type="button"
-            aria-pressed={selected}
             onClick={() => onSelect(tone.value)}
-            className={`app-card app-card--interactive relative overflow-hidden p-3 text-left ${selected ? "app-card--selected" : ""}`}
+            selected={selected}
+            className="flex-col p-3"
           >
             <div
               className="aspect-video w-full rounded-[calc(var(--onboarding-radius)-0.25rem)] bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750"
               aria-hidden
             />
             <div className="px-2 pb-2 pt-5">
-            <Icon
-              className="size-6 text-onboarding-purple-600 dark:text-onboarding-purple-200"
-              aria-hidden
-            />
-            <h3 className="mt-5 text-lg font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-              {tone.title}
-            </h3>
-            <p className="mt-2 text-sm font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              {tone.tagline}
-            </p>
-            <p className="mt-5 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              {tone.description}
-            </p>
+              <Icon
+                className="size-6 text-onboarding-purple-600 dark:text-onboarding-purple-200"
+                aria-hidden
+              />
+              <h3 className="mt-5 text-lg font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
+                {tone.title}
+              </h3>
+              <p className="mt-2 text-sm font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                {tone.tagline}
+              </p>
+              <p className="mt-5 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                {tone.description}
+              </p>
             </div>
-            {selected ? (
-              <span className="onboarding-selection-mark" aria-hidden>
-                <Check className="size-3" aria-hidden />
-              </span>
-            ) : null}
-          </button>
+          </ChoiceCard>
         );
       })}
     </div>

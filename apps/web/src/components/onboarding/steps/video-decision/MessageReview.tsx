@@ -2,9 +2,12 @@
 
 import { Info, Loader2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
+import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { apiFetch } from "@/lib/api";
 
 type OutreachMessageResponse = {
@@ -145,17 +148,15 @@ export function MessageReview({ orgId }: { orgId: string }) {
   }
 
   return (
-    <OnboardingCard className="px-5 py-5 sm:px-7 sm:py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-            Review your message and CTA
-          </h2>
-          <span className="rounded-full bg-onboarding-purple-50 px-2.5 py-1 text-xs font-medium text-onboarding-purple-700 dark:bg-onboarding-purple-900/30 dark:text-onboarding-purple-200">
-            AI generated
-          </span>
-        </div>
-        {message && !isEditing ? (
+    <ReviewPanel
+      className="sm:px-7 sm:py-6"
+      title={
+        <span className="flex flex-wrap items-center gap-2">
+          Review your message and CTA <StatusBadge tone="brand">AI generated</StatusBadge>
+        </span>
+      }
+      action={
+        message && !isEditing ? (
           <Button
             type="button"
             variant="ghost"
@@ -166,14 +167,16 @@ export function MessageReview({ orgId }: { orgId: string }) {
             <Pencil className="size-4" aria-hidden />
             Edit message
           </Button>
-        ) : null}
-      </div>
-
+        ) : null
+      }
+    >
       {message === null && !error ? (
-        <div role="status" aria-live="polite" className="flex min-h-48 items-center justify-center gap-3 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-          <Loader2 className="size-5 animate-spin text-onboarding-purple-500" aria-hidden />
-          Generating your outreach message
-        </div>
+        <EmptyState
+          icon={<Loader2 className="size-5 animate-spin" aria-hidden />}
+          title="Generating your outreach message"
+          role="status"
+          aria-live="polite"
+        />
       ) : null}
 
       {message !== null ? (
@@ -236,7 +239,11 @@ export function MessageReview({ orgId }: { orgId: string }) {
                     type="button"
                     variant="brand"
                     size="sm"
-                    disabled={!draft.trim() || isSaving || Boolean(draftCtaLabel.trim()) !== Boolean(draftCtaUrl.trim())}
+                    disabled={
+                      !draft.trim() ||
+                      isSaving ||
+                      Boolean(draftCtaLabel.trim()) !== Boolean(draftCtaUrl.trim())
+                    }
                     onClick={() => void saveMessage()}
                   >
                     {isSaving ? "Saving..." : "Save message"}
@@ -268,20 +275,30 @@ export function MessageReview({ orgId }: { orgId: string }) {
       ) : null}
 
       {error ? (
-        <div className="mt-4 flex flex-wrap items-center gap-3" role="alert">
-          <p className="text-sm text-onboarding-error-900 dark:text-onboarding-error-50">{error}</p>
-          {message === null ? (
-            <Button type="button" variant="secondary" size="sm" onClick={() => setReloadToken((token) => token + 1)}>
-              Try again
-            </Button>
-          ) : null}
-        </div>
+        <Alert
+          tone="error"
+          className="mt-4"
+          action={
+            message === null ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setReloadToken((token) => token + 1)}
+              >
+                Try again
+              </Button>
+            ) : null
+          }
+        >
+          {error}
+        </Alert>
       ) : null}
 
       <p className="mt-4 flex items-center gap-2 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
         <Info className="size-4 shrink-0" aria-hidden />
         This message and CTA are reviewed before they are sent to prospects.
       </p>
-    </OnboardingCard>
+    </ReviewPanel>
   );
 }
