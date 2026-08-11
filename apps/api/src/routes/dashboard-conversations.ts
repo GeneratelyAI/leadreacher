@@ -39,7 +39,7 @@ const OperatorReplyBodySchema = z.object({
   idempotencyKey: z.string().uuid(),
 });
 
-type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; filename?: string }> };
+type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
 
 function jsonText(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
@@ -63,6 +63,7 @@ function messageContent(value: unknown): MessageContent {
     return [{
       type: item.type,
       ...(typeof item.videoUrl === "string" ? { videoUrl: item.videoUrl } : {}),
+      ...(typeof item.thumbnailUrl === "string" ? { thumbnailUrl: item.thumbnailUrl } : {}),
       ...(typeof item.filename === "string" ? { filename: item.filename } : {}),
     }];
   });

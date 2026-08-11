@@ -14,6 +14,7 @@ import {
   type InstagramReachability,
 } from "./instagram-identity-resolution.js";
 import { getWhatsAppReachability, type WhatsAppReachability } from "./channel-reachability.js";
+import { publishDashboardEvent } from "../lib/dashboard-events.js";
 
 const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 
@@ -162,6 +163,11 @@ export async function launchCampaign(input: {
     total: campaign.leads.length,
   });
   await invalidateDashboardChrome(input.orgId);
+  await publishDashboardEvent({
+    orgId: input.orgId,
+    type: "campaign.updated",
+    resources: { campaignId: input.campaignId },
+  });
   return {
     launched: true,
     jobCount,

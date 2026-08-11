@@ -64,7 +64,7 @@ describe("ensurePersonalizedVideoReady", () => {
     expect(queueAdd).toHaveBeenCalledWith(
       "personalized-template-orchestrate",
       expect.objectContaining({ jobType: "template-orchestrate", campaignId: "campaign-1" }),
-      expect.objectContaining({ jobId: "personalized-template:campaign-1:1" }),
+      expect.objectContaining({ jobId: "personalized-template-campaign-1-1" }),
     );
   });
 
@@ -91,7 +91,7 @@ describe("ensurePersonalizedVideoReady", () => {
     expect(queueAdd).toHaveBeenCalledWith(
       "compose-personalized-video",
       expect.objectContaining({ jobType: "personalized-compose", templateId: "template-1", videoAssetId: "asset-1" }),
-      expect.objectContaining({ jobId: "personalized-compose:template-1:lead-1" }),
+      expect.objectContaining({ jobId: "personalized-compose-template-1-lead-1" }),
     );
   });
 });
@@ -147,7 +147,7 @@ describe("ensureCampaignVideoReady", () => {
     expect(queueAdd).toHaveBeenCalledWith(
       "standard-campaign-video-orchestrate",
       expect.objectContaining({ pipeline: "standard", campaignId: "campaign-1" }),
-      expect.objectContaining({ jobId: "standard-campaign-video:campaign-1" }),
+      expect.objectContaining({ jobId: "standard-campaign-video-campaign-1" }),
     );
   });
 });

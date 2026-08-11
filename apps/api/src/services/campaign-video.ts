@@ -26,6 +26,7 @@ const MAX_LINKEDIN_VIDEO_MESSAGE_BYTES = 15 * 1024 * 1024;
 
 export type PersonalizedVideoDelivery = {
   videoUrl: string;
+  thumbnailUrl?: string;
   buffer: Buffer;
   filename: string;
   contentType: string;
@@ -66,6 +67,7 @@ function videoFilename(url: string, fallback: string): string {
 async function downloadVideoForDelivery(
   videoUrl: string,
   fallbackFilename: string,
+  thumbnailUrl?: string | null,
 ): Promise<PersonalizedVideoDelivery> {
   const response = await fetch(videoUrl);
   if (!response.ok) {
@@ -89,6 +91,7 @@ async function downloadVideoForDelivery(
 
   return {
     videoUrl,
+    ...(thumbnailUrl ? { thumbnailUrl } : {}),
     buffer,
     filename: videoFilename(videoUrl, fallbackFilename),
     contentType,
@@ -185,7 +188,7 @@ export async function ensurePersonalizedVideoReady(input: {
         pipeline: "personalized",
         jobType: "template-orchestrate",
       },
-      { jobId: `personalized-template:${campaign.id}:1` },
+      { jobId: `personalized-template-${campaign.id}-1` },
     );
     return { state: "pending" };
   }
@@ -214,7 +217,7 @@ export async function ensurePersonalizedVideoReady(input: {
       videoAssetId: asset.id,
       templateId: template.id,
     },
-    { jobId: `personalized-compose:${template.id}:${input.leadId}`, attempts: 3 },
+    { jobId: `personalized-compose-${template.id}-${input.leadId}`, attempts: 3 },
   );
   return { state: "pending" };
 }
@@ -272,29 +275,11 @@ export async function ensureCampaignVideoReady(input: {
       jobType: "orchestrate",
     },
     {
-      jobId: `standard-campaign-video:${input.campaignId}`,
+      jobId: `standard-campaign-video-${input.campaignId}`,
       attempts: 3,
     },
   );
   return { state: "pending" };
-}
-
-export async function getReadyPersonalizedVideoUrl(input: {
-  campaignId: string;
-  leadId: string;
-}): Promise<string | null> {
-  const asset = await prisma.videoAsset.findFirst({
-    where: {
-      campaignId: input.campaignId,
-      leadId: input.leadId,
-      pipeline: "personalized",
-      status: "ready",
-      videoUrl: { not: null },
-    },
-    orderBy: { updatedAt: "desc" },
-    select: { videoUrl: true },
-  });
-  return asset?.videoUrl ?? null;
 }
 
 export async function getReadyPersonalizedVideoForDelivery(input: {
@@ -315,10 +300,20 @@ export async function getReadyPersonalizedVideoForDelivery(input: {
       : false;
   if (paused) return null;
 
-  const videoUrl = await getReadyPersonalizedVideoUrl(input);
-  if (!videoUrl) return null;
+  const asset = await prisma.videoAsset.findFirst({
+    where: {
+      campaignId: input.campaignId,
+      leadId: input.leadId,
+      pipeline: "personalized",
+      status: "ready",
+      videoUrl: { not: null },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { videoUrl: true, thumbnailUrl: true },
+  });
+  if (!asset?.videoUrl) return null;
 
-  return downloadVideoForDelivery(videoUrl, `personalized-video-${input.leadId}.mp4`);
+  return downloadVideoForDelivery(asset.videoUrl, `personalized-video-${input.leadId}.mp4`, asset.thumbnailUrl);
 }
 
 /** Return the exact approved campaign video to attach to a direct message. */
@@ -346,10 +341,10 @@ export async function getReadyCampaignVideoForDelivery(input: {
         videoUrl: { not: null },
       },
       orderBy: { updatedAt: "desc" },
-      select: { videoUrl: true },
+      select: { videoUrl: true, thumbnailUrl: true },
     });
     return asset?.videoUrl
-      ? downloadVideoForDelivery(asset.videoUrl, "ai-campaign-video.mp4")
+      ? downloadVideoForDelivery(asset.videoUrl, "ai-campaign-video.mp4", asset.thumbnailUrl)
       : null;
   }
 
