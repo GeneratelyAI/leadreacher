@@ -5,7 +5,9 @@ import { Toaster } from "@/components/ui/sonner";
 import HorizontalRouteTransition from "@/components/layout/HorizontalRouteTransition";
 import "./globals.css";
 
-const SITE_URL = "https://leadreacher.ai";
+// The apex domain redirects here. Keep metadata on the serving host so search
+// engines associate one canonical favicon and page identity with the site.
+const SITE_URL = "https://www.leadreacher.ai";
 const SITE_DESCRIPTION =
   "AI-powered multi-channel outreach with personalized video, built for review before launch.";
 const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
@@ -30,6 +32,9 @@ export const metadata: Metadata = {
   title: "LeadReacher",
   description: SITE_DESCRIPTION,
   applicationName: "LeadReacher",
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
