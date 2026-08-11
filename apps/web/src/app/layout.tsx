@@ -9,7 +9,9 @@ const SITE_URL = "https://leadreacher.ai";
 const SITE_DESCRIPTION =
   "AI-powered multi-channel outreach with personalized video, built for review before launch.";
 const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
-const FAVICON_IMAGE = "/leadreacher-favicon-v2.png";
+// Keep a single, versioned browser icon URL. Safari caches favicons aggressively
+// by URL, so changing this value is the reliable way to refresh existing tabs.
+const FAVICON_IMAGE = "/leadreacher-favicon-v2.png?v=20260811";
 
 // theme-color is intentionally omitted here: themeInitScript and
 // useThemeMode own that meta tag directly (they remove/recreate it on
@@ -37,9 +39,6 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
-      { url: "/favicon.ico", sizes: "any", type: "image/x-icon" },
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
     shortcut: [
       { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
