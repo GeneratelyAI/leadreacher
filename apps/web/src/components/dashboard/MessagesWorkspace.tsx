@@ -7,7 +7,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
   Filter,
   Loader2,
   Maximize2,
@@ -23,6 +22,8 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
+import { VideoAttachmentCard } from "@/components/dashboard/VideoAttachmentCard";
+import { useDashboardEvents } from "@/components/providers/DashboardQueryProvider";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,7 +57,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, apiFetch, apiStream } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
@@ -103,7 +104,7 @@ type ConversationDetail = {
     direction: string;
     origin: string;
     status: string;
-    content: { message: string; attachments: Array<{ type: string; videoUrl?: string }> };
+    content: { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
     occurredAt: string;
   }>;
 };
@@ -309,7 +310,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   const [isSending, setIsSending] = useState(false);
   const [isDrafting, setIsDrafting] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
-  const [liveState, setLiveState] = useState<"connecting" | "live" | "polling">("connecting");
+  const liveState: "connecting" | "live" | "polling" = "live";
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [limitError, setLimitError] = useState<string | null>(null);
@@ -337,7 +338,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     queryFn: () => apiFetch<ConversationListResponse>(`/dashboard/conversations?${conversationParams}`),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
-    refetchInterval: liveState === "polling" ? 10_000 : false,
+    refetchInterval: false,
     refetchIntervalInBackground: false,
   });
   const campaignsQuery = useQuery({
@@ -486,60 +487,16 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     else window.localStorage.removeItem(key);
   }, [message, selectedId]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let reconnectTimer: number | undefined;
-    let stopped = false;
-    const connect = async () => {
-      try {
-        setLiveState("connecting");
-        const response = await apiStream("/dashboard/events", controller.signal);
-        if (!response.body) throw new Error("Live event stream unavailable");
-        setLiveState("live");
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        while (!stopped) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-          const frames = buffer.split("\n\n");
-          buffer = frames.pop() ?? "";
-          for (const frame of frames) {
-            const line = frame.split("\n").find((item) => item.startsWith("data: "));
-            if (!line) continue;
-            const event = JSON.parse(line.slice(6)) as { campaignLeadId: string };
-            void queryClient.invalidateQueries({ queryKey: ["dashboard", "conversations"] });
-            if (event.campaignLeadId === selectedId) void loadDetail(selectedId, true);
-          }
-        }
-        if (!stopped) throw new Error("Live event stream closed");
-      } catch {
-        if (stopped || controller.signal.aborted) return;
-        setLiveState("polling");
-        reconnectTimer = window.setTimeout(() => void connect(), 5_000);
-      }
-    };
-    void connect();
-    return () => {
-      stopped = true;
-      controller.abort();
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-    };
-  }, [loadDetail, queryClient, selectedId]);
+  useDashboardEvents(useCallback((event) => {
+    if (event.type !== "conversation.updated" || !selectedId) return;
+    if (event.resources.campaignLeadId === selectedId) void loadDetail(selectedId, true);
+  }, [loadDetail, selectedId]));
 
   useEffect(() => {
     if (selectedId) void loadDetail(selectedId);
     else setDetail(null);
   }, [loadDetail, selectedId]);
 
-  useEffect(() => {
-    if (!selectedId || liveState !== "polling") return;
-    const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") void loadDetail(selectedId, true);
-    }, 3_000);
-    return () => window.clearInterval(interval);
-  }, [liveState, loadDetail, selectedId]);
 
   async function loadOlderMessages() {
     if (!detail?.nextCursor || isLoadingOlder) return;
@@ -1132,15 +1089,12 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                                                 attachment.type === "video" && attachment.videoUrl,
                                             )
                                             .map((attachment) => (
-                                              <a
+                                              <VideoAttachmentCard
                                                 key={attachment.videoUrl}
-                                                href={attachment.videoUrl}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                className="inline-flex items-center gap-1 px-3 text-xs text-onboarding-purple-600 underline dark:text-onboarding-purple-300"
-                                              >
-                                                Video attachment <ExternalLink className="size-3" />
-                                              </a>
+                                                src={attachment.videoUrl!}
+                                                poster={attachment.thumbnailUrl}
+                                                filename={attachment.filename}
+                                              />
                                             ))}
                                           <MessageFooter>
                                             {entry.message.direction === "inbound" ? "Received" : titleCase(entry.message.status)} via {titleCase(entry.message.channel)} · {relativeTimeLong(entry.message.occurredAt)}
