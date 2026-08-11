@@ -199,7 +199,7 @@ function MobileStory() {
     return () => observerRef.current?.disconnect();
   }, []);
   return (
-    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="overflow-visible pt-12 text-white md:hidden">
+    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="pt-12 text-white md:hidden">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(104,66,245,.22),transparent_28%),linear-gradient(180deg,#171a2e,#0d1020)]" />
       <BackgroundPaths reducedMotion={reducedMotion} pathCount={11} className="opacity-65" />
       <div className="relative px-5 text-center">

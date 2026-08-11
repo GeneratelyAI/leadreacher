@@ -171,7 +171,7 @@ function PricingAndFaqSection() {
     <EdgeSurface as="section" id="pricing" data-navbar-theme="light" className="relative z-40 -mt-7 scroll-mt-20 rounded-[28px] py-16 sm:-mt-9 sm:rounded-[40px] sm:py-24 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
         <div className="mt-20 grid items-center gap-10 sm:mt-24 lg:grid-cols-[.9fr_1.1fr] lg:gap-14">
-          <div className="relative min-h-[647px] rounded-lg bg-[#101322] p-7 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] sm:p-9">
+          <div className="relative min-h-[647px] rounded-lg bg-[#101322] p-7 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] sm:p-9 lg:order-2">
             <AnimatePresence mode="wait" initial={false}>
               <m.div
                 key={activeReviewIndex}
@@ -201,7 +201,7 @@ function PricingAndFaqSection() {
               </m.div>
             </AnimatePresence>
           </div>
-          <div className="px-1 py-4 sm:px-6"><p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Built for review, not guesswork</p><h2 className="mt-4 text-3xl font-semibold text-[#111527] 2xl:text-4xl">The work stays visible as it moves.</h2><p className="mt-4 max-w-xl text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p><DisplayCards cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-3" /></div>
+          <div className="px-1 py-4 sm:px-6 lg:order-1"><p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Built for review, not guesswork</p><h2 className="mt-4 text-3xl font-semibold text-[#111527] 2xl:text-4xl">The work stays visible as it moves.</h2><p className="mt-4 max-w-xl text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p><DisplayCards cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-3" /></div>
         </div>
         <div id="resources" className="mt-20 scroll-mt-24 sm:mt-24">
           <FaqSectionCentered items={faqs} eyebrow="Questions? We have answers." heading="Know what happens before you start." description="Clear answers about setup, channels, review, personalization, and campaign control." supportEmail="support@leadreacher.com" />

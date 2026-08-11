@@ -3,16 +3,26 @@
 import Image from "next/image";
 import { m, useReducedMotion } from "framer-motion";
 import {
+  Activity,
   BriefcaseBusiness,
   ChartNoAxesCombined,
-  Check,
-  ChevronRight,
+  Send,
+  Target,
   UserRound,
+  UsersRound,
+  WandSparkles,
 } from "lucide-react";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
+import { CoverflowCarousel, type CoverflowSlide } from "@/components/ui/coverflow-carousel";
+import { MarkerHighlight } from "@/components/ui/marker-highlight";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { cn } from "@/lib/utils";
+
+type AcquisitionFlowStep = CoverflowSlide & {
+  description: string;
+  icon: typeof Target;
+};
 
 type Channel = {
   label: string;
@@ -35,12 +45,81 @@ const AVATARS = [
   { src: "/landing/portraits/prospect-68.webp", alt: "Diverse prospect portrait", position: "right-[6%] bottom-[14%]" },
 ] as const;
 
+const ACQUISITION_FLOW_STEPS: readonly AcquisitionFlowStep[] = [
+  {
+    title: "Build the game plan.",
+    description: "We turn your business, market and ideal customer into a focused acquisition strategy.",
+    icon: Target,
+  },
+  {
+    title: "Find your best prospects.",
+    description: "We surface the people and companies that fit your offer before outreach begins.",
+    icon: UsersRound,
+  },
+  {
+    title: "Create content that converts.",
+    description: "Personalized messages and video are built around the reason each prospect should care.",
+    icon: WandSparkles,
+  },
+  {
+    title: "Reach them where they are.",
+    description: "The right message is routed through the channels your audience already uses.",
+    icon: Send,
+  },
+  {
+    title: "Show what matters.",
+    description: "Replies, conversations and qualified meetings stay visible in one workspace.",
+    icon: Activity,
+  },
+] as const;
+
 function ChannelGlyph({ channel, className }: { channel: Channel; className?: string }) {
   return <ChannelLogo name={channel.logo} className={className} />;
 }
 
-function OrbitNetwork() {
+function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelected: boolean }) {
   const reducedMotion = Boolean(useReducedMotion());
+  const reveal = (delay: number) => ({
+    duration: reducedMotion ? 0 : 0.3,
+    delay: reducedMotion ? 0 : delay,
+    ease: [0.22, 1, 0.36, 1] as const,
+  });
+  const visible = isSelected ? { opacity: 1, y: 0 } : { opacity: 0.55, y: 0 };
+
+  if (index === 0) {
+    return <div className="grid grid-cols-3 gap-1.5 pt-1" aria-hidden>
+      {["w-3/5", "w-4/5", "w-2/5"].map((width, lineIndex) => <m.span key={width} className={cn("h-1.5 rounded-full bg-[#8f76ff]", width)} initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={isSelected ? { opacity: 1, scaleX: 1 } : { opacity: 0.45, scaleX: 1 }} transition={reveal(0.34 + lineIndex * 0.07)} />)}
+    </div>;
+  }
+
+  if (index === 1) {
+    return <div className="flex items-center gap-2 pt-1" aria-hidden>
+      {["/landing/portraits/prospect-32.webp", "/landing/portraits/prospect-44.webp", "/landing/portraits/prospect-46.webp"].map((src, avatarIndex) => <m.span key={src} className="relative size-10 overflow-hidden rounded-full border-2 border-white/80" initial={reducedMotion ? false : { opacity: 0, scale: 0.72, y: 6 }} animate={visible} transition={reveal(0.34 + avatarIndex * 0.07)}><Image src={src} alt="" fill sizes="40px" className="object-cover" /></m.span>)}
+      <m.span className="ml-1 rounded-full border border-current/20 px-3 py-1.5 text-xs font-semibold" initial={reducedMotion ? false : { opacity: 0, y: 6 }} animate={visible} transition={reveal(0.58)}>+247</m.span>
+    </div>;
+  }
+
+  if (index === 2) {
+    return <div className="space-y-1.5 pt-1" aria-hidden>
+      {["w-4/5", "w-full", "w-3/5"].map((width, lineIndex) => <m.span key={width} className={cn("block h-1.5 rounded-full bg-current/20", width)} initial={reducedMotion ? false : { opacity: 0, x: -8 }} animate={visible} transition={reveal(0.34 + lineIndex * 0.08)} />)}
+    </div>;
+  }
+
+  if (index === 3) {
+    return <div className="flex items-center gap-3 pt-1" aria-hidden>
+      {CHANNELS.slice(0, 3).map((channel, channelIndex) => <m.span key={channel.label} className="flex size-9 items-center justify-center" initial={reducedMotion ? false : { opacity: 0, scale: 0.76, y: 6 }} animate={visible} transition={reveal(0.34 + channelIndex * 0.1)}><ChannelGlyph channel={channel} className="size-9" /></m.span>)}
+    </div>;
+  }
+
+  return <div className="flex h-10 items-end gap-1.5 pt-1" aria-hidden>
+    {["h-3", "h-5", "h-4", "h-7", "h-9"].map((height, barIndex) => <m.span key={height} className={cn("w-2 rounded-t-full bg-[#8f76ff]", height)} initial={reducedMotion ? false : { opacity: 0, scaleY: 0, originY: 1 }} animate={isSelected ? { opacity: 1, scaleY: 1 } : { opacity: 0.45, scaleY: 1 }} transition={reveal(0.32 + barIndex * 0.07)} />)}
+    <m.span className="ml-2 text-xs font-semibold text-[#8f76ff]" initial={reducedMotion ? false : { opacity: 0, y: 5 }} animate={visible} transition={reveal(0.68)}>+31%</m.span>
+  </div>;
+}
+
+export function OrbitNetwork() {
+  const reducedMotion = Boolean(useReducedMotion());
+
   return (
     <div className="relative mx-auto h-[290px] w-full max-w-[350px] overflow-hidden" aria-label="Orbiting network of prospects" role="img">
       <div aria-hidden className="absolute left-1/2 top-1/2 size-[176px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(119,80,255,.18),rgba(155,124,255,.08)_48%,transparent_72%)] blur-[2px]" />
@@ -100,7 +179,7 @@ function OrbitNetwork() {
   );
 }
 
-function ChannelFlow() {
+export function ChannelFlow() {
   const reducedMotion = Boolean(useReducedMotion());
   const channelY = [78, 134, 190, 246];
   const paths = [
@@ -166,89 +245,93 @@ function ChannelFlow() {
   );
 }
 
-function ReviewPreview() {
+function AcquisitionFlow() {
+  const reducedMotion = Boolean(useReducedMotion());
+
   return (
-    <div className="relative mx-auto h-[258px] w-full max-w-[360px] overflow-hidden sm:h-[290px]">
-      <div className="absolute inset-x-5 top-1 rounded-2xl border border-white bg-white p-3 shadow-[0_12px_25px_rgba(55,42,112,.1)]">
-        <div className="flex items-center justify-between">
-          <div className="space-y-1.5"><span className="block h-2 w-16 rounded-full bg-[#d8d6e9]" /><span className="block h-1.5 w-24 rounded-full bg-[#eeeef6]" /></div>
-          <span className="rounded-full bg-[#f0edff] px-2 py-1 text-[7px] font-semibold text-[#5735ce]">READY TO REVIEW</span>
+    <div className="bg-white py-16 sm:py-20 lg:py-24">
+      <div className="mx-auto max-w-7xl px-5 text-center sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5544c8]">The acquisition engine</p>
+        <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] text-[#111527] sm:text-5xl lg:text-6xl large-desktop:max-w-5xl large-desktop:text-7xl">
+          Fully automates new <ShimmerText className="text-[#5d42e5]">customer acquisition.</ShimmerText>
+        </h2>
+        <p className="mx-auto mt-4 text-balance text-[1.375rem] font-medium leading-8 text-[#646b82] sm:text-[1.625rem] sm:leading-9">
+          And still <MarkerHighlight>outperforms agencies.</MarkerHighlight>
+        </p>
+        <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-[#62697e] sm:text-lg sm:leading-8">
+          Converts better and costs less than the outdated marketing and lead generation agency process.
+        </p>
+        <div className="mx-auto mt-7 flex w-fit items-center gap-4 text-xs font-semibold uppercase tracking-[0.14em] text-[#7454ee]" aria-hidden>
+          <span className="h-px w-12 bg-[#b9aaf9] sm:w-20" />
+          How it works
+          <span className="h-px w-12 bg-[#b9aaf9] sm:w-20" />
         </div>
-        <div className="relative mt-4 h-[135px] overflow-hidden rounded-xl bg-[#15182a]">
-          <Image src="/landing/product-story/outreach.png" alt="LeadReacher outreach campaign preview" fill sizes="320px" className="object-cover object-top opacity-90" />
-          <span className="absolute inset-0 bg-gradient-to-t from-[#121426]/65 via-transparent to-transparent" />
-          <span className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[8px] font-semibold text-[#252a3c]">Personalized outreach</span>
-        </div>
-        <div className="mt-3 flex gap-2"><span className="h-2 flex-1 rounded-full bg-[#dedcf0]" /><span className="h-2 w-16 rounded-full bg-[#7454ee]" /><span className="h-2 w-10 rounded-full bg-[#dedcf0]" /></div>
       </div>
-      <m.div
-        className="absolute -right-1 bottom-7 w-[132px] rounded-2xl border border-white bg-white p-3 shadow-[0_14px_30px_rgba(55,42,112,.13)]"
-        initial={{ opacity: 0, x: 12 }}
-        whileInView={{ opacity: 1, x: 0 }}
-        viewport={{ once: true, amount: 0.5 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <p className="text-[8px] font-medium text-[#777c90]">Replies</p>
-        <p className="mt-1 text-xl font-semibold tracking-tight text-[#171b2c]">2.4x</p>
-        <svg viewBox="0 0 110 34" className="mt-2 h-8 w-full" fill="none" aria-hidden>
-          <path d="M2 27 C16 26 18 14 31 19 S48 30 62 13 S82 22 108 5" stroke="#7354ee" strokeWidth="2" />
-          <path d="M2 32 H108" stroke="#e6e3f0" strokeDasharray="3 4" />
-        </svg>
-        <p className="mt-3 text-[8px] font-medium text-[#777c90]">Conversions</p>
-        <p className="mt-1 text-xl font-semibold tracking-tight text-[#171b2c]">3–8%</p>
-      </m.div>
+
+      <CoverflowCarousel
+        slides={ACQUISITION_FLOW_STEPS}
+        label="The LeadReacher customer acquisition workflow"
+        cardWidth="clamp(12rem, 18vw, 18rem)"
+        cardAspectRatio={4 / 5}
+        autoPlay
+        autoPlayInterval={3800}
+        finalSlideHold={2000}
+        className="mx-auto mt-3 max-w-[100rem]"
+        cardClassName="border border-[#e2deef]"
+        renderSlide={(slide, index, isSelected) => {
+          const step = slide as AcquisitionFlowStep;
+          const Icon = step.icon;
+          return (
+            <SpotlightCard
+              className={cn(
+                "size-full rounded-none border-0 bg-transparent shadow-none",
+                isSelected && "shadow-[0_18px_42px_rgba(93,66,229,.2)]",
+              )}
+              spotlightColor={isSelected ? "rgba(155, 123, 255, 0.3)" : "rgba(111, 76, 255, 0.18)"}
+            >
+              <m.div
+                key={`${index}-${isSelected ? "active" : "inactive"}`}
+                initial={reducedMotion ? false : { opacity: 0, rotateY: isSelected ? -6 : 0, scale: isSelected ? 0.96 : 1 }}
+                animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+                transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+                className={cn("flex size-full flex-col p-6 text-left transition-colors duration-500 sm:p-7", isSelected ? "bg-[#151625]/90 text-white" : "bg-white/90 text-[#171729]")}
+              >
+                <m.div initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
+                  <span className={cn("text-xl font-semibold tracking-[-0.03em]", isSelected ? "text-[#a792ff]" : "text-[#6948e4]")}>0{index + 1}</span>
+                  <Icon className={cn("size-8", isSelected ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
+                </m.div>
+                <m.h3 initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="mt-8 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] sm:text-[1.75rem]">
+                  {step.title}
+                </m.h3>
+                <m.p initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.72, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-4 text-sm leading-6 sm:text-base sm:leading-7", isSelected ? "text-white/72" : "text-[#62697e]")}>
+                  {step.description}
+                </m.p>
+                <m.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.68, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }} className="mt-4">
+                  <AcquisitionStepVisual index={index} isSelected={isSelected} />
+                </m.div>
+              </m.div>
+            </SpotlightCard>
+          );
+        }}
+      />
+      <div className="mx-auto mt-10 max-w-3xl px-5 sm:mt-12">
+        <div className="rounded-[22px] bg-gradient-to-r from-violet-600/70 via-white to-indigo-600/75 p-px shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
+          <div className="flex min-h-18 items-center justify-center rounded-[21px] bg-white px-5 py-4 text-center sm:min-h-20 sm:px-8">
+            <div>
+              <p className="text-lg font-semibold leading-7 text-[#171729] sm:text-xl">
+                AI + human touch. Built for B2B. Focused on results.
+              </p>
+              <p className="mt-1.5 text-sm leading-6 text-[#62697e] sm:text-base">
+                Fully done-for-you. You reply and close.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-const SHOWCASE_CARDS = [
-  { number: "1", label: "Understand", description: "We learn about your business, ideal customers and goals. AI analyzes your data and builds your target audience." },
-  { number: "2", label: "Reach", description: "We create personalized video outreach and deliver it across the channels your prospects actually use." },
-  { number: "3", label: "Convert", description: "More replies. More conversations. More qualified meetings. You focus on closing deals, not chasing leads." },
-] as const;
-
 export default function AcquisitionShowcase() {
-  return (
-    <section className="bg-white">
-    <div className="mx-auto max-w-7xl px-5 pb-16 pt-14 text-center sm:px-8 sm:pb-20 sm:pt-16 lg:px-10 lg:pb-24 lg:pt-20 large-desktop:max-w-[88rem] large-desktop:px-12 large-desktop:pb-28 large-desktop:pt-24">
-      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#3034d7] 2xl:text-sm">What LeadReacher does</p>
-      <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-7xl large-desktop:max-w-5xl large-desktop:text-[5rem]">
-        Customer acquisition
-        <br />
-        that runs <ShimmerText className="text-[#4f46e5]">itself.</ShimmerText>
-      </h2>
-      <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-[#62697e] sm:text-lg sm:leading-8 2xl:text-xl 2xl:leading-9">
-        We combine AI, social channels and personalized video to find, reach and convert your ideal customers - on autopilot.
-      </p>
-
-      <div className="relative mt-12 grid gap-10 text-left sm:mt-16 lg:grid-cols-3 lg:gap-8 large-desktop:gap-10">
-        {SHOWCASE_CARDS.map((card, index) => (
-          <div key={card.label} className="relative">
-            <SpotlightCard className="overflow-visible border-[#e5e2f0]/80 bg-white/35 p-4 shadow-[0_18px_38px_rgba(55,42,112,.045)] sm:p-5">
-              <div className="flex min-h-[290px] items-center justify-center rounded-xl bg-[radial-gradient(circle_at_50%_52%,rgba(233,229,255,.9),rgba(248,248,253,.35)_62%,transparent)] large-desktop:min-h-[320px]">
-                {index === 0 ? <OrbitNetwork /> : index === 1 ? <ChannelFlow /> : <ReviewPreview />}
-              </div>
-            </SpotlightCard>
-            {index < SHOWCASE_CARDS.length - 1 ? (
-              <ChevronRight
-                aria-hidden
-                className="pointer-events-none absolute left-[calc(100%+1rem)] top-[145px] z-10 hidden size-5 -translate-x-1/2 -translate-y-1/2 text-[#4f46e5] lg:block"
-                strokeWidth={1.8}
-              />
-            ) : null}
-            <div className="mt-6 px-2 sm:px-4">
-              <div className="flex items-center gap-3"><span className="flex size-9 items-center justify-center rounded-full bg-white text-lg font-semibold text-[#4f46e5] shadow-[0_6px_14px_rgba(77,53,189,.1)]">{card.number}</span><h3 className="text-2xl font-semibold tracking-[-0.02em] text-[#111527] 2xl:text-3xl">{card.label}</h3></div>
-              <p className="mt-4 max-w-sm text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">{card.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mx-auto mt-14 flex max-w-3xl items-center gap-4 rounded-2xl border border-[#e3e0ef] bg-white/45 px-5 py-4 text-left shadow-[0_12px_28px_rgba(55,42,112,.045)] backdrop-blur-sm sm:mt-16 sm:px-7 sm:py-5 large-desktop:max-w-[52rem] large-desktop:px-8 large-desktop:py-6">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white text-[#4f46e5] shadow-sm"><Check className="size-6" strokeWidth={3} aria-hidden /></span>
-        <p className="text-sm leading-6 text-[#394064] sm:text-base"><strong className="font-semibold">AI + human touch. Built for B2B. Focused on results.</strong><br />Fully done-for-you. You reply and close.</p>
-      </div>
-    </div>
-    </section>
-  );
+  return <AcquisitionFlow />;
 }
