@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
@@ -26,6 +26,9 @@ import { ScrollExpandMedia } from "@/components/ui/scroll-expansion-hero";
 import AnimatedHighlightText, { Highlight, SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { MarkerHighlight } from "@/components/ui/marker-highlight";
 import { PointerHighlight } from "@/components/ui/pointer-highlight";
+import { BubbleText } from "@/components/ui/bubble-text";
+import { LinkPreview } from "@/components/ui/link-preview";
+import ShimmerText from "@/components/ui/shimmer-text";
 import { cn } from "@/lib/utils";
 import { UrlBar } from "@/components/landing/hero/UrlBar";
 import { ApprovalPreview } from "./ApprovalPreview";
@@ -125,7 +128,7 @@ function CampaignExpansionSection() {
       posterSrc="/landing/product-story/personalized-video-outreach-poster.jpg"
       eyebrow="Personalized video outreach"
       title={<>The first to feature one‑of‑a‑kind personalized video outreach for <MarkerHighlight>each prospect.</MarkerHighlight></>}
-      description={<AnimatedHighlightText as="p" className="pointer-events-auto !max-w-none !text-inherit !text-base !leading-inherit sm:!text-base lg:!text-lg">Don&apos;t worry, you <a href="#approval-review" onClick={scrollToApproval} aria-label="See how approval works" className="rounded-sm text-inherit outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#b6a6ff]"><Highlight tabIndex={-1} icon={<SparklesIcon />} color="#b6a6ff" autoPlay>approve all outgoing content</Highlight></a> before it reaches your customer.</AnimatedHighlightText>}
+      description={<AnimatedHighlightText as="p" className="pointer-events-auto !max-w-none !text-inherit !text-base !leading-inherit sm:!text-base lg:!text-lg">Don&apos;t worry, you <a href="#approval-review" onClick={scrollToApproval} aria-label="See how approval works" className="rounded-sm text-inherit outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#b6a6ff]"><Highlight tabIndex={-1} icon={<SparklesIcon />} color="#b6a6ff"><BubbleText>approve all outgoing content</BubbleText></Highlight></a> before it reaches your customer.</AnimatedHighlightText>}
       magicMoveTargetRef={videoTargetRef}
     >
       <div className="mx-auto max-w-7xl large-desktop:max-w-[88rem]">
@@ -160,6 +163,75 @@ function CampaignExpansionSection() {
         </div>
       </div>
     </ScrollExpandMedia>
+  );
+}
+
+function LandingPricingCard() {
+  const includedFeatures = [
+    "AI strategy and prospect research",
+    "Personalized video outreach",
+    "Multi-channel automation",
+    "Campaign controls and analytics",
+    "Human support",
+  ];
+
+  return (
+    <aside className="mx-auto w-full max-w-[34rem] py-0">
+      <h2 className="mx-auto max-w-2xl text-balance text-center text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl">
+        <span className="block">Simple pricing.</span>
+        <span className="mt-1 block">
+          <ShimmerText
+            className="whitespace-nowrap"
+            style={{
+              "--lr-shimmer-base": "#4f46e5",
+              "--lr-shimmer-core": "#58a6ff",
+              "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
+            } as CSSProperties}
+          >
+            Serious results.
+          </ShimmerText>
+        </span>
+      </h2>
+      <p className="mx-auto mt-4 max-w-xl text-pretty text-center text-base leading-7 text-[#62697e]">One plan for your complete outreach workflow. Cancel anytime.</p>
+      <p className="mt-5 text-center text-sm font-medium text-[#62697e]">
+        <LinkPreview url="/pricing" previewUrl="/pricing" className="rounded-sm outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#8b7fd4]">
+          <Highlight tabIndex={-1} icon={<SparklesIcon />} color="#4e28df">
+            Explore all pricing options
+          </Highlight>
+        </LinkPreview>
+      </p>
+
+      <div className="mt-8 grid min-h-60 gap-7 rounded-[22px] border border-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(105deg,rgba(147,51,234,.72),rgba(196,181,253,.82)_24%,rgba(255,255,255,.96)_48%,rgba(165,180,252,.86)_72%,rgba(79,70,229,.76))] p-5 shadow-[0_18px_45px_rgba(66,42,148,0.10)] [background-clip:padding-box,border-box] [background-origin:border-box] [background-size:100%_100%,220%_100%] sm:grid-cols-[.9fr_1.1fr] sm:p-7">
+        <div className="flex flex-col border-b border-[#e6e4f1] pb-6 sm:border-b-0 sm:border-r sm:pr-7 sm:pb-0">
+          <p className="text-base font-semibold text-[#4e28df]">LeadReacher Pro</p>
+          <div className="mt-4 flex items-end gap-1 text-[#111527]">
+            <span className="text-5xl font-semibold leading-none tracking-tight">$300</span>
+            <span className="pb-0.5 text-sm text-[#62697e]">/month</span>
+          </div>
+          <p className="mt-3 text-xs leading-5 text-[#62697e]">Billed monthly. Cancel anytime.</p>
+          <Link
+            href="/signup"
+            className="mt-auto inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#5a32ed] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#6842f5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5a32ed] focus-visible:ring-offset-2"
+          >
+            Get started <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </div>
+
+        <ul className="space-y-3.5 sm:pt-1" aria-label="Included with LeadReacher Pro">
+          {includedFeatures.map((feature) => (
+            <li key={feature} className="flex items-start gap-2 text-sm leading-5 text-[#4d5368]">
+              <Check className="mt-0.5 size-4 shrink-0 text-[#4e28df]" aria-hidden />
+              {feature}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <p className="mt-5 flex items-center gap-2 text-xs leading-5 text-[#62697e]">
+        <ShieldCheck className="size-4 shrink-0 text-[#4e28df]" aria-hidden />
+        No long-term contracts. Your final total is confirmed before purchase.
+      </p>
+    </aside>
   );
 }
 
@@ -203,8 +275,16 @@ function PricingAndFaqSection() {
           </div>
           <div className="px-1 py-4 sm:px-6 lg:order-1"><p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Built for review, not guesswork</p><h2 className="mt-4 text-3xl font-semibold text-[#111527] 2xl:text-4xl">The work stays visible as it moves.</h2><p className="mt-4 max-w-xl text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p><DisplayCards cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-3" /></div>
         </div>
-        <div id="resources" className="mt-20 scroll-mt-24 sm:mt-24">
-          <FaqSectionCentered items={faqs} eyebrow="Questions? We have answers." heading="Know what happens before you start." description="Clear answers about setup, channels, review, personalization, and campaign control." supportEmail="support@leadreacher.com" />
+        <div id="resources" className="mt-20 grid scroll-mt-24 items-start gap-12 sm:mt-24 lg:grid-cols-[minmax(25rem,.9fr)_minmax(0,1.1fr)] lg:gap-20">
+          <LandingPricingCard />
+          <FaqSectionCentered
+            items={faqs}
+            eyebrow=""
+            heading="Know what happens before you start."
+            description="Clear answers about setup, channels, review, personalization, and campaign control."
+            supportEmail="support@leadreacher.com"
+            className="max-w-none items-start"
+          />
         </div>
       </div>
     </EdgeSurface>

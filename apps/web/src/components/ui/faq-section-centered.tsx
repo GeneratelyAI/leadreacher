@@ -27,8 +27,8 @@ export function FaqSectionCentered({
 
   return (
     <div className={cn("mx-auto flex w-full max-w-3xl flex-col items-center", className)}>
-      <p className="text-xs font-semibold uppercase text-[#5b39d5]">{eyebrow}</p>
-      <h2 className="mt-4 max-w-2xl text-balance text-center text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl">{heading}</h2>
+      {eyebrow ? <p className="text-xs font-semibold uppercase text-[#5b39d5]">{eyebrow}</p> : null}
+      <h2 className={cn("max-w-2xl text-balance text-center text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl", eyebrow && "mt-4")}>{heading}</h2>
       <p className="mt-4 max-w-xl text-pretty text-center text-base leading-7 text-[#62697e]">{description}</p>
 
       <div className="mt-10 w-full border-y border-[#e1deea]">
