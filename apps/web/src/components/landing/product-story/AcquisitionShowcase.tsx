@@ -209,7 +209,8 @@ const SHOWCASE_CARDS = [
 
 export default function AcquisitionShowcase() {
   return (
-    <div className="mx-auto max-w-7xl px-5 pb-16 pt-24 text-center sm:px-8 sm:pb-20 sm:pt-28 lg:px-10 lg:pb-24 lg:pt-32 large-desktop:max-w-[88rem] large-desktop:px-12 large-desktop:pb-28 large-desktop:pt-36">
+    <section className="bg-white">
+    <div className="mx-auto max-w-7xl px-5 pb-16 pt-14 text-center sm:px-8 sm:pb-20 sm:pt-16 lg:px-10 lg:pb-24 lg:pt-20 large-desktop:max-w-[88rem] large-desktop:px-12 large-desktop:pb-28 large-desktop:pt-24">
       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#3034d7] 2xl:text-sm">What LeadReacher does</p>
       <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] sm:text-5xl lg:text-7xl large-desktop:max-w-5xl large-desktop:text-[5rem]">
         Customer acquisition
@@ -248,5 +249,6 @@ export default function AcquisitionShowcase() {
         <p className="text-sm leading-6 text-[#394064] sm:text-base"><strong className="font-semibold">AI + human touch. Built for B2B. Focused on results.</strong><br />Fully done-for-you. You reply and close.</p>
       </div>
     </div>
+    </section>
   );
 }

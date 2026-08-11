@@ -55,13 +55,21 @@ export default function RadialOrbitalTimeline({
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [isInteracting, setIsInteracting] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [supportsHover, setSupportsHover] = useState(false);
   const [orbitRadius, setOrbitRadius] = useState(200);
   const reducedMotion = Boolean(useReducedMotion());
   const rootRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<number, HTMLButtonElement>());
   const pendingFocusIdRef = useRef<number | null>(null);
-  const pointerActivationRef = useRef(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const updateHoverSupport = () => setSupportsHover(query.matches);
+    updateHoverSupport();
+    query.addEventListener("change", updateHoverSupport);
+    return () => query.removeEventListener("change", updateHoverSupport);
+  }, []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -90,7 +98,7 @@ export default function RadialOrbitalTimeline({
     return () => observer.disconnect();
   }, []);
 
-  const shouldAutoRotate = !reducedMotion && isVisible && !isInteracting && selectedId === null;
+  const shouldAutoRotate = supportsHover && !reducedMotion && isVisible && !isInteracting && selectedId === null;
 
   useEffect(() => {
     if (!shouldAutoRotate) return;
@@ -207,20 +215,8 @@ export default function RadialOrbitalTimeline({
                   else nodeRefs.current.delete(item.id);
                 }}
                 type="button"
-                onPointerUp={(event) => {
-                  event.stopPropagation();
-                  pointerActivationRef.current = true;
-                  selectNode(item.id);
-                }}
-                onPointerCancel={() => {
-                  pointerActivationRef.current = false;
-                }}
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (pointerActivationRef.current) {
-                    pointerActivationRef.current = false;
-                    return;
-                  }
                   selectNode(item.id);
                 }}
                 aria-expanded={isExpanded}
@@ -279,7 +275,7 @@ export default function RadialOrbitalTimeline({
                 {selectedItem.relatedIds.map((relatedId) => {
                   const related = timelineData.find((entry) => entry.id === relatedId);
                   if (!related) return null;
-                  return <button key={relatedId} type="button" onClick={() => selectNode(relatedId, true)} className="inline-flex min-h-8 items-center gap-1 rounded-sm border border-white/20 px-2 text-[10px] text-white/74 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a894ff]">{related.title}<ArrowUpRight className="size-2.5" /></button>;
+                  return <button key={relatedId} type="button" onClick={() => selectNode(relatedId, true)} className="inline-flex min-h-11 items-center gap-1 rounded-sm border border-white/20 px-2 text-[10px] text-white/74 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#a894ff]">{related.title}<ArrowUpRight className="size-2.5" /></button>;
                 })}
               </div>
             ) : null}

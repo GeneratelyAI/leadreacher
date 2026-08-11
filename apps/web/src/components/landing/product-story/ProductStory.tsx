@@ -12,6 +12,7 @@ import { BackgroundPaths } from "@/components/ui/background-paths";
 import { WorkflowStepper } from "@/components/ui/workflow-stepper";
 import AcquisitionShowcase from "./AcquisitionShowcase";
 import HeroBreak from "@/components/landing/hero/HeroBreak";
+import TrustedBrandsMarquee from "./TrustedBrandsMarquee";
 import { InteractiveDashboardDemo } from "./InteractiveDashboardDemo";
 import {
   PRODUCT_STORY_STAGE_IDS,
@@ -187,7 +188,9 @@ function MobileStory() {
   const [activeIndex, setActiveIndex] = useState(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const selectStage = useCallback((stageId: ProductStoryStageId) => {
-    document.getElementById(`mobile-story-${stageId}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const stageIndex = STAGES.findIndex((stage) => stage.id === stageId);
+    if (stageIndex >= 0) setActiveIndex(stageIndex);
+    document.getElementById(`mobile-story-${stageId}`)?.scrollIntoView({ behavior: "auto", block: "start" });
   }, []);
   useEffect(() => {
     const elements = PRODUCT_STORY_STAGE_IDS.map((id) => document.getElementById(`mobile-story-${id}`)).filter((element): element is HTMLElement => Boolean(element));
@@ -196,7 +199,7 @@ function MobileStory() {
     return () => observerRef.current?.disconnect();
   }, []);
   return (
-    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="pt-12 text-white md:hidden">
+    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="overflow-visible pt-12 text-white md:hidden">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(104,66,245,.22),transparent_28%),linear-gradient(180deg,#171a2e,#0d1020)]" />
       <BackgroundPaths reducedMotion={reducedMotion} pathCount={11} className="opacity-65" />
       <div className="relative px-5 text-center">
@@ -204,12 +207,12 @@ function MobileStory() {
         <h2 className="mx-auto mt-3 max-w-sm text-balance text-3xl font-semibold leading-tight text-white">We handle everything. You close the deal.</h2>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-white/55">Follow the full journey from your website to a qualified conversation.</p>
       </div>
-      <nav aria-label="Workflow progress" className="sticky top-14 z-20 mx-4 my-8 overflow-hidden rounded-full border border-white/12 bg-[#171a2e]/90 p-1 shadow-lg backdrop-blur-xl">
-        <div className="grid grid-cols-5">{STAGES.map((stage, index) => <a key={stage.id} href={`#mobile-story-${stage.id}`} aria-current={index === activeIndex ? "step" : undefined} aria-label={`${index + 1}, ${stage.label}`} className={cn("flex min-h-10 items-center justify-center rounded-full text-[10px] font-semibold text-white/55 transition-colors", index === activeIndex && "bg-[#6842f5] text-white shadow-[0_6px_18px_rgba(104,66,245,.35)]")}>{index + 1}</a>)}</div>
+      <nav aria-label="Workflow progress" className="sticky top-16 z-30 mx-4 my-8 overflow-hidden rounded-full border border-white/12 bg-[#171a2e]/94 p-1 shadow-lg backdrop-blur-xl">
+        <div className="grid grid-cols-5">{STAGES.map((stage, index) => <a key={stage.id} href={`#mobile-story-${stage.id}`} onClick={(event) => { event.preventDefault(); selectStage(stage.id); }} aria-current={index === activeIndex ? "step" : undefined} aria-label={`${index + 1}, ${stage.label}`} className={cn("tap-target relative flex min-h-11 items-center justify-center rounded-full text-[10px] font-semibold text-white/55 transition-colors", index === activeIndex && "bg-[#6842f5] text-white shadow-[0_6px_18px_rgba(104,66,245,.35)]")}>{index + 1}</a>)}</div>
       </nav>
       <div className="relative px-5 pb-16">
         <span aria-hidden className="absolute bottom-20 left-[34px] top-4 w-px bg-gradient-to-b from-[#765cf0] via-white/16 to-transparent" />
-        <div className="space-y-16">{STAGES.map((stage, index) => <article id={`mobile-story-${stage.id}`} key={stage.id} className="relative scroll-mt-28 pl-11"><span aria-hidden className={cn("absolute left-0 top-0 flex size-7 items-center justify-center rounded-full border text-[10px] font-semibold", index <= activeIndex ? "border-[#927df8] bg-[#6842f5] text-white shadow-[0_0_20px_rgba(104,66,245,.4)]" : "border-white/15 bg-[#171a2e] text-white/45")}>{index + 1}</span><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aa96ff]">{stage.eyebrow}</p><h3 className="mt-2 text-balance text-2xl font-semibold leading-tight text-white">{stage.title}</h3><p className="mt-3 text-sm leading-6 text-white/60">{stage.description}</p><div className="mt-5 aspect-[16/11] overflow-hidden rounded-2xl border border-white/12 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.32)]"><StagePreview stageId={stage.id} reducedMotion onStageChange={selectStage} /></div><div className="mt-4 flex items-center gap-2 text-xs font-medium text-white/75"><CheckCircle2 className="size-4 text-emerald-400" aria-hidden />{stage.result}</div></article>)}</div>
+        <div className="space-y-16">{STAGES.map((stage, index) => <article id={`mobile-story-${stage.id}`} key={stage.id} className="relative scroll-mt-40 pl-11"><span aria-hidden className={cn("absolute left-0 top-0 flex size-7 items-center justify-center rounded-full border text-[10px] font-semibold", index <= activeIndex ? "border-[#927df8] bg-[#6842f5] text-white shadow-[0_0_20px_rgba(104,66,245,.4)]" : "border-white/15 bg-[#171a2e] text-white/45")}>{index + 1}</span><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aa96ff]">{stage.eyebrow}</p><h3 className="mt-2 text-balance text-2xl font-semibold leading-tight text-white">{stage.title}</h3><p className="mt-3 text-sm leading-6 text-white/60">{stage.description}</p><div className="mt-5 aspect-square overflow-hidden rounded-2xl border border-white/12 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.32)]"><StagePreview stageId={stage.id} reducedMotion onStageChange={selectStage} /></div><div className="mt-4 flex items-center gap-2 text-xs font-medium text-white/75"><CheckCircle2 className="size-4 text-emerald-400" aria-hidden />{stage.result}</div></article>)}</div>
       </div>
     </EdgeSurface>
   );
@@ -217,13 +220,12 @@ function MobileStory() {
 
 export default function ProductStory() {
   return (
-    <section data-navbar-theme="light" className="landing-light-surface relative z-[5] overflow-clip text-[#111527] md:overflow-visible">
-      <div aria-hidden style={{ maskImage: "linear-gradient(to bottom, transparent, black 128px)" }} className="pointer-events-none absolute inset-x-0 bottom-0 top-20 hero-ambient-gradient sm:top-26 lg:top-32" />
-      <div aria-hidden style={{ maskImage: "linear-gradient(to bottom, transparent, black 128px)" }} className="pointer-events-none absolute inset-x-0 bottom-0 top-20 bg-[radial-gradient(circle_at_50%_35%,rgba(255,255,255,0.34),transparent_46%)] sm:top-26 lg:top-32" />
+    <section data-navbar-theme="light" className="relative z-[5] overflow-clip bg-white text-[#111527] md:overflow-visible">
       <HeroBreak />
       <span id="how-it-works" className="absolute top-28 scroll-mt-24 sm:top-32 lg:top-36" aria-hidden />
       <span id="product" className="absolute top-0 scroll-mt-24" aria-hidden />
-      <div className="relative">
+      <div className="relative bg-white">
+        <TrustedBrandsMarquee />
         <AcquisitionShowcase />
         <DesktopStory />
         <MobileStory />

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Globe2,
   MessageSquare,
+  Pause,
   Play,
   RefreshCw,
   Rocket,
@@ -179,7 +180,7 @@ function PickerRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors sm:gap-3 sm:rounded-xl sm:px-3.5 sm:py-3",
+        "relative flex min-h-11 w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition-colors sm:gap-3 sm:rounded-xl sm:px-3.5 sm:py-3",
         active ? "border-[#8b73ed] bg-[#f2eeff] shadow-[0_6px_16px_rgba(75,45,165,.1)]" : "border-[#e4e1ef] bg-white hover:border-[#c9c1e1]",
       )}
     >
@@ -209,7 +210,7 @@ function WebsiteDemo(props: DemoProps) {
           <button
             type="button"
             onClick={() => setRefreshes((value) => value + 1)}
-            className="mt-2 flex h-6 w-fit items-center justify-center gap-1.5 rounded-md bg-[#5429df] px-2 text-[10px] font-semibold text-white shadow-[0_8px_20px_rgba(84,41,223,.22)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] sm:mt-4 sm:h-10 sm:px-3.5 sm:text-sm"
+            className="mt-2 flex min-h-11 w-fit items-center justify-center gap-1.5 rounded-md bg-[#5429df] px-2 text-[10px] font-semibold text-white shadow-[0_8px_20px_rgba(84,41,223,.22)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b7fd4] sm:mt-4 sm:px-3.5 sm:text-sm"
           >
             <RefreshCw key={refreshes} className="size-3 sm:size-3.5" aria-hidden /> <span className="hidden sm:inline">Run analysis again</span><span className="sm:hidden">Re-run</span>
           </button>
@@ -266,7 +267,7 @@ function StrategyDemo(props: DemoProps) {
           <button
             type="button"
             onClick={() => setApproved((value) => !value)}
-            className={cn("flex h-6 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-semibold text-white sm:hidden", approved ? "bg-emerald-600" : "bg-[#5429df]")}
+            className={cn("flex min-h-11 shrink-0 items-center gap-1 rounded-md px-2 text-[10px] font-semibold text-white sm:hidden", approved ? "bg-emerald-600" : "bg-[#5429df]")}
           >
             <Check className="size-3" aria-hidden />{approved ? "Approved" : "Approve"}
           </button>
@@ -281,7 +282,7 @@ function StrategyDemo(props: DemoProps) {
                 onClick={() => setSelected(index)}
                 aria-label={`${option.channel}, ${option.score}% fit`}
                 className={cn(
-                  "flex size-9 items-center justify-center rounded-lg border transition-colors sm:hidden",
+                  "flex size-11 items-center justify-center rounded-lg border transition-colors sm:hidden",
                   selected === index ? "border-[#8b73ed] bg-[#f2eeff]" : "border-[#e4e1ef] bg-white",
                 )}
               >
@@ -401,10 +402,10 @@ function ProspectsDemo(props: DemoProps) {
               })}
             </div>
             <div className="mt-auto flex items-center gap-2 pt-3 sm:pt-4">
-              <button type="button" onClick={() => updateSelected("Excluded")} className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 text-xs font-semibold text-white/70">
+              <button type="button" onClick={() => updateSelected("Excluded")} className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-white/15 text-xs font-semibold text-white/70">
                 <X className="size-3.5" aria-hidden />Exclude
               </button>
-              <button type="button" onClick={() => updateSelected("Approved")} className="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5429df] text-xs font-semibold text-white shadow-[0_6px_16px_rgba(84,41,223,.25)]">
+              <button type="button" onClick={() => updateSelected("Approved")} className="flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#5429df] text-xs font-semibold text-white shadow-[0_6px_16px_rgba(84,41,223,.25)]">
                 <Check className="size-3.5" aria-hidden />Approve
               </button>
             </div>
@@ -420,6 +421,7 @@ function ProspectsDemo(props: DemoProps) {
 function OutreachDemo(props: DemoProps) {
   const [selectedStep, setSelectedStep] = useState(0);
   const [running, setRunning] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
   const steps = [
     { title: "Connection note", channel: "LinkedIn", message: "Hi Hannah, I noticed Common Thread is scaling its growth operation." },
     { title: "Value follow-up", channel: "Video + LinkedIn", message: "We prepared a short idea for keeping outreach coordinated." },
@@ -437,7 +439,7 @@ function OutreachDemo(props: DemoProps) {
           <button
             type="button"
             onClick={() => setRunning((value) => !value)}
-            className={cn("flex h-6 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[10px] font-semibold text-white shadow-[0_8px_20px_rgba(84,41,223,.22)] sm:h-10 sm:gap-2 sm:rounded-lg sm:px-3.5 sm:text-sm", running ? "bg-emerald-600" : "bg-[#5429df]")}
+            className={cn("flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-2 text-[10px] font-semibold text-white shadow-[0_8px_20px_rgba(84,41,223,.22)] sm:gap-2 sm:rounded-lg sm:px-3.5 sm:text-sm", running ? "bg-emerald-600" : "bg-[#5429df]")}
           >
             <Rocket className="size-3 sm:size-3.5" aria-hidden />{running ? "Campaign running" : "Launch demo"}
           </button>
@@ -445,8 +447,8 @@ function OutreachDemo(props: DemoProps) {
 
         <HeroPanel className="min-h-0 flex-1" contentClassName="flex flex-row">
           <div className="relative flex w-[38%] shrink-0 flex-col items-center justify-center gap-1.5 border-r border-white/10 p-2 text-center sm:w-[42%] sm:gap-2.5 sm:p-6">
-            <button type="button" className="flex size-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 shadow-[0_0_20px_rgba(120,87,244,.4)] sm:size-16 sm:shadow-[0_0_30px_rgba(120,87,244,.4)]" aria-label="Play personalized video preview">
-              <Play className="size-3.5 fill-current sm:size-6" aria-hidden />
+            <button type="button" onClick={() => setVideoPlaying((value) => !value)} className="tap-target relative flex size-8 shrink-0 items-center justify-center rounded-full border border-white/25 bg-white/10 shadow-[0_0_20px_rgba(120,87,244,.4)] sm:size-16 sm:shadow-[0_0_30px_rgba(120,87,244,.4)]" aria-label={videoPlaying ? "Pause personalized video preview" : "Play personalized video preview"}>
+              {videoPlaying ? <Pause className="size-3.5 fill-current sm:size-6" aria-hidden /> : <Play className="size-3.5 fill-current sm:size-6" aria-hidden />}
             </button>
             <div className="min-w-0">
               <p className="flex items-center justify-center gap-1 text-[10px] font-semibold leading-4 text-white/85 sm:gap-1.5 sm:text-sm"><Video className="hidden size-3.5 sm:block" aria-hidden />Video ready</p>
@@ -461,7 +463,7 @@ function OutreachDemo(props: DemoProps) {
                   key={step.title}
                   type="button"
                   onClick={() => setSelectedStep(index)}
-                  className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors sm:px-2.5 sm:py-1 sm:text-[11px]", selectedStep === index ? "bg-white text-[#171527]" : "bg-white/10 text-white/60 hover:bg-white/15")}
+                  className={cn("tap-target relative rounded-full px-2 py-0.5 text-[10px] font-semibold transition-colors sm:px-2.5 sm:py-1 sm:text-[11px]", selectedStep === index ? "bg-white text-[#171527]" : "bg-white/10 text-white/60 hover:bg-white/15")}
                 >
                   {step.title}
                 </button>
@@ -512,7 +514,7 @@ function ConversationsDemo(props: DemoProps) {
                   type="button"
                   onClick={() => { setSelected(index); setSent(false); }}
                   aria-label={item.name}
-                  className={cn("flex size-6 items-center justify-center rounded-full text-[9px] font-bold transition-opacity", item.tone, selected === index ? "opacity-100 ring-2 ring-[#8b73ed]" : "opacity-50")}
+                  className={cn("tap-target relative flex size-7 items-center justify-center rounded-full text-[9px] font-bold transition-opacity", item.tone, selected === index ? "opacity-100 ring-2 ring-[#8b73ed]" : "opacity-50")}
                 >
                   {item.initials}
                 </button>
@@ -585,9 +587,9 @@ function ConversationsDemo(props: DemoProps) {
                 onKeyDown={(event) => { if (event.key === "Enter") sendMessage(); }}
                 placeholder="Write a reply..."
                 aria-label="Write a demo reply"
-                className="h-7 min-w-0 flex-1 rounded-md border border-white/15 bg-white/5 px-2.5 text-[12px] text-white placeholder:text-white/35 outline-none transition-shadow focus:border-[#8b7dff] focus:shadow-[0_0_0_3px_rgba(139,125,255,.18)] sm:h-9 sm:rounded-lg sm:px-3 sm:text-[13px]"
+                className="h-11 min-w-0 flex-1 rounded-md border border-white/15 bg-white/5 px-2.5 text-base text-white placeholder:text-white/35 outline-none transition-shadow focus:border-[#8b7dff] focus:shadow-[0_0_0_3px_rgba(139,125,255,.18)] sm:h-11 sm:rounded-lg sm:px-3 sm:text-[13px]"
               />
-              <button type="button" onClick={sendMessage} className="flex size-7 shrink-0 items-center justify-center rounded-md bg-[#5429df] text-white shadow-[0_6px_16px_rgba(84,41,223,.25)] disabled:opacity-40 sm:size-9 sm:rounded-lg" disabled={!draft.trim()} aria-label="Send demo reply">
+              <button type="button" onClick={sendMessage} className="flex size-11 shrink-0 items-center justify-center rounded-md bg-[#5429df] text-white shadow-[0_6px_16px_rgba(84,41,223,.25)] disabled:opacity-40 sm:rounded-lg" disabled={!draft.trim()} aria-label="Send demo reply">
                 <Send className="size-3.5 sm:size-4" aria-hidden />
               </button>
             </div>
