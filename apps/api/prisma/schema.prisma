@@ -173,6 +173,7 @@ model Campaign {
   socialAccountId  String?
   senderAccount    SocialAccount?           @relation("CampaignSender", fields: [socialAccountId], references: [id], onDelete: SetNull)
   name             String
+  naming           Json?
   status           String                   @default("draft") // 'draft' | 'review' | 'active' | 'paused' | 'completed'
   suspensionReason String? // null | 'billing'
   channels         String[]
