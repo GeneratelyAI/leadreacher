@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { ActionInputBar } from "@/components/ui/action-input-bar";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   EMPTY_DISCOVERY_SUMMARY,
   type ChatMessage,
@@ -324,7 +325,7 @@ export default function Discovery({
       ) : null}
 
       {isWebsiteGatePending ? (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-28 pb-24">
+        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
             <HeroBadge className="animate-pulse" icon={<Sparkles className="size-6" />} />
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
@@ -336,7 +337,7 @@ export default function Discovery({
           </OnboardingCard>
         </section>
       ) : shouldShowWebsiteGate ? (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-28 pb-24">
+        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10">
             <HeroBadge icon={<Globe className="size-6" />} />
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
@@ -396,16 +397,15 @@ export default function Discovery({
           </OnboardingCard>
         </section>
       ) : (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-28 pb-24">
+        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-            <HeroBadge icon={<Brain className="size-7" />} />
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-              One more thing...
-            </h1>
-            <p className="mt-5 max-w-xl text-base leading-8 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              Before we generate your outreach strategy, tell us what makes your
-              business different.
-            </p>
+            <PageHeader
+              className="mx-auto"
+              icon={<Brain className="size-7" aria-hidden />}
+              eyebrow="Acquisition brief"
+              title="One more thing..."
+              description="Before we generate your outreach strategy, tell us what makes your business different."
+            />
             <ActionInputBar
               id="competitive-advantage"
               value={input}

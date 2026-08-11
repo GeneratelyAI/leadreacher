@@ -22,7 +22,7 @@ import {
   clearDiscoveryOrgScope,
   promoteAnonymousDiscoveryCache,
 } from "@/lib/discovery-scrape-cache";
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserSession } from "@/lib/supabase/client";
 
 function DiscoveryBootstrapBridge({
   activeStep,
@@ -43,10 +43,8 @@ function DiscoveryBootstrapBridge({
       clearDiscoveryOrgScope();
 
       try {
-        const supabase = createClient();
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const session = await getBrowserSession();
+        const user = session?.user;
         if (!user?.email) return;
 
         const bootstrap = await bootstrapOrganization(
