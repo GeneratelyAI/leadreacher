@@ -27,6 +27,7 @@ import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { HeroBadge } from "@/components/onboarding/HeroBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { Chrome } from "@/components/onboarding/Chrome";
+import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
@@ -88,6 +89,30 @@ type AudienceAnalysis = {
   }>;
 };
 
+type StrategyBrief = {
+  status: "ready";
+  goal: string;
+  market: string;
+  audience: string;
+  offer: string;
+  valueProposition: string;
+  decisionMakerRoles: string[];
+  outreachAngles: Array<{
+    title: string;
+    description: string;
+    opener: string;
+  }>;
+  executionPlan: Array<{
+    step: number;
+    title: string;
+    description: string;
+  }>;
+  audienceSample?: {
+    decisionMakers: number;
+    topBuyerPersonas: string[];
+  };
+};
+
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -102,6 +127,12 @@ function toStringValue(value: JsonValue | undefined): string {
 
 function getRecord(value: JsonValue | undefined): JsonRecord {
   return isRecord(value) ? value : {};
+}
+
+function stringArray(value: JsonValue | undefined): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
 }
 
 function getAudienceAnalysis(strategy: StrategyResponse | null): AudienceAnalysis | null {
@@ -163,10 +194,72 @@ function getAudienceAnalysis(strategy: StrategyResponse | null): AudienceAnalysi
   };
 }
 
+function getStrategyBrief(strategy: StrategyResponse | null): StrategyBrief | null {
+  const icpDefinition = getRecord(strategy?.icpDefinition);
+  const brief = getRecord(icpDefinition.strategyBrief);
+  if (brief.status !== "ready") return null;
+
+  const goal = toStringValue(brief.goal);
+  const market = toStringValue(brief.market);
+  const audience = toStringValue(brief.audience);
+  const offer = toStringValue(brief.offer);
+  const valueProposition = toStringValue(brief.valueProposition);
+  const decisionMakerRoles = stringArray(brief.decisionMakerRoles);
+  if (!goal || !market || !audience || !offer || !valueProposition || !decisionMakerRoles.length) {
+    return null;
+  }
+
+  const outreachAngles = Array.isArray(brief.outreachAngles)
+    ? brief.outreachAngles.flatMap((item) => {
+        if (!isRecord(item)) return [];
+        const title = toStringValue(item.title);
+        const description = toStringValue(item.description);
+        const opener = toStringValue(item.opener);
+        return title && description && opener ? [{ title, description, opener }] : [];
+      })
+    : [];
+  const executionPlan = Array.isArray(brief.executionPlan)
+    ? brief.executionPlan.flatMap((item) => {
+        if (!isRecord(item)) return [];
+        const step = toNumber(item.step);
+        const title = toStringValue(item.title);
+        const description = toStringValue(item.description);
+        return step && title && description ? [{ step, title, description }] : [];
+      })
+    : [];
+  const audienceSample = getRecord(brief.audienceSample);
+
+  return {
+    status: "ready",
+    goal,
+    market,
+    audience,
+    offer,
+    valueProposition,
+    decisionMakerRoles,
+    outreachAngles,
+    executionPlan,
+    ...(Object.keys(audienceSample).length > 0 && {
+      audienceSample: {
+        decisionMakers: toNumber(audienceSample.decisionMakers),
+        topBuyerPersonas: stringArray(audienceSample.topBuyerPersonas),
+      },
+    }),
+  };
+}
+
 function isStaleAudienceRun(analysis: AudienceAnalysis): boolean {
   if (analysis.status !== "running" || !analysis.startedAt) return false;
   const startedAt = Date.parse(analysis.startedAt);
   return Number.isFinite(startedAt) && Date.now() - startedAt > STALE_AUDIENCE_RUN_TIMEOUT_MS;
+}
+
+function strategyErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  if (/expected object|received null|body\//i.test(message)) {
+    return "We couldn't start the audience analysis. Please retry.";
+  }
+  return message || "Unable to generate your strategy. Please retry.";
 }
 
 function ShellActions({
@@ -181,27 +274,26 @@ function ShellActions({
   onContinue: () => void;
 }) {
   return (
-    <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onBack}
-        className="pointer-events-auto h-13 px-7 text-base"
-      >
-        <ArrowLeft className="size-5" aria-hidden />
-        Back
-      </Button>
-      <Button
-        type="button"
-        variant="brand"
-        disabled={!canContinue}
-        onClick={onContinue}
-        className="pointer-events-auto h-13 px-8 text-base sm:px-10"
-      >
-        {continueLabel}
-        <ArrowRight className="size-5" aria-hidden />
-      </Button>
-    </div>
+    <ActionBar
+      leading={
+        <Button type="button" variant="secondary" onClick={onBack} className="h-13 px-7 text-base">
+          <ArrowLeft className="size-5" aria-hidden />
+          Back
+        </Button>
+      }
+      trailing={
+        <Button
+          type="button"
+          variant="primary"
+          disabled={!canContinue}
+          onClick={onContinue}
+          className="h-13 px-8 text-base sm:px-10"
+        >
+          {continueLabel}
+          <ArrowRight className="size-5" aria-hidden />
+        </Button>
+      }
+    />
   );
 }
 
@@ -354,7 +446,7 @@ function WorkCardPreview({ index }: { index: number }) {
 
 function HowItWorksScreen() {
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
       <ScreenHeader
         icon={<Sparkles className="size-8" aria-hidden />}
         title="How LeadReacher works"
@@ -399,7 +491,81 @@ function HowItWorksScreen() {
   );
 }
 
-function LoadingStrategy() {
+function StrategyBriefContent({
+  brief,
+  audiencePending = false,
+}: {
+  brief: StrategyBrief;
+  audiencePending?: boolean;
+}) {
+  return (
+    <div className="text-left">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold tracking-[0.12em] text-brand-purple uppercase">
+            Your outreach strategy
+          </p>
+          <h2 className="mt-2 text-xl font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
+            A focused plan for {brief.audience}
+          </h2>
+        </div>
+        {audiencePending ? (
+          <span className="inline-flex items-center gap-2 rounded-full bg-brand-purple/8 px-3 py-1.5 text-xs font-semibold text-brand-purple dark:bg-brand-purple/20 dark:text-brand-100">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            Finding matching people
+          </span>
+        ) : null}
+      </div>
+
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+        {brief.goal}
+      </p>
+
+      <div className="mt-6 grid gap-5 md:grid-cols-2">
+        <div>
+          <h3 className="text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">Positioning</h3>
+          <p className="mt-2 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+            {brief.valueProposition}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {brief.decisionMakerRoles.map((role) => (
+              <span
+                key={role}
+                className="rounded-full bg-onboarding-purple-50 px-3 py-1.5 text-xs font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900/60 dark:text-onboarding-purple-100"
+              >
+                {role}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">Message angles</h3>
+          <ul className="mt-2 space-y-2.5">
+            {brief.outreachAngles.map((angle) => (
+              <li key={angle.title} className="text-sm leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+                <span className="font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{angle.title}: </span>
+                {angle.description}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <ol className="mt-6 grid gap-3 border-t border-neutral-200 pt-5 sm:grid-cols-3 dark:border-neutral-700">
+        {brief.executionPlan.map((item) => (
+          <li key={item.step} className="min-w-0">
+            <span className="text-xs font-bold text-brand-purple">{String(item.step).padStart(2, "0")}</span>
+            <p className="mt-1 text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{item.title}</p>
+            <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.description}</p>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function LoadingStrategy({ strategyBrief }: { strategyBrief: StrategyBrief | null }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
@@ -420,16 +586,19 @@ function LoadingStrategy() {
           : "The provider is processing your audience. You can leave this page and return safely.";
 
   return (
-    <OnboardingCard className="mx-auto mt-8 flex w-full max-w-3xl flex-col items-center px-6 py-8 text-center sm:px-8" role="status" aria-live="polite">
-      <Loader2 className="size-9 animate-spin text-brand-purple" aria-hidden />
-      <h2 className="mt-5 text-xl font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
-        Running your audience analysis
-      </h2>
-      <p className="mt-3 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-        {progressMessage}
-      </p>
-      <div className="mt-6 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-onboarding-neutral-100 dark:bg-onboarding-neutral-800">
-        <span className="onboarding-analysis-progress block h-full w-2/5 rounded-full bg-gradient-to-r from-brand-purple to-violet-400" />
+    <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-8 sm:px-8" role="status" aria-live="polite">
+      {strategyBrief ? <StrategyBriefContent brief={strategyBrief} audiencePending /> : null}
+      <div className={cn("flex flex-col items-center text-center", strategyBrief && "mt-7 border-t border-neutral-200 pt-7 dark:border-neutral-700")}>
+        <Loader2 className="size-9 animate-spin text-brand-purple" aria-hidden />
+        <h2 className="mt-5 text-xl font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
+          Running your audience analysis
+        </h2>
+        <p className="mt-3 max-w-md text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+          {progressMessage}
+        </p>
+        <div className="mt-6 h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-onboarding-neutral-100 dark:bg-onboarding-neutral-800">
+          <span className="onboarding-analysis-progress block h-full w-2/5 rounded-full bg-gradient-to-r from-brand-purple to-violet-400" />
+        </div>
       </div>
     </OnboardingCard>
   );
@@ -479,12 +648,14 @@ function StrategyError({
 
 function TargetingScreen({
   analysis,
+  strategyBrief,
   isLoading,
   error,
   errorInProgress,
   onRetry,
 }: {
   analysis: AudienceAnalysis | null;
+  strategyBrief: StrategyBrief | null;
   isLoading: boolean;
   error: string | null;
   errorInProgress: boolean;
@@ -492,20 +663,20 @@ function TargetingScreen({
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
           icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
           subtitle="Here's the audience we identified as the best fit for your business."
         />
-        <LoadingStrategy />
+        <LoadingStrategy strategyBrief={strategyBrief} />
       </section>
     );
   }
 
   if (error || !analysis || analysis.status !== "completed") {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
           icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
@@ -516,6 +687,11 @@ function TargetingScreen({
           inProgress={errorInProgress}
           onRetry={onRetry}
         />
+        {strategyBrief ? (
+          <OnboardingCard className="mx-auto mt-5 w-full max-w-4xl px-6 py-7 sm:px-8">
+            <StrategyBriefContent brief={strategyBrief} />
+          </OnboardingCard>
+        ) : null}
       </section>
     );
   }
@@ -524,7 +700,7 @@ function TargetingScreen({
   const companiesUnavailable = analysis.companies.status === "unavailable";
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
       <ScreenHeader
         icon={<Users className="size-8" aria-hidden />}
         title="Who we're targeting"
@@ -532,6 +708,12 @@ function TargetingScreen({
       />
 
       <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-8 sm:px-8">
+        {strategyBrief ? (
+          <>
+            <StrategyBriefContent brief={strategyBrief} />
+            <div className="my-8 border-t border-neutral-200 dark:border-neutral-700" />
+          </>
+        ) : null}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-neutral-600 dark:text-neutral-400">
             Your reviewed audience sample is ready. You can re-run it after refining Discovery.
@@ -698,7 +880,7 @@ function ChannelsScreen({
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
           icon={<Megaphone className="size-8" aria-hidden />}
           title="Recommended channels"
@@ -710,7 +892,7 @@ function ChannelsScreen({
 
   if (error || recommendations.length === 0) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
           icon={<Megaphone className="size-8" aria-hidden />}
           title="Recommended channels"
@@ -721,7 +903,7 @@ function ChannelsScreen({
   }
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
+    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
       <ScreenHeader
         icon={<Megaphone className="size-8" aria-hidden />}
         title="Recommended channels"
@@ -784,8 +966,10 @@ export default function Strategy({
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const [strategyErrorInProgress, setStrategyErrorInProgress] = useState(false);
   const strategyRunRef = useRef<AbortController | null>(null);
+  const strategyWarmupRef = useRef<AbortController | null>(null);
 
   const analysis = useMemo(() => getAudienceAnalysis(strategy), [strategy]);
+  const strategyBrief = useMemo(() => getStrategyBrief(strategy), [strategy]);
   const recommendations = useMemo(() => getChannelRecommendations(strategy?.channels), [strategy]);
 
   const pollForStrategy = useCallback(async (orgId: string, signal: AbortSignal) => {
@@ -856,7 +1040,7 @@ export default function Strategy({
       const generated = await apiFetch<StrategyResponse>("/strategy/generate", {
         method: "POST",
         signal,
-        ...(forceGenerate && { body: JSON.stringify({ force: true }) }),
+        body: JSON.stringify(forceGenerate ? { force: true } : {}),
       });
       if (signal.aborted) return;
       const generatedAnalysis = getAudienceAnalysis(generated);
@@ -866,7 +1050,7 @@ export default function Strategy({
         return;
       }
       if (generatedAnalysis?.status === "failed") {
-        setStrategyError(generatedAnalysis.error ?? "Audience analysis failed.");
+        setStrategyError(strategyErrorMessage(generatedAnalysis.error));
       }
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
@@ -879,20 +1063,12 @@ export default function Strategy({
           return;
         } catch (pollError) {
           if (signal.aborted) return;
-          setStrategyError(
-            pollError instanceof Error
-              ? pollError.message
-              : "Unable to check audience analysis progress.",
-          );
+          setStrategyError(strategyErrorMessage(pollError));
           return;
         }
       }
       if (signal.aborted) return;
-      setStrategyError(
-        error instanceof Error
-          ? error.message
-          : "Unable to generate your strategy. Please retry.",
-      );
+      setStrategyError(strategyErrorMessage(error));
     } finally {
       if (!signal.aborted) setIsLoadingStrategy(false);
     }
@@ -904,6 +1080,55 @@ export default function Strategy({
     strategyRunRef.current = controller;
     void loadStrategy(forceGenerate, allowGenerate, controller.signal);
   }, [loadStrategy]);
+
+  const warmStrategy = useCallback(async (signal: AbortSignal) => {
+    try {
+      const { orgId } = await bootstrapOrganization("LeadReacher");
+      if (signal.aborted) return;
+      const current = await apiFetch<StrategyResponse>(`/strategy/${orgId}`, { signal });
+      if (signal.aborted) return;
+      setStrategy(current);
+
+      const currentAnalysis = getAudienceAnalysis(current);
+      if (
+        currentAnalysis?.status === "completed" ||
+        (currentAnalysis?.status === "running" && !isStaleAudienceRun(currentAnalysis)) ||
+        currentAnalysis?.status === "failed"
+      ) {
+        return;
+      }
+
+      const generated = await apiFetch<StrategyResponse>("/strategy/generate", {
+        method: "POST",
+        signal,
+        body: JSON.stringify({}),
+      });
+      if (!signal.aborted) setStrategy(generated);
+    } catch (error) {
+      // Discovery can be incomplete on a direct URL. The targeting screen
+      // owns customer-facing failures; this pre-warm must stay invisible.
+      if (signal.aborted || (error instanceof ApiError && (error.status === 404 || error.status === 409))) {
+        return;
+      }
+      console.warn("Unable to pre-warm strategy generation", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (substep !== "how-it-works") return;
+
+    const controller = new AbortController();
+    strategyWarmupRef.current?.abort();
+    strategyWarmupRef.current = controller;
+    void warmStrategy(controller.signal);
+
+    return () => {
+      controller.abort();
+      if (strategyWarmupRef.current === controller) {
+        strategyWarmupRef.current = null;
+      }
+    };
+  }, [substep, warmStrategy]);
 
   useEffect(() => {
     if (substep !== "targeting" && substep !== "channels") {
@@ -963,6 +1188,7 @@ export default function Strategy({
     activeSubstepContent = (
       <TargetingScreen
         analysis={analysis}
+        strategyBrief={strategyBrief}
         isLoading={isLoadingStrategy}
         error={strategyError}
         errorInProgress={strategyErrorInProgress}
