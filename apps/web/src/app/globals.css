@@ -70,8 +70,9 @@
 
 :root {
   /* Keep the landing hero and curved transition on one continuous white canvas. */
-  --landing-light-bg: #ffffff;
-  --hero-break-bg: #ffffff;
+  --landing-light-bg: var(--theme-marketing-canvas);
+  --hero-break-bg: var(--theme-marketing-canvas);
+  --hero-break-surface: var(--color-surface-muted);
   --viewport-gutter: clamp(1rem, 3vw, 2.5rem);
   --viewport-gutter-compact: clamp(0.75rem, 4vw, 1rem);
   --content-max: 100rem;
@@ -137,7 +138,15 @@
 }
 
 @theme inline {
-  --font-onboarding-sans: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-onboarding-sans: var(--font-ui);
+  --color-brand-50: var(--foundation-brand-50);
+  --color-brand-100: var(--foundation-brand-100);
+  --color-brand-200: var(--foundation-brand-200);
+  --color-brand-300: var(--foundation-brand-300);
+  --color-brand-400: var(--foundation-brand-400);
+  --color-brand-500: var(--foundation-brand-500);
+  --color-brand-600: var(--foundation-brand-600);
+  --color-brand-700: var(--foundation-brand-700);
   --color-app-canvas: var(--app-canvas);
   --color-app-chrome: var(--app-chrome);
   --color-app-elevated: var(--app-elevated);
@@ -277,9 +286,9 @@ html {
 
 .onboarding-root {
   --radius: var(--onboarding-radius);
-  background-color: #ffffff;
-  color: var(--onboarding-ink);
-  font-family: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--theme-onboarding-canvas);
+  color: var(--theme-onboarding-ink);
+  font-family: var(--font-ui);
 }
 
 .dark .onboarding-root {
@@ -288,8 +297,8 @@ html {
 }
 
 .onboarding-page {
-  background-color: #ffffff;
-  color: var(--onboarding-ink);
+  background-color: var(--theme-onboarding-canvas);
+  color: var(--theme-onboarding-ink);
 }
 
 .onboarding-analysis-progress {
@@ -1144,8 +1153,13 @@ html {
     padding-inline: max(0.5rem, var(--safe-area-left));
   }
 
-  .onboarding-actions > * {
+  .onboarding-actions__item {
     flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .onboarding-actions__item > * {
+    width: 100%;
     height: auto;
     min-height: 3.25rem;
     padding-inline: 0.625rem;
@@ -1181,16 +1195,15 @@ html {
     padding-right: max(0.75rem, var(--safe-area-right));
   }
 
-  .onboarding-actions > * {
+  .onboarding-actions__item {
     min-width: 0;
-    box-shadow: var(--onboarding-shadow-medium);
   }
 }
 
-@media (max-height: 42.5rem) {
+@media (max-height: 48rem) {
   .onboarding-page main {
     justify-content: flex-start;
-    padding-top: 7.5rem;
+    padding-top: 8.5rem;
     padding-bottom: 7rem;
   }
 

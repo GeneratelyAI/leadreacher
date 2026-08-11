@@ -22,18 +22,62 @@
   --footer-heading: #5c3a9c;
   --footer-text: #2d1659;
 
+  /* Foundation: neutral semantic vocabulary shared by every product front. */
+  --foundation-brand-50: #faf5ff;
+  --foundation-brand-100: #f3e8ff;
+  --foundation-brand-200: #e3d5f5;
+  --foundation-brand-300: #c4a9e8;
+  --foundation-brand-400: #7a58c4;
+  --foundation-brand-500: #5326b7;
+  --foundation-brand-600: #431e97;
+  --foundation-brand-700: #24106e;
+  --foundation-brand-800: #170a5e;
+  --foundation-brand-900: #0d0854;
+  --foundation-brand-950: #070430;
+
+  /*
+   * Tailwind's legacy config also declares the `brand-*` namespace. Keep the
+   * runtime variables concrete so generated utilities cannot resolve to
+   * self-referential values such as `var(--color-brand-500)`.
+   */
+  --color-brand-50: var(--foundation-brand-50);
+  --color-brand-100: var(--foundation-brand-100);
+  --color-brand-200: var(--foundation-brand-200);
+  --color-brand-300: var(--foundation-brand-300);
+  --color-brand-400: var(--foundation-brand-400);
+  --color-brand-500: var(--foundation-brand-500);
+  --color-brand-600: var(--foundation-brand-600);
+  --color-brand-700: var(--foundation-brand-700);
+  --color-ink: #1d2433;
+  --color-text: var(--color-ink);
+  --color-text-muted: #4b5260;
+  --color-text-subtle: #6b7280;
+  --color-surface-canvas: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-muted: #f8f9fb;
+  --color-border-default: #e8ebf0;
+  --color-border-strong: #c8cdd6;
+
+  /* Theme mappings keep each front visually distinct without bespoke tokens. */
+  --theme-marketing-canvas: #ffffff;
+  --theme-marketing-ink: #0c1022;
+  --theme-onboarding-canvas: var(--color-surface-canvas);
+  --theme-onboarding-ink: var(--color-text);
+  --theme-dashboard-canvas: var(--color-surface-canvas);
+  --theme-dashboard-ink: var(--color-text);
+
   /* Purple scale */
-  --onboarding-purple-50: #faf5ff;
-  --onboarding-purple-100: #f3e8ff;
-  --onboarding-purple-200: #e3d5f5;
-  --onboarding-purple-300: #c4a9e8;
-  --onboarding-purple-400: #7a58c4;
-  --onboarding-purple-500: #5326b7;
-  --onboarding-purple-600: #431e97;
-  --onboarding-purple-700: #24106e;
-  --onboarding-purple-800: #170a5e;
-  --onboarding-purple-900: #0d0854;
-  --onboarding-purple-950: #070430;
+  --onboarding-purple-50: var(--foundation-brand-50);
+  --onboarding-purple-100: var(--foundation-brand-100);
+  --onboarding-purple-200: var(--foundation-brand-200);
+  --onboarding-purple-300: var(--foundation-brand-300);
+  --onboarding-purple-400: var(--foundation-brand-400);
+  --onboarding-purple-500: var(--foundation-brand-500);
+  --onboarding-purple-600: var(--foundation-brand-600);
+  --onboarding-purple-700: var(--foundation-brand-700);
+  --onboarding-purple-800: var(--foundation-brand-800);
+  --onboarding-purple-900: var(--foundation-brand-900);
+  --onboarding-purple-950: var(--foundation-brand-950);
 
   /* Neutrals */
   --onboarding-neutral-0: #ffffff;
@@ -52,7 +96,7 @@
   --onboarding-neutral-900: #141920;
   --onboarding-neutral-950: #0c1017;
   --onboarding-neutral-1000: #000000;
-  --onboarding-ink: #1d2433;
+  --onboarding-ink: var(--color-ink);
 
   /* Semantic */
   --onboarding-error-50: #f5e4e2;
@@ -103,6 +147,19 @@
   --space-2: var(--onboarding-space-2);
   --space-3: var(--onboarding-space-3);
   --space-4: var(--onboarding-space-4);
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Typography */
+  --font-ui: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
+  --text-caption: 0.75rem;
+  --text-body: 0.875rem;
+  --text-body-lg: 1rem;
+  --text-title: 1.125rem;
+  --text-display: clamp(1.875rem, 4vw, 2.5rem);
 
   /* Shadow */
   --onboarding-shadow-small: 0 2px 6px -2px rgb(0 0 0 / 0.15);
@@ -128,13 +185,13 @@
   --ease-standard: var(--onboarding-ease-standard);
 
   /* App surfaces (light) - prefer these in dashboard chrome */
-  --app-canvas: var(--onboarding-neutral-0);
-  --app-chrome: var(--onboarding-neutral-0);
-  --app-elevated: var(--onboarding-neutral-0);
-  --app-muted-surface: var(--onboarding-neutral-50);
-  --app-border: var(--onboarding-neutral-150);
-  --app-border-strong: var(--onboarding-neutral-300);
-  --app-fg: var(--onboarding-ink);
+  --app-canvas: var(--theme-dashboard-canvas);
+  --app-chrome: var(--color-surface-raised);
+  --app-elevated: var(--color-surface-raised);
+  --app-muted-surface: var(--color-surface-muted);
+  --app-border: var(--color-border-default);
+  --app-border-strong: var(--color-border-strong);
+  --app-fg: var(--theme-dashboard-ink);
   --app-fg-muted: var(--onboarding-neutral-600);
   --app-fg-subtle: var(--onboarding-neutral-500);
   --app-hover: var(--onboarding-neutral-100);
@@ -152,7 +209,11 @@
 .dark {
   color-scheme: dark;
   /* Cool charcoal stack - canvas < chrome < elevated */
-  --app-canvas: #0a0e14;
+  --theme-onboarding-canvas: #0a0e14;
+  --theme-onboarding-ink: #f4f7fb;
+  --theme-dashboard-canvas: #0a0e14;
+  --theme-dashboard-ink: #f4f7fb;
+  --app-canvas: var(--theme-dashboard-canvas);
   /* Every dark-mode surface (auth, onboarding, dashboard) shares this canvas
      so the app doesn't visibly change background color between them. */
   --page-bg: var(--app-canvas);

@@ -32,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StatTable, type StatTableColumn } from "@/components/patterns/StatTable";
+import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
 import {
   Tooltip,
   TooltipContent,
@@ -344,7 +344,7 @@ export function AnalyticsWorkspace() {
     };
   }, [analytics]);
 
-  const campaignColumns: StatTableColumn<CampaignRow>[] = [
+  const campaignColumns: DataTableColumn<CampaignRow>[] = [
     {
       key: "name",
       header: "Campaign",
@@ -628,7 +628,7 @@ export function AnalyticsWorkspace() {
                 <div className="px-5 py-10 text-sm text-muted-foreground">No campaign activity in this range.</div>
               ) : (
                 <>
-                  <StatTable
+                  <DataTable
                     columns={campaignColumns}
                     data={analytics.campaigns}
                     getRowKey={(row) => row.id}
