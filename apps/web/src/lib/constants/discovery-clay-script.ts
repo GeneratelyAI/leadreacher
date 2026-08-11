@@ -12,8 +12,8 @@
 export const CLAY_DISCOVERY_TEST_QUERY = "test=clay";
 
 export const CLAY_DISCOVERY_ANSWERS = [
-  "Clay — we build a data enrichment and workflow automation platform that pulls from 100+ data sources to help sales teams build hyper-targeted lead lists",
-  "We have the largest enrichment waterfall in the market — 100+ data providers in one place, so you never have to stitch tools together manually",
+  "Clay - we build a data enrichment and workflow automation platform that pulls from 100+ data sources to help sales teams build hyper-targeted lead lists",
+  "We have the largest enrichment waterfall in the market - 100+ data providers in one place, so you never have to stitch tools together manually",
   "Sales ops, revenue operations leads, and growth engineers at B2B SaaS companies, 50-5000 employees, mainly North America and Europe",
   "Help sales teams spend less time on manual research and more time actually selling",
   "clay.com",

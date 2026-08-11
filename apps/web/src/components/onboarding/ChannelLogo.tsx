@@ -6,10 +6,10 @@ import {
   type SocialMediaIconName,
 } from "@/components/ui/SocialMediaIcon";
 
-type BrandImageName = "linkedin" | "instagram" | "gmail" | "outlook";
+type BrandImageName = "linkedin" | "instagram" | "facebook" | "gmail" | "outlook";
 
 export type ChannelLogoName =
-  | Extract<SocialMediaIconName, "whatsapp" | "facebook">
+  | Extract<SocialMediaIconName, "whatsapp">
   | BrandImageName
   | "whatsapp-mark";
 
@@ -20,23 +20,24 @@ type ChannelLogoProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> & {
 export { LINKEDIN_BRAND_LOGO_SRC };
 
 // Same static brand marks used in the dashboard's channel picker
-// (ChannelsWorkspace's ConnectChannelMark) — kept in sync so onboarding and
+// (ChannelsWorkspace's ConnectChannelMark) - kept in sync so onboarding and
 // dashboard always show identical logos for a given channel.
 const BRAND_IMAGE_SRC: Record<BrandImageName, string> = {
-  linkedin: LINKEDIN_BRAND_LOGO_SRC,
-  instagram: "/dashboard/instagram-logo.png",
-  gmail: "/dashboard/gmail-logo.png",
-  outlook: "/dashboard/outlook-logo.png",
+  linkedin: "/landing/linkedin-logo.webp",
+  instagram: "/landing/instagram-logo.webp",
+  facebook: "/landing/facebook-logo.webp",
+  gmail: "/landing/gmail-logo.webp",
+  outlook: "/landing/outlook-logo.webp",
 };
 
 /** Official channel marks used in onboarding and dashboard chrome. */
 export function ChannelLogo({ name, className, ...props }: ChannelLogoProps) {
-  if (name === "whatsapp" || name === "facebook") {
+  if (name === "whatsapp") {
     return <SocialMediaIcon name={name} className={className} {...props} />;
   }
 
   // Full-color WhatsApp app mark (rounded bubble + phone glyph), same as
-  // the dashboard's "Connect a new channel" picker — self-contained, no
+  // the dashboard's "Connect a new channel" picker - self-contained, no
   // colored background container needed.
   if (name === "whatsapp-mark") {
     return (

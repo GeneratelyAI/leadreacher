@@ -69,7 +69,7 @@ export type CatalogLineItem = {
   label: string;
 };
 
-const CAMPAIGN_PRICE_CONFIG: Record<
+export const CAMPAIGN_PRICE_CONFIG: Record<
   CampaignType,
   { key: CatalogLineItem["key"]; envKey: keyof typeof env; label: string }
 > = {
@@ -81,7 +81,7 @@ const CAMPAIGN_PRICE_CONFIG: Record<
   ai_video_ad: {
     key: "ai_video_ad",
     envKey: "STRIPE_PRICE_AI_VIDEO_AD",
-    label: "AI video ad",
+    label: "AI campaign video",
   },
   uploaded_video: {
     key: "uploaded_video",
@@ -89,6 +89,8 @@ const CAMPAIGN_PRICE_CONFIG: Record<
     label: "Uploaded video outreach",
   },
 };
+
+export const CAMPAIGN_TYPES = CampaignTypeSchema.options;
 
 function resolvePriceId(
   key: CatalogLineItem["key"],

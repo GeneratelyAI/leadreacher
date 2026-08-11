@@ -114,6 +114,7 @@ export async function getCampaignSenderForChannel(input: {
   platform: string;
   status: string;
   unipileId: string;
+  createdAt?: Date;
 } | null> {
   const row = await prisma.campaignChannelAccount.findUnique({
     where: {
@@ -124,7 +125,7 @@ export async function getCampaignSenderForChannel(input: {
     },
     include: {
       socialAccount: {
-        select: { id: true, accountName: true, avatarUrl: true, platform: true, status: true, unipileId: true },
+        select: { id: true, accountName: true, avatarUrl: true, platform: true, status: true, unipileId: true, createdAt: true },
       },
     },
   });
@@ -137,6 +138,7 @@ export async function getCampaignSenderForChannel(input: {
       platform: row.socialAccount.platform,
       status: row.socialAccount.status,
       unipileId: row.socialAccount.unipileId,
+      createdAt: row.socialAccount.createdAt,
     };
   }
 

@@ -10,13 +10,14 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "./delivery-attempt.js";
-import { getReadyPersonalizedVideoForDelivery } from "./personalized-video.js";
+import { getReadyCampaignVideoForDelivery } from "./campaign-video.js";
 import {
   checkAndIncrementDailySendLimit,
   millisecondsUntilNextUtcDay,
   utcDay,
 } from "../lib/rate-limiter.js";
 import { requireOrganizationEntitlement } from "./entitlements.js";
+import { personalizeSequenceStep } from "./personalize-sequence-step.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -56,11 +57,42 @@ export async function deliverSequenceStep1ViaChat(
     return { skipped: true, reason: "no sequence step 1" };
   }
 
-  const personalizedVideo = await getReadyPersonalizedVideoForDelivery({
+  const [campaign, lead] = await Promise.all([
+    prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { name: true, aiConfig: true },
+    }),
+    prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        firstName: true,
+        lastName: true,
+        title: true,
+        company: true,
+        industry: true,
+        companySize: true,
+        location: true,
+        enrichmentData: true,
+      },
+    }),
+  ]);
+  if (!campaign || !lead) {
+    throw new Error("Campaign or lead is unavailable for sequence personalization");
+  }
+  const preparedStep = await personalizeSequenceStep({
+    orgId,
+    channel: "linkedin",
+    campaign,
+    lead,
+    step: 1,
+    sequenceStep: step1,
+  });
+
+  const campaignVideo = await getReadyCampaignVideoForDelivery({
     campaignId,
     leadId,
   });
-  const messageText = step1.message;
+  const messageText = preparedStep.message;
 
   const messageLimit = await checkAndIncrementDailySendLimit(
     unipileAccountId,
@@ -93,12 +125,12 @@ export async function deliverSequenceStep1ViaChat(
       unipileAccountId,
       attendeeProviderId,
       messageText,
-      personalizedVideo
+      campaignVideo
         ? {
             videoMessage: {
-              buffer: personalizedVideo.buffer,
-              filename: personalizedVideo.filename,
-              contentType: personalizedVideo.contentType,
+              buffer: campaignVideo.buffer,
+              filename: campaignVideo.filename,
+              contentType: campaignVideo.contentType,
             },
           }
         : undefined,
@@ -124,16 +156,16 @@ export async function deliverSequenceStep1ViaChat(
           leadId,
           orgId,
           channel: "linkedin",
-          content: personalizedVideo
+          content: campaignVideo
             ? {
                 type: "text",
                 message: messageText,
                 attachments: [
                   {
                     type: "video",
-                    contentType: personalizedVideo.contentType,
-                    filename: personalizedVideo.filename,
-                    videoUrl: personalizedVideo.videoUrl,
+                    contentType: campaignVideo.contentType,
+                    filename: campaignVideo.filename,
+                    videoUrl: campaignVideo.videoUrl,
                   },
                 ],
               }

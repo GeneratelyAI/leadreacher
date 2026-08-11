@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import type { ScrapedProfile } from "../adapters/apify.js";
 import { prisma } from "../lib/prisma.js";
+import { normalizePhoneE164 } from "../lib/phone.js";
 
 export type CSVRow = {
   firstName: string;
@@ -10,6 +11,10 @@ export type CSVRow = {
   company?: string;
   title?: string;
   location?: string;
+  phone?: string;
+  instagramUsername?: string;
+  whatsappConsentAt?: string;
+  whatsappConsentSource?: string;
 };
 
 async function fetchExistingLinkedinUrls(
@@ -153,6 +158,11 @@ export async function importFromCSV(
       company: row.company ?? "",
       title: row.title ?? "",
       location: row.location,
+      phone: normalizePhoneE164(row.phone),
+      instagramUsername: row.instagramUsername?.replace(/^@/, ""),
+      instagramIdentityStatus: row.instagramUsername ? "unresolved" : undefined,
+      whatsappConsentAt: row.whatsappConsentAt ? new Date(row.whatsappConsentAt) : undefined,
+      whatsappConsentSource: row.whatsappConsentSource?.trim() || undefined,
     });
   }
 

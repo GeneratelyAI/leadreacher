@@ -35,3 +35,18 @@ export function onboardingHref(step: OnboardingStepParam): string {
 export function strategyHref(substep: StrategySubstepParam): string {
   return `/onboarding?step=strategy&substep=${substep}`;
 }
+
+/**
+ * Moves between already-rendered onboarding screens without requesting a new
+ * server component payload. Direct loads still go through the server guard.
+ */
+export function navigateOnboarding(href: string, replace = false): void {
+  if (typeof window === "undefined") return;
+
+  if (replace) {
+    window.history.replaceState(null, "", href);
+    return;
+  }
+
+  window.history.pushState(null, "", href);
+}

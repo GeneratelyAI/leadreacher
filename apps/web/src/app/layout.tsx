@@ -2,12 +2,23 @@ import type { Metadata, Viewport } from "next";
 import { geist } from "@/lib/fonts/geist";
 import { themeInitScript } from "@/lib/theme-init-script";
 import { Toaster } from "@/components/ui/sonner";
+import HorizontalRouteTransition from "@/components/layout/HorizontalRouteTransition";
+import { SITE_URL } from "@/lib/constants/brand";
 import "./globals.css";
+
+// The apex domain redirects here. Keep metadata on the serving host so search
+// engines associate one canonical favicon and page identity with the site.
+const SITE_DESCRIPTION =
+  "AI-powered multi-channel outreach with personalized video, built for review before launch.";
+const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
+// Keep a single, versioned browser icon URL. Safari caches favicons aggressively
+// by URL, so changing this value is the reliable way to refresh existing tabs.
+const FAVICON_IMAGE = "/leadreacher-favicon-v2.png?v=20260811";
 
 // theme-color is intentionally omitted here: themeInitScript and
 // useThemeMode own that meta tag directly (they remove/recreate it on
 // every load and toggle). Letting Next's metadata system also render it
-// gives two owners of the same DOM node — React's reconciler ends up
+// gives two owners of the same DOM node - React's reconciler ends up
 // calling removeChild on a node our script already removed, throwing
 // "Cannot read properties of null (reading 'removeChild')".
 export const viewport: Viewport = {
@@ -17,21 +28,51 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "LeadReacher",
-  description:
-    "Cold calls and emails are dead. AI + social + creative to drive fresh, qualified leads.",
+  description: SITE_DESCRIPTION,
+  applicationName: "LeadReacher",
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "leadreacher",
+    title: "LeadReacher",
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
     ],
-    apple: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    shortcut: [
+      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [{ rel: "mask-icon", url: "/safari-pinned-tab.svg" }],
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "LeadReacher",
+    title: "LeadReacher",
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: SOCIAL_PREVIEW_IMAGE,
+        width: 1200,
+        height: 630,
+        alt: "LeadReacher",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "LeadReacher",
+    description: SITE_DESCRIPTION,
+    images: [SOCIAL_PREVIEW_IMAGE],
   },
 };
 
@@ -48,22 +89,17 @@ export default function RootLayout({
     >
       <head>
         {/* Next's appleWebApp.capable metadata option doesn't emit this tag
-            in the installed Next version — set directly so "Add to Home
+            in the installed Next version - set directly so "Add to Home
             Screen" launches standalone on iOS instead of opening Safari. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <script
           id="lr-theme-init"
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />
-        <link
-          rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
       </head>
       <body className="flex min-h-dvh flex-col overscroll-y-none font-sans bg-white dark:bg-[#0a0e14] text-slate-900 dark:text-slate-50">
         {children}
+        <HorizontalRouteTransition />
         <Toaster />
       </body>
     </html>

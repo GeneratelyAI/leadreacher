@@ -289,7 +289,9 @@ function createScrapeController(context: ScrapeContext) {
     });
   }
 
-  async function fetchAndMaybeStartStatus(): Promise<WebsiteScrapeStatus> {
+  async function fetchAndMaybeStartStatus(
+    forceStart = false,
+  ): Promise<WebsiteScrapeStatus> {
     const websiteUrl = syncStoredWebsiteUrl();
     if (!websiteUrl) {
       return store.status;
@@ -301,7 +303,16 @@ function createScrapeController(context: ScrapeContext) {
     try {
       let nextStatus = await getStatus(anonId);
 
-      if (shouldStartFreshScrape(nextStatus, websiteUrl, startAttemptedForUrl)) {
+      if (
+        forceStart &&
+        nextStatus.status !== "running" &&
+        nextStatus.status !== "completed"
+      ) {
+        startAttemptedForUrl = websiteUrl;
+        nextStatus = await startScrape(websiteUrl, anonId);
+      } else if (
+        shouldStartFreshScrape(nextStatus, websiteUrl, startAttemptedForUrl)
+      ) {
         startAttemptedForUrl = websiteUrl;
         nextStatus = await startScrape(websiteUrl, anonId);
       }
@@ -359,7 +370,7 @@ function createScrapeController(context: ScrapeContext) {
       return statusRequest;
     }
 
-    const request = fetchAndMaybeStartStatus();
+    const request = fetchAndMaybeStartStatus(force);
     statusRequest = request;
     statusRequestUrl = websiteUrl;
     request.then(
@@ -390,8 +401,7 @@ function createScrapeController(context: ScrapeContext) {
   function isReadyToLeave(storeSnapshot: WebsiteScrapeStore): boolean {
     return (
       !storeSnapshot.hasStoredUrl ||
-      storeSnapshot.status.status === "completed" ||
-      storeSnapshot.status.status === "failed"
+      storeSnapshot.status.status === "completed"
     );
   }
 
@@ -462,6 +472,11 @@ export function useWebsiteScrapeStatus({
     [controller],
   );
 
+  const retry = useCallback(
+    () => controller.ensureWebsiteScrapeStarted({ force: true }),
+    [controller],
+  );
+
   const waitForReadyToNavigate = useCallback(
     (maxWaitMs = 5000) => controller.waitForReadyToNavigate(maxWaitMs),
     [controller],
@@ -474,6 +489,7 @@ export function useWebsiteScrapeStatus({
     websiteUrl: snapshot.websiteUrl,
     hasStoredUrl: snapshot.hasStoredUrl,
     start,
+    retry,
     waitForReadyToNavigate,
   };
 }

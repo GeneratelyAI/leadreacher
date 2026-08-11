@@ -11,7 +11,7 @@ export function DashboardPageFrame({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-[100rem] px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]",
+        "dashboard-page-frame mx-auto w-full max-w-[100rem] px-[var(--dashboard-page-px,1rem)] py-[var(--dashboard-page-py,1.25rem)]",
         className,
       )}
     >

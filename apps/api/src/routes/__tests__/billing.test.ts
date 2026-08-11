@@ -11,10 +11,15 @@ const {
   getStripePrice,
   createBillingPortalSession,
   createSubscriptionCheckoutSession,
+  retrieveSubscriptionCheckoutSession,
 } = vi.hoisted(() => ({
   getStripePrice: vi.fn(),
   createBillingPortalSession: vi.fn(),
   createSubscriptionCheckoutSession: vi.fn(),
+  retrieveSubscriptionCheckoutSession: vi.fn(),
+}));
+const { reconcileCompletedStripeCheckout } = vi.hoisted(() => ({
+  reconcileCompletedStripeCheckout: vi.fn(),
 }));
 
 vi.mock("../../config/env.js", () => ({
@@ -37,6 +42,10 @@ vi.mock("../../lib/stripe.js", () => ({
   createBillingPortalSession,
   getStripePrice,
   createSubscriptionCheckoutSession,
+  retrieveSubscriptionCheckoutSession,
+}));
+vi.mock("../../services/stripe-subscription-sync.js", () => ({
+  reconcileCompletedStripeCheckout,
 }));
 
 import { billingRoutes } from "../billing.js";
@@ -78,6 +87,8 @@ beforeEach(async () => {
   getStripePrice.mockReset();
   createBillingPortalSession.mockReset();
   createSubscriptionCheckoutSession.mockReset();
+  retrieveSubscriptionCheckoutSession.mockReset();
+  reconcileCompletedStripeCheckout.mockReset();
 
   strategyFindFirst.mockResolvedValue(strategy);
   organizationFindUnique.mockResolvedValue({
@@ -95,7 +106,16 @@ beforeEach(async () => {
     url: "http://localhost:3000/onboarding?step=checkout&status=success",
   });
   createBillingPortalSession.mockResolvedValue({
-    url: "http://localhost:3000/home?billing=portal",
+    url: "http://localhost:3000/dashboard?billing=portal",
+  });
+  retrieveSubscriptionCheckoutSession.mockResolvedValue({
+    status: "complete",
+    client_reference_id: "org-1",
+    metadata: { orgId: "org-1" },
+  });
+  reconcileCompletedStripeCheckout.mockResolvedValue({
+    orgId: "org-1",
+    subscriptionStatus: "active",
   });
   app = await buildTestApp();
 });
@@ -180,9 +200,42 @@ describe("billing routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      url: "http://localhost:3000/home?billing=portal",
+      url: "http://localhost:3000/dashboard?billing=portal",
     });
     expect(createBillingPortalSession).toHaveBeenCalledWith("cus_123");
+  });
+
+  it("reconciles a completed Checkout return without waiting for a webhook", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/checkout-session/reconcile",
+      payload: { sessionId: "cs_test_123" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      checkoutStatus: "complete",
+      subscriptionStatus: "active",
+    });
+    expect(retrieveSubscriptionCheckoutSession).toHaveBeenCalledWith("cs_test_123");
+    expect(reconcileCompletedStripeCheckout).toHaveBeenCalled();
+  });
+
+  it("refuses a Checkout session owned by a different organization", async () => {
+    retrieveSubscriptionCheckoutSession.mockResolvedValue({
+      status: "complete",
+      client_reference_id: "org-2",
+      metadata: { orgId: "org-2" },
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/checkout-session/reconcile",
+      payload: { sessionId: "cs_test_other" },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(reconcileCompletedStripeCheckout).not.toHaveBeenCalled();
   });
 
   it("rejects billing portal access when no Stripe customer exists", async () => {

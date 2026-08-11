@@ -10,8 +10,8 @@ Clay discovery demo
 URL: ${URL}
 
 Auto-submitted answers:
-1. Clay — data enrichment / workflow automation platform
-2. Largest enrichment waterfall — 100+ providers
+1. Clay - data enrichment / workflow automation platform
+2. Largest enrichment waterfall - 100+ providers
 3. Sales ops / RevOps / growth engineers at B2B SaaS (50–5000)
 4. Less manual research, more selling
 5. clay.com

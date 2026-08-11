@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Prisma } from "@prisma/client";
 import { env } from "../config/env.js";
 import { R2Adapter } from "../adapters/r2.js";
 import { prisma } from "../lib/prisma.js";
@@ -91,6 +92,12 @@ function r2KeyFromUrl(url: string | null): string | null {
   return url.startsWith(prefix) ? url.slice(prefix.length) : null;
 }
 
+function uploadedStrategyVideoUrl(videoConfig: Prisma.JsonValue): string | null {
+  if (!videoConfig || typeof videoConfig !== "object" || Array.isArray(videoConfig)) return null;
+  const url = videoConfig.uploadedVideoUrl;
+  return typeof url === "string" ? url : null;
+}
+
 export async function purgeExpiredOrganizations(limit = 5): Promise<{ purged: number }> {
   const organizations = await prisma.organization.findMany({
     where: { purgeAt: { lte: new Date() }, disabledAt: { not: null } },
@@ -105,7 +112,7 @@ export async function purgeExpiredOrganizations(limit = 5): Promise<{ purged: nu
   let purged = 0;
 
   for (const organization of organizations) {
-    const [users, videos, templates, exports] = await Promise.all([
+    const [users, videos, templates, strategies, exports] = await Promise.all([
       prisma.user.findMany({ where: { orgId: organization.id }, select: { supabaseId: true } }),
       prisma.videoAsset.findMany({
         where: { orgId: organization.id },
@@ -115,12 +122,17 @@ export async function purgeExpiredOrganizations(limit = 5): Promise<{ purged: nu
         where: { orgId: organization.id },
         select: { seedImageUrl: true, masterVideoUrl: true, sharedNarrationUrl: true },
       }),
+      prisma.strategy.findMany({
+        where: { orgId: organization.id },
+        select: { videoConfig: true },
+      }),
       prisma.organizationExportJob.findMany({ where: { orgId: organization.id }, select: { objectKey: true } }),
     ]);
     const objectKeys = new Set(
       [
         ...videos.flatMap((video) => [video.videoUrl, video.thumbnailUrl, video.seedImageUrl]),
         ...templates.flatMap((template) => [template.seedImageUrl, template.masterVideoUrl, template.sharedNarrationUrl]),
+        ...strategies.map((strategy) => uploadedStrategyVideoUrl(strategy.videoConfig)),
       ]
         .map(r2KeyFromUrl)
         .concat(exports.map((job) => job.objectKey))
@@ -137,7 +149,6 @@ export async function purgeExpiredOrganizations(limit = 5): Promise<{ purged: nu
       await tx.campaignLead.deleteMany({ where: { campaignId: { in: campaignIds } } });
       await tx.campaignChannelAccount.deleteMany({ where: { campaignId: { in: campaignIds } } });
       await tx.campaign.deleteMany({ where: { orgId: organization.id } });
-      await tx.analyticsEvent.deleteMany({ where: { orgId: organization.id } });
       await tx.auditLog.deleteMany({ where: { orgId: organization.id } });
       await tx.pipelineRun.deleteMany({ where: { orgId: organization.id } });
       await tx.lead.deleteMany({ where: { orgId: organization.id } });

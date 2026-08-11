@@ -143,7 +143,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("requires a tone for AI video ads", async () => {
+  it("requires a tone for AI campaign video", async () => {
     findFirst.mockResolvedValue({ ...strategy, campaignType: "ai_video_ad" });
 
     const response = await app.inject({
@@ -162,12 +162,12 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(response.json()).toMatchObject({
       code: "VALIDATION_ERROR",
       message:
-        "AI video ads require a professional, casual, or aggressive tone",
+        "AI campaign video requires a professional, casual, or aggressive tone",
     });
     expect(update).not.toHaveBeenCalled();
   });
 
-  it("accepts a generated AI video ad with a selected tone", async () => {
+  it("accepts a generated AI campaign video with a selected tone", async () => {
     findFirst.mockResolvedValue({ ...strategy, campaignType: "ai_video_ad" });
     const videoConfig = {
       enabled: true,

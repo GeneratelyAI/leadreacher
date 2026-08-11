@@ -22,6 +22,10 @@ type CsvRow = {
   company?: string;
   title?: string;
   location?: string;
+  phone?: string;
+  instagramUsername?: string;
+  whatsappConsentAt?: string;
+  whatsappConsentSource?: string;
 };
 
 const HEADER_ALIASES: Record<string, keyof CsvRow> = {
@@ -41,6 +45,18 @@ const HEADER_ALIASES: Record<string, keyof CsvRow> = {
   jobtitle: "title",
   job_title: "title",
   location: "location",
+  phone: "phone",
+  mobile: "phone",
+  instagram: "instagramUsername",
+  instagramusername: "instagramUsername",
+  instagram_username: "instagramUsername",
+  "instagram username": "instagramUsername",
+  whatsappconsentat: "whatsappConsentAt",
+  whatsapp_consent_at: "whatsappConsentAt",
+  "whatsapp consent at": "whatsappConsentAt",
+  whatsappconsentsource: "whatsappConsentSource",
+  whatsapp_consent_source: "whatsappConsentSource",
+  "whatsapp consent source": "whatsappConsentSource",
 };
 
 function parseCsv(text: string): CsvRow[] {
@@ -154,7 +170,7 @@ export function ImportProspectsModal({ open, onOpenChange, onImported }: ImportP
           <DialogHeader>
             <DialogTitle>Import CSV</DialogTitle>
             <DialogDescription>
-              Required columns: firstName, lastName. Optional: linkedinUrl, email, company, title, location.
+              Required columns: firstName, lastName. Optional: linkedinUrl, instagramUsername, email, phone, company, title, location. WhatsApp outreach also requires whatsappConsentAt (ISO timestamp) and whatsappConsentSource.
             </DialogDescription>
           </DialogHeader>
           {error ? (

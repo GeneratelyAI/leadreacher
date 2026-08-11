@@ -226,7 +226,7 @@ function buildThreadMessages(seed: ThreadSeed, index: number): DemoMessageRow[] 
     content: {
       message:
         index % 3 === 0
-          ? "Thanks for reaching out. I would be open to learning more — next Tuesday afternoon works."
+          ? "Thanks for reaching out. I would be open to learning more - next Tuesday afternoon works."
           : "Appreciate the note. Can you share a short overview of how teams usually start?",
       demoMessagesInbox: true,
     },
@@ -246,7 +246,7 @@ function buildThreadMessages(seed: ThreadSeed, index: number): DemoMessageRow[] 
       inboundMessage,
       {
         content: {
-          message: "Great — I'll send a brief overview and a couple of times that work mid-week.",
+          message: "Great - I'll send a brief overview and a couple of times that work mid-week.",
           demoMessagesInbox: true,
         },
         direction: "outbound",

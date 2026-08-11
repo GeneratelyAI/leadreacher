@@ -1,24 +1,13 @@
-import type { Prisma, Strategy } from "@prisma/client";
 import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { z } from "zod";
-import {
-  ApifyAdapter,
-  type CompanySearchResult,
-  type ICPFilters,
-  type ScrapedCompany,
-  type ScrapedProfile,
-} from "../adapters/apify.js";
-import { resolveCompanyHeadcountCodes } from "../adapters/linkedin-company-size-codes.js";
-import { resolveIndustryIds } from "../adapters/linkedin-industry-codes.js";
 import { env } from "../config/env.js";
 import { R2Adapter } from "../adapters/r2.js";
 import {
   AppError,
-  ExternalServiceError,
   ForbiddenError,
   NotFoundError,
   ValidationError,
@@ -33,82 +22,23 @@ import { redis } from "../lib/redis.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { VideoConfigSchema } from "../lib/billing/pricing.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
-import { importScrapedProfiles } from "../services/lead-import.js";
 import {
-  buildCompanySearchPlan,
-  COMPANY_SEARCH_NO_RESULTS_REASON,
-  buildStrategyFilters,
-  COMPANY_SEARCH_UNAVAILABLE_REASON,
-} from "./strategy-filters.js";
+  asRecord,
+  buildStrategyBrief,
+  generateStrategy,
+  hasCompletedAudienceAnalysis,
+  recordString,
+  strategyBriefPersistence,
+  toJson,
+} from "../services/strategy-generation.js";
 
-type DiscoveryScrapeStatus = {
-  status: "idle" | "running" | "completed" | "failed";
-  url: string | null;
-  market: string;
-  offer: string;
-  audience: string;
-  value: string;
-  strategyStatus: string;
-  error: string | null;
-  updatedAt: string;
-};
-
-type ChannelKey = "linkedin" | "email" | "whatsapp";
-
-type ChannelRecommendation = {
-  channel: ChannelKey;
-  label: string;
-  confidence: number;
-  signalCount: number;
-  totalProfiles: number;
-  tag: string;
-  description: string;
-};
-
-type StrategyIcpDefinition = {
-  idealCustomer?: unknown;
-  audienceAnalysis?: {
-    status: "completed" | "failed";
-    error?: string;
-    generatedAt: string;
-    companies: {
-      status: "available" | "unavailable";
-      reason?: string;
-      totalFound: number;
-      sampleSize: number;
-    };
-    decisionMakers: {
-      totalFound: number;
-      sampleSize: number;
-      prospectLeadIds?: string[];
-    };
-    reachability: {
-      percentage: number;
-      reachableProfiles: number;
-      totalProfiles: number;
-    };
-    topIndustries: Array<{
-      industry: string;
-      count: number;
-      percentage: number;
-    }>;
-    topBuyerPersonas: Array<{
-      title: string;
-      count: number;
-    }>;
-    filters: ICPFilters & {
-      resolvedIndustryIds: number[];
-      resolvedCompanyHeadcount: string[];
-    };
-  };
-};
-
-type AudienceAnalysis = NonNullable<StrategyIcpDefinition["audienceAnalysis"]>;
-
-type StrategyChannels = {
-  suggestedChannels?: unknown;
-  recommendations?: ChannelRecommendation[];
-};
+export {
+  buildStrategyBrief,
+  generateStrategy,
+  resolveCompanySearchOutcome,
+  strategyBriefPersistence,
+  topBuyerPersonas,
+} from "../services/strategy-generation.js";
 
 const StrategyParamsSchema = z.object({
   orgId: z.string().min(1),
@@ -125,12 +55,40 @@ type CampaignType = (typeof CAMPAIGN_TYPES)[number];
 const CampaignTypeBodySchema = z.object({
   campaignType: z.string(),
 });
+export const StrategyGenerationBodySchema = z.object({
+  force: z.boolean().optional().default(false),
+}).default({ force: false }).nullable().transform((body) => body ?? { force: false });
 
 const VideoDecisionBodySchema = VideoConfigSchema;
-const OutreachMessageBodySchema = z.object({
-  message: z.string().trim().min(1).max(1000),
-});
+const OutreachMessageBodySchema = z
+  .object({
+    message: z.string().trim().min(1).max(1000),
+    ctaLabel: z.string().trim().min(1).max(80).nullable().default(null),
+    ctaUrl: z.string().url().nullable().default(null),
+  })
+  .superRefine((value, ctx) => {
+    if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "A CTA needs both a label and a destination URL",
+        path: value.ctaLabel ? ["ctaUrl"] : ["ctaLabel"],
+      });
+    }
+  });
 const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
+const STRATEGY_GENERATION_LOCK_TTL_MS = 10 * 60 * 1000;
+
+async function releaseOwnedLock(lockKey: string, ownerToken: string): Promise<void> {
+  await redis.eval(
+    `if redis.call("get", KEYS[1]) == ARGV[1] then
+      return redis.call("del", KEYS[1])
+    end
+    return 0`,
+    1,
+    lockKey,
+    ownerToken,
+  );
+}
 
 function parseCampaignType(value: string): CampaignType {
   if (!CAMPAIGN_TYPES.includes(value as CampaignType)) {
@@ -174,7 +132,7 @@ function validateVideoDecisionForCampaign(
   if (campaignType === "ai_video_ad") {
     if (videoConfig.tone === null) {
       throw new ValidationError(
-        "AI video ads require a professional, casual, or aggressive tone",
+        "AI campaign video requires a professional, casual, or aggressive tone",
       );
     }
 
@@ -182,7 +140,7 @@ function validateVideoDecisionForCampaign(
       videoConfig.mode !== "standardized" ||
       videoConfig.source !== "generated"
     ) {
-      throw new ValidationError("AI video ads use standardized AI-generated video");
+      throw new ValidationError("AI campaign video uses one standardized AI-generated video");
     }
 
     return;
@@ -223,440 +181,6 @@ function isFileTooLargeError(error: unknown): boolean {
     "code" in error &&
     (error as { code?: unknown }).code === "FST_REQ_FILE_TOO_LARGE"
   );
-}
-
-function getScrapeStatusKey(orgId: string): string {
-  return `discovery:scrape:${orgId}`;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
-function recordString(record: Record<string, unknown>, key: string): string {
-  const value = record[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function toJson(value: unknown): Prisma.InputJsonValue {
-  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
-}
-
-async function getScrapeStatus(orgId: string): Promise<DiscoveryScrapeStatus | null> {
-  const raw = await redis.get(getScrapeStatusKey(orgId));
-  if (!raw) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(raw) as DiscoveryScrapeStatus;
-  } catch {
-    return null;
-  }
-}
-
-function hasCompletedAudienceAnalysis(strategy: Strategy): boolean {
-  const icpDefinition = asRecord(strategy.icpDefinition);
-  const audienceAnalysis = asRecord(icpDefinition.audienceAnalysis);
-  return audienceAnalysis.status === "completed";
-}
-
-function percentage(part: number, total: number): number {
-  return total > 0 ? Math.round((part / total) * 100) : 0;
-}
-
-function normalizeIndustry(value: string | undefined): string {
-  const trimmed = value?.trim();
-  return trimmed || "Unknown";
-}
-
-function topIndustries(companies: ScrapedCompany[]): AudienceAnalysis["topIndustries"] {
-  const counts = new Map<string, number>();
-  for (const company of companies) {
-    const industry = normalizeIndustry(company.industry);
-    counts.set(industry, (counts.get(industry) ?? 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .map(([industry, count]) => ({
-      industry,
-      count,
-      percentage: percentage(count, companies.length),
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-}
-
-function normalizeTitle(title: string): string {
-  const cleaned = title
-    .split(/\s+at\s+|\s+\|\s+|\s+-\s+/i)[0]
-    ?.replace(/\s+/g, " ")
-    .trim();
-  return cleaned || "Unknown title";
-}
-
-export function topBuyerPersonas(
-  profiles: ScrapedProfile[],
-): AudienceAnalysis["topBuyerPersonas"] {
-  const counts = new Map<string, number>();
-  for (const profile of profiles) {
-    const title = normalizeTitle(profile.title);
-    counts.set(title, (counts.get(title) ?? 0) + 1);
-  }
-
-  return [...counts.entries()]
-    .map(([title, count]) => ({ title, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
-}
-
-function isValidLinkedInUrl(value: string | undefined): boolean {
-  return typeof value === "string" && /^https:\/\/(www\.)?linkedin\.com\/in\//i.test(value);
-}
-
-function hasText(value: string | undefined): boolean {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-export function resolveCompanySearchOutcome(
-  companyResult: PromiseSettledResult<CompanySearchResult>,
-): CompanySearchResult {
-  if (companyResult.status === "fulfilled") {
-    return companyResult.value;
-  }
-
-  return {
-    companies: [],
-    totalFound: 0,
-    skipped: true,
-    reason: COMPANY_SEARCH_UNAVAILABLE_REASON,
-  };
-}
-
-function buildChannelRecommendations(profiles: ScrapedProfile[]): ChannelRecommendation[] {
-  const total = profiles.length;
-  const linkedinCount = profiles.filter((profile) => isValidLinkedInUrl(profile.linkedinUrl)).length;
-  const emailCount = profiles.filter((profile) => hasText(profile.email)).length;
-  const phoneCount = profiles.filter((profile) => hasText(profile.phone)).length;
-
-  const recommendations: ChannelRecommendation[] = [
-    {
-      channel: "linkedin",
-      label: "LinkedIn",
-      confidence: percentage(linkedinCount, total),
-      signalCount: linkedinCount,
-      totalProfiles: total,
-      tag: `${linkedinCount}/${total} profiles have LinkedIn URLs`,
-      description: "Best for connecting with decision makers and building trust.",
-    },
-    {
-      channel: "email",
-      label: "Email",
-      confidence: percentage(emailCount, total),
-      signalCount: emailCount,
-      totalProfiles: total,
-      tag: `${emailCount}/${total} profiles include email data`,
-      description: "Best when verified emails are available for direct follow-up.",
-    },
-    {
-      channel: "whatsapp",
-      label: "WhatsApp",
-      confidence: percentage(phoneCount, total),
-      signalCount: phoneCount,
-      totalProfiles: total,
-      tag: `${phoneCount}/${total} profiles include phone data`,
-      description: "Useful only when phone coverage is present in the scraped profiles.",
-    },
-  ];
-
-  return recommendations.sort((a, b) => b.confidence - a.confidence);
-}
-
-async function writeFilterAuditLog(input: {
-  orgId: string;
-  userId?: string;
-  strategyId: string;
-  filters: ICPFilters;
-  companySearchFilters: ICPFilters;
-  companySearchAvailable: boolean;
-  companySearchReason?: string;
-  resolvedIndustryIds: number[];
-  resolvedCompanyHeadcount: string[];
-}): Promise<void> {
-  console.log(
-    JSON.stringify({
-      event: "strategy-apify-filters",
-      orgId: input.orgId,
-      strategyId: input.strategyId,
-      filters: input.filters,
-      resolvedIndustryIds: input.resolvedIndustryIds,
-      resolvedCompanyHeadcount: input.resolvedCompanyHeadcount,
-    }),
-  );
-
-  await prisma.auditLog.create({
-    data: {
-      orgId: input.orgId,
-      userId: input.userId,
-      action: "strategy.generate.filters",
-      resource: "Strategy",
-      resourceId: input.strategyId,
-      metadata: toJson({
-        filters: input.filters,
-        companySearchFilters: input.companySearchFilters,
-        companySearchAvailable: input.companySearchAvailable,
-        companySearchReason: input.companySearchReason,
-        resolvedIndustryIds: input.resolvedIndustryIds,
-        resolvedCompanyHeadcount: input.resolvedCompanyHeadcount,
-      }),
-    },
-  });
-}
-
-async function markStrategyGenerationFailed(
-  strategy: Strategy,
-  message: string,
-): Promise<Strategy> {
-  const icpDefinition = asRecord(strategy.icpDefinition);
-  return prisma.strategy.update({
-    where: { id: strategy.id },
-    data: {
-      icpDefinition: toJson({
-        ...icpDefinition,
-        audienceAnalysis: {
-          status: "failed",
-          error: message,
-          generatedAt: new Date().toISOString(),
-        },
-      }),
-    },
-  });
-}
-
-async function scrapeDecisionMakersWithFallback(
-  adapter: ApifyAdapter,
-  filters: ICPFilters,
-): Promise<{
-  profiles: ScrapedProfile[];
-  totalFound: number;
-  filtersUsed: ICPFilters;
-}> {
-  const primary = await adapter.scrapeLeadsWithTotal(filters, 50);
-  if (primary.profiles.length > 0 || filters.jobTitles.length === 0) {
-    return { ...primary, filtersUsed: filters };
-  }
-
-  // HarvestAPI can return zero rows for exact currentJobTitles while the same
-  // role language works as a profile keyword query. Keep the fallback bounded
-  // to the inferred roles so we never silently run an unfiltered scrape.
-  const keywordFallback: ICPFilters = {
-    ...filters,
-    jobTitles: [],
-    keywords: filters.jobTitles,
-  };
-  const fallback = await adapter.scrapeLeadsWithTotal(keywordFallback, 50);
-  return {
-    ...fallback,
-    filtersUsed: fallback.profiles.length > 0 ? keywordFallback : filters,
-  };
-}
-
-function getDiscoveryInputs(
-  strategy: Strategy,
-  scrapeStatus: DiscoveryScrapeStatus | null,
-): {
-  market: string;
-  offer: string;
-  audience: string;
-  value: string;
-  competitiveAdvantage: string;
-} {
-  const positioning = asRecord(strategy.positioning);
-  const icpDefinition = asRecord(strategy.icpDefinition);
-
-  const market =
-    scrapeStatus?.status === "completed" ? scrapeStatus.market : recordString(positioning, "industry");
-  const offer =
-    scrapeStatus?.status === "completed" ? scrapeStatus.offer : recordString(positioning, "businessModel");
-  const audience =
-    scrapeStatus?.status === "completed"
-      ? scrapeStatus.audience
-      : recordString(icpDefinition, "idealCustomer");
-  const value = scrapeStatus?.status === "completed" ? scrapeStatus.value : "";
-  const competitiveAdvantage = recordString(positioning, "strengths");
-
-  if (!market || !offer || !audience || !competitiveAdvantage) {
-    throw new ValidationError(
-      "Discovery data is incomplete. Complete the discovery step before generating strategy.",
-    );
-  }
-
-  return { market, offer, audience, value, competitiveAdvantage };
-}
-
-export async function generateStrategy(
-  strategy: Strategy,
-  orgId: string,
-  userId?: string,
-): Promise<Strategy> {
-  const scrapeStatus = await getScrapeStatus(orgId);
-  const discovery = getDiscoveryInputs(strategy, scrapeStatus);
-  const filters = buildStrategyFilters({
-    market: discovery.market,
-    audience: discovery.audience,
-    offer: discovery.offer,
-    competitiveAdvantage: discovery.competitiveAdvantage,
-  });
-  const resolvedIndustryIds = resolveIndustryIds(filters.industries);
-  const resolvedCompanyHeadcount = resolveCompanyHeadcountCodes(filters.companySizes);
-  const companySearchPlan = buildCompanySearchPlan({
-    filters,
-    market: discovery.market,
-    resolvedIndustryIds,
-    resolvedCompanyHeadcount,
-  });
-
-  await writeFilterAuditLog({
-    orgId,
-    userId,
-    strategyId: strategy.id,
-    filters,
-    companySearchFilters: companySearchPlan.filters,
-    companySearchAvailable: companySearchPlan.canSearch,
-    companySearchReason: companySearchPlan.reason,
-    resolvedIndustryIds,
-    resolvedCompanyHeadcount,
-  });
-
-  const adapter = new ApifyAdapter({ apiKey: env.APIFY_API_KEY });
-
-  try {
-    const companySearchPromise: Promise<CompanySearchResult> =
-      companySearchPlan.canSearch
-        ? adapter.searchCompanies(companySearchPlan.filters, 100)
-        : Promise.resolve({
-            companies: [],
-            totalFound: 0,
-            skipped: true,
-            reason:
-              companySearchPlan.reason ?? COMPANY_SEARCH_UNAVAILABLE_REASON,
-          });
-    const profileSearchPromise = scrapeDecisionMakersWithFallback(adapter, filters);
-    const [companyResult, profileResult] = await Promise.allSettled([
-      companySearchPromise,
-      profileSearchPromise,
-    ]);
-    if (profileResult.status === "rejected") {
-      throw profileResult.reason instanceof Error
-        ? profileResult.reason
-        : new Error(String(profileResult.reason));
-    }
-    const {
-      profiles,
-      totalFound: profileTotalFound,
-      filtersUsed: profileFilters,
-    } = profileResult.value;
-    const profileIndustryIds = resolveIndustryIds(profileFilters.industries);
-    const profileCompanyHeadcount = resolveCompanyHeadcountCodes(
-      profileFilters.companySizes,
-    );
-
-    if (companyResult.status === "rejected") {
-      console.error(
-        JSON.stringify({
-          event: "strategy-company-search-failed",
-          orgId,
-          strategyId: strategy.id,
-          error:
-            companyResult.reason instanceof Error
-              ? companyResult.reason.message
-              : String(companyResult.reason),
-        }),
-      );
-    }
-    const companySearch = resolveCompanySearchOutcome(companyResult);
-    const { companies, totalFound: companyTotalFound } = companySearch;
-    const companyDataUnavailable =
-      companySearch.skipped ||
-      companies.length === 0 ||
-      companyTotalFound === 0;
-    if (profiles.length === 0) {
-      throw new ValidationError(
-        "We couldn't find decision makers with the current audience filters. Broaden the market or target roles, add a location, then retry the analysis.",
-      );
-    }
-
-    const importedAudience = await importScrapedProfiles(orgId, profiles);
-
-    const reachableProfiles = profiles.filter((profile) => hasText(profile.email)).length;
-    const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
-    const channels = asRecord(strategy.channels) as StrategyChannels;
-    const now = new Date().toISOString();
-
-    return await prisma.strategy.update({
-      where: { id: strategy.id },
-      data: {
-        icpDefinition: toJson({
-          ...icpDefinition,
-          idealCustomer: icpDefinition.idealCustomer ?? discovery.audience,
-          audienceAnalysis: {
-            status: "completed",
-            generatedAt: now,
-            source: "apify",
-            discovery: {
-              market: discovery.market,
-              offer: discovery.offer,
-              audience: discovery.audience,
-              value: discovery.value,
-              competitiveAdvantage: discovery.competitiveAdvantage,
-            },
-            companies: {
-              status: companyDataUnavailable ? "unavailable" : "available",
-              ...(companyDataUnavailable && {
-                reason:
-                  companySearch.skipped
-                    ? (companySearch.reason ?? COMPANY_SEARCH_UNAVAILABLE_REASON)
-                    : COMPANY_SEARCH_NO_RESULTS_REASON,
-              }),
-              totalFound: companyTotalFound,
-              sampleSize: companies.length,
-            },
-            decisionMakers: {
-              totalFound: profileTotalFound,
-              sampleSize: profiles.length,
-              prospectLeadIds: importedAudience.leadIds,
-            },
-            reachability: {
-              percentage: percentage(reachableProfiles, profiles.length),
-              reachableProfiles,
-              totalProfiles: profiles.length,
-            },
-            topIndustries: companyDataUnavailable ? [] : topIndustries(companies),
-            topBuyerPersonas: topBuyerPersonas(profiles),
-            filters: {
-              ...profileFilters,
-              resolvedIndustryIds: profileIndustryIds,
-              resolvedCompanyHeadcount: profileCompanyHeadcount,
-            },
-          },
-        }),
-        channels: toJson({
-          ...channels,
-          recommendations: buildChannelRecommendations(profiles),
-        }),
-        completedSteps: [...new Set([...strategy.completedSteps, 1])],
-      },
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await markStrategyGenerationFailed(strategy, message);
-    if (error instanceof ValidationError || error instanceof ExternalServiceError) {
-      throw error;
-    }
-    throw new ExternalServiceError("Apify", message);
-  }
 }
 
 export async function strategyRoutes(app: FastifyInstance): Promise<void> {
@@ -755,6 +279,35 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     return reply.send(updated);
   });
 
+  r.get("/strategy/:orgId/outreach-message", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Get persisted outreach message"),
+      params: StrategyParamsSchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { orgId: requestedOrgId } = request.params;
+    if (requestedOrgId !== orgId) {
+      throw new ForbiddenError();
+    }
+
+    const strategy = await prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!strategy) {
+      throw new NotFoundError("Strategy");
+    }
+
+    const messagingAngles = asRecord(strategy.messagingAngles);
+    const existingCta = asRecord(messagingAngles.cta);
+    return reply.send({
+      message: recordString(messagingAngles, "outreachMessage") || null,
+      ctaLabel: recordString(existingCta, "label") || null,
+      ctaUrl: recordString(existingCta, "url") || null,
+    });
+  });
+
   r.post("/strategy/:orgId/outreach-message", {
     schema: {
       ...authenticatedRoute("Strategy", "Generate outreach message"),
@@ -777,8 +330,11 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
 
     const messagingAngles = asRecord(strategy.messagingAngles);
     const existingMessage = recordString(messagingAngles, "outreachMessage");
+    const existingCta = asRecord(messagingAngles.cta);
+    const ctaLabel = recordString(existingCta, "label") || null;
+    const ctaUrl = recordString(existingCta, "url") || null;
     if (existingMessage) {
-      return reply.send({ message: existingMessage });
+      return reply.send({ message: existingMessage, ctaLabel, ctaUrl });
     }
 
     const positioning = asRecord(strategy.positioning);
@@ -818,7 +374,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    return reply.send({ message: result.message });
+    return reply.send({ message: result.message, ctaLabel, ctaUrl });
   });
 
   r.patch("/strategy/:orgId/outreach-message", {
@@ -834,7 +390,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw new ForbiddenError();
     }
 
-    const { message } = request.body;
+    const { message, ctaLabel, ctaUrl } = request.body;
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
@@ -847,11 +403,15 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     await prisma.strategy.update({
       where: { id: strategy.id },
       data: {
-        messagingAngles: toJson({ ...messagingAngles, outreachMessage: message }),
+        messagingAngles: toJson({
+          ...messagingAngles,
+          outreachMessage: message,
+          cta: ctaLabel && ctaUrl ? { label: ctaLabel, url: ctaUrl } : null,
+        }),
       },
     });
 
-    return reply.send({ message });
+    return reply.send({ message, ctaLabel, ctaUrl });
   });
 
   r.post("/strategy/:orgId/video-upload", {
@@ -935,12 +495,20 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
       schema: {
         ...authenticatedRoute("Strategy", "Generate strategy from discovery scrape"),
+        body: StrategyGenerationBodySchema,
       },
     },
     async (request, reply) => {
       const orgId = requireOrgId(request);
       const lockKey = `strategy:generate:lock:${orgId}`;
-      const acquired = await redis.set(lockKey, "1", "PX", 300000, "NX");
+      const ownerToken = randomUUID();
+      const acquired = await redis.set(
+        lockKey,
+        ownerToken,
+        "PX",
+        STRATEGY_GENERATION_LOCK_TTL_MS,
+        "NX",
+      );
       if (acquired !== "OK") {
         throw new AppError(
           "Strategy generation is already in progress for this organization.",
@@ -949,36 +517,112 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
-      try {
-        const existing = await prisma.strategy.findFirst({
-          where: { orgId },
-          orderBy: { updatedAt: "desc" },
-        });
+      const existing = await prisma.strategy.findFirst({
+        where: { orgId },
+        orderBy: { updatedAt: "desc" },
+      });
 
-        const strategy =
-          existing ??
-          (await prisma.strategy.create({
-            data: {
-              orgId,
-              icpDefinition: toJson({}),
-              positioning: toJson({}),
-              channels: toJson({}),
-              messagingAngles: toJson({}),
-              creativeAssets: toJson({}),
-              executionPlan: toJson([]),
-              completedSteps: [],
-            },
-          }));
+      const strategy =
+        existing ??
+        (await prisma.strategy.create({
+          data: {
+            orgId,
+            icpDefinition: toJson({}),
+            positioning: toJson({}),
+            channels: toJson({}),
+            messagingAngles: toJson({}),
+            creativeAssets: toJson({}),
+            executionPlan: toJson([]),
+            completedSteps: [],
+          },
+        }));
 
-        if (hasCompletedAudienceAnalysis(strategy)) {
+      if (hasCompletedAudienceAnalysis(strategy) && !request.body.force) {
+        const currentIcpDefinition = asRecord(strategy.icpDefinition);
+        if (asRecord(currentIcpDefinition.strategyBrief).status === "ready") {
+          await releaseOwnedLock(lockKey, ownerToken);
           return reply.send(strategy);
         }
 
-        const generated = await generateStrategy(strategy, orgId, request.dbUserId);
-        return reply.send(generated);
-      } finally {
-        await redis.del(lockKey);
+        let completedBrief;
+        try {
+          completedBrief = buildStrategyBrief(strategy);
+        } catch {
+          await releaseOwnedLock(lockKey, ownerToken);
+          // Older completed strategies may predate the Discovery fields used
+          // by the new plan. Keep their completed audience usable.
+          return reply.send(strategy);
+        }
+
+        const strategyPlan = strategyBriefPersistence(strategy, completedBrief);
+        const plannedIcpDefinition = asRecord(strategyPlan.icpDefinition);
+        const updatedStrategy = await prisma.strategy.update({
+          where: { id: strategy.id },
+          data: {
+            ...strategyPlan,
+            icpDefinition: toJson({
+              ...plannedIcpDefinition,
+              audienceAnalysis: currentIcpDefinition.audienceAnalysis,
+            }),
+          },
+        });
+        await releaseOwnedLock(lockKey, ownerToken);
+        return reply.send(updatedStrategy);
       }
+
+      let brief;
+      try {
+        brief = buildStrategyBrief(strategy);
+      } catch (error) {
+        await releaseOwnedLock(lockKey, ownerToken);
+        throw error;
+      }
+
+      const strategyPlan = strategyBriefPersistence(strategy, brief);
+      const plannedIcpDefinition = asRecord(strategyPlan.icpDefinition);
+
+      const runningStrategy = await prisma.strategy.update({
+        where: { id: strategy.id },
+        data: {
+          ...strategyPlan,
+          icpDefinition: toJson({
+            ...plannedIcpDefinition,
+            audienceAnalysis: {
+              status: "running",
+              startedAt: new Date().toISOString(),
+            },
+          }),
+        },
+      });
+
+      void generateStrategy(runningStrategy, orgId, request.dbUserId)
+        .catch(async (error: unknown) => {
+          request.log.error({ err: error, orgId }, "Strategy generation failed");
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Unable to complete audience analysis.";
+          await prisma.strategy.update({
+            where: { id: runningStrategy.id },
+            data: {
+              icpDefinition: toJson({
+                ...asRecord(runningStrategy.icpDefinition),
+                audienceAnalysis: {
+                  status: "failed",
+                  error: message,
+                  generatedAt: new Date().toISOString(),
+                },
+              }),
+            },
+          });
+        })
+        .finally(async () => {
+          await releaseOwnedLock(lockKey, ownerToken).catch((error: unknown) => {
+            request.log.error({ err: error, orgId }, "Failed to release strategy lock");
+          });
+        });
+
+      return reply.status(202).send(runningStrategy);
     },
   );
 }

@@ -23,7 +23,7 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -162,48 +162,6 @@ function groupByDay(items: ActivityItem[]): DayGroup[] {
   }));
 }
 
-function isChannelLogoName(value: string | undefined): value is "linkedin" | "whatsapp" {
-  return value === "linkedin" || value === "whatsapp";
-}
-
-function ChannelMark({
-  name,
-  size = "default",
-  className,
-}: {
-  name: "linkedin" | "whatsapp";
-  size?: "default" | "badge";
-  className?: string;
-}) {
-  if (name === "linkedin") {
-    return (
-      <span
-        className={cn(
-          "inline-flex shrink-0 items-center justify-center",
-          size === "badge" ? "size-4" : "size-8",
-          className,
-        )}
-        aria-hidden
-      >
-        <ChannelLogo name="linkedin" className="size-full" />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center justify-center rounded-[0.3rem] bg-[#25D366] text-white",
-        size === "badge" ? "size-4" : "size-8",
-        className,
-      )}
-      aria-hidden
-    >
-      <ChannelLogo name="whatsapp" className={size === "badge" ? "size-2.5" : "size-[62%]"} />
-    </span>
-  );
-}
-
 function ActivityMark({ item }: { item: ActivityItem }) {
   if (item.avatarUrl) {
     return (
@@ -214,18 +172,14 @@ function ActivityMark({ item }: { item: ActivityItem }) {
             {initials(item.title)}
           </AvatarFallback>
         </Avatar>
-        {isChannelLogoName(item.channel) ? (
-          <ChannelMark
-            name={item.channel}
-            size="badge"
-            className="absolute -right-0.5 -bottom-0.5 border-2 border-onboarding-neutral-0 dark:border-onboarding-neutral-900"
-          />
+        {item.channel ? (
+          <DashboardChannelLogo platform={item.channel} className="absolute -right-0.5 -bottom-0.5 size-4 rounded-sm border-2 border-onboarding-neutral-0 dark:border-onboarding-neutral-900" />
         ) : null}
       </span>
     );
   }
 
-  if (isChannelLogoName(item.channel)) return <ChannelMark name={item.channel} />;
+  if (item.channel) return <DashboardChannelLogo platform={item.channel} className="size-8" />;
 
   if (item.kind === "campaign") {
     return <Trophy className="size-5 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />;
@@ -296,7 +250,7 @@ export function ActivityWorkspace() {
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
-  const activity = activityQuery.data?.activity ?? [];
+  const activity = useMemo(() => activityQuery.data?.activity ?? [], [activityQuery.data?.activity]);
   const total = activityQuery.data?.total ?? 0;
   const summary = activityQuery.data?.summary ?? null;
   const campaigns = activityQuery.data?.filters.campaigns ?? [];

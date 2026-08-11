@@ -37,9 +37,20 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "../services/delivery-attempt.js";
-import { ensurePersonalizedVideoReady } from "../services/personalized-video.js";
+import { ensureCampaignVideoReady } from "../services/campaign-video.js";
+import { personalizeSequenceStep } from "../services/personalize-sequence-step.js";
+import { claimFirstChannelOutreach } from "../services/channel-outreach-claim.js";
+import { logOperationalInfo } from "../lib/operational-logger.js";
 
 const PERSONALIZED_VIDEO_WAIT_MS = 30_000;
+
+async function skipCampaignLead(campaignLeadId: string, step: number, reason: string) {
+  await prisma.campaignLead.update({
+    where: { id: campaignLeadId },
+    data: { status: "skipped", currentStep: step, skipReason: reason, skippedAt: new Date() },
+  });
+  return { skipped: true as const, reason };
+}
 
 async function rescheduleAfterDailyLimit(
   job: Job<CampaignSequenceJob>,
@@ -111,21 +122,53 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
         );
       }
 
+      if (campaignLead.lead.outreachSuppressedAt) {
+        return skipCampaignLead(campaignLeadId, step, "prospect is suppressed from outreach");
+      }
+
+      if (channel === "whatsapp" && (
+        !campaignLead.lead.whatsappConsentAt ||
+        !campaignLead.lead.whatsappConsentSource?.trim()
+      )) {
+        return skipCampaignLead(campaignLeadId, step, "WhatsApp consent is missing or incomplete");
+      }
+
+      if (step === 0 && (channel === "instagram" || channel === "whatsapp")) {
+        const claim = await claimFirstChannelOutreach({
+          orgId,
+          leadId: campaignLead.leadId,
+          campaignId: campaignLead.campaignId,
+          channel,
+        });
+        if (!claim.acquired) {
+          return skipCampaignLead(campaignLeadId, step, `prospect already received ${channel} outreach from another campaign`);
+        }
+      }
+
+      const preparedStep = await personalizeSequenceStep({
+        orgId,
+        channel,
+        campaign: campaignLead.campaign,
+        lead: campaignLead.lead,
+        step,
+        sequenceStep: currentStep,
+      });
+
       if (step === 0 && channel === "linkedin") {
-        const personalizedVideo = await ensurePersonalizedVideoReady({
+        const campaignVideo = await ensureCampaignVideoReady({
           orgId,
           campaignId: campaignLead.campaignId,
           leadId: campaignLead.leadId,
         });
-        if (personalizedVideo.state === "pending") {
+        if (campaignVideo.state === "pending") {
           await job.moveToDelayed(
             Date.now() + PERSONALIZED_VIDEO_WAIT_MS,
             job.token,
           );
           throw new DelayedError();
         }
-        if (personalizedVideo.state === "failed") {
-          throw new Error(`Personalized video is unavailable: ${personalizedVideo.reason}`);
+        if (campaignVideo.state === "failed") {
+          throw new Error(`Campaign video is unavailable: ${campaignVideo.reason}`);
         }
       }
 
@@ -160,7 +203,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           lead: campaignLead.lead,
           step,
           sequence,
-          currentStep,
+          currentStep: preparedStep,
           sender: socialAccount,
           existingChatId,
         });
@@ -176,7 +219,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           lead: campaignLead.lead,
           step,
           sequence,
-          currentStep,
+          currentStep: preparedStep,
           sender: socialAccount,
         });
       }
@@ -282,16 +325,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
             return { skipped: true, reason: step1Result.reason };
           }
 
-          console.log(
-            JSON.stringify({
-              event: "campaign-sequence-step0",
-              path: "already-connected",
-              campaignLeadId,
-              network_distance: networkDistance,
-              is_relationship: isRelationship,
-              step1: step1Result,
-            }),
-          );
+          logOperationalInfo("campaign-sequence-step0", {
+            path: "already-connected",
+            campaignLeadId,
+            network_distance: networkDistance,
+            is_relationship: isRelationship,
+            step1: step1Result,
+          });
 
           return {
             sent: true,
@@ -334,7 +374,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           await adapter.sendConnectionInvite(
             socialAccount.unipileId,
             inviteProviderId,
-            currentStep.message,
+            preparedStep.message,
           );
 
           await prisma.$transaction([
@@ -344,7 +384,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
                 leadId: campaignLead.leadId,
                 orgId,
                 channel: "linkedin",
-                content: { type: "text", message: currentStep.message },
+                content: { type: "text", message: preparedStep.message },
                 status: "sent",
                 stepIndex: step,
                 sentAt: new Date(),
@@ -390,15 +430,12 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
           throw error;
         }
 
-        console.log(
-          JSON.stringify({
-            event: "campaign-sequence-step0",
-            path: "invite-sent",
-            campaignLeadId,
-            network_distance: networkDistance,
-            is_relationship: isRelationship,
-          }),
-        );
+        logOperationalInfo("campaign-sequence-step0", {
+          path: "invite-sent",
+          campaignLeadId,
+          network_distance: networkDistance,
+          is_relationship: isRelationship,
+        });
 
         return { sent: true, step, path: "invite-sent" };
       }
@@ -406,7 +443,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       const chatId = existingChatId;
       if (!chatId) {
         throw new Error(
-          `No chatId on CampaignLead ${campaignLeadId} — connection not yet accepted`,
+          `No chatId on CampaignLead ${campaignLeadId} - connection not yet accepted`,
         );
       }
 
@@ -431,7 +468,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       let providerRef: string | undefined;
       try {
-        const result = await adapter.sendMessageToChat(chatId, currentStep.message);
+        const result = await adapter.sendMessageToChat(chatId, preparedStep.message);
         providerRef = result.message_id;
         await prisma.$transaction([
           prisma.message.create({
@@ -440,7 +477,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
               leadId: campaignLead.leadId,
               orgId,
               channel: "linkedin",
-              content: { type: "text", message: currentStep.message },
+              content: { type: "text", message: preparedStep.message },
               status: "sent",
               stepIndex: step,
               sentAt: new Date(),

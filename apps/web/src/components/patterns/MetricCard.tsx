@@ -16,7 +16,7 @@ const toneIconClass: Record<MetricCardTone, string> = {
 };
 
 /**
- * Domain-agnostic KPI card — icon + value + label (+ optional detail).
+ * Domain-agnostic KPI card - icon + value + label (+ optional detail).
  * Lives in `patterns/` so features reuse one layout without copying Card markup.
  *
  * @example

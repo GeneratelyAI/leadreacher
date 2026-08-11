@@ -108,6 +108,7 @@ describe("Apify adapter normalization", () => {
         locations: [],
       },
       1,
+      { profileScraperMode: "Full" },
     );
 
     const startRequest = requests.find(({ url }) =>
@@ -116,6 +117,8 @@ describe("Apify adapter normalization", () => {
     expect(JSON.parse(startRequest?.body ?? "{}")).toMatchObject({
       industryIds: [47],
       companyHeadcount: ["D"],
+      takePages: 1,
+      profileScraperMode: "Full",
     });
   });
 

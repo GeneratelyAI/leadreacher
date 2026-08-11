@@ -11,6 +11,8 @@ export type UnipileNetworkDistance =
 
 export type UnipileProfile = {
   provider_id: string;
+  provider_messaging_id?: string;
+  messaging_identifier?: string;
   public_identifier: string;
   first_name: string;
   last_name: string;

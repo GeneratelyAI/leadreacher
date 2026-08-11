@@ -6,7 +6,7 @@ const APIFY_BASE_URL = "https://api.apify.com/v2";
 const LINKEDIN_SEARCH_ACTOR_ID = "harvestapi~linkedin-profile-search";
 const LINKEDIN_COMPANY_SEARCH_ACTOR_ID = "harvestapi~linkedin-company-search";
 const POLL_INTERVAL_MS = 3000;
-const POLL_TIMEOUT_MS = 120_000;
+const POLL_TIMEOUT_MS = 5 * 60_000;
 
 export type ApifyCredentials = {
   apiKey: string;
@@ -18,6 +18,10 @@ export type ICPFilters = {
   companySizes: string[];
   locations: string[];
   keywords?: string[];
+};
+
+export type ScrapeLeadsOptions = {
+  profileScraperMode?: ActorRunInput["profileScraperMode"];
 };
 
 type RawLinkedInProfile = {
@@ -44,7 +48,7 @@ type RawLinkedInProfile = {
   profilePictureUrl?: string;
   pictureUrl?: string;
   profilePicture?: string | { url?: string };
-  /** Legacy / forward-compat — actor does not return these today */
+  /** Legacy / forward-compat - actor does not return these today */
   industry?: string;
   companySize?: string;
 };
@@ -126,6 +130,7 @@ export type CompanySearchResult = {
 
 type ActorRunInput = {
   maxItems: number;
+  takePages?: number;
   profileScraperMode?: "Short" | "Full" | "Full + email search";
   industryIds?: number[];
   companyHeadcount?: string[];
@@ -212,12 +217,19 @@ export class ApifyAdapter {
    * link/email; that is a LinkedIn-side limitation, so reachability below 100% is expected.
    * Keep maxResults conservative for onboarding/strategy runs; this should never run unbounded.
    */
-  private buildActorInput(filters: ICPFilters, maxResults: number): ActorRunInput {
+  private buildActorInput(
+    filters: ICPFilters,
+    maxResults: number,
+    options: ScrapeLeadsOptions = {},
+  ): ActorRunInput {
     const industryIds = resolveIndustryIds(filters.industries);
     const companyHeadcount = resolveCompanyHeadcountCodes(filters.companySizes);
     const input: ActorRunInput = {
       maxItems: Math.min(Math.max(maxResults, 1), 100),
-      profileScraperMode: "Full + email search",
+      // HarvestAPI requires a positive page count to reliably apply search
+      // filters and finish the run. One page contains up to 25 profiles.
+      takePages: Math.max(1, Math.ceil(Math.min(Math.max(maxResults, 1), 100) / 25)),
+      profileScraperMode: options.profileScraperMode ?? "Full + email search",
       proxy: { useApifyProxy: true },
     };
 
@@ -307,7 +319,7 @@ export class ApifyAdapter {
       // free-tier queuing notice) long before the run actually finishes.
       // isStatusMessageTerminal (or the run status itself reaching a terminal
       // state) is what tells us the message is the final word, not a
-      // transient one the run may still recover from — without this check we
+      // transient one the run may still recover from - without this check we
       // aborted runs that went on to succeed moments later.
       if (
         statusMessage &&
@@ -452,8 +464,9 @@ export class ApifyAdapter {
   async scrapeLeadsWithTotal(
     filters: ICPFilters,
     maxResults = 100,
+    options: ScrapeLeadsOptions = {},
   ): Promise<{ profiles: ScrapedProfile[]; totalFound: number }> {
-    const input = this.buildActorInput(filters, maxResults);
+    const input = this.buildActorInput(filters, maxResults, options);
     const runId = await this.startRun(LINKEDIN_SEARCH_ACTOR_ID, input);
     await this.waitForRun(LINKEDIN_SEARCH_ACTOR_ID, runId);
     const { items, totalFound } = await this.fetchResults<RawLinkedInProfile>(runId);

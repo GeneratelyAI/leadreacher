@@ -30,7 +30,7 @@ export function defaultSequenceDraft(): SequenceStepDraft[] {
     },
     {
       type: "linkedin_message",
-      message: "Thanks for connecting — quick note on how we help teams like yours.",
+      message: "Thanks for connecting - quick note on how we help teams like yours.",
       delayHours: 24,
     },
   ];

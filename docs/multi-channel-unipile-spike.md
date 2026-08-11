@@ -1,4 +1,4 @@
-# Phase 0 — Unipile multi-channel spike
+# Phase 0 - Unipile multi-channel spike
 
 Date: 2026-07-24  
 Constraint: Unipile only (no Smartlead / second ESP).
@@ -9,7 +9,7 @@ Constraint: Unipile only (no Smartlead / second ESP).
 |---------|----------------------|------|---------|
 | LinkedIn | `LINKEDIN` | Invite + `/chats` | `new_relation`, `message_received` |
 | WhatsApp | `WHATSAPP` | `/chats` start + send | `message_received` (messaging source) |
-| Facebook Messenger | `MESSENGER` (hosted) — normalize to `facebook` | `/chats` with Messenger attendee id | `message_received` |
+| Facebook Messenger | `MESSENGER` (hosted) - normalize to `facebook` | `/chats` with Messenger attendee id | `message_received` |
 | Instagram | `INSTAGRAM` | `/chats` using `provider_messaging_id` | `message_received` |
 | Email | `GOOGLE` / `OUTLOOK` / `MAIL` | `POST /emails` (multipart) | Email webhook source (mail received) |
 

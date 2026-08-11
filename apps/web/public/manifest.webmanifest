@@ -1,7 +1,7 @@
 {
-  "name": "leadreacher",
-  "short_name": "leadreacher",
-  "description": "Cold calls and emails are dead. AI + social + creative to drive fresh, qualified leads.",
+  "name": "LeadReacher",
+  "short_name": "LeadReacher",
+  "description": "AI-powered multi-channel outreach with personalized video, built for review before launch.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#020617",

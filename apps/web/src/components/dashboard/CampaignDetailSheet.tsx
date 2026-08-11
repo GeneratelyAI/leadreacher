@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -104,6 +104,14 @@ type CampaignDetailSheetProps = {
   onChanged: () => Promise<void> | void;
 };
 
+type ChannelPreflight = {
+  instagram?: {
+    total: number; reachable: number; unresolved: number; invalid: number; errors: number; suppressed: number;
+    capacity: { stage: string; dailyLimit: number; dailyRemaining: number; hourlyLimit: number; hourlyRemaining: number; pacingRemainingMs: number; resetAt: string };
+  };
+  whatsapp?: { total: number; reachable: number; invalidPhone: number; missingConsent: number; suppressed: number };
+};
+
 function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -138,6 +146,19 @@ export function CampaignDetailSheet({
   const [confirmLaunchOpen, setConfirmLaunchOpen] = useState(false);
   const [isRefreshingRelationships, setIsRefreshingRelationships] = useState(false);
   const [relationshipCursor, setRelationshipCursor] = useState<string | null>(null);
+  const [channelPreflight, setChannelPreflight] = useState<ChannelPreflight | null>(null);
+  const [isCheckingChannels, setIsCheckingChannels] = useState(false);
+
+  const checkChannels = useCallback(async (id: string) => {
+    setIsCheckingChannels(true);
+    try {
+      setChannelPreflight(await apiFetch<ChannelPreflight>(`/campaigns/${id}/channel-preflight`, { method: "POST", body: JSON.stringify({}) }));
+    } catch (requestError) {
+      setError(requestError instanceof ApiError ? requestError.message : "Unable to check channel readiness.");
+    } finally {
+      setIsCheckingChannels(false);
+    }
+  }, []);
 
   const load = useCallback(async (id: string) => {
     setIsLoading(true);
@@ -150,12 +171,17 @@ export function CampaignDetailSheet({
       setSenderAccountId(next.socialAccountId ?? "");
       setRelationshipCursor(null);
       setEditing(false);
+      if (["draft", "review"].includes(next.status) && next.channels.some((channel) => channel === "instagram" || channel === "whatsapp")) {
+        void checkChannels(id);
+      } else {
+        setChannelPreflight(null);
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Unable to load campaign.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [checkChannels]);
 
   useEffect(() => {
     if (!campaignId) {
@@ -190,8 +216,17 @@ export function CampaignDetailSheet({
     if (!campaignId) return;
     setIsSaving(true);
     try {
-      await apiFetch(`/campaigns/${campaignId}/launch`, { method: "POST", body: JSON.stringify({}) });
-      toast.success("Campaign launched");
+      const result = await apiFetch<{
+        channelReachability?: {
+          instagram?: { reachable: number; unresolved: number; suppressed: number };
+        };
+      }>(`/campaigns/${campaignId}/launch`, { method: "POST", body: JSON.stringify({}) });
+      const instagram = result.channelReachability?.instagram;
+      toast.success(
+        instagram
+          ? `Campaign launched for ${instagram.reachable} Instagram prospect${instagram.reachable === 1 ? "" : "s"}${instagram.unresolved || instagram.suppressed ? `; ${instagram.unresolved + instagram.suppressed} skipped` : ""}`
+          : "Campaign launched",
+      );
       await load(campaignId);
       await onChanged();
     } catch (requestError) {
@@ -336,6 +371,27 @@ export function CampaignDetailSheet({
                 </div>
               ) : null}
 
+              {channelPreflight ? (
+                <section className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-semibold">Channel readiness</h3>
+                    <Button size="sm" variant="ghost" disabled={isCheckingChannels} onClick={() => campaignId && void checkChannels(campaignId)}>
+                      <RefreshCw className={cn(isCheckingChannels && "animate-spin")} /> Refresh
+                    </Button>
+                  </div>
+                  {channelPreflight.instagram ? (
+                    <p className="text-muted-foreground">
+                      Instagram: <strong className="text-foreground">{channelPreflight.instagram.reachable} ready</strong>, {channelPreflight.instagram.unresolved} unresolved, {channelPreflight.instagram.invalid} invalid, {channelPreflight.instagram.errors} errors, {channelPreflight.instagram.suppressed} suppressed. {titleCase(channelPreflight.instagram.capacity.stage)} account: {channelPreflight.instagram.capacity.dailyRemaining}/{channelPreflight.instagram.capacity.dailyLimit} daily and {channelPreflight.instagram.capacity.hourlyRemaining}/{channelPreflight.instagram.capacity.hourlyLimit} hourly actions remaining.
+                    </p>
+                  ) : null}
+                  {channelPreflight.whatsapp ? (
+                    <p className="text-muted-foreground">
+                      WhatsApp: <strong className="text-foreground">{channelPreflight.whatsapp.reachable} ready</strong>, {channelPreflight.whatsapp.invalidPhone} invalid numbers, {channelPreflight.whatsapp.missingConsent} missing consent, {channelPreflight.whatsapp.suppressed} suppressed.
+                    </p>
+                  ) : null}
+                </section>
+              ) : null}
+
               <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {[
                   ["Prospects", detail.prospectCount],
@@ -358,7 +414,7 @@ export function CampaignDetailSheet({
                       size="sm"
                       variant="outline"
                       disabled={isSaving}
-                      onClick={() => void patch({ status: "paused" }, "Campaign paused — you can edit the sequence now")}
+                      onClick={() => void patch({ status: "paused" }, "Campaign paused - you can edit the sequence now")}
                     >
                       <Pause /> Pause to edit
                     </Button>
@@ -513,12 +569,8 @@ export function CampaignDetailSheet({
                   <div className="mt-2 flex flex-wrap gap-2">
                     {detail.channels.map((channel) => (
                       <span key={channel} className="inline-flex items-center gap-1.5 text-xs font-medium">
-                        {channel === "linkedin" ? (
-                          <ChannelLogo name="linkedin" className="size-5" />
-                        ) : channel === "whatsapp" ? (
-                          <ChannelLogo name="whatsapp" className="size-3.5" />
-                        ) : null}
-                        {titleCase(channel)}
+                        <DashboardChannelLogo platform={channel} className="size-5" />
+                        {channelDisplayName(channel)}
                       </span>
                     ))}
                   </div>

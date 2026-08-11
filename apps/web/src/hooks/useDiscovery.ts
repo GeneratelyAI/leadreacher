@@ -57,7 +57,7 @@ export const QUESTIONS = [
   },
   {
     title: "Got an online presence?",
-    hint: "Share any link — website, Instagram, Facebook page, LinkedIn, or TikTok.",
+    hint: "Share any link - website, Instagram, Facebook page, LinkedIn, or TikTok.",
   },
 ] as const;
 

@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
+import type { AuthChangeEvent } from "@supabase/supabase-js";
 import AuthPageShell from "@/components/auth/AuthPageShell";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, getBrowserSession } from "@/lib/supabase/client";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -70,8 +71,8 @@ export function ResetPasswordForm() {
 
   useEffect(() => {
     const supabase = createClient();
-    void supabase.auth.getSession().then(({ data }) => setReady(Boolean(data.session)));
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    void getBrowserSession().then((session) => setReady(Boolean(session)));
+    const { data } = supabase.auth.onAuthStateChange((event: AuthChangeEvent) => {
       if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
     });
     return () => data.subscription.unsubscribe();

@@ -7,6 +7,7 @@ const {
   socialAccountFindMany,
   socialAccountCount,
   socialAccountFindFirst,
+  socialAccountUpdate,
   messageFindMany,
   organizationFindUnique,
   organizationUpdate,
@@ -22,6 +23,7 @@ const {
   socialAccountFindMany: vi.fn(),
   socialAccountCount: vi.fn(),
   socialAccountFindFirst: vi.fn(),
+  socialAccountUpdate: vi.fn(),
   messageFindMany: vi.fn(),
   organizationFindUnique: vi.fn(),
   organizationUpdate: vi.fn(),
@@ -34,8 +36,10 @@ const {
   leadUpdateMany: vi.fn(),
   campaignLeadCreateMany: vi.fn(),
 }));
-const { createHostedAuthLink } = vi.hoisted(() => ({
+const { createHostedAuthLink, getAccountStatus, listAccounts } = vi.hoisted(() => ({
   createHostedAuthLink: vi.fn(),
+  getAccountStatus: vi.fn(),
+  listAccounts: vi.fn(),
 }));
 const { getDailySendLimitStatus } = vi.hoisted(() => ({
   getDailySendLimitStatus: vi.fn(),
@@ -57,6 +61,7 @@ vi.mock("../../lib/prisma.js", () => ({
       findMany: socialAccountFindMany,
       count: socialAccountCount,
       findFirst: socialAccountFindFirst,
+      update: socialAccountUpdate,
     },
     message: {
       findMany: messageFindMany,
@@ -81,8 +86,10 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {
     createHostedAuthLink = createHostedAuthLink;
+    getAccountStatus = getAccountStatus;
+    listAccounts = listAccounts;
   },
-  isAccountHealthy: vi.fn(),
+  isAccountHealthy: () => true,
   encodeHostedAuthName: (orgId: string) => `lr:${orgId}:signed`,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({ getDailySendLimitStatus }));
@@ -125,6 +132,7 @@ beforeEach(async () => {
   socialAccountFindMany.mockReset();
   socialAccountCount.mockReset();
   socialAccountFindFirst.mockReset();
+  socialAccountUpdate.mockReset();
   messageFindMany.mockReset();
   organizationFindUnique.mockReset();
   organizationUpdate.mockReset();
@@ -138,6 +146,8 @@ beforeEach(async () => {
   campaignLeadCreateMany.mockReset();
   launchCampaign.mockReset();
   createHostedAuthLink.mockReset();
+  getAccountStatus.mockReset();
+  listAccounts.mockReset();
   getDailySendLimitStatus.mockReset();
 
   socialAccountFindMany.mockResolvedValue([
@@ -199,6 +209,14 @@ beforeEach(async () => {
   createHostedAuthLink.mockResolvedValue({
     url: "https://account.unipile.com/hosted-auth-link",
   });
+  getAccountStatus.mockResolvedValue({
+    id: "unipile-1",
+    type: "LINKEDIN",
+    name: "Ada Lovelace",
+    sources: [{ id: "source-1", status: "OK" }],
+  });
+  listAccounts.mockResolvedValue({ items: [] });
+  socialAccountUpdate.mockResolvedValue({});
   app = await buildTestApp();
 });
 
@@ -207,6 +225,54 @@ afterEach(async () => {
 });
 
 describe("channel connection and onboarding completion", () => {
+  it("does not import another organization's account during sync", async () => {
+    socialAccountFindMany.mockResolvedValueOnce([
+      {
+        id: "sa-1",
+        platform: "linkedin",
+        platformUserId: "unipile-1",
+        unipileId: "unipile-1",
+        status: "active",
+      },
+    ]);
+    listAccounts.mockResolvedValueOnce({
+      items: [
+        { id: "unipile-1", type: "LINKEDIN", name: "Ada Lovelace" },
+        { id: "unipile-other-org", type: "LINKEDIN", name: "Other Tenant" },
+      ],
+    });
+    const warn = vi.spyOn(app.log, "warn");
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/sync",
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ synced: 1 });
+    expect(getAccountStatus).toHaveBeenCalledTimes(1);
+    expect(getAccountStatus).toHaveBeenCalledWith("unipile-1");
+    expect(socialAccountUpdate).toHaveBeenCalledTimes(1);
+    expect(socialAccountUpdate).toHaveBeenCalledWith({
+      where: { id: "sa-1" },
+      data: {
+        unipileId: "unipile-1",
+        accountName: "Ada Lovelace",
+        status: "active",
+        metadata: { providerType: "linkedin" },
+      },
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orgId: "org-1",
+        unipileAccountId: "unipile-other-org",
+        reason: "unknown-account",
+      }),
+      "Skipped unattributable Unipile account during organization sync",
+    );
+  });
+
   it("lists connected channels and creates a hosted-auth link bound to the organization", async () => {
     const list = await app.inject({ method: "GET", url: "/social-accounts" });
     const connect = await app.inject({
@@ -306,6 +372,16 @@ describe("channel connection and onboarding completion", () => {
   });
 
   it("marks onboarding complete only for an active subscription with a connected channel", async () => {
+    strategyFindFirst.mockResolvedValueOnce({
+      id: "strategy-1",
+      positioning: { businessModel: "B2B lead generation" },
+      icpDefinition: { idealCustomer: "Revenue leaders" },
+      messagingAngles: {
+        outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
+        cta: { label: "Watch the overview", url: "https://leadreacher.com/overview" },
+      },
+      videoConfig: { tone: "professional" },
+    });
     const response = await app.inject({
       method: "POST",
       url: "/onboarding/complete",
@@ -316,8 +392,9 @@ describe("channel connection and onboarding completion", () => {
     expect(response.json()).toEqual({
       completed: true,
       campaignId: "campaign-onboarding-1",
-      launched: true,
-      jobCount: 2,
+      launched: false,
+      reviewRequired: true,
+      prospectCount: 2,
     });
     expect(organizationUpdate).toHaveBeenCalledWith({
       where: { id: "org-1" },
@@ -329,11 +406,15 @@ describe("channel connection and onboarding completion", () => {
           strategyId: "strategy-1",
           status: "review",
           socialAccountId: "sa-1",
-          aiConfig: expect.objectContaining({ requiresSequenceReview: false }),
+          aiConfig: expect.objectContaining({ requiresSequenceReview: true }),
           sequence: expect.arrayContaining([
             expect.objectContaining({
               type: "linkedin_invite",
               message: expect.stringMatching(/\{\{FirstName\}\}.*\{\{Company\}\}/),
+            }),
+            expect.objectContaining({
+              type: "linkedin_message",
+              message: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.\n\nWatch the overview: https://leadreacher.com/overview",
             }),
           ]),
         }),
@@ -346,10 +427,7 @@ describe("channel connection and onboarding completion", () => {
       ],
       skipDuplicates: true,
     });
-    expect(launchCampaign).toHaveBeenCalledWith(expect.objectContaining({
-      campaignId: "campaign-onboarding-1",
-      orgId: "org-1",
-    }));
+    expect(launchCampaign).not.toHaveBeenCalled();
   });
 
   it("is idempotent when onboarding was already completed", async () => {
@@ -377,7 +455,8 @@ describe("channel connection and onboarding completion", () => {
       completed: true,
       campaignId: "campaign-onboarding-1",
       launched: true,
-      jobCount: 0,
+      reviewRequired: false,
+      prospectCount: 0,
     });
     expect(organizationUpdate).not.toHaveBeenCalled();
     expect(launchCampaign).not.toHaveBeenCalled();

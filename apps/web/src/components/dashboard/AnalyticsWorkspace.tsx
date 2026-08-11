@@ -12,7 +12,6 @@ import {
   Download,
   Info,
   Loader2,
-  Mail,
   Reply,
   Send,
   UserPlus,
@@ -22,17 +21,18 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 import { ChannelFilterMenu } from "@/components/dashboard/ChannelFilterMenu";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { StatTable, type StatTableColumn } from "@/components/patterns/StatTable";
+import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
 import {
   Tooltip,
   TooltipContent,
@@ -141,40 +141,6 @@ function formatChartDate(value: string): string {
   );
 }
 
-function channelName(platform: string): string {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") return "LinkedIn";
-  if (key === "whatsapp") return "WhatsApp";
-  if (key === "email" || key === "google" || key === "microsoft" || key === "imap") return "Email";
-  return platform.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function ChannelMark({ platform }: { platform: string }) {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") {
-    return (
-      <span className="inline-flex size-8 shrink-0 items-center justify-center" aria-hidden>
-        <ChannelLogo name="linkedin" className="size-8" />
-      </span>
-    );
-  }
-  if (key === "whatsapp") {
-    return (
-      <span
-        className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-[#25D366] text-white"
-        aria-hidden
-      >
-        <ChannelLogo name="whatsapp" className="size-4" />
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex size-8 shrink-0 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200" aria-hidden>
-      <Mail className="size-4" />
-    </span>
-  );
-}
-
 function TrendLine({ trend, ratePoints }: { trend?: Trend; ratePoints?: boolean }) {
   if (!trend) return null;
   const label =
@@ -219,6 +185,35 @@ function MiniBar({ value, max, tone }: { value: number; max: number; tone: "gree
         />
       </span>
     </div>
+  );
+}
+
+function ChannelPerformanceTable({ rows, totals, maxMeetings }: { rows: ChannelRow[]; totals: Omit<ChannelRow, "channel">; maxMeetings: number }) {
+  const grouped = useMemo(() => groupEmailChannelMetrics(rows), [rows]);
+  return (
+    <>
+      <div className="hidden flex-1 overflow-x-auto lg:block lg:[&>[data-slot=table-container]]:h-full">
+        <Table className="h-full">
+          <TableHeader><TableRow><TableHead>Channel</TableHead><TableHead className="text-right">Messages sent</TableHead><TableHead className="text-right">Replies</TableHead><TableHead className="text-right">Reply rate</TableHead><TableHead>Meetings booked</TableHead></TableRow></TableHeader>
+          {grouped.rows.map((row) => {
+            const expandable = row.channel === "email" && grouped.emailProviders.length > 0;
+            return (
+              <TableBody key={row.channel} className={cn(expandable && "group/email")}>
+                <TableRow tabIndex={expandable ? 0 : undefined} className={cn(expandable && "cursor-default focus-visible:bg-muted/50 focus-visible:outline-none")}>
+                  <TableCell><span className="flex items-center gap-2 font-medium"><DashboardChannelLogo platform={row.channel} className="size-8" />{channelDisplayName(row.channel)}{expandable ? <ChevronDown className="ml-1 size-3.5 text-muted-foreground transition-transform duration-300 group-hover/email:rotate-180 group-focus-within/email:rotate-180" aria-hidden /> : null}</span></TableCell>
+                  <TableCell className="text-right">{formatNumber(row.messagesSent)}</TableCell><TableCell className="text-right">{formatNumber(row.replies)}</TableCell><TableCell className="text-right">{row.replyRate}%</TableCell><TableCell><MiniBar value={row.meetingsBooked} max={maxMeetings} tone="green" /></TableCell>
+                </TableRow>
+                {expandable ? (
+                  <TableRow className="border-0 hover:bg-transparent"><TableCell colSpan={5} className="p-0"><div className="max-h-0 overflow-hidden bg-muted/20 opacity-0 transition-[max-height,opacity] duration-300 ease-out group-hover/email:max-h-32 group-hover/email:opacity-100 group-focus-within/email:max-h-32 group-focus-within/email:opacity-100">{grouped.emailProviders.map((provider) => <div key={provider.channel} className="grid grid-cols-[minmax(10rem,1fr)_7rem_5rem_6rem_minmax(8rem,1fr)] items-center border-t border-app-border px-2 py-2 text-sm"><span className="flex items-center gap-2 pl-5 font-medium"><DashboardChannelLogo platform={provider.channel} className="size-6" />{channelDisplayName(provider.channel)}</span><span className="text-right">{formatNumber(provider.messagesSent)}</span><span className="text-right">{formatNumber(provider.replies)}</span><span className="text-right">{provider.replyRate}%</span><MiniBar value={provider.meetingsBooked} max={maxMeetings} tone="green" /></div>)}</div></TableCell></TableRow>
+                ) : null}
+              </TableBody>
+            );
+          })}
+          <TableFooter><TableRow><TableCell>Total</TableCell><TableCell className="text-right">{formatNumber(totals.messagesSent)}</TableCell><TableCell className="text-right">{formatNumber(totals.replies)}</TableCell><TableCell className="text-right">{totals.replyRate}%</TableCell><TableCell><MiniBar value={totals.meetingsBooked} max={maxMeetings} tone="green" /></TableCell></TableRow></TableFooter>
+        </Table>
+      </div>
+      <ul className="divide-y divide-border lg:hidden">{grouped.rows.map((row) => <li key={row.channel} className="px-4 py-3.5"><div className="flex items-center gap-2 font-medium"><DashboardChannelLogo platform={row.channel} />{channelDisplayName(row.channel)}</div><dl className="mt-2 grid grid-cols-2 gap-2 text-sm"><div><dt className="text-muted-foreground">Sent</dt><dd>{formatNumber(row.messagesSent)}</dd></div><div><dt className="text-muted-foreground">Replies</dt><dd>{formatNumber(row.replies)}</dd></div><div><dt className="text-muted-foreground">Reply rate</dt><dd>{row.replyRate}%</dd></div><div><dt className="text-muted-foreground">Meetings</dt><dd>{formatNumber(row.meetingsBooked)}</dd></div></dl>{row.channel === "email" ? <div className="mt-3 grid grid-cols-2 gap-2">{grouped.emailProviders.map((provider) => <div key={provider.channel} className="rounded-md bg-muted/40 p-2 text-xs"><span className="flex items-center gap-1.5 font-medium"><DashboardChannelLogo platform={provider.channel} className="size-4" />{channelDisplayName(provider.channel)}</span><span className="mt-1 block text-muted-foreground">{provider.messagesSent} sent · {provider.replies} replies</span></div>)}</div> : null}</li>)}</ul>
+    </>
   );
 }
 
@@ -349,32 +344,7 @@ export function AnalyticsWorkspace() {
     };
   }, [analytics]);
 
-  const channelColumns: StatTableColumn<ChannelRow>[] = [
-    {
-      key: "channel",
-      header: "Channel",
-      isLabel: true,
-      render: (row, { isFooter }) =>
-        isFooter ? (
-          "Total"
-        ) : (
-          <div className="flex items-center gap-2">
-            <ChannelMark platform={row.channel} />
-            <span className="font-medium">{channelName(row.channel)}</span>
-          </div>
-        ),
-    },
-    { key: "messagesSent", header: "Messages sent", align: "right", render: (row) => formatNumber(row.messagesSent) },
-    { key: "replies", header: "Replies", align: "right", render: (row) => formatNumber(row.replies) },
-    { key: "replyRate", header: "Reply rate", align: "right", render: (row) => `${row.replyRate}%` },
-    {
-      key: "meetingsBooked",
-      header: "Meetings booked",
-      render: (row) => <MiniBar value={row.meetingsBooked} max={maxChannelMeetings} tone="green" />,
-    },
-  ];
-
-  const campaignColumns: StatTableColumn<CampaignRow>[] = [
+  const campaignColumns: DataTableColumn<CampaignRow>[] = [
     {
       key: "name",
       header: "Campaign",
@@ -639,19 +609,14 @@ export function AnalyticsWorkspace() {
           </div>
 
           <div className="grid gap-5 xl:grid-cols-2">
-            <Card className="overflow-hidden">
+            <Card className="flex h-full flex-col overflow-hidden">
               <div className="border-b border-border px-5 py-4">
                 <h2 className="font-semibold">Performance by channel</h2>
               </div>
               {analytics.channels.length === 0 ? (
                 <div className="px-5 py-10 text-sm text-muted-foreground">No delivery data in this range.</div>
               ) : (
-                <StatTable
-                  columns={channelColumns}
-                  data={analytics.channels}
-                  getRowKey={(row) => row.channel}
-                  footer={{ channel: "", ...channelTotals }}
-                />
+                <ChannelPerformanceTable rows={analytics.channels} totals={channelTotals} maxMeetings={maxChannelMeetings} />
               )}
             </Card>
 
@@ -663,7 +628,7 @@ export function AnalyticsWorkspace() {
                 <div className="px-5 py-10 text-sm text-muted-foreground">No campaign activity in this range.</div>
               ) : (
                 <>
-                  <StatTable
+                  <DataTable
                     columns={campaignColumns}
                     data={analytics.campaigns}
                     getRowKey={(row) => row.id}

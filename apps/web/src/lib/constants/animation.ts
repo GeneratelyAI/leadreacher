@@ -1,7 +1,0 @@
-export const ANIMATION_FPS = 24;
-export const ANIMATION_TOTAL_FRAMES = 144;
-export const ANIMATION_BOUNCE_LOOP_START_INDEX = 115; // frame 116 (1-based)
-export const ANIMATION_VIDEO_SRC = "/animation/output.webm";
-
-export const ANIMATION_BOUNCE_START_SECONDS =
-  ANIMATION_BOUNCE_LOOP_START_INDEX / ANIMATION_FPS;

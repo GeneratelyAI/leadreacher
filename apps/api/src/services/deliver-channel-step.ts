@@ -17,11 +17,14 @@ import {
   checkAndIncrementDailySendLimit,
   millisecondsUntilNextUtcDay,
   utcDay,
+  checkInstagramAutomatedMessageLimit,
+  checkWhatsAppAutomatedMessageLimit,
 } from "../lib/rate-limiter.js";
 
 type SenderAccount = {
   id: string;
   unipileId: string;
+  createdAt?: Date;
 };
 
 async function enqueueNextStep(input: {
@@ -63,6 +66,24 @@ async function rescheduleDailyLimit(input: {
   return { skipped: true, reason: "daily send limit reached for this sender" };
 }
 
+async function rescheduleChannelLimit(input: {
+  campaignLeadId: string;
+  orgId: string;
+  step: number;
+  delayMs: number;
+  channel: OutreachChannel;
+}): Promise<{ skipped: true; reason: string }> {
+  await campaignSequenceQueue.add(
+    QUEUE_CAMPAIGN_SEQUENCE,
+    { campaignLeadId: input.campaignLeadId, orgId: input.orgId, step: input.step },
+    {
+      delay: input.delayMs,
+      jobId: `${campaignSequenceJobId(input.campaignLeadId, input.step)}-${input.channel}-limit-${Date.now() + input.delayMs}`,
+    },
+  );
+  return { skipped: true, reason: `${input.channel} automation limit reached` };
+}
+
 export async function deliverMessagingChannelStep(input: {
   adapter: UnipileAdapter;
   channel: Exclude<OutreachChannel, "email" | "linkedin">;
@@ -81,7 +102,12 @@ export async function deliverMessagingChannelStep(input: {
   if (!attendeeId) {
     await prisma.campaignLead.update({
       where: { id: input.campaignLeadId },
-      data: { status: "skipped", currentStep: input.step },
+      data: {
+        status: "skipped",
+        currentStep: input.step,
+        skipReason: `missing ${input.channel} identity on lead`,
+        skippedAt: new Date(),
+      },
     });
     return {
       skipped: true,
@@ -89,16 +115,45 @@ export async function deliverMessagingChannelStep(input: {
     };
   }
 
-  const messageLimit = await checkAndIncrementDailySendLimit(
-    input.sender.unipileId,
-    "message",
-  );
-  if (!messageLimit.allowed) {
-    return rescheduleDailyLimit({
-      campaignLeadId: input.campaignLeadId,
-      orgId: input.orgId,
-      step: input.step,
+  if (input.channel === "instagram") {
+    const limit = await checkInstagramAutomatedMessageLimit({
+      unipileId: input.sender.unipileId,
+      connectedAt: input.sender.createdAt,
     });
+    if (!limit.allowed) {
+      return rescheduleChannelLimit({
+        campaignLeadId: input.campaignLeadId,
+        orgId: input.orgId,
+        step: input.step,
+        delayMs: limit.retryAfterMs,
+        channel: input.channel,
+      });
+    }
+  }
+
+  if (input.channel === "whatsapp") {
+    const limit = await checkWhatsAppAutomatedMessageLimit({
+      unipileId: input.sender.unipileId,
+      connectedAt: input.sender.createdAt,
+      isNewChat: !input.existingChatId,
+    });
+    if (!limit.allowed) {
+      return rescheduleChannelLimit({ campaignLeadId: input.campaignLeadId, orgId: input.orgId, step: input.step, delayMs: limit.retryAfterMs, channel: input.channel });
+    }
+  }
+
+  if (input.channel !== "instagram" && input.channel !== "whatsapp") {
+    const messageLimit = await checkAndIncrementDailySendLimit(
+      input.sender.unipileId,
+      "message",
+    );
+    if (!messageLimit.allowed) {
+      return rescheduleDailyLimit({
+        campaignLeadId: input.campaignLeadId,
+        orgId: input.orgId,
+        step: input.step,
+      });
+    }
   }
 
   const reservation = await acquireDeliveryReservation(
@@ -211,7 +266,12 @@ export async function deliverEmailChannelStep(input: {
   if (!email) {
     await prisma.campaignLead.update({
       where: { id: input.campaignLeadId },
-      data: { status: "skipped", currentStep: input.step },
+      data: {
+        status: "skipped",
+        currentStep: input.step,
+        skipReason: "missing email on lead",
+        skippedAt: new Date(),
+      },
     });
     return { skipped: true, reason: "missing email on lead" };
   }

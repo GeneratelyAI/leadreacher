@@ -19,7 +19,7 @@ describe("Apify adapter timeouts", () => {
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(Date, "now")
       .mockReturnValueOnce(0)
-      .mockReturnValue(120_000);
+      .mockReturnValue(300_000);
 
     const adapter = new ApifyAdapter({ apiKey: "test-token" });
     const waitForRun = (

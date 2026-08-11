@@ -43,6 +43,8 @@ export function Logo({
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={variant === "white" ? ASSETS.logoWhite : ASSETS.logoColored}
+        width={538}
+        height={45}
         alt="leadreacher"
         className={imageClassName}
       />
@@ -56,6 +58,8 @@ export function Logo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ASSETS.logoColored}
+        width={538}
+        height={45}
         alt={showColored ? "leadreacher" : ""}
         aria-hidden={!showColored}
         className={cn(
@@ -67,6 +71,8 @@ export function Logo({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={ASSETS.logoWhite}
+        width={538}
+        height={45}
         alt={showColored ? "" : "leadreacher"}
         aria-hidden={showColored}
         className={cn(

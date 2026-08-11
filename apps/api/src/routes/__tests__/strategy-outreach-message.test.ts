@@ -78,6 +78,41 @@ afterEach(async () => {
 });
 
 describe("outreach message routes", () => {
+  it("reads persisted outreach copy without generating it", async () => {
+    strategy.messagingAngles = {
+      outreachMessage: "Hi {{FirstName}}, I have an idea for {{Company}}.",
+      cta: { label: "See the walkthrough", url: "https://leadreacher.com/demo" },
+    };
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/strategy/org-1/outreach-message",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      message: "Hi {{FirstName}}, I have an idea for {{Company}}.",
+      ctaLabel: "See the walkthrough",
+      ctaUrl: "https://leadreacher.com/demo",
+    });
+    expect(runOutreachMessageAgent).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty persisted message without triggering generation", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/strategy/org-1/outreach-message",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      message: null,
+      ctaLabel: null,
+      ctaUrl: null,
+    });
+    expect(runOutreachMessageAgent).not.toHaveBeenCalled();
+  });
+
   it("generates once and returns the stored message on later requests", async () => {
     const first = await app.inject({
       method: "POST",
@@ -109,10 +144,52 @@ describe("outreach message routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ message });
+    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null });
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { messagingAngles: { outreachMessage: message } },
+      data: { messagingAngles: { outreachMessage: message, cta: null } },
     });
+  });
+
+  it("stores a CTA only when it has both a label and destination", async () => {
+    const message = "Hi {{FirstName}}, I have an idea for {{Company}}.";
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/outreach-message",
+      payload: {
+        message,
+        ctaLabel: "See the walkthrough",
+        ctaUrl: "https://leadreacher.com/demo",
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      message,
+      ctaLabel: "See the walkthrough",
+      ctaUrl: "https://leadreacher.com/demo",
+    });
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "strategy-1" },
+      data: {
+        messagingAngles: {
+          outreachMessage: message,
+          cta: {
+            label: "See the walkthrough",
+            url: "https://leadreacher.com/demo",
+          },
+        },
+      },
+    });
+  });
+
+  it("rejects a partial CTA", async () => {
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/outreach-message",
+      payload: { message: "Hi {{FirstName}}", ctaLabel: "Book time" },
+    });
+
+    expect(response.statusCode).toBe(400);
   });
 });

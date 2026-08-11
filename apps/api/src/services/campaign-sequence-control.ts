@@ -38,7 +38,7 @@ export async function cancelCampaignPendingSequenceJobs(input: {
         await campaignSequenceQueue.remove(campaignSequenceJobId(lead.id, step));
         removed += 1;
       } catch {
-        // Job may not exist — ignore.
+        // Job may not exist - ignore.
       }
     }
   }

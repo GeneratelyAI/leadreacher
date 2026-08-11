@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/client";
+import { getBrowserSession } from "@/lib/supabase/client";
 
 const TOKEN_CACHE_TTL_MS = 45_000;
 
@@ -58,10 +58,7 @@ export async function getAccessToken(): Promise<string | null> {
   if (tokenRequest) return tokenRequest;
 
   tokenRequest = (async () => {
-    const supabase = createClient();
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    const session = await getBrowserSession();
     const token = session?.access_token ?? null;
 
     tokenCache = token

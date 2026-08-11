@@ -8,7 +8,7 @@ export default function OnboardingLayout({
   return (
     <>
       <PageSurface surface="discovery" />
-      <div className="onboarding-root h-dvh max-h-dvh min-h-dvh overflow-hidden">
+      <div className="onboarding-root min-h-dvh overflow-x-clip">
         {children}
       </div>
     </>

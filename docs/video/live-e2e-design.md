@@ -1,4 +1,4 @@
-# Live End-to-End Test of the Apify→Unipile Pipeline — Design
+# Live End-to-End Test of the Apify→Unipile Pipeline - Design
 
 **Date:** 2026-06-16
 **Status:** Approved (design), pending spec review
@@ -18,7 +18,7 @@ The literal task is "run the full flow end to end and find edge cases." That is 
 ## Accounts & environment (confirmed / to set up)
 
 - **Sender:** a LinkedIn account connected to Unipile (health to be verified via `test-unipile.ts`).
-- **Recipient:** a separate LinkedIn account we control. **Must not already be a 1st-degree connection of the sender** — otherwise the worker takes the `already-connected` branch and skips the invite/accept paths.
+- **Recipient:** a separate LinkedIn account we control. **Must not already be a 1st-degree connection of the sender** - otherwise the worker takes the `already-connected` branch and skips the invite/accept paths.
 - **Webhook delivery:** not yet set up. The run uses a local API + **ngrok tunnel**; `recreate-unipile-webhooks.ts` registers the `message_received` and `new_relation` webhooks at the tunnel URL. (The script currently hardcodes the URL; it will be parameterized via env.)
 
 ## Architecture (existing system under test)
@@ -28,7 +28,7 @@ The literal task is "run the full flow end to end and find edge cases." That is 
 - **Adapters:** `ApifyAdapter` (LinkedIn profile search actor) and `UnipileAdapter` (profile lookup, invite, chat).
 - **Webhooks:** `POST /webhooks/unipile` handles `new_relation` (invite accepted → send step-1 DM) and `message_received` (reply → mark replied, cancel pending jobs). Auth via constant-time `Unipile-Auth` header check.
 
-## Section 1 — Prerequisites (all green before any outreach)
+## Section 1 - Prerequisites (all green before any outreach)
 
 1. Postgres migrated; Upstash Redis reachable; API running (`pnpm dev:api`).
 2. `test-unipile.ts` passes T1–T3; record sender Unipile `account_id`.
@@ -36,14 +36,14 @@ The literal task is "run the full flow end to end and find edge cases." That is 
 4. Supabase test user exists; `get-test-token.ts` yields an access token. Its org scopes all test data.
 5. **A `SocialAccount` row** exists for the test org: `platform: "linkedin"`, `status: "active"`, `unipileId = sender account_id`. Without it the worker throws `No active LinkedIn account for org`.
 
-## Section 2 — Track A: Ingestion verification (no outreach)
+## Section 2 - Track A: Ingestion verification (no outreach)
 
 - `POST /leads/scrape` with small filters and `maxResults: 2`.
 - Assert response `{ imported, skipped, total }`; verify rows in DB: `source: "apify"`, correct `firstName/lastName/title/company/linkedinUrl/providerLinkedinId`, `enrichmentData` present.
 - Re-run identical filters → confirm dedup (`skipped` increases, no new rows).
 - **Stop. Scraped leads are not enrolled.**
 
-## Section 3 — Track B: Outreach loop (controlled recipient)
+## Section 3 - Track B: Outreach loop (controlled recipient)
 
 **Known bug surfaced during design (documented, not fixed in this task):**
 The seeded recipient lead **must have `providerLinkedinId` populated**, because:
@@ -61,11 +61,11 @@ The runbook works around this by seeding `providerLinkedinId` directly. The fix 
 6. **Accept on recipient** → `new_relation` webhook → `Lead.status: connected`; step-1 DM via `startChat`; `CampaignLead.linkedinChatId` set, `currentStep: 2`; step 2 scheduled; DM arrives.
 7. **Reply on recipient** → `message_received` webhook → Lead/CampaignLead/Message statuses → `replied`; pending step-2 job cancelled (verify it never fires); inbound `Message` created.
 
-## Section 4 — Observability
+## Section 4 - Observability
 
 The runbook contains a checkpoint table: **action → expected structured log event → expected DB state** (`Lead`, `CampaignLead`, `Message`), so every step has an explicit pass/fail gate.
 
-## Section 5 — Failure modes to capture
+## Section 5 - Failure modes to capture
 
 - `providerLinkedinId` gap (above).
 - Tunnel down / webhook unreachable → flow stalls at `invite-sent`.
@@ -76,8 +76,8 @@ The runbook contains a checkpoint table: **action → expected structured log ev
 
 ## Deliverables
 
-- `docs/video/live-e2e-runbook.md` — procedure + observability table + findings section (filled in during the run).
-- `apps/api/src/scripts/seed-test-lead.ts` — seeds the recipient lead with `providerLinkedinId`.
+- `docs/video/live-e2e-runbook.md` - procedure + observability table + findings section (filled in during the run).
+- `apps/api/src/scripts/seed-test-lead.ts` - seeds the recipient lead with `providerLinkedinId`.
 - Parameterize the webhook URL in `recreate-unipile-webhooks.ts` (read from env, default to current value).
 
 ## Out of scope

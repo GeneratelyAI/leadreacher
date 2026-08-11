@@ -4,12 +4,82 @@
 @import "../styles/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
-@custom-variant h-compact (@media (max-height: 820px));
+@custom-variant compact-phone (@media (max-width: 359px));
+@custom-variant h-compact (@media (max-height: 999px) and (max-width: 1279px));
+@custom-variant h-short (@media (max-height: 680px));
 @custom-variant h-comfortable (@media (min-height: 1000px));
 @custom-variant h-spacious (@media (min-height: 1200px));
+@custom-variant large-desktop (@media (min-width: 96rem) and (min-height: 53.125rem));
 @config "../../tailwind.config.ts";
 
+.pricing-dots {
+  background-color: #f7f6ff;
+  background-image:
+    radial-gradient(circle at 50% -8%, rgba(153, 132, 255, 0.24), transparent 38rem),
+    radial-gradient(circle at 0% 48%, rgba(194, 173, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 100% 76%, rgba(143, 183, 255, 0.13), transparent 32rem),
+    radial-gradient(circle, rgba(83, 38, 183, 0.1) 1px, transparent 1.2px);
+  background-position: center top, left center, right bottom, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 20px 20px;
+}
+
+::view-transition-group(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+  mix-blend-mode: normal;
+}
+
+.route-transition-forward::view-transition-old(root) {
+  animation-name: route-page-exit-left;
+}
+
+.route-transition-forward::view-transition-new(root) {
+  animation-name: route-page-enter-right;
+}
+
+.route-transition-backward::view-transition-old(root) {
+  animation-name: route-page-exit-right;
+}
+
+.route-transition-backward::view-transition-new(root) {
+  animation-name: route-page-enter-left;
+}
+
+@keyframes route-page-exit-left {
+  to { transform: translate3d(-100%, 0, 0); }
+}
+
+@keyframes route-page-enter-right {
+  from { transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes route-page-exit-right {
+  to { transform: translate3d(100%, 0, 0); }
+}
+
+@keyframes route-page-enter-left {
+  from { transform: translate3d(-100%, 0, 0); }
+}
+
 :root {
+  /* Keep the landing hero and curved transition on one continuous white canvas. */
+  --landing-light-bg: var(--theme-marketing-canvas);
+  --hero-break-bg: var(--theme-marketing-canvas);
+  --hero-break-surface: var(--color-surface-muted);
+  --viewport-gutter: clamp(1rem, 3vw, 2.5rem);
+  --viewport-gutter-compact: clamp(0.75rem, 4vw, 1rem);
+  --content-max: 100rem;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
   --glass-blur: 24px;
   --glass-saturate: 180%;
   --glass-bg: rgba(255, 255, 255, 0.1);
@@ -63,8 +133,20 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.landing-light-surface {
+  background-color: var(--landing-light-bg);
+}
+
 @theme inline {
-  --font-onboarding-sans: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-onboarding-sans: var(--font-ui);
+  --color-brand-50: var(--foundation-brand-50);
+  --color-brand-100: var(--foundation-brand-100);
+  --color-brand-200: var(--foundation-brand-200);
+  --color-brand-300: var(--foundation-brand-300);
+  --color-brand-400: var(--foundation-brand-400);
+  --color-brand-500: var(--foundation-brand-500);
+  --color-brand-600: var(--foundation-brand-600);
+  --color-brand-700: var(--foundation-brand-700);
   --color-app-canvas: var(--app-canvas);
   --color-app-chrome: var(--app-chrome);
   --color-app-elevated: var(--app-elevated);
@@ -192,11 +274,21 @@ body {
   overscroll-behavior-y: none;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 .onboarding-root {
   --radius: var(--onboarding-radius);
-  background-color: #ffffff;
-  color: var(--onboarding-ink);
-  font-family: var(--font-onboarding), Geist, ui-sans-serif, system-ui, sans-serif;
+  background-color: var(--theme-onboarding-canvas);
+  color: var(--theme-onboarding-ink);
+  font-family: var(--font-ui);
 }
 
 .dark .onboarding-root {
@@ -205,12 +297,27 @@ body {
 }
 
 .onboarding-page {
-  background-color: #ffffff;
-  color: var(--onboarding-ink);
+  background-color: var(--theme-onboarding-canvas);
+  color: var(--theme-onboarding-ink);
+}
+
+.onboarding-analysis-progress {
+  animation: onboarding-analysis-progress 2.4s ease-in-out infinite;
+  transform: translateX(-110%);
+}
+
+@keyframes onboarding-analysis-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  55%,
+  100% {
+    transform: translateX(250%);
+  }
 }
 
 .onboarding-step-presence {
-  --onboarding-slide-distance: 100vw;
+  --onboarding-slide-distance: 1.5rem;
   position: relative;
   isolation: isolate;
   width: 100%;
@@ -233,6 +340,7 @@ body {
 .onboarding-step-presence__pane--incoming {
   position: absolute;
   inset: 0;
+  opacity: 0;
 }
 
 .onboarding-step-presence--transitioning .onboarding-step-presence__pane {
@@ -248,11 +356,14 @@ body {
 }
 
 .onboarding-step-presence--active .onboarding-step-presence__pane {
-  transition: transform var(--onboarding-motion-slow) var(--onboarding-ease-standard);
+  transition:
+    transform 160ms var(--onboarding-ease-standard),
+    opacity 120ms ease-out;
 }
 
 .onboarding-step-presence--active .onboarding-step-presence__pane--incoming {
   transform: translate3d(0, 0, 0);
+  opacity: 1;
 }
 
 .onboarding-step-presence--active.onboarding-step-presence--forward .onboarding-step-presence__pane--outgoing {
@@ -263,9 +374,13 @@ body {
   transform: translate3d(var(--onboarding-slide-distance), 0, 0);
 }
 
+.onboarding-step-presence--active .onboarding-step-presence__pane--outgoing {
+  opacity: 0;
+}
+
 @media (max-width: 640px) {
   .onboarding-step-presence {
-    --onboarding-slide-distance: 80vw;
+    --onboarding-slide-distance: 1rem;
   }
 }
 
@@ -282,11 +397,17 @@ body {
 
 .onboarding-chrome {
   position: fixed;
-  inset: 1.25rem 1.5rem auto;
+  inset: var(--safe-area-top) 1.5rem auto;
   z-index: 30;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: minmax(15rem, 1fr) minmax(0, 52rem) minmax(15rem, 1fr);
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
   pointer-events: none;
 }
 
@@ -309,7 +430,8 @@ body {
 }
 
 .onboarding-chrome__stepper {
-  width: min(52rem, calc(100vw - 12rem));
+  width: 100%;
+  justify-self: center;
 }
 
 .onboarding-chrome-mobile,
@@ -975,22 +1097,26 @@ body {
 
 @media (max-width: 63.999rem) {
   .onboarding-chrome {
-    display: none;
-  }
-
-  .onboarding-chrome-mobile {
-    position: fixed;
-    inset: 1rem 1rem auto;
-    z-index: 30;
-    display: flex;
+    inset: var(--safe-area-top) max(1rem, var(--safe-area-right)) auto max(1rem, var(--safe-area-left));
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "logo spacer account"
+      "stepper stepper stepper";
+    row-gap: 0.5rem;
     align-items: center;
-    justify-content: space-between;
   }
 
-  .onboarding-chrome-mobile__stepper {
-    position: fixed;
-    inset: auto 1rem 1rem;
-    z-index: 30;
+  .onboarding-chrome__logo {
+    grid-area: logo;
+  }
+
+  .onboarding-chrome__account {
+    grid-area: account;
+  }
+
+  .onboarding-chrome__stepper {
+    grid-area: stepper;
     display: block;
     padding: var(--onboarding-space-2);
     border: 1px solid color-mix(in srgb, var(--onboarding-neutral-300), transparent 35%);
@@ -1014,14 +1140,333 @@ body {
     transform: translateX(-0.875rem);
   }
 
-  .dark .onboarding-chrome-mobile__stepper {
+  .dark .onboarding-chrome__stepper {
     border-color: color-mix(in srgb, var(--onboarding-neutral-750), transparent 25%);
     background-color: color-mix(in srgb, var(--onboarding-neutral-900), transparent 8%);
   }
 }
 
+@media (max-width: 29.999rem) {
+  .onboarding-actions {
+    align-items: stretch;
+    gap: 0.5rem;
+    padding-inline: max(0.5rem, var(--safe-area-left));
+  }
+
+  .onboarding-actions__item {
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .onboarding-actions__item > * {
+    width: 100%;
+    height: auto;
+    min-height: 3.25rem;
+    padding-inline: 0.625rem;
+    line-height: 1.15;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+.onboarding-root button {
+  min-height: 2.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboarding-root .animate-spin,
+  .onboarding-root .animate-pulse,
+  .onboarding-analysis-progress {
+    animation: none;
+  }
+}
+
+.onboarding-actions {
+  bottom: max(1.75rem, var(--safe-area-bottom));
+  padding-left: max(1.5rem, var(--safe-area-left));
+  padding-right: max(1.5rem, var(--safe-area-right));
+}
+
+@media (max-width: 63.999rem) {
+  .onboarding-actions {
+    bottom: max(0.75rem, var(--safe-area-bottom));
+    gap: 0.75rem;
+    padding-left: max(0.75rem, var(--safe-area-left));
+    padding-right: max(0.75rem, var(--safe-area-right));
+  }
+
+  .onboarding-actions__item {
+    min-width: 0;
+  }
+}
+
+@media (max-height: 48rem) {
+  .onboarding-page main {
+    justify-content: flex-start;
+    padding-top: 8.5rem;
+    padding-bottom: 7rem;
+  }
+
+  .onboarding-actions {
+    bottom: max(0.5rem, var(--safe-area-bottom));
+  }
+}
+
 body {
   min-height: 100dvh;
+  overflow-x: clip;
+}
+
+html {
+  min-width: 20rem;
+  scroll-padding-top: calc(4.5rem + var(--safe-area-top));
+}
+
+.viewport-container {
+  width: min(100%, var(--content-max));
+  margin-inline: auto;
+  padding-inline: max(var(--viewport-gutter), var(--safe-area-left));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, var(--safe-area-bottom));
+}
+
+.dashboard-page-frame {
+  padding-right: max(var(--dashboard-page-px, 1rem), var(--safe-area-right));
+  padding-bottom: max(var(--dashboard-page-py, 1.25rem), var(--safe-area-bottom));
+  padding-left: max(var(--dashboard-page-px, 1rem), var(--safe-area-left));
+}
+
+.dashboard-chat-composer {
+  padding-bottom: max(0.75rem, var(--safe-area-bottom));
+}
+
+.intentional-x-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 39.999rem) {
+  .viewport-container {
+    padding-inline: max(var(--viewport-gutter-compact), var(--safe-area-left));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  :root {
+    --viewport-gutter: 1rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-width: 79.999rem) and (max-height: 62.499rem) {
+  .hero-shell {
+    min-height: calc(100svh - 2rem);
+    padding-top: 5rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .hero-composition .hero-eyebrow-liquid {
+    margin-top: 0;
+  }
+
+  .hero-composition h1 {
+    margin-top: 1.25rem;
+    font-size: clamp(3.5rem, 7vh, 4.25rem);
+    line-height: 1.03;
+  }
+
+  .hero-composition .hero-entrance--category {
+    margin-top: 0.75rem;
+    font-size: 1.125rem;
+    line-height: 1.75rem;
+  }
+
+  .hero-composition .hero-entrance--analyzer {
+    margin-top: 1rem;
+  }
+
+  .hero-composition .hero-entrance--video,
+  .hero-composition .hero-entrance--description {
+    margin-top: 0.5rem;
+  }
+
+  .hero-composition .hero-entrance--description {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  .hero-composition .hero-entrance--trust {
+    margin-top: 0;
+  }
+
+  .hero-composition .hero-scroll-cue {
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+    gap: 0.125rem;
+    padding-top: 0.25rem;
+    font-size: 0.75rem;
+  }
+}
+
+/* Use one deliberately dense desktop composition instead of treating every
+   1280px+ viewport as an ultra-wide canvas. This matches the complete, calm
+   layout users see when zooming out while keeping browser zoom untouched. */
+@media (min-width: 80rem) {
+  #top {
+    min-height: calc(100svh - 2rem);
+  }
+
+  .hero-shell {
+    min-height: calc(100svh - 2rem);
+    padding-top: clamp(5.75rem, 10vh, 7rem);
+    padding-bottom: clamp(1.25rem, 2.5vh, 1.75rem);
+  }
+
+  .hero-composition .hero-eyebrow-liquid {
+    margin-top: clamp(0.75rem, 1.5vh, 1.125rem);
+  }
+
+  .hero-composition h1 {
+    margin-top: 0;
+    font-size: clamp(4.75rem, 5.6vw, 5rem);
+    line-height: 1.06;
+  }
+
+  .hero-composition .hero-entrance--category {
+    margin-top: clamp(1.125rem, 2.5vh, 1.5rem);
+    max-width: 51.25rem;
+    font-size: clamp(1.5rem, 2vw, 1.875rem);
+    line-height: 1.875rem;
+  }
+
+  .hero-composition .hero-entrance--analyzer {
+    margin-top: clamp(1.25rem, 3vh, 1.75rem);
+    max-width: 36.25rem;
+  }
+
+  .hero-composition .hero-entrance--video {
+    margin-top: clamp(0.75rem, 1.75vh, 1rem);
+  }
+
+  .hero-composition .hero-entrance--description {
+    margin-top: clamp(0.75rem, 1.75vh, 1rem);
+    max-width: 48rem;
+    font-size: clamp(1.0625rem, 1.3vw, 1.125rem);
+    line-height: 1.625rem;
+  }
+
+  .hero-composition .hero-entrance--trust {
+    margin-top: clamp(0.75rem, 1.75vh, 1.25rem);
+    font-size: 0.8125rem;
+  }
+
+  .hero-composition[data-analysis-phase="running"] .hero-entrance--trust,
+  .hero-composition[data-analysis-phase="failed"] .hero-entrance--trust {
+    margin-top: 0.5rem;
+  }
+
+  .hero-composition .hero-scroll-cue {
+    position: relative;
+    bottom: auto;
+    margin-top: clamp(0.75rem, 1.5vh, 1rem);
+    margin-bottom: 0.25rem;
+    flex-shrink: 0;
+    gap: 0;
+    padding-top: 0;
+    font-size: 0.8125rem;
+  }
+
+  .hero-composition .hero-scroll-cue > svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/* A roomy desktop gets the visual density of one browser zoom step without
+   changing browser zoom or scaling the page as a bitmap. MacBook-sized
+   viewports remain on the 80rem composition above. */
+@media (min-width: 96rem) and (min-height: 53.125rem) {
+  .landing-page .landing-navbar-logo {
+    height: 1.8rem;
+  }
+
+  .landing-page .hero-shell {
+    max-width: 105rem;
+    padding-right: 4rem;
+    padding-left: 4rem;
+  }
+
+  .landing-page .hero-composition .hero-eyebrow-liquid {
+    font-size: 0.9375rem;
+  }
+
+  .landing-page .hero-composition h1 {
+    max-width: 64rem;
+    font-size: 5.5rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--category {
+    max-width: 56rem;
+    font-size: 1.5rem;
+    line-height: 2rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--analyzer {
+    max-width: 36.25rem;
+  }
+
+  .landing-page .hero-analyzer {
+    min-height: 5.5rem;
+  }
+
+  .landing-page .hero-analyzer input,
+  .landing-page .hero-analyzer button {
+    height: 3.75rem;
+    font-size: 1.125rem;
+  }
+
+  .landing-page .hero-analyzer button {
+    min-width: 17rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--video p {
+    max-width: 52rem;
+    font-size: 1.25rem;
+    line-height: 2rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--description {
+    max-width: 54rem;
+    font-size: 1.25rem;
+    line-height: 1.875rem;
+  }
+
+  .landing-page .hero-composition .hero-entrance--trust {
+    font-size: 0.9375rem;
+  }
+
+  .landing-page .hero-composition .hero-trust-item {
+    min-width: 15rem;
+  }
+
+  .landing-page .hero-composition .hero-trust-icon {
+    width: 2.625rem;
+    height: 2.625rem;
+  }
+
+  .landing-page .hero-composition .hero-scroll-cue {
+    font-size: 0.875rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 42.5rem) {
+  .hero-composition h1 {
+    margin-top: 0.75rem;
+    font-size: 3rem;
+  }
 }
 
 /* iOS Safari force-zooms the viewport whenever a focused form control renders
@@ -1041,7 +1486,7 @@ body {
    changing its visual size or disturbing surrounding layout. Apply to controls
    whose icon must stay visually small, e.g. an in-field password reveal.
    Requires the element to already be a positioning context (`relative`,
-   `absolute`, etc.) — deliberately does not set `position` itself, since this
+   `absolute`, etc.) - deliberately does not set `position` itself, since this
    rule is unlayered and would otherwise beat Tailwind's layered `absolute`/
    `relative` utilities regardless of source order, breaking any element that
    relies on Tailwind for its own positioning. */
@@ -2384,6 +2829,313 @@ html[data-page="discovery"].dark body {
     inset 0 -1px 0 rgba(83, 38, 183, 0.03);
 }
 
+.hero-eyebrow-liquid > span:first-of-type {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(248, 247, 255, 0.72));
+  box-shadow:
+    0 2px 8px rgba(83, 38, 183, 0.06),
+    inset 3px 3px 0.5px -3px rgba(255, 255, 255, 0.96),
+    inset -3px -3px 0.5px -3px rgba(83, 38, 183, 0.16),
+    inset 0 0 6px 6px rgba(255, 255, 255, 0.08),
+    0 0 12px rgba(124, 58, 237, 0.08);
+}
+
+@keyframes hero-entrance-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-headline-resolve {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes hero-business-resolve {
+  0% {
+    background-position: -120% 50%;
+    opacity: 0;
+  }
+  45% {
+    background-position: 0% 50%;
+    opacity: 0.9;
+  }
+  100% {
+    background-position: 120% 50%;
+    opacity: 0;
+  }
+}
+
+@keyframes hero-business-shimmer-sweep {
+  from {
+    background-position: 120% 50%;
+  }
+  to {
+    background-position: -120% 50%;
+  }
+}
+
+@keyframes hero-ambient-shift {
+  0%,
+  100% {
+    background-position: 12% 45%;
+  }
+  50% {
+    background-position: 88% 55%;
+  }
+}
+
+@keyframes hero-video-ring {
+  0%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  73% {
+    opacity: 0.28;
+  }
+  86% {
+    opacity: 0;
+    transform: scale(1.75);
+  }
+}
+
+@keyframes hero-scroll-cue {
+  0%,
+  65%,
+  100% {
+    transform: translateY(0);
+  }
+  78% {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes hero-section-strand-breathe {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: translateY(3px) scaleY(0.86);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px) scaleY(1.12);
+  }
+}
+
+@keyframes hero-section-aura-pulse {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.88);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes hero-section-traveler-flow {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5);
+  }
+  16% {
+    opacity: 1;
+  }
+  82% {
+    opacity: 0.68;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--strand-travel)) scale(1);
+  }
+}
+
+.hero-ambient-gradient {
+  background:
+    linear-gradient(
+      120deg,
+      rgba(216, 225, 241, 0.11),
+      rgba(219, 231, 255, 0.08) 36%,
+      rgba(211, 198, 255, 0.12) 68%,
+      rgba(216, 225, 241, 0.08)
+    );
+  background-size: 240% 240%;
+  animation: hero-ambient-shift 24s ease-in-out infinite;
+}
+
+.hero-headline {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.hero-entrance {
+  opacity: 0;
+  animation: hero-entrance-up 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-entrance--badge {
+  animation-delay: 40ms;
+}
+
+.hero-entrance--category {
+  animation-delay: 250ms;
+}
+
+.hero-entrance--analyzer {
+  animation-delay: 350ms;
+}
+
+.hero-entrance--video {
+  animation-delay: 450ms;
+}
+
+.hero-entrance--description {
+  animation-delay: 525ms;
+}
+
+.hero-entrance--trust {
+  animation-delay: 600ms;
+}
+
+.hero-entrance--scroll {
+  animation-delay: 680ms;
+}
+
+.hero-headline-line {
+  opacity: 0;
+  animation: hero-headline-resolve 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-headline-line--one {
+  animation-delay: 100ms;
+}
+
+.hero-headline-line--two {
+  animation-delay: 200ms;
+}
+
+.hero-business-shimmer .lr-shimmer-text__shine {
+  animation: hero-business-shimmer-sweep 3.6s linear 700ms infinite;
+}
+
+.hero-analyzer:hover {
+  box-shadow:
+    0 18px 45px rgba(66, 42, 148, 0.13),
+    0 0 0 2px rgba(124, 58, 237, 0.06),
+    0 0 26px rgba(99, 102, 241, 0.1);
+}
+
+.hero-video-icon {
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .hero-video-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-280px, -50%);
+  }
+}
+
+.hero-video-icon::after {
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(99, 102, 241, 0.34);
+  border-radius: 999px;
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  animation: hero-video-ring 7s ease-out infinite;
+}
+
+.hero-trust-item {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.hero-trust-item:hover {
+  transform: translateY(-1px);
+}
+
+.hero-trust-item:hover .hero-trust-icon {
+  box-shadow:
+    0 4px 12px rgba(83, 38, 183, 0.08),
+    0 0 0 3px rgba(124, 58, 237, 0.05);
+}
+
+.hero-trust-icon {
+  transition: box-shadow 220ms ease;
+}
+
+.hero-scroll-cue > svg {
+  animation: hero-scroll-cue 3.6s ease-in-out infinite;
+}
+
+.hero-section-break__strand {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-section-strand-breathe 3.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.hero-section-break__aura {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-section-aura-pulse 3.8s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.hero-section-break__traveler {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hero-section-traveler-flow 3.2s linear infinite;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-ambient-gradient,
+  .hero-entrance,
+  .hero-headline-line,
+  .hero-business-shimmer .lr-shimmer-text__shine,
+  .hero-video-icon::after,
+  .hero-scroll-cue > svg {
+    animation: none;
+  }
+
+  .hero-section-break__strand {
+    animation: none;
+    opacity: 0.7;
+    transform: none;
+  }
+
+  .hero-section-break__aura,
+  .hero-section-break__traveler {
+    animation: none;
+  }
+
+  .hero-section-break__traveler {
+    opacity: 0;
+  }
+
+  .hero-entrance,
+  .hero-headline-line {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .auth-analysis-card {
   transition:
     min-height var(--onboarding-motion-slow) var(--onboarding-ease-standard),
@@ -2462,7 +3214,7 @@ html[data-page="discovery"].dark body {
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Apple-style vibrancy glass — light surfaces (Discovery campaign panel) */
+/* Apple-style vibrancy glass - light surfaces (Discovery campaign panel) */
 .apple-glass-panel {
   position: relative;
   isolation: isolate;
@@ -2594,7 +3346,7 @@ html[data-page="discovery"].dark body {
   border-bottom: none;
 }
 
-/* Discovery chat input — matches campaign pill glass */
+/* Discovery chat input - matches campaign pill glass */
 .apple-glass-input {
   position: relative;
   isolation: isolate;
@@ -3124,10 +3876,10 @@ html[data-page="discovery"].dark body {
   }
 }
 
-/* Theme toggle view transition — disable default crossfade so the circle reveal owns the motion */
+/* Theme toggle view transition - disable default crossfade so the circle reveal owns the motion */
 @supports (view-transition-name: none) {
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-old(root),
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
   }
@@ -3544,4 +4296,50 @@ html[data-page="discovery"].dark body {
 
 .dark .discovery-page .discovery-sidebar__headline-accent {
   color: #c4b5f0;
+}
+@keyframes lr-text-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0% 50%;
+  }
+}
+
+.lr-shimmer-text {
+  isolation: isolate;
+}
+
+.lr-shimmer-text__base,
+.lr-shimmer-text__shine {
+  grid-area: 1 / 1;
+}
+
+.lr-shimmer-text__base {
+  color: var(--lr-shimmer-base, #4e28df);
+}
+
+.lr-shimmer-text__shine {
+  color: transparent;
+  background-image: linear-gradient(
+    108deg,
+    transparent 42%,
+    var(--lr-shimmer-edge, rgba(147, 190, 253, 0.55)) 47%,
+    var(--lr-shimmer-core, #3884ff) 50%,
+    var(--lr-shimmer-edge, rgba(133, 163, 250, 0.55)) 53%,
+    transparent 58%
+  );
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: lr-text-shimmer var(--lr-shimmer-duration, 2.8s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lr-shimmer-text__shine {
+    animation: none;
+    opacity: 0;
+  }
 }

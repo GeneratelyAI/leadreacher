@@ -1,4 +1,8 @@
-import type { OnboardingStepParam, StrategySubstepParam } from "@/components/onboarding/steps/steps";
+import {
+  getOnboardingStepIndex,
+  type OnboardingStepParam,
+  type StrategySubstepParam,
+} from "@/components/onboarding/steps/steps";
 
 type ResumeStrategy = {
   audienceAnalysisComplete: boolean;
@@ -10,6 +14,17 @@ export type OnboardingResumeTarget = {
   step: OnboardingStepParam;
   strategySubstep?: StrategySubstepParam;
 };
+
+export function resolveAllowedOnboardingStep(
+  requested: OnboardingStepParam | null,
+  earned: OnboardingStepParam,
+): OnboardingStepParam {
+  if (!requested) return earned;
+
+  return getOnboardingStepIndex(requested) <= getOnboardingStepIndex(earned)
+    ? requested
+    : earned;
+}
 
 export function resolveOnboardingResumeTarget(input: {
   strategy: ResumeStrategy | null;

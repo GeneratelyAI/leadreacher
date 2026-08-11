@@ -5,11 +5,11 @@
  * health, and fetches a public profile. It does NOT send anything.
  *
  * With --send it ALSO runs T4 (sendConnectionInvite) and T5 (startChat), which
- * perform REAL LinkedIn actions against <publicId> — a live invite and DM.
+ * perform REAL LinkedIn actions against <publicId> - a live invite and DM.
  * Only pass --send when you intend to send those.
  *
  * Reads UNIPILE_DSN / UNIPILE_API_KEY directly from process.env (via .env) so a
- * database is NOT required — it does not import config/env.ts.
+ * database is NOT required - it does not import config/env.ts.
  *
  * Usage:
  *   pnpm --filter @leadreacher/api exec tsx src/scripts/test-unipile.ts [accountId] [publicId]
@@ -69,20 +69,20 @@ async function main(): Promise<void> {
 
   console.log(`Unipile smoke test → ${dsn}\n`);
 
-  // T1 — credentials + connected accounts
+  // T1 - credentials + connected accounts
   const t1 = await runTest("T1  GET /accounts (credentials + account list)", () =>
     adapter.listAccounts(),
   );
 
   if (!t1.ok) {
-    console.error("\nT1 failed — cannot continue. Check API key / DSN.");
+    console.error("\nT1 failed - cannot continue. Check API key / DSN.");
     process.exit(1);
   }
 
   const accounts = t1.result?.items ?? [];
   console.log(`        ${accounts.length} account(s) connected:`);
   for (const acct of accounts) {
-    console.log(`          - ${acct.id} (${acct.type})${acct.name ? ` — ${acct.name}` : ""}`);
+    console.log(`          - ${acct.id} (${acct.type})${acct.name ? ` - ${acct.name}` : ""}`);
   }
 
   const accountId = accountIdArg ?? accounts[0]?.id;
@@ -95,7 +95,7 @@ async function main(): Promise<void> {
   }
   console.log(`\n  Using account_id: ${accountId}\n`);
 
-  // T2 — specific account health (every source must report OK)
+  // T2 - specific account health (every source must report OK)
   const t2 = await runTest(`T2  getAccountStatus(${accountId})`, async () => {
     const account = await adapter.getAccountStatus(accountId);
     const sources = account.sources
@@ -109,23 +109,23 @@ async function main(): Promise<void> {
   });
 
   if (!t2.ok) {
-    console.error("\nT2 failed — account unhealthy, skipping T3/T4/T5.");
+    console.error("\nT2 failed - account unhealthy, skipping T3/T4/T5.");
     process.exit(1);
   }
 
-  // T3 — authenticated LinkedIn call + capture provider_id for T4
+  // T3 - authenticated LinkedIn call + capture provider_id for T4
   const t3 = await runTest(
     `T3  getProfile(account, "${publicId}")`,
     () => adapter.getProfile(accountId, publicId),
   );
   if (t3.ok && t3.result) {
     const p = t3.result;
-    console.log(`        ${p.first_name} ${p.last_name} — ${p.headline}`);
+    console.log(`        ${p.first_name} ${p.last_name} - ${p.headline}`);
     console.log(`        provider_id: ${p.provider_id}`);
   }
 
   if (!t3.ok || !t3.result) {
-    console.error("\nT3 failed — cannot get provider_id, skipping T4/T5.");
+    console.error("\nT3 failed - cannot get provider_id, skipping T4/T5.");
     process.exit(1);
   }
 
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // T4 — send connection invite (LIVE action; only with --send)
+  // T4 - send connection invite (LIVE action; only with --send)
   const t4 = await runTest(
     `T4  sendConnectionInvite(account, "${publicId}", message)`,
     () =>
@@ -155,8 +155,8 @@ async function main(): Promise<void> {
     console.log(`        invite sent to provider_id: ${providerId}`);
   }
 
-  // T5 — open a chat (startChat sends the opening message directly)
-  // Only runs if T4 passed — connection invite must be accepted before
+  // T5 - open a chat (startChat sends the opening message directly)
+  // Only runs if T4 passed - connection invite must be accepted before
   // startChat works on LinkedIn. This will likely fail immediately on a
   // fresh invite; it confirms the API call reaches Unipile correctly.
   const t5 = await runTest(

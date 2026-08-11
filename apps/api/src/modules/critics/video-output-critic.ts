@@ -32,7 +32,7 @@ type VideoOutputCriticOutputType = z.infer<
   typeof VideoOutputCriticOutput
 >;
 
-const SYSTEM_PROMPT = `You are a senior video ad quality reviewer. Your job is to evaluate AI-generated video ads before they are shown to clients.
+const SYSTEM_PROMPT = `You are a senior outbound campaign video quality reviewer. Your job is to evaluate AI-generated campaign videos before they are shown to clients.
 
 You will receive four representative frames extracted from a generated video: the opening frame, about 1 second in, the midpoint, and about 2 seconds before the end. Evaluate these frames on a 0-10 scale using this rubric:
 
@@ -41,7 +41,7 @@ RUBRIC (each criterion worth up to 2 points):
 2. NO ARTIFACTS - Do the sampled frames show visual glitches, distortions, or AI generation artifacts such as extra limbs, warped faces, malformed hands, or texture failures?
 3. HOOK IN 2s - Does the opening frame and the ~1s frame show something visually compelling enough to stop a scroll?
 4. SCENE COHERENCE - Compare the frames. Does the setting and subject remain coherent without sudden scene changes or incoherent backgrounds?
-5. PROFESSIONAL QUALITY - Does the video feel premium enough to represent a brand in a paid ad context?
+5. PROFESSIONAL QUALITY - Does the video feel premium enough to represent a brand in a direct outbound context?
 
 HARD FAILS:
 - Any generated captions, subtitles, metrics, unsupported claims, or visible text intended as an end card.
@@ -64,7 +64,7 @@ export async function runVideoOutputCritic(
 ): Promise<VideoOutputCriticOutputType> {
   const validated = VideoOutputCriticInput.parse(input);
 
-  const userText = `Please evaluate this video ad from the provided extracted frames.
+  const userText = `Please evaluate this outbound campaign video from the provided extracted frames.
 
 FRAME ORDER:
 ${validated.frames.map((frame, index) => `${index + 1}. ${frame.label}`).join("\n")}

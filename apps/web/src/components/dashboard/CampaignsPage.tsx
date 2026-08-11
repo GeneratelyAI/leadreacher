@@ -33,7 +33,7 @@ import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -197,12 +197,8 @@ function ChannelMarks({ channels }: { channels: string[] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm text-app-fg-muted">
       {channels.map((channel) => (
         <span key={channel} className="inline-flex items-center gap-1.5">
-          {channel === "linkedin" ? (
-            <ChannelLogo name="linkedin" className="size-5" />
-          ) : channel === "whatsapp" ? (
-            <ChannelLogo name="whatsapp" className="size-4" />
-          ) : null}
-          {channelLabel(channel)}
+          <DashboardChannelLogo platform={channel} className="size-5" />
+          {channelDisplayName(channel)}
         </span>
       ))}
     </div>
@@ -415,6 +411,7 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
   const [name, setName] = useState("");
   const [sequence, setSequence] = useState<SequenceStepDraft[]>(() => defaultSequenceDraft());
   const [channelAccounts, setChannelAccounts] = useState<Record<string, string>>({});
+  const [personalizeByChannel, setPersonalizeByChannel] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeAccounts = useMemo(() => accounts.filter((account) => account.status === "active"), [accounts]);
@@ -463,16 +460,19 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
           channels: sequenceChannels,
           socialAccountId: channelAccounts.linkedin || undefined,
           channelAccounts,
+          personalizeByChannel,
           sequence: sequence.map((step, index) => ({
             type: step.type,
             message: step.message.trim(),
             delayHours: index === 0 ? 0 : step.delayHours,
+            ...(step.subject?.trim() ? { subject: step.subject.trim() } : {}),
           })),
         }),
       });
       setName("");
       setSequence(defaultSequenceDraft());
       setChannelAccounts({});
+      setPersonalizeByChannel(true);
       setOpen(false);
       toast.success("Campaign draft created");
       await onCreated();
@@ -511,6 +511,20 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
             <p className="text-sm font-medium">Sequence</p>
             <SequenceBuilder value={sequence} onChange={setSequence} />
           </div>
+          <label className="flex items-start gap-3 rounded-lg border border-border p-3">
+            <Checkbox
+              checked={personalizeByChannel}
+              onCheckedChange={(checked) => setPersonalizeByChannel(checked === true)}
+              aria-label="Personalize every campaign step"
+              className="mt-0.5"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium">Personalize every step</span>
+              <span className="mt-0.5 block text-xs text-muted-foreground">
+                Adapt each message to the prospect and channel using recorded business data. WhatsApp prospects must have a valid phone number.
+              </span>
+            </span>
+          </label>
           <div className="grid gap-4 sm:grid-cols-2">
             {sequenceChannels.map((channel) => {
               const options = activeAccounts.filter((account) => account.platform === channel);

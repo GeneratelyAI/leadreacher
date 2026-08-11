@@ -11,7 +11,6 @@ import {
   Info,
   Link2,
   Loader2,
-  Mail,
   MoreVertical,
   Plus,
   RefreshCw,
@@ -19,9 +18,10 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -148,11 +148,7 @@ function titleCase(value: string): string {
 }
 
 function channelName(platform: string): string {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") return "LinkedIn";
-  if (key === "whatsapp") return "WhatsApp";
-  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") return "Email";
-  return titleCase(platform);
+  return channelDisplayName(platform);
 }
 
 function initials(name: string): string {
@@ -206,36 +202,7 @@ function TrendLine({ trend, fallback }: { trend?: ChannelTrend; fallback: string
 }
 
 function PlatformMark({ platform }: { platform: string }) {
-  const key = platform.toLowerCase();
-  if (key === "linkedin") {
-    return (
-      <span className="inline-flex size-10 shrink-0 items-center justify-center" aria-hidden>
-        <ChannelLogo name="linkedin" className="size-10" />
-      </span>
-    );
-  }
-  if (key === "whatsapp") {
-    return (
-      <span
-        className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#25D366] text-white"
-        aria-hidden
-      >
-        <ChannelLogo name="whatsapp" className="size-5" />
-      </span>
-    );
-  }
-  if (key === "google" || key === "microsoft" || key === "outlook" || key === "imap" || key === "mail" || key === "email") {
-    return (
-      <span className="inline-flex size-10 shrink-0 items-center justify-center text-onboarding-neutral-700 dark:text-onboarding-neutral-200" aria-hidden>
-        <Mail className="size-5" strokeWidth={1.75} />
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex size-10 shrink-0 items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden>
-      <Link2 className="size-5" strokeWidth={1.75} />
-    </span>
-  );
+  return <DashboardChannelLogo platform={platform} className="size-10" />;
 }
 
 function ChannelAccountRow({
@@ -376,10 +343,8 @@ export function ChannelsWorkspace() {
   const endDate = searchParams.get("endDate") ?? "";
   const connectStatus = searchParams.get("status");
 
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const queryString = useMemo(() => {
@@ -394,37 +359,43 @@ export function ChannelsWorkspace() {
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
-  const accounts = channelsQuery.data?.accounts ?? [];
-  const summary = channelsQuery.data?.summary ?? null;
-  const isLoading = channelsQuery.isLoading && !channelsQuery.data;
-  const error = actionError ?? (channelsQuery.error instanceof Error ? channelsQuery.error.message : null);
-
-  useEffect(() => {
-    if (connectStatus === "connected") {
-      setNotice("Connection received. Syncing the account now.");
-      void sync();
-      window.history.replaceState({}, "", "/dashboard/channels");
-    }
-    if (connectStatus === "failed") setActionError("Channel connection failed. Try again.");
-  // `sync` is intentionally invoked only for a fresh hosted-auth callback.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectStatus]);
-
-  async function sync() {
-    setIsSyncing(true);
-    try {
-      await apiFetch("/social-accounts/sync", { method: "POST", body: JSON.stringify({}) });
+  const syncMutation = useMutation({
+    mutationFn: () => apiFetch("/social-accounts/sync", { method: "POST", body: JSON.stringify({}) }),
+    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["dashboard", "channels"] }),
         queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
       ]);
-      setNotice("Accounts synced.");
-    } catch (requestError) {
-      setActionError(requestError instanceof Error ? requestError.message : "Unable to sync channels.");
-    } finally {
-      setIsSyncing(false);
+    },
+  });
+  const syncAccounts = syncMutation.mutate;
+  const accounts = channelsQuery.data?.accounts ?? [];
+  const summary = channelsQuery.data?.summary ?? null;
+  const isLoading = channelsQuery.isLoading && !channelsQuery.data;
+  const connectionError = connectStatus === "failed"
+    ? "Channel connection failed. Try again."
+    : null;
+  const syncError = syncMutation.error instanceof Error
+    ? syncMutation.error.message
+    : syncMutation.isError
+      ? "Unable to sync channels."
+      : null;
+  const error = actionError
+    ?? connectionError
+    ?? syncError
+    ?? (channelsQuery.error instanceof Error ? channelsQuery.error.message : null);
+  const notice = syncMutation.isSuccess
+    ? "Accounts synced."
+    : connectStatus === "connected"
+      ? "Connection received. Syncing the account now."
+      : null;
+
+  useEffect(() => {
+    if (connectStatus === "connected") {
+      syncAccounts();
+      window.history.replaceState({}, "", "/dashboard/channels");
     }
-  }
+  }, [connectStatus, syncAccounts]);
 
   async function connect(provider: ConnectProvider) {
     setIsConnecting(true);
@@ -450,8 +421,8 @@ export function ChannelsWorkspace() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => void sync()} disabled={isSyncing || isLoading}>
-            {isSyncing ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+          <Button variant="secondary" onClick={() => syncAccounts()} disabled={syncMutation.isPending || isLoading}>
+            {syncMutation.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             Sync accounts
           </Button>
           <Button variant="brand" onClick={() => void connect("LINKEDIN")} disabled={isConnecting}>

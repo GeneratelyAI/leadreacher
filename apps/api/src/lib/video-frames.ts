@@ -56,15 +56,6 @@ async function assertTargetDuration(outputPath: string): Promise<void> {
   }
 }
 
-console.log(
-  JSON.stringify({
-    event: "video-frames",
-    path: "ffmpeg-path-resolved",
-    ffmpegPath: resolvedFfmpegPath,
-    exists: ffmpegPathExists,
-  }),
-);
-
 export type VideoFrameInput = {
   label: string;
   mimeType: string;

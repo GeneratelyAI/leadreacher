@@ -8,6 +8,7 @@ import { env, isWorkerEnabled } from "./config/env.js";
 import { apiErrorResponse } from "./lib/errors.js";
 import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { installHttpErrorHandling } from "./lib/http-error-handler.js";
+import { configureOperationalLogger } from "./lib/operational-logger.js";
 import { closeQueues } from "./lib/queue.js";
 import { closeRedisConnections, redis } from "./lib/redis.js";
 import { captureException } from "./lib/sentry.js";
@@ -19,6 +20,7 @@ import { anonymousDiscoveryRoutes } from "./routes/discovery.js";
 import { healthRoutes } from "./routes/health.js";
 import { webhookRoutes } from "./routes/webhooks.js";
 import { stripeWebhookRoutes } from "./routes/stripe-webhook.js";
+import { publicPricingRoutes } from "./routes/public-pricing.js";
 import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
 import { startVideoGenerationWorker } from "./workers/video-generation.js";
@@ -26,6 +28,7 @@ import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
+  configureOperationalLogger(app.log);
   const workers: Array<{ close: () => Promise<void> }> = [];
   const stopHeartbeats: Array<() => void> = [];
 
@@ -92,6 +95,7 @@ export async function buildServer() {
   await app.register(stripeWebhookRoutes);
   await app.register(authRoutes);
   await app.register(anonymousDiscoveryRoutes);
+  await app.register(publicPricingRoutes);
   await app.register(protectedRoutes);
 
   const campaignWorkerEnabled = isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER);

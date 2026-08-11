@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export type StatTableColumn<Row> = {
+export type DataTableColumn<Row> = {
   key: string;
   header: ReactNode;
   align?: "left" | "right";
@@ -24,8 +24,8 @@ export type StatTableColumn<Row> = {
   className?: string;
 };
 
-export type StatTableProps<Row> = {
-  columns: StatTableColumn<Row>[];
+export type DataTableProps<Row> = {
+  columns: DataTableColumn<Row>[];
   data: Row[];
   getRowKey: (row: Row) => string;
   /** Rendered as a totals row via the same column `render` functions with `isFooter: true`. */
@@ -39,7 +39,7 @@ export type StatTableProps<Row> = {
  * a stacked "header: value" line. Callers handle their own empty state
  * before rendering this, since copy differs per table.
  */
-export function StatTable<Row>({ columns, data, getRowKey, footer }: StatTableProps<Row>) {
+export function DataTable<Row>({ columns, data, getRowKey, footer }: DataTableProps<Row>) {
   const labelColumn = columns.find((column) => column.isLabel);
   const metricColumns = columns.filter((column) => !column.isLabel);
 
@@ -127,3 +127,10 @@ export function StatTable<Row>({ columns, data, getRowKey, footer }: StatTablePr
     </>
   );
 }
+
+/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
+export type StatTableColumn<Row> = DataTableColumn<Row>;
+/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
+export type StatTableProps<Row> = DataTableProps<Row>;
+/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
+export const StatTable = DataTable;

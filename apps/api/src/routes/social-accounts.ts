@@ -119,6 +119,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           createdAt: true,
           updatedAt: true,
           unipileId: true,
+          metadata: true,
           campaignChannelAccounts: {
             select: {
               channel: true,
@@ -173,6 +174,13 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
         accountName: account.accountName,
         avatarUrl: account.avatarUrl,
         status: account.status,
+        providerType:
+          typeof account.metadata === "object" &&
+          account.metadata !== null &&
+          !Array.isArray(account.metadata) &&
+          typeof (account.metadata as Record<string, unknown>).providerType === "string"
+            ? (account.metadata as Record<string, unknown>).providerType
+            : null,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
         health,
@@ -277,6 +285,15 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
 
     for (const account of items) {
       if (!account.id || !account.type) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id ?? null,
+            unipileAccountType: account.type ?? null,
+            reason: "malformed-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
         continue;
       }
 
@@ -285,6 +302,15 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       // Unipile's account list is shared by the API key. Never create or
       // mutate an organization row from an unowned external account.
       if (!ownedAccount || ownedAccount.platform !== platform) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id,
+            platform,
+            reason: ownedAccount ? "platform-mismatch" : "unknown-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
         continue;
       }
       const accountStatus = await resolveAccountStatus(adapter, account.id);
@@ -295,6 +321,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
           unipileId: account.id,
           accountName: account.name ?? account.id,
           status: accountStatus,
+          metadata: { providerType: account.type.toLowerCase() },
         },
       });
 

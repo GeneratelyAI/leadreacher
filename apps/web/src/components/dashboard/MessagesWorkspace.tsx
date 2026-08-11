@@ -23,7 +23,8 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -140,13 +141,6 @@ function relativeTimeLong(value: string): string {
   if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
   const days = Math.round(hours / 24);
   return `${days} day${days === 1 ? "" : "s"} ago`;
-}
-
-function channelLogoName(channel: string, senderName?: string): ChannelLogoName {
-  if (channel === "linkedin" || channel === "instagram" || channel === "whatsapp" || channel === "facebook") {
-    return channel;
-  }
-  return senderName?.toLowerCase().includes("outlook") ? "outlook" : "gmail";
 }
 
 function initials(name: string): string {
@@ -865,7 +859,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                               </time>
                             </span>
                             <span className="mt-0.5 block truncate text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                              <ChannelLogo name={channelLogoName(conversation.channel, conversation.sender?.accountName)} className="mr-1 inline-flex size-3.5 align-[-2px]" />
+                              <DashboardChannelLogo platform={conversation.channel} accountName={conversation.sender?.accountName} className="mr-1 inline-flex size-3.5 align-[-2px]" />
                               {conversation.prospect.title || conversation.prospect.company || "Prospect"}
                               {conversation.campaign.name ? ` · ${conversation.campaign.name}` : ""}
                             </span>
@@ -962,8 +956,8 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                         <div className="flex items-center gap-2">
                           <h2 className="truncate text-base font-semibold lg:text-lg">{detail.prospect.name}</h2>
                           <Badge variant="secondary" className="hidden gap-1.5 capitalize sm:inline-flex">
-                            <ChannelLogo name={channelLogoName(detail.channel, detail.sender?.accountName)} className="size-3.5" />
-                            {titleCase(detail.channel)}
+                            <DashboardChannelLogo platform={detail.channel} accountName={detail.sender?.accountName} className="size-3.5" />
+                            {channelDisplayName(detail.channel, detail.sender?.accountName)}
                           </Badge>
                           <span className="hidden size-2 rounded-full bg-onboarding-success-500 lg:inline-flex" aria-hidden />
                           <span className="hidden text-[10px] font-medium text-muted-foreground lg:inline">
@@ -1105,8 +1099,9 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                                                 url={item.senderUrl}
                                                 size="sm"
                                               />
-                                              <ChannelLogo
-                                                name={channelLogoName(item.platform, item.senderName)}
+                                              <DashboardChannelLogo
+                                                platform={item.platform}
+                                                accountName={item.senderName}
                                                 className="absolute -right-1 -bottom-1 size-3.5 rounded-sm ring-2 ring-background"
                                               />
                                             </span>
@@ -1166,7 +1161,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                   </MessageScrollerProvider>
                 </div>
 
-                <div className={cn("shrink-0 border-t border-border bg-onboarding-neutral-0 p-3 dark:bg-onboarding-neutral-900", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
+                <div className={cn("dashboard-chat-composer shrink-0 border-t border-border bg-onboarding-neutral-0 p-3 dark:bg-onboarding-neutral-900", amplified && "mx-auto w-full max-w-5xl px-5 sm:px-8")}>
                   {limitError || isLimitReached ? (
                     <p className="mb-2 text-xs font-medium text-onboarding-warning-900 dark:text-onboarding-warning-150">
                       {limitError || `Daily LinkedIn message limit reached. Sending resets at ${resetTime}.`}

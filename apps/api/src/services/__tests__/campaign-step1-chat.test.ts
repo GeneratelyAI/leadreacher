@@ -11,6 +11,8 @@ const {
   messageCreate,
   deliveryAttemptUpdate,
   checkAndIncrementDailySendLimit,
+  campaignFindUnique,
+  leadFindUnique,
 } = vi.hoisted(() => ({
   startChat: vi.fn(),
   getReadyVideo: vi.fn(),
@@ -22,6 +24,8 @@ const {
   messageCreate: vi.fn(),
   deliveryAttemptUpdate: vi.fn(),
   checkAndIncrementDailySendLimit: vi.fn(),
+  campaignFindUnique: vi.fn(),
+  leadFindUnique: vi.fn(),
 }));
 
 vi.mock("../../lib/prisma.js", () => ({
@@ -30,6 +34,8 @@ vi.mock("../../lib/prisma.js", () => ({
     campaignLead: { update: campaignLeadUpdate },
     message: { create: messageCreate },
     deliveryAttempt: { update: deliveryAttemptUpdate },
+    campaign: { findUnique: campaignFindUnique },
+    lead: { findUnique: leadFindUnique },
   },
 }));
 vi.mock("../../lib/queue.js", () => ({
@@ -41,8 +47,8 @@ vi.mock("../delivery-attempt.js", () => ({
   acquireDeliveryReservation: acquireReservation,
   markDeliveryReservationUnknown: markUnknown,
 }));
-vi.mock("../personalized-video.js", () => ({
-  getReadyPersonalizedVideoForDelivery: getReadyVideo,
+vi.mock("../campaign-video.js", () => ({
+  getReadyCampaignVideoForDelivery: getReadyVideo,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({
   checkAndIncrementDailySendLimit,
@@ -68,10 +74,21 @@ beforeEach(() => {
   acquireReservation.mockResolvedValue({ acquired: true, attemptId: "attempt-1" });
   startChat.mockResolvedValue({ chat_id: "chat-1" });
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
+  campaignFindUnique.mockReset().mockResolvedValue({ name: "Campaign", aiConfig: null });
+  leadFindUnique.mockReset().mockResolvedValue({
+    firstName: "Ada",
+    lastName: "Lovelace",
+    title: "Founder",
+    company: "Analytical Engines",
+    industry: "Software",
+    companySize: "11-50",
+    location: "London",
+    enrichmentData: null,
+  });
 });
 
 describe("deliverSequenceStep1ViaChat", () => {
-  it("attaches a ready lead-specific MP4 to the first chat without exposing its R2 URL in text", async () => {
+  it("attaches the approved campaign video to the first chat without exposing its URL in text", async () => {
     getReadyVideo.mockResolvedValue({
       videoUrl: "https://media.example/personalized/lead-1.mp4",
       buffer: Buffer.from("video"),

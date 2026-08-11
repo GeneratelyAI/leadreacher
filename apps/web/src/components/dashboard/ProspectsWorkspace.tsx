@@ -83,6 +83,10 @@ type Prospect = {
   linkedinUrl: string | null;
   email: string | null;
   phone: string | null;
+  instagramUsername: string | null;
+  instagramMessagingId: string | null;
+  instagramIdentityStatus: string;
+  outreachSuppressedAt: string | null;
   avatarUrl: string | null;
   source: string;
   status: string;
@@ -187,7 +191,9 @@ function ReachableSignals({ prospect }: { prospect: Prospect }) {
       {prospect.linkedinUrl ? <span className="inline-flex size-7 items-center justify-center" title="LinkedIn available"><ChannelLogo name="linkedin" className="size-7" /></span> : null}
       {prospect.email ? <span className="inline-flex size-7 items-center justify-center text-onboarding-success-500" title="Email available"><Mail className="size-4" /></span> : null}
       {prospect.phone ? <span className="inline-flex size-7 items-center justify-center text-onboarding-success-500" title="Phone available"><CheckCircle2 className="size-4" /></span> : null}
-      {!prospect.linkedinUrl && !prospect.email && !prospect.phone ? <span className="text-xs text-muted-foreground">None</span> : null}
+      {prospect.instagramUsername ? <span className="inline-flex size-7 items-center justify-center" title={prospect.instagramMessagingId ? "Instagram messaging ready" : "Instagram identity will be checked before launch"}><ChannelLogo name="instagram" className={cn("size-6", prospect.instagramMessagingId ? "" : "opacity-50")} /></span> : null}
+      {prospect.outreachSuppressedAt ? <Badge variant="outline" className="text-[10px]">Suppressed</Badge> : null}
+      {!prospect.linkedinUrl && !prospect.email && !prospect.phone && !prospect.instagramUsername ? <span className="text-xs text-muted-foreground">None</span> : null}
     </div>
   );
 }
@@ -369,7 +375,7 @@ export function ProspectsWorkspace() {
     queryFn: () => apiFetch<{ campaigns: Campaign[] }>("/campaigns"),
     staleTime: 60_000,
   });
-  const leads = prospectsQuery.data?.leads ?? [];
+  const leads = useMemo(() => prospectsQuery.data?.leads ?? [], [prospectsQuery.data?.leads]);
   const campaigns = campaignsQuery.data?.campaigns ?? [];
   const counts = prospectsQuery.data?.counts ?? { all: 0, pending: 0, approved: 0, excluded: 0, booked: 0, reached: 0 };
   const total = prospectsQuery.data?.total ?? 0;

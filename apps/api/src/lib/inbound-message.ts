@@ -16,7 +16,7 @@ type InboundMessageData = Prisma.MessageUncheckedCreateInput & {
   externalId: string;
 };
 
-/** Prisma "unique constraint failed" — duck-typed to avoid client class-identity pitfalls. */
+/** Prisma "unique constraint failed" - duck-typed to avoid client class-identity pitfalls. */
 export function isUniqueConstraintError(error: unknown): boolean {
   return (
     typeof error === "object" &&

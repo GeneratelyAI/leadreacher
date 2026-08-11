@@ -1,6 +1,7 @@
 import { GoogleGenAI, type GenerateVideosOperation } from "@google/genai";
 import { env } from "../config/env.js";
 import { externalServiceFailure } from "../lib/errors.js";
+import { logOperationalInfo } from "../lib/operational-logger.js";
 
 const googleAI = new GoogleGenAI({ apiKey: env.GOOGLE_AI_API_KEY });
 const IMAGEN_GENERATION_TIMEOUT_MS = 60_000;
@@ -30,7 +31,7 @@ interface GeneratedImage {
 }
 
 function googleLog(payload: Record<string, unknown>): void {
-  console.log(JSON.stringify({ event: "google-ai", ...payload }));
+  logOperationalInfo("google-ai", payload);
 }
 
 function timeoutError(label: string, timeoutMs: number): Error {
@@ -196,7 +197,7 @@ export async function generateImageWithAssets(
     const contents = [
       ...assetParts,
       {
-        text: `Generate an image for this video ad. ${prompt}. Aspect ratio: ${aspectRatio}.`,
+        text: `Generate an image for this outbound campaign video. ${prompt}. Aspect ratio: ${aspectRatio}.`,
       },
     ];
 

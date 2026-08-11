@@ -54,7 +54,7 @@ type LegacyVideoPromptCriticInputType = z.infer<
 type VideoPromptCriticInputType = z.infer<typeof VideoPromptCriticInput>;
 type VideoPromptCriticOutputType = z.infer<typeof VideoPromptCriticOutput>;
 
-const STORYBOARD_SYSTEM_PROMPT = `You are a senior video ad creative director. Your job is to quality-gate a four-scene storyboard before it is used for a 10-second social video ad. The four scenes cover the generated eight seconds and the final frame holds for seconds 8-10.
+const STORYBOARD_SYSTEM_PROMPT = `You are a senior outbound campaign video creative director. Your job is to quality-gate a four-scene storyboard before it is used for a 10-second direct outreach video. The four scenes cover the generated eight seconds and the final frame holds for seconds 8-10.
 
 Evaluate the storyboard and its connective video prompt on a 0-10 scale using this exact rubric:
 
@@ -78,7 +78,7 @@ Output ONLY valid JSON:
   "feedback": ["<specific issue 1>", "<specific issue 2>"]
 }`;
 
-const LEGACY_SYSTEM_PROMPT = `You are a senior video ad creative director. Evaluate a temporary single-seed-frame compatibility prompt for a premium 10-second social ad on a 0-10 scale. The generated sequence lasts eight seconds and the final frame holds for two seconds. Check visual specificity, narrative motion, hook, CTA, and tone/avatar/setting match. Score 7 or higher passes. Output ONLY valid JSON with score, passed, and feedback.`;
+const LEGACY_SYSTEM_PROMPT = `You are a senior outbound campaign video creative director. Evaluate a temporary single-seed-frame compatibility prompt for a premium 10-second social outreach video on a 0-10 scale. The generated sequence lasts eight seconds and the final frame holds for two seconds. Check visual specificity, narrative motion, hook, CTA, and tone/avatar/setting match. Score 7 or higher passes. Output ONLY valid JSON with score, passed, and feedback.`;
 
 function isStoryboardInput(
   input: VideoPromptCriticInputType,

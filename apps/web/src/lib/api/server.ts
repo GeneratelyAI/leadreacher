@@ -13,6 +13,7 @@ export async function bootstrapOrganizationServer(
   orgId: string;
   userId: string;
   role: string;
+  memberName: string | null;
   subscriptionStatus: string | null;
   onboardedAt: string | null;
   activeChannelCount: number;
@@ -34,6 +35,7 @@ export async function bootstrapOrganizationServer(
         orgId: string;
         userId: string;
         role?: string;
+        memberName?: string | null;
         subscriptionStatus?: string | null;
         onboardedAt?: string | null;
         activeChannelCount?: number;
@@ -56,6 +58,7 @@ export async function bootstrapOrganizationServer(
     orgId: payload.orgId,
     userId: payload.userId,
     role: payload.role ?? "member",
+    memberName: payload.memberName?.trim() || null,
     subscriptionStatus: payload.subscriptionStatus ?? null,
     onboardedAt: payload.onboardedAt ?? null,
     activeChannelCount: payload.activeChannelCount ?? 0,
