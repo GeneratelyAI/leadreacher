@@ -5,6 +5,7 @@ export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";
 export const QUEUE_RECONCILE_MAINTENANCE = "reconcile-maintenance";
 export const QUEUE_ANALYTICS_INSIGHTS = "analytics-insights";
+export const QUEUE_ONBOARDING_PROSPECT_DISCOVERY = "onboarding-prospect-discovery";
 
 // A single maintenance queue avoids four idle BullMQ workers continuously
 // long-polling Redis. Individual task cadences are handled by the worker.
@@ -62,6 +63,11 @@ export type AnalyticsInsightsJob = {
   orgId?: string;
 };
 
+export type OnboardingProspectDiscoveryJob = {
+  orgId: string;
+  campaignId: string;
+};
+
 export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
   connection: redis,
   defaultJobOptions: {
@@ -91,6 +97,16 @@ export const reconcileMaintenanceQueue = new Queue(QUEUE_RECONCILE_MAINTENANCE, 
 export const analyticsInsightsQueue = new Queue(QUEUE_ANALYTICS_INSIGHTS, {
   connection: redis,
 });
+
+export const onboardingProspectDiscoveryQueue = new Queue<OnboardingProspectDiscoveryJob>(
+  QUEUE_ONBOARDING_PROSPECT_DISCOVERY,
+  {
+    connection: redis,
+    defaultJobOptions: {
+      attempts: 1,
+    },
+  },
+);
 
 /**
  * Idempotently register the single repeatable maintenance job. Safe to call
@@ -131,5 +147,6 @@ export async function closeQueues(): Promise<void> {
     videoGenerationQueue.close(),
     reconcileMaintenanceQueue.close(),
     analyticsInsightsQueue.close(),
+    onboardingProspectDiscoveryQueue.close(),
   ]);
 }

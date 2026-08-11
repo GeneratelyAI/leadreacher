@@ -25,6 +25,7 @@ import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
 import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
 import { startVideoGenerationWorker } from "./workers/video-generation.js";
 import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
+import { startOnboardingProspectDiscoveryWorker } from "./workers/onboarding-prospect-discovery.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -106,6 +107,7 @@ export async function buildServer() {
 
   if (campaignWorkerEnabled) {
     registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
+    registerWorker(startOnboardingProspectDiscoveryWorker(), "onboarding-prospect-discovery");
     stopHeartbeats.push(
       startBetterStackHeartbeat({
         name: "campaign-worker",
