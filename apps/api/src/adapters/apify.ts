@@ -1,6 +1,7 @@
 import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
 import { resolveCompanyHeadcountCodes } from "./linkedin-company-size-codes.js";
 import { resolveIndustryIds } from "./linkedin-industry-codes.js";
+import type { ProspectProfile, ProspectSearchFilters } from "./prospect-search.js";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const LINKEDIN_SEARCH_ACTOR_ID = "harvestapi~linkedin-profile-search";
@@ -12,13 +13,7 @@ export type ApifyCredentials = {
   apiKey: string;
 };
 
-export type ICPFilters = {
-  jobTitles: string[];
-  industries: string[];
-  companySizes: string[];
-  locations: string[];
-  keywords?: string[];
-};
+export type ICPFilters = ProspectSearchFilters;
 
 export type ScrapeLeadsOptions = {
   profileScraperMode?: ActorRunInput["profileScraperMode"];
@@ -89,22 +84,7 @@ type RawLinkedInCompany = {
   }>;
 };
 
-export type ScrapedProfile = {
-  linkedinUrl: string;
-  firstName: string;
-  lastName: string;
-  title: string;
-  company: string;
-  location?: string;
-  industry?: string;
-  companySize?: string;
-  email?: string;
-  phone?: string;
-  publicIdentifier?: string;
-  providerLinkedinId?: string;
-  avatarUrl?: string;
-  enrichmentData: Record<string, unknown>;
-};
+export type ScrapedProfile = ProspectProfile;
 
 export type ScrapedCompany = {
   linkedinUrl: string;
