@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Search,
   Upload,
+  UserPlus,
   Users,
   X,
   Clock3,
@@ -23,6 +24,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
 import { ImportProspectsModal } from "@/components/dashboard/ImportProspectsModal";
+import { SearchProspectModal } from "@/components/dashboard/SearchProspectModal";
 import { ScrapeProspectsModal } from "@/components/dashboard/ScrapeProspectsModal";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
@@ -252,6 +254,7 @@ function SelectionActionBar({
   approvedCount,
   campaigns,
   enrollmentCampaignId,
+  isCampaignReview,
   isUpdating,
   onApprove,
   onExclude,
@@ -263,6 +266,7 @@ function SelectionActionBar({
   approvedCount: number;
   campaigns: Campaign[];
   enrollmentCampaignId: string;
+  isCampaignReview: boolean;
   isUpdating: boolean;
   onApprove: () => void;
   onExclude: () => void;
@@ -276,7 +280,7 @@ function SelectionActionBar({
       entityName="Prospect"
       ariaLabel="Selected prospect actions"
       onClear={onClear}
-      trailing={
+      trailing={isCampaignReview ? undefined : (
         <Button
           size="sm"
           variant="primary"
@@ -287,7 +291,7 @@ function SelectionActionBar({
         >
           Add {approvedCount} approved
         </Button>
-      }
+      )}
     >
       <SelectionToolbarAction leftIcon={<Check />} disabled={isUpdating} onClick={onApprove}>
         Approve
@@ -295,7 +299,7 @@ function SelectionActionBar({
       <SelectionToolbarAction leftIcon={<X />} disabled={isUpdating} onClick={onExclude}>
         Exclude
       </SelectionToolbarAction>
-      <DropdownMenu>
+      {!isCampaignReview ? <DropdownMenu>
         <DropdownMenuTrigger
           render={
             <SelectionToolbarAction aria-label="Campaign for selected prospects" />
@@ -317,7 +321,7 @@ function SelectionActionBar({
               </DropdownMenuItem>
             ))}
         </DropdownMenuContent>
-      </DropdownMenu>
+      </DropdownMenu> : null}
     </SelectionToolbar>
   );
 }
@@ -347,7 +351,10 @@ export function ProspectsWorkspace() {
   const [isUpdating, setIsUpdating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [scrapeOpen, setScrapeOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [scrapeOpen, setScrapeOpen] = useState(
+    () => searchParams.get("findProspects") === "true",
+  );
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const prospectParams = useMemo(() => {
@@ -442,6 +449,9 @@ export function ProspectsWorkspace() {
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
   const clearFilters = () => { setQuery(""); setReviewStatus("all"); setLifecycle(""); setSource(""); setCampaignFilter(""); setRelationshipFilter(""); };
   const activeFilterCount = [lifecycle, source, campaignFilter, relationshipFilter].filter(Boolean).length;
+  const campaignReview = campaignFilter
+    ? campaigns.find((campaign) => campaign.id === campaignFilter) ?? null
+    : null;
 
   const filterControls = (
     <>
@@ -486,16 +496,33 @@ export function ProspectsWorkspace() {
     <div className={cn("space-y-4", selected.size > 0 && "pb-36 sm:pb-32")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight">Prospects</h1>
-          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">Review real people before enrollment. Approval and exclusion are reversible and do not alter existing campaign delivery.</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {campaignFilter ? "Review campaign audience" : "Prospects"}
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+            {campaignFilter
+              ? "Approve or exclude every enrolled prospect. Nothing is sent until the audience and sequence are both reviewed."
+              : "Review real people before enrollment. Approval and exclusion are reversible and do not alter existing campaign delivery."}
+          </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="secondary" className="min-h-10" onClick={() => setImportOpen(true)}>
-            <Upload /> Import CSV
-          </Button>
-          <Button variant="brand" className="min-h-10" onClick={() => setScrapeOpen(true)}>
-            <Search /> Find prospects
-          </Button>
+          {campaignFilter ? (
+            <Button variant="brand" className="min-h-10" asChild>
+              <Link href={`/dashboard/campaigns?reviewCampaignId=${campaignFilter}`}>Review campaign</Link>
+            </Button>
+          ) : (
+            <>
+              <Button variant="secondary" className="min-h-10" onClick={() => setQuickAddOpen(true)}>
+                <UserPlus /> Add prospect
+              </Button>
+              <Button variant="secondary" className="min-h-10" onClick={() => setImportOpen(true)}>
+                <Upload /> Import CSV
+              </Button>
+              <Button variant="brand" className="min-h-10" onClick={() => setScrapeOpen(true)}>
+                <Search /> Find prospects
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -509,7 +536,11 @@ export function ProspectsWorkspace() {
 
       {error ? <div role="alert" className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">{error}</div> : null}
 
-      {enrollmentCampaignId ? (
+      {campaignReview ? (
+        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-900 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
+          Reviewing <span className="font-semibold">{campaignReview.name}</span>. {counts.pending} prospect{counts.pending === 1 ? "" : "s"} still need{counts.pending === 1 ? "s" : ""} a decision.
+        </div>
+      ) : enrollmentCampaignId ? (
         <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-900 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
           Enrolling into{" "}
           <span className="font-semibold">
@@ -554,13 +585,30 @@ export function ProspectsWorkspace() {
         {isLoading ? <LoadingRows /> : leads.length === 0 ? (
           <div className="px-6 py-16 text-center">
             <Users className="mx-auto size-8 text-muted-foreground" />
-            <h2 className="mt-3 font-semibold">No prospects match these filters</h2>
-            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{debouncedQuery || reviewStatus !== "all" || activeFilterCount ? "No prospects match the current search and filters." : "Import a CSV or run an ICP search to begin reviewing prospects."}</p>
+            <h2 className="mt-3 font-semibold">
+              {campaignReview && !debouncedQuery && reviewStatus === "all" && activeFilterCount === 1
+                ? "This campaign has no prospects to review"
+                : "No prospects match these filters"}
+            </h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+              {campaignReview && !debouncedQuery && reviewStatus === "all" && activeFilterCount === 1
+                ? "Return to the campaign to retry discovery or adjust the audience before launching."
+                : debouncedQuery || reviewStatus !== "all" || activeFilterCount
+                  ? "No prospects match the current search and filters."
+                  : "Import a CSV or run an ICP search to begin reviewing prospects."}
+            </p>
             {debouncedQuery || reviewStatus !== "all" || activeFilterCount ? <Button variant="secondary" className="mt-4" onClick={clearFilters}>Clear filters</Button> : null}
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button>
-              <Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button>
-            </div>
+            {campaignReview ? (
+              <Button variant="brand" className="mt-4" asChild>
+                <Link href={`/dashboard/campaigns?reviewCampaignId=${campaignFilter}`}>Review campaign</Link>
+              </Button>
+            ) : (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <Button variant="secondary" onClick={() => setQuickAddOpen(true)}><UserPlus /> Add prospect</Button>
+                <Button variant="secondary" onClick={() => setImportOpen(true)}><Upload /> Import CSV</Button>
+                <Button variant="brand" onClick={() => setScrapeOpen(true)}><Search /> Find prospects</Button>
+              </div>
+            )}
           </div>
         ) : (
           <>
@@ -747,6 +795,7 @@ export function ProspectsWorkspace() {
         approvedCount={approvedSelectedCount}
         campaigns={campaigns}
         enrollmentCampaignId={enrollmentCampaignId}
+        isCampaignReview={Boolean(campaignFilter)}
         isUpdating={isUpdating}
         onApprove={() => void updateReview([...selected], "approved")}
         onExclude={() => void updateReview([...selected], "excluded")}
@@ -756,6 +805,7 @@ export function ProspectsWorkspace() {
       />
 
       <ImportProspectsModal open={importOpen} onOpenChange={setImportOpen} onImported={load} />
+      <SearchProspectModal open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={load} />
       <ScrapeProspectsModal open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>

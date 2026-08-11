@@ -14,22 +14,21 @@ type TrustedBrand = {
   name: string;
   src: string;
   widthClassName: string;
-  imageClassName?: string;
 };
 
 const TRUSTED_BRANDS: readonly TrustedBrand[] = [
-  { name: "Emirates", src: "/landing/trusted-brands/emirates.svg", widthClassName: "w-32 sm:w-36", imageClassName: "scale-[1.2]" },
-  { name: "Accenture", src: "/landing/trusted-brands/accenture.svg", widthClassName: "w-36 sm:w-44" },
-  { name: "Shell", src: "/landing/trusted-brands/shell.svg", widthClassName: "w-20 sm:w-24", imageClassName: "scale-[1.5]" },
-  { name: "RE/MAX", src: "/landing/trusted-brands/remax.png", widthClassName: "w-32 sm:w-36" },
-  { name: "Amazon Web Services", src: "/landing/trusted-brands/aws.png", widthClassName: "w-36 sm:w-40" },
-  { name: "Grammarly", src: "/landing/trusted-brands/grammarly.png", widthClassName: "w-36 sm:w-40" },
-  { name: "Hilton", src: "/landing/trusted-brands/hilton.svg", widthClassName: "w-28 sm:w-32", imageClassName: "scale-[2.15]" },
-  { name: "Samsung", src: "/landing/trusted-brands/samsung.png", widthClassName: "w-36 sm:w-40" },
-  { name: "Nespresso", src: "/landing/trusted-brands/nespresso.svg", widthClassName: "w-32 sm:w-36", imageClassName: "scale-[2.1]" },
-  { name: "Red Bull", src: "/landing/trusted-brands/redbull.svg", widthClassName: "w-32 sm:w-36", imageClassName: "scale-[1.8]" },
-  { name: "Deloitte", src: "/landing/trusted-brands/deloitte.png", widthClassName: "w-36 sm:w-40" },
-  { name: "Omnicom Media Group", src: "/landing/trusted-brands/omnicom.svg", widthClassName: "w-36 sm:w-40", imageClassName: "scale-[1.5]" },
+  { name: "Emirates", src: "/landing/trusted-brands/emirates-monochrome.png", widthClassName: "w-32 sm:w-36" },
+  { name: "Accenture", src: "/landing/trusted-brands/accenture-monochrome.png", widthClassName: "w-36 sm:w-44" },
+  { name: "Shell", src: "/landing/trusted-brands/shell-monochrome.png", widthClassName: "w-20 sm:w-24" },
+  { name: "RE/MAX", src: "/landing/trusted-brands/remax-monochrome.png", widthClassName: "w-32 sm:w-36" },
+  { name: "Amazon Web Services", src: "/landing/trusted-brands/aws-monochrome.png", widthClassName: "w-36 sm:w-40" },
+  { name: "Grammarly", src: "/landing/trusted-brands/grammarly-monochrome.png", widthClassName: "w-36 sm:w-40" },
+  { name: "Hilton", src: "/landing/trusted-brands/hilton-monochrome.png", widthClassName: "w-28 sm:w-32" },
+  { name: "Samsung", src: "/landing/trusted-brands/samsung-monochrome.png", widthClassName: "w-36 sm:w-40" },
+  { name: "Nespresso", src: "/landing/trusted-brands/nespresso-monochrome.png", widthClassName: "w-32 sm:w-36" },
+  { name: "Red Bull", src: "/landing/trusted-brands/redbull-monochrome.png", widthClassName: "w-32 sm:w-36" },
+  { name: "Deloitte", src: "/landing/trusted-brands/deloitte-monochrome.png", widthClassName: "w-36 sm:w-40" },
+  { name: "Omnicom Media Group", src: "/landing/trusted-brands/omnicom-monochrome.png", widthClassName: "w-36 sm:w-40" },
 ] as const;
 
 const BASE_SPEED_PX_PER_SECOND = 20;
@@ -84,7 +83,7 @@ function BrandLogo({ brand }: { brand: TrustedBrand }) {
         fill
         sizes="176px"
         loading="eager"
-        className={cn("object-contain", brand.imageClassName)}
+        className="object-contain grayscale contrast-200"
       />
     </span>
   );
@@ -177,7 +176,7 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
 }
 
 export default function TrustedBrandsMarquee() {
-  const sectionRef = useRef<HTMLElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
   const reducedMotion = Boolean(useReducedMotion());
   const velocityRef = useScrollVelocity(isNearViewport, reducedMotion);
@@ -195,10 +194,9 @@ export default function TrustedBrandsMarquee() {
   }, []);
 
   return (
-    <section
+    <div
       ref={sectionRef}
-      aria-labelledby="trusted-brands-title"
-      className="relative z-20 overflow-hidden bg-white pb-8 pt-24 sm:pb-10 sm:pt-32 lg:pb-12 lg:pt-40"
+      className="relative z-20 overflow-hidden pb-8 pt-24 sm:pb-10 sm:pt-32 lg:pb-12 lg:pt-40"
     >
       <h2
         id="trusted-brands-title"
@@ -209,6 +207,6 @@ export default function TrustedBrandsMarquee() {
       <div className="mt-7 sm:mt-9">
         <BrandTrack velocityRef={velocityRef} reducedMotion={reducedMotion} />
       </div>
-    </section>
+    </div>
   );
 }

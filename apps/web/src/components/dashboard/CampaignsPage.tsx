@@ -12,7 +12,6 @@ import {
   Ellipsis,
   Eye,
   Filter,
-  Loader2,
   MessageCircle,
   MessageSquare,
   Pause,
@@ -28,7 +27,7 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { CampaignDetailSheet } from "@/components/dashboard/CampaignDetailSheet";
+import { CampaignDetailSheet, type CampaignDetail } from "@/components/dashboard/CampaignDetailSheet";
 import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@/components/dashboard/SequenceBuilder";
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
@@ -126,6 +125,15 @@ function titleCase(value: string): string {
 
 function channelLabel(channel: string): string {
   return titleCase(channel);
+}
+
+function campaignChannelLabel(channels: string[]): string {
+  return channels.length === 1 ? channelLabel(channels[0]) : "Multi-channel";
+}
+
+function campaignNamePreview(audience: string, channels: string[], goal: string): string {
+  const parts = [audience.trim(), campaignChannelLabel(channels), goal.trim()].filter(Boolean);
+  return parts.length === 3 ? parts.join(" · ") : "Audience · Channel · Goal";
 }
 
 function percentChange(current: number, previous: number): string {
@@ -335,11 +343,13 @@ function CampaignRowView({
   campaign,
   selected,
   onToggleSelect,
+  onPrefetch,
   handlers,
 }: {
   campaign: CampaignRow;
   selected: boolean;
   onToggleSelect: (id: string, checked: boolean) => void;
+  onPrefetch: (id: string) => void;
   handlers: ActionHandlers;
 }) {
   return (
@@ -349,6 +359,8 @@ function CampaignRowView({
         "app-list-row relative px-5 py-5 transition-colors sm:px-6",
         selected && "bg-onboarding-purple-50/70 dark:bg-onboarding-purple-900/25",
       )}
+      onMouseEnter={() => onPrefetch(campaign.id)}
+      onFocusCapture={() => onPrefetch(campaign.id)}
     >
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -408,18 +420,24 @@ function CampaignRowView({
 
 function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount[]; onCreated: () => Promise<void> }) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [audience, setAudience] = useState("");
+  const [goal, setGoal] = useState("Start conversations");
   const [sequence, setSequence] = useState<SequenceStepDraft[]>(() => defaultSequenceDraft());
   const [channelAccounts, setChannelAccounts] = useState<Record<string, string>>({});
   const [personalizeByChannel, setPersonalizeByChannel] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeAccounts = useMemo(() => accounts.filter((account) => account.status === "active"), [accounts]);
+  const availableSequenceChannels = useMemo(
+    () => [...new Set(activeAccounts.map((account) => account.platform))],
+    [activeAccounts],
+  );
   const sequenceChannels = useMemo(() => [...new Set(sequence.map((step) => {
     if (step.type.startsWith("linkedin_")) return "linkedin";
     if (step.type === "email") return "email";
     return step.type.replace(/_message$/, "");
   }))], [sequence]);
+  const namePreview = campaignNamePreview(audience, sequenceChannels, goal);
 
   useEffect(() => {
     setChannelAccounts((current) => {
@@ -437,12 +455,16 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       }
       return changed ? next : current;
     });
-  }, [accounts, sequenceChannels]);
+  }, [activeAccounts, sequenceChannels]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (sequence.some((step) => !step.message.trim())) {
       setError("Every sequence step needs a message.");
+      return;
+    }
+    if (!audience.trim() || !goal.trim()) {
+      setError("Add the audience and goal for this campaign.");
       return;
     }
     const missingChannel = sequenceChannels.find((channel) => !channelAccounts[channel]);
@@ -456,7 +478,11 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       await apiFetch("/campaigns", {
         method: "POST",
         body: JSON.stringify({
-          name,
+          naming: {
+            audience: audience.trim(),
+            channelLabel: campaignChannelLabel(sequenceChannels),
+            goal: goal.trim(),
+          },
           channels: sequenceChannels,
           socialAccountId: channelAccounts.linkedin || undefined,
           channelAccounts,
@@ -469,7 +495,8 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
           })),
         }),
       });
-      setName("");
+      setAudience("");
+      setGoal("Start conversations");
       setSequence(defaultSequenceDraft());
       setChannelAccounts({});
       setPersonalizeByChannel(true);
@@ -503,13 +530,25 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
         <form onSubmit={(event) => void submit(event)} className="grid gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium">
-              Campaign name
-              <Input required value={name} onChange={(event) => setName(event.target.value)} placeholder="Q3 founder outreach" />
+              Audience
+              <Input required value={audience} onChange={(event) => setAudience(event.target.value)} placeholder="Revenue leaders" />
             </label>
+            <label className="grid gap-2 text-sm font-medium">
+              Goal
+              <Input required value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="Book discovery calls" />
+            </label>
+          </div>
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Campaign name</p>
+            <p className="mt-1 truncate text-sm font-medium" title={namePreview}>{namePreview}</p>
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Sequence</p>
-            <SequenceBuilder value={sequence} onChange={setSequence} />
+            <SequenceBuilder
+              value={sequence}
+              onChange={setSequence}
+              availableChannels={availableSequenceChannels}
+            />
           </div>
           <label className="flex items-start gap-3 rounded-lg border border-border p-3">
             <Checkbox
@@ -651,11 +690,27 @@ export function CampaignsPage() {
 
   async function patchCampaign(id: string, body: Record<string, unknown>, success: string) {
     setIsActing(true);
+    const previous = queryClient.getQueriesData<CampaignResponse>({ queryKey: ["dashboard", "campaigns"] });
+    queryClient.setQueriesData<CampaignResponse>({ queryKey: ["dashboard", "campaigns"] }, (current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        campaigns: current.campaigns.map((campaign) => campaign.id === id
+          ? {
+              ...campaign,
+              ...(typeof body.status === "string" ? { status: body.status as CampaignStatus } : {}),
+              ...(typeof body.archived === "boolean" ? { archived: body.archived } : {}),
+              updatedAt: new Date().toISOString(),
+            }
+          : campaign),
+      };
+    });
     try {
       await apiFetch(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(body) });
       toast.success(success);
       await load();
     } catch (requestError) {
+      previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data));
       const message = requestError instanceof ApiError ? requestError.message : "Unable to update campaign.";
       setActionError(message);
       toast.error(message);
@@ -687,6 +742,14 @@ export function CampaignsPage() {
       })();
     },
   };
+
+  const prefetchCampaignDetail = useCallback((campaignId: string) => {
+    void queryClient.prefetchQuery({
+      queryKey: ["dashboard", "campaign", campaignId],
+      queryFn: () => apiFetch<CampaignDetail>(`/campaigns/${campaignId}`),
+      staleTime: 10_000,
+    });
+  }, [queryClient]);
 
   async function bulkPatch(body: { status?: "paused" | "active" | "completed"; archived?: boolean }, success: string) {
     if (selectedIds.size === 0) return;
@@ -872,9 +935,10 @@ export function CampaignsPage() {
         <div className="space-y-6 pt-1">
           {isLoading ? (
             <Card>
-              <CardContent className="flex min-h-48 items-center justify-center text-sm text-onboarding-neutral-500">
-                <Loader2 className="mr-2 size-4 animate-spin" />
-                Loading campaigns
+              <CardContent className="space-y-3 py-5">
+                <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+                <div className="h-24 animate-pulse rounded-lg bg-muted" />
+                <div className="h-24 animate-pulse rounded-lg bg-muted" />
               </CardContent>
             </Card>
           ) : groups.length === 0 ? (
@@ -909,6 +973,7 @@ export function CampaignsPage() {
                               return next;
                             });
                           }}
+                          onPrefetch={prefetchCampaignDetail}
                           handlers={handlers}
                         />
                       ))}

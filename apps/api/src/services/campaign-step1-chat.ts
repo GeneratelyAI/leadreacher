@@ -18,6 +18,7 @@ import {
 } from "../lib/rate-limiter.js";
 import { requireOrganizationEntitlement } from "./entitlements.js";
 import { personalizeSequenceStep } from "./personalize-sequence-step.js";
+import { publishDashboardEvent } from "../lib/dashboard-events.js";
 
 type DeliverStep1Params = {
   adapter: UnipileAdapter;
@@ -166,6 +167,7 @@ export async function deliverSequenceStep1ViaChat(
                     contentType: campaignVideo.contentType,
                     filename: campaignVideo.filename,
                     videoUrl: campaignVideo.videoUrl,
+                    ...(campaignVideo.thumbnailUrl ? { thumbnailUrl: campaignVideo.thumbnailUrl } : {}),
                   },
                 ],
               }
@@ -206,6 +208,12 @@ export async function deliverSequenceStep1ViaChat(
       },
     );
   }
+
+  await publishDashboardEvent({
+    orgId,
+    type: "campaign.metrics.updated",
+    resources: { campaignId, campaignLeadId },
+  });
 
   return { delivered: true, chatId: chat.chat_id };
 }

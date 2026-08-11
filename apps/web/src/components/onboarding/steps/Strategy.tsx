@@ -61,6 +61,7 @@ type StrategyResponse = {
 
 type AudienceAnalysis = {
   status: "running" | "completed" | "failed";
+  source?: "apify" | "connected_linkedin";
   startedAt?: string;
   error?: string;
   companies: {
@@ -172,6 +173,10 @@ function getAudienceAnalysis(strategy: StrategyResponse | null): AudienceAnalysi
 
   return {
     status,
+    source:
+      analysis.source === "connected_linkedin" || analysis.source === "apify"
+        ? analysis.source
+        : undefined,
     startedAt: toStringValue(analysis.startedAt) || undefined,
     error: toStringValue(analysis.error) || undefined,
     companies: {
@@ -510,9 +515,8 @@ function StrategyBriefContent({
           </h2>
         </div>
         {audiencePending ? (
-          <span className="inline-flex items-center gap-2 rounded-full bg-brand-purple/8 px-3 py-1.5 text-xs font-semibold text-brand-purple dark:bg-brand-purple/20 dark:text-brand-100">
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            Finding matching people
+          <span className="inline-flex rounded-full bg-brand-purple/8 px-3 py-1.5 text-xs font-semibold text-brand-purple dark:bg-brand-purple/20 dark:text-brand-100">
+            Matching people will be found after connection
           </span>
         ) : null}
       </div>
@@ -692,6 +696,39 @@ function TargetingScreen({
             <StrategyBriefContent brief={strategyBrief} />
           </OnboardingCard>
         ) : null}
+      </section>
+    );
+  }
+
+  if (analysis.source === "connected_linkedin") {
+    const roles = strategyBrief?.decisionMakerRoles ?? [];
+    return (
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+        <ScreenHeader
+          icon={<Users className="size-8" aria-hidden />}
+          title="Your target audience"
+          subtitle="The strategy is ready. Prospect results will come from your connected LinkedIn account."
+        />
+        <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-7 sm:px-8">
+          {strategyBrief ? <StrategyBriefContent brief={strategyBrief} audiencePending /> : null}
+          <div className="mt-7 grid gap-4 border-t border-neutral-200 pt-7 dark:border-neutral-700 md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
+                Decision makers to find after connection
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {roles.map((role) => (
+                  <span key={role} className="rounded-full bg-brand-purple/8 px-3 py-1.5 text-sm font-medium text-brand-purple dark:bg-brand-purple/20 dark:text-brand-100">
+                    {role}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border border-brand-purple/15 bg-brand-purple/5 px-4 py-3 text-sm text-neutral-600 dark:border-brand-purple/30 dark:bg-brand-purple/10 dark:text-neutral-300">
+              Connect LinkedIn in Channels. After setup, we will find matching prospects and place them in campaign review.
+            </div>
+          </div>
+        </OnboardingCard>
       </section>
     );
   }
@@ -942,7 +979,7 @@ function ChannelsScreen({
 
       <p className="mt-5 flex items-center justify-center gap-2 text-sm text-neutral-500 dark:text-onboarding-neutral-300">
         <Info className="size-4" aria-hidden />
-        Confidence scores are based on reachability and engagement potential.
+        Confidence scores reflect channel fit before prospect enrichment.
       </p>
     </section>
   );

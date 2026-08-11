@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   encodeHostedAuthName,
@@ -8,7 +9,7 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { UNIPILE_CONNECT_PROVIDERS, normalizeUnipilePlatform } from "../lib/channels.js";
-import { ValidationError } from "../lib/errors.js";
+import { ConflictError, ValidationError } from "../lib/errors.js";
 import {
   ErrorResponseSchema,
   authenticatedRoute,
@@ -16,7 +17,9 @@ import {
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
+import { publishDashboardEvent } from "../lib/dashboard-events.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { redis } from "../lib/redis.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
@@ -25,6 +28,31 @@ const ConnectSocialAccountBodySchema = z.object({
   provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
   returnTo: z.enum(["onboarding", "home", "dashboard"]).default("onboarding"),
 });
+
+const ConfirmSocialAccountBodySchema = z.object({
+  accountId: z.string().min(1),
+  connectionToken: z.string().uuid().optional(),
+});
+
+const PendingConnectionSchema = z.object({
+  orgId: z.string().min(1),
+  provider: z.enum(UNIPILE_CONNECT_PROVIDERS),
+});
+
+const CONNECTION_CONFIRMATION_TTL_SECONDS = 20 * 60;
+
+function pendingConnectionKey(token: string): string {
+  return `social-account:connection:${token}`;
+}
+
+function parsePendingConnection(raw: string | null) {
+  if (!raw) return PendingConnectionSchema.safeParse(null);
+  try {
+    return PendingConnectionSchema.safeParse(JSON.parse(raw));
+  } catch {
+    return PendingConnectionSchema.safeParse(null);
+  }
+}
 
 const SocialAccountsQuerySchema = z.object({
   startDate: z.string().date().optional(),
@@ -244,16 +272,108 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       apiKey: env.UNIPILE_API_KEY,
     });
     const resolvedReturnTo = returnTo === "home" ? "dashboard" : returnTo;
-    const link = await adapter.createHostedAuthLink({
-      providers: [provider],
-      name: encodeHostedAuthName(orgId),
-      notifyUrl: getHostedAuthNotifyUrl(),
-      successRedirectUrl: channelsRedirect(resolvedReturnTo, "connected"),
-      failureRedirectUrl: channelsRedirect(resolvedReturnTo, "failed"),
-      expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+    const connectionToken = randomUUID();
+    const key = pendingConnectionKey(connectionToken);
+    await redis.set(
+      key,
+      JSON.stringify({ orgId, provider }),
+      "EX",
+      CONNECTION_CONFIRMATION_TTL_SECONDS,
+    );
+
+    try {
+      const link = await adapter.createHostedAuthLink({
+        providers: [provider],
+        name: encodeHostedAuthName(orgId),
+        notifyUrl: getHostedAuthNotifyUrl(),
+        successRedirectUrl: channelsRedirect(resolvedReturnTo, "connected"),
+        failureRedirectUrl: channelsRedirect(resolvedReturnTo, "failed"),
+        expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      });
+
+      return reply.send({ url: link.url, connectionToken });
+    } catch (error) {
+      await redis.del(key);
+      throw error;
+    }
+  });
+
+  r.post("/social-accounts/connect/confirm", {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 minute",
+      },
+    },
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Confirm a returned Unipile hosted-auth account"),
+      body: ConfirmSocialAccountBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { accountId, connectionToken } = request.body;
+    const key = connectionToken ? pendingConnectionKey(connectionToken) : null;
+    const pending = key
+      ? parsePendingConnection(await redis.get(key))
+      : null;
+
+    if (pending && (!pending.success || pending.data.orgId !== orgId)) {
+      throw new ValidationError("This connection confirmation has expired. Connect the account again.");
+    }
+
+    const adapter = new UnipileAdapter({
+      dsn: env.UNIPILE_DSN,
+      apiKey: env.UNIPILE_API_KEY,
+    });
+    const account = await adapter.getAccountStatus(accountId);
+    const platform = normalizeUnipilePlatform(account.type);
+    const expectedPlatform = pending?.success
+      ? normalizeUnipilePlatform(pending.data.provider)
+      : null;
+    if (expectedPlatform && platform !== expectedPlatform) {
+      throw new ValidationError("The returned account does not match the channel being connected.");
+    }
+
+    const claimed = await prisma.socialAccount.findFirst({
+      where: { unipileId: account.id, orgId: { not: orgId } },
+      select: { id: true },
+    });
+    if (claimed) {
+      throw new ConflictError("This provider account is already connected to another workspace.");
+    }
+
+    const status = isAccountHealthy(account) ? "active" : "reconnecting";
+    await prisma.socialAccount.upsert({
+      where: {
+        orgId_platform_platformUserId: {
+          orgId,
+          platform,
+          platformUserId: account.id,
+        },
+      },
+      create: {
+        orgId,
+        platform,
+        platformUserId: account.id,
+        unipileId: account.id,
+        accountName: account.name,
+        status,
+        metadata: { providerType: account.type.toLowerCase() },
+      },
+      update: {
+        unipileId: account.id,
+        accountName: account.name,
+        status,
+        metadata: { providerType: account.type.toLowerCase() },
+      },
     });
 
-    return reply.send({ url: link.url });
+    await Promise.all([
+      ...(key ? [redis.del(key)] : []),
+      invalidateDashboardChrome(orgId),
+    ]);
+    await publishDashboardEvent({ orgId, type: "channel.updated", resources: {} });
+    return reply.send({ connected: status === "active", status, platform });
   });
 
   r.post("/social-accounts/sync", {
@@ -329,6 +449,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await invalidateDashboardChrome(orgId);
+    await publishDashboardEvent({ orgId, type: "channel.updated", resources: {} });
     return reply.send({ synced });
   });
 }

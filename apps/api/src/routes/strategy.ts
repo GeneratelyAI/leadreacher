@@ -537,92 +537,23 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
           },
         }));
 
-      if (hasCompletedAudienceAnalysis(strategy) && !request.body.force) {
-        const currentIcpDefinition = asRecord(strategy.icpDefinition);
-        if (asRecord(currentIcpDefinition.strategyBrief).status === "ready") {
-          await releaseOwnedLock(lockKey, ownerToken);
-          return reply.send(strategy);
-        }
-
-        let completedBrief;
-        try {
-          completedBrief = buildStrategyBrief(strategy);
-        } catch {
-          await releaseOwnedLock(lockKey, ownerToken);
-          // Older completed strategies may predate the Discovery fields used
-          // by the new plan. Keep their completed audience usable.
-          return reply.send(strategy);
-        }
-
-        const strategyPlan = strategyBriefPersistence(strategy, completedBrief);
-        const plannedIcpDefinition = asRecord(strategyPlan.icpDefinition);
-        const updatedStrategy = await prisma.strategy.update({
-          where: { id: strategy.id },
-          data: {
-            ...strategyPlan,
-            icpDefinition: toJson({
-              ...plannedIcpDefinition,
-              audienceAnalysis: currentIcpDefinition.audienceAnalysis,
-            }),
-          },
-        });
-        await releaseOwnedLock(lockKey, ownerToken);
-        return reply.send(updatedStrategy);
-      }
-
-      let brief;
       try {
-        brief = buildStrategyBrief(strategy);
-      } catch (error) {
-        await releaseOwnedLock(lockKey, ownerToken);
-        throw error;
-      }
+        const currentIcpDefinition = asRecord(strategy.icpDefinition);
+        if (
+          hasCompletedAudienceAnalysis(strategy) &&
+          asRecord(currentIcpDefinition.strategyBrief).status === "ready" &&
+          !request.body.force
+        ) {
+          return reply.send(strategy);
+        }
 
-      const strategyPlan = strategyBriefPersistence(strategy, brief);
-      const plannedIcpDefinition = asRecord(strategyPlan.icpDefinition);
-
-      const runningStrategy = await prisma.strategy.update({
-        where: { id: strategy.id },
-        data: {
-          ...strategyPlan,
-          icpDefinition: toJson({
-            ...plannedIcpDefinition,
-            audienceAnalysis: {
-              status: "running",
-              startedAt: new Date().toISOString(),
-            },
-          }),
-        },
-      });
-
-      void generateStrategy(runningStrategy, orgId, request.dbUserId)
-        .catch(async (error: unknown) => {
-          request.log.error({ err: error, orgId }, "Strategy generation failed");
-          const message =
-            error instanceof Error
-              ? error.message
-              : "Unable to complete audience analysis.";
-          await prisma.strategy.update({
-            where: { id: runningStrategy.id },
-            data: {
-              icpDefinition: toJson({
-                ...asRecord(runningStrategy.icpDefinition),
-                audienceAnalysis: {
-                  status: "failed",
-                  error: message,
-                  generatedAt: new Date().toISOString(),
-                },
-              }),
-            },
-          });
-        })
-        .finally(async () => {
-          await releaseOwnedLock(lockKey, ownerToken).catch((error: unknown) => {
-            request.log.error({ err: error, orgId }, "Failed to release strategy lock");
-          });
+        const generated = await generateStrategy(strategy, orgId, request.dbUserId);
+        return reply.send(generated);
+      } finally {
+        await releaseOwnedLock(lockKey, ownerToken).catch((error: unknown) => {
+          request.log.error({ err: error, orgId }, "Failed to release strategy lock");
         });
-
-      return reply.status(202).send(runningStrategy);
+      }
     },
   );
 }

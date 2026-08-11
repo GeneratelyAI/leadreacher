@@ -4,19 +4,31 @@ import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { ForbiddenError, ValidationError } from "../lib/errors.js";
 import {
+  CampaignIdParamsSchema,
   authenticatedRoute,
   errorResponses,
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { onboardingProspectDiscoveryQueue } from "../lib/queue.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
+import {
+  onboardingStrategyFingerprint,
+  withOnboardingDiscovery,
+} from "../services/onboarding-prospect-discovery.js";
+import { formatCampaignName } from "../lib/campaign-naming.js";
 
 const CompleteOnboardingResponseSchema = z.object({
   completed: z.literal(true),
   campaignId: z.string(),
   launched: z.boolean(),
   reviewRequired: z.boolean(),
-  prospectCount: z.number().int().nonnegative(),
+  prospectCount: z.number().int().nonnegative().optional(),
+  discoveryStatus: z.enum(["queued", "running", "completed", "failed"]),
+});
+
+const CompleteOnboardingBodySchema = z.object({
+  socialAccountId: z.string().trim().min(1).optional(),
 });
 
 type OnboardingCampaign = {
@@ -56,13 +68,9 @@ function outreachMessageWithCta(message: string, messagingAngles: Record<string,
   return label && url ? `${message}\n\n${label}: ${url}` : message;
 }
 
-function strategyProspectLeadIds(icpDefinition: unknown): string[] {
-  const analysis = asRecord(asRecord(icpDefinition).audienceAnalysis);
-  const decisionMakers = asRecord(analysis.decisionMakers);
-  const value = decisionMakers.prospectLeadIds;
-  return Array.isArray(value)
-    ? [...new Set(value.filter((id): id is string => typeof id === "string" && id.length > 0))]
-    : [];
+function onboardingCampaignGoal(messagingAngles: Record<string, unknown>): string {
+  const cta = asRecord(messagingAngles.cta);
+  return recordString(cta, "label") || "Start conversations";
 }
 
 async function ensureOnboardingCampaign(input: {
@@ -99,19 +107,33 @@ async function ensureOnboardingCampaign(input: {
     orderBy: { createdAt: "desc" },
     select: { id: true, status: true, sequence: true, aiConfig: true },
   });
-  if (existing) {
+  const strategyFingerprint = onboardingStrategyFingerprint(input.strategy);
+  const existingFingerprint = recordString(asRecord(existing?.aiConfig), "strategyFingerprint");
+  if (existing && (existing.status === "active" || existingFingerprint === strategyFingerprint)) {
     if (existing.status !== "active") {
       await prisma.campaign.update({
         where: { id: existing.id },
         data: {
-          aiConfig: toJson({
-            ...asRecord(existing.aiConfig),
-            requiresSequenceReview: true,
-          }),
+          socialAccountId: input.linkedinSenderId,
+          aiConfig: withOnboardingDiscovery(
+            {
+              ...asRecord(existing.aiConfig),
+              requiresSequenceReview: true,
+              strategyFingerprint,
+            },
+            { status: "queued", prospectCount: 0 },
+          ),
         },
       });
     }
     return { id: existing.id, status: existing.status };
+  }
+
+  if (existing) {
+    await prisma.campaign.update({
+      where: { id: existing.id },
+      data: { aiConfig: toJson({ ...asRecord(existing.aiConfig), archived: true }) },
+    });
   }
 
   let outreachMessage = recordString(messagingAngles, "outreachMessage");
@@ -129,13 +151,18 @@ async function ensureOnboardingCampaign(input: {
     });
   }
 
-  const audienceLabel = audience.replace(/\s+/g, " ").trim().slice(0, 72);
-  const campaignName = `${audienceLabel || input.organizationName} outreach`;
+  const naming = {
+    audience: audience.replace(/\s+/g, " ").trim().slice(0, 72) || input.organizationName,
+    channelLabel: "LinkedIn",
+    goal: onboardingCampaignGoal(messagingAngles),
+  };
+  const campaignName = formatCampaignName(naming);
   const campaign = await prisma.campaign.create({
     data: {
       orgId: input.orgId,
       strategyId: input.strategy.id,
       name: campaignName,
+      naming,
       status: "review",
       channels: ["linkedin"],
       socialAccountId: input.linkedinSenderId,
@@ -155,6 +182,12 @@ async function ensureOnboardingCampaign(input: {
         source: "onboarding",
         requiresSequenceReview: true,
         video: input.strategy.videoConfig,
+        strategyFingerprint,
+        onboardingDiscovery: {
+          status: "queued",
+          prospectCount: 0,
+          updatedAt: new Date().toISOString(),
+        },
       }),
     },
     select: { id: true, status: true },
@@ -163,36 +196,22 @@ async function ensureOnboardingCampaign(input: {
   return campaign;
 }
 
-async function enrollOnboardingAudience(input: {
+async function queueOnboardingProspectDiscovery(input: {
   orgId: string;
   campaignId: string;
-  strategyIcpDefinition: unknown;
-}): Promise<number> {
-  const generatedLeadIds = strategyProspectLeadIds(input.strategyIcpDefinition);
-  const leads = await prisma.lead.findMany({
-    where: {
-      orgId: input.orgId,
-      ...(generatedLeadIds.length > 0
-        ? { id: { in: generatedLeadIds } }
-        : { source: "apify" }),
-      reviewStatus: { in: ["pending", "approved"] },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-    select: { id: true, reviewStatus: true },
-  });
-  if (leads.length === 0) {
-    throw new ValidationError(
-      "No prospects are available for the first campaign. Retry audience analysis before finishing onboarding.",
-    );
+}): Promise<void> {
+  const jobId = `onboarding-prospect-discovery-${input.campaignId}`;
+  const existing = await onboardingProspectDiscoveryQueue.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (["active", "waiting", "delayed", "prioritized"].includes(state)) return;
+    await existing.remove();
   }
-
-  const leadIds = leads.map((lead) => lead.id);
-  await prisma.campaignLead.createMany({
-    data: leadIds.map((leadId) => ({ campaignId: input.campaignId, leadId })),
-    skipDuplicates: true,
-  });
-  return leadIds.length;
+  await onboardingProspectDiscoveryQueue.add(
+    "discover-onboarding-prospects",
+    input,
+    { jobId },
+  );
 }
 
 export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
@@ -203,6 +222,7 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
     {
       schema: {
         ...authenticatedRoute("Onboarding", "Mark onboarding complete"),
+        body: CompleteOnboardingBodySchema,
         response: {
           200: CompleteOnboardingResponseSchema,
           ...errorResponses,
@@ -211,6 +231,7 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const orgId = requireOrgId(request);
+      const requestedSenderId = request.body.socialAccountId;
       const organization = await prisma.organization.findUnique({
         where: { id: orgId },
         select: { name: true, subscriptionStatus: true, onboardedAt: true },
@@ -230,7 +251,12 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const linkedinSender = await prisma.socialAccount.findFirst({
-        where: { orgId, platform: "linkedin", status: "active" },
+        where: {
+          orgId,
+          platform: "linkedin",
+          status: "active",
+          ...(requestedSenderId ? { id: requestedSenderId } : {}),
+        },
         select: { id: true },
       });
       if (!linkedinSender) {
@@ -263,14 +289,9 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         linkedinSenderId: linkedinSender.id,
       });
 
-      const prospectCount =
-        campaign.status === "active"
-          ? 0
-          : await enrollOnboardingAudience({
-              orgId,
-              campaignId: campaign.id,
-              strategyIcpDefinition: strategy.icpDefinition,
-            });
+      if (campaign.status !== "active") {
+        await queueOnboardingProspectDiscovery({ orgId, campaignId: campaign.id });
+      }
 
       if (!organization.onboardedAt) {
         await prisma.organization.update({
@@ -284,8 +305,39 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         campaignId: campaign.id,
         launched: campaign.status === "active",
         reviewRequired: campaign.status !== "active",
-        prospectCount,
+        discoveryStatus: campaign.status === "active" ? "completed" : "queued",
       });
+    },
+  );
+
+  r.post(
+    "/onboarding/campaigns/:campaignId/discovery/retry",
+    {
+      schema: {
+        ...authenticatedRoute("Onboarding", "Retry onboarding prospect discovery"),
+        params: CampaignIdParamsSchema,
+        response: { 200: z.object({ queued: z.literal(true) }), ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const campaign = await prisma.campaign.findFirst({
+        where: {
+          id: request.params.campaignId,
+          orgId,
+          aiConfig: { path: ["source"], equals: "onboarding" },
+          status: { not: "active" },
+        },
+        select: { id: true, aiConfig: true },
+      });
+      if (!campaign) throw new ValidationError("This onboarding campaign can no longer discover prospects.");
+
+      await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: { aiConfig: withOnboardingDiscovery(campaign.aiConfig, { status: "queued", prospectCount: 0 }) },
+      });
+      await queueOnboardingProspectDiscovery({ orgId, campaignId: campaign.id });
+      return reply.send({ queued: true as const });
     },
   );
 }

@@ -1,8 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { ApifyAdapter } from "../adapters/apify.js";
-import { env } from "../config/env.js";
 import { ConflictError, ForbiddenError, NotFoundError } from "../lib/errors.js";
 import { LeadStatusSchema } from "../lib/lead-status.js";
 import {
@@ -15,11 +13,13 @@ import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import {
   importFromCSV,
-  importScrapedProfiles,
+  importProspectProfiles,
 } from "../services/lead-import.js";
+import { searchAndImportLinkedInProspects, searchLinkedInProspects } from "../services/prospect-search.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
+const MAX_SEARCH_RESULTS = 50;
 
 const ScrapeLeadsFiltersSchema = z.object({
   jobTitles: z.array(z.string()),
@@ -29,10 +29,35 @@ const ScrapeLeadsFiltersSchema = z.object({
   keywords: z.array(z.string()).optional(),
 });
 
-const ScrapeLeadsBodySchema = z.object({
-  filters: ScrapeLeadsFiltersSchema,
-  maxResults: z.number().int().positive().max(MAX_LIMIT).optional(),
-});
+const ScrapeLeadsBodySchema = z
+  .object({
+    filters: ScrapeLeadsFiltersSchema,
+    maxResults: z.number().int().positive().max(MAX_SEARCH_RESULTS).optional(),
+    searchUrl: z
+      .string()
+      .url()
+      .refine(
+        (value) => value.startsWith("https://www.linkedin.com/search/results/people"),
+        "searchUrl must be a LinkedIn people search URL",
+      )
+      .optional(),
+  })
+  .superRefine((value, context) => {
+    const hasFilters = [
+      ...value.filters.jobTitles,
+      ...value.filters.industries,
+      ...value.filters.companySizes,
+      ...value.filters.locations,
+      ...(value.filters.keywords ?? []),
+    ].some((item) => item.trim().length > 0);
+    if (!value.searchUrl && !hasFilters) {
+      context.addIssue({
+        code: "custom",
+        path: ["filters"],
+        message: "Add at least one search filter or a LinkedIn people search URL",
+      });
+    }
+  });
 
 const PatchLeadBodySchema = z.object({
   status: LeadStatusSchema,
@@ -70,6 +95,30 @@ const ImportCsvBodySchema = z.object({
   rows: z.array(CsvRowSchema).min(1, "rows must be a non-empty array"),
 });
 
+const ProspectProfileSchema = z.object({
+  linkedinUrl: z.string().url().refine(
+    (value) => value.startsWith("https://www.linkedin.com/in/"),
+    "linkedinUrl must be a LinkedIn profile URL",
+  ),
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  title: z.string(),
+  company: z.string(),
+  location: z.string().optional(),
+  industry: z.string().optional(),
+  companySize: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  publicIdentifier: z.string().optional(),
+  providerLinkedinId: z.string().optional(),
+  avatarUrl: z.string().url().optional(),
+  enrichmentData: z.record(z.string(), z.unknown()),
+});
+
+const ImportProspectProfileBodySchema = z.object({
+  profile: ProspectProfileSchema,
+});
+
 const ListLeadsQuerySchema = z.object({
   status: z.string().optional(),
   source: z.string().optional(),
@@ -86,27 +135,82 @@ const ImportResultSchema = z.object({
 export async function leadsRoutes(app: FastifyInstance): Promise<void> {
   const r = app.withTypeProvider<ZodTypeProvider>();
 
+  const searchRouteSchema = {
+    ...authenticatedRoute("Leads", "Find LinkedIn prospects through a connected account"),
+    body: ScrapeLeadsBodySchema,
+  };
+
   r.post(
-    "/leads/scrape",
+    "/prospects/search/preview",
     {
       schema: {
-        ...authenticatedRoute("Leads", "Scrape LinkedIn leads via Apify"),
+        ...authenticatedRoute("Leads", "Preview LinkedIn prospects through a connected account"),
         body: ScrapeLeadsBodySchema,
       },
     },
     async (request, reply) => {
       const orgId = requireOrgId(request);
-      const { filters, maxResults } = request.body;
-
-      const adapter = new ApifyAdapter({ apiKey: env.APIFY_API_KEY });
-      const profiles = await adapter.scrapeLeads(filters, maxResults ?? 100);
-      const { imported, skipped } = await importScrapedProfiles(orgId, profiles);
-
-      return reply.send({
-        imported,
-        skipped,
-        total: profiles.length,
+      const { filters, maxResults, searchUrl } = request.body;
+      const result = await searchLinkedInProspects(orgId, {
+        filters,
+        maxResults: maxResults ?? 10,
+        searchUrl,
       });
+      return reply.send(result);
+    },
+  );
+
+  r.post(
+    "/prospects/import",
+    {
+      schema: {
+        ...authenticatedRoute("Leads", "Add one reviewed LinkedIn prospect"),
+        body: ImportProspectProfileBodySchema,
+      },
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const result = await importProspectProfiles(orgId, [request.body.profile], "linkedin");
+      return reply.send({
+        imported: result.imported,
+        skipped: result.skipped,
+        leadId: result.leadIds[0] ?? null,
+      });
+    },
+  );
+
+  r.post(
+    "/prospects/search",
+    {
+      schema: searchRouteSchema,
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const { filters, maxResults, searchUrl } = request.body;
+      const result = await searchAndImportLinkedInProspects(orgId, {
+        filters,
+        maxResults: maxResults ?? 25,
+        searchUrl,
+      });
+      return reply.send(result);
+    },
+  );
+
+  // Compatibility route for clients deployed before prospect search moved off Apify.
+  r.post(
+    "/leads/scrape",
+    {
+      schema: searchRouteSchema,
+    },
+    async (request, reply) => {
+      const orgId = requireOrgId(request);
+      const { filters, maxResults, searchUrl } = request.body;
+      const result = await searchAndImportLinkedInProspects(orgId, {
+        filters,
+        maxResults: maxResults ?? 25,
+        searchUrl,
+      });
+      return reply.send(result);
     },
   );
 

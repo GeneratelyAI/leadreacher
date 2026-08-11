@@ -39,20 +39,20 @@ export function PointerHighlight({
     <>
       {children}
       {dimensions.width > 0 && dimensions.height > 0 ? (
-        <motion.div
+        <motion.span
           aria-hidden
           className="pointer-events-none absolute inset-0 z-0"
           initial={{ opacity: 0, scale: 0.95, originX: 0, originY: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <motion.div
+          <motion.span
             className={cn("absolute inset-0 border border-neutral-800 dark:border-neutral-200", rectangleClassName)}
             initial={{ width: 0, height: 0 }}
             whileInView={{ width: dimensions.width, height: dimensions.height }}
             transition={{ duration: 1, ease: "easeInOut" }}
           />
-          <motion.div
+          <motion.span
             className="absolute pointer-events-none"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1, x: dimensions.width + 4, y: dimensions.height + 4 }}
@@ -60,8 +60,8 @@ export function PointerHighlight({
             transition={{ opacity: { duration: 0.1, ease: "easeInOut" }, duration: 1, ease: "easeInOut" }}
           >
             <Pointer className={cn("size-5 text-blue-500", pointerClassName)} />
-          </motion.div>
-        </motion.div>
+          </motion.span>
+        </motion.span>
       ) : null}
     </>
   );

@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const API_VERSION = "/api/v1";
+const UNIPILE_V2_BASE_URL = "https://api.unipile.com/v2";
 const UNIPILE_TIMEOUT_MS = 30_000;
 
 // Shape of GET /accounts/{id}, confirmed empirically against a live LinkedIn
@@ -38,6 +39,75 @@ type UnipileAccountList = {
 
 type HostedAuthLink = {
   url: string;
+};
+
+export type UnipilePeopleSearchResult = {
+  id: string;
+  display_name: string;
+  public_identifier?: string;
+  profile_url?: string;
+  public_picture_url?: string;
+  public_picture_url_large?: string;
+  location?: string;
+  headline?: string;
+  network_distance: string;
+  industry?: string;
+  product: "classic";
+};
+
+export type UnipilePeopleSearchResponse = {
+  data: UnipilePeopleSearchResult[];
+  total_count?: number;
+  next_cursor?: string;
+};
+
+export type UnipileLegacyPeopleSearchResult = {
+  id: string;
+  name?: string;
+  public_identifier?: string;
+  profile_url?: string;
+  profile_picture_url?: string;
+  location?: string;
+  headline?: string;
+  network_distance?: string;
+  industry?: string;
+};
+
+export type UnipileLegacyPeopleSearchResponse = {
+  items: UnipileLegacyPeopleSearchResult[];
+  total_count?: number;
+};
+
+export type UnipilePeopleSearchBody = {
+  keywords?: string;
+  network_distance?: number[];
+};
+
+export type UnipileRelationResult = {
+  id?: string;
+  member_id?: string;
+  display_name?: string;
+  first_name?: string;
+  last_name?: string;
+  description?: string;
+  headline?: string;
+  public_identifier?: string;
+  profile_url?: string;
+  public_profile_url?: string;
+  public_picture_url?: string;
+  profile_picture_url?: string;
+};
+
+type UnipileLegacyRelationsResponse = {
+  items: UnipileRelationResult[];
+};
+
+type UnipileV2Relation = UnipileRelationResult & {
+  user?: UnipileRelationResult;
+};
+
+type UnipileV2RelationsResponse = {
+  data: UnipileV2Relation[];
 };
 
 export type CreateHostedAuthLinkInput = {
@@ -106,6 +176,23 @@ export class UnipileAdapter {
   ): Promise<T> {
     const url = `https://${this.credentials.dsn}${API_VERSION}${path}`;
 
+    return this.requestUrl<T>(method, url, body);
+  }
+
+  private async requestV2<T>(
+    method: "GET" | "POST",
+    path: string,
+    body?: Record<string, unknown>,
+  ): Promise<T> {
+    return this.requestUrl<T>(method, `${UNIPILE_V2_BASE_URL}${path}`, body);
+  }
+
+  private async requestUrl<T>(
+    method: "GET" | "POST",
+    url: string,
+    body?: Record<string, unknown> | FormData,
+  ): Promise<T> {
+
     const init: RequestInit = {
       method,
       headers: { ...this.headers },
@@ -164,6 +251,75 @@ export class UnipileAdapter {
       "GET",
       `/users/${linkedinPublicId}?${params.toString()}`,
     );
+  }
+
+  async searchLinkedInPeople(
+    accountId: string,
+    body: UnipilePeopleSearchBody,
+    limit: number,
+  ): Promise<UnipilePeopleSearchResponse> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    return this.requestV2<UnipilePeopleSearchResponse>(
+      "POST",
+      `/${accountId}/linkedin/search/people?${params.toString()}`,
+      body,
+    );
+  }
+
+  async searchLinkedInPeopleFromUrl(
+    accountId: string,
+    searchUrl: string,
+    limit: number,
+  ): Promise<UnipilePeopleSearchResponse> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    return this.requestV2<UnipilePeopleSearchResponse>(
+      "POST",
+      `/${accountId}/linkedin/search?${params.toString()}`,
+      { url: searchUrl },
+    );
+  }
+
+  async searchLinkedInPeopleLegacy(
+    accountId: string,
+    body: UnipilePeopleSearchBody,
+    limit: number,
+    searchUrl?: string,
+  ): Promise<UnipileLegacyPeopleSearchResponse> {
+    const params = new URLSearchParams({
+      account_id: accountId,
+      limit: String(limit),
+    });
+    return this.request<UnipileLegacyPeopleSearchResponse>(
+      "POST",
+      `/linkedin/search?${params.toString()}`,
+      searchUrl
+        ? { url: searchUrl }
+        : {
+            api: "classic",
+            category: "people",
+            ...body,
+          },
+    );
+  }
+
+  async listLinkedInRelations(
+    accountId: string,
+    limit: number,
+  ): Promise<UnipileRelationResult[]> {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (accountId.startsWith("acc_")) {
+      const response = await this.requestV2<UnipileV2RelationsResponse>(
+        "GET",
+        `/${accountId}/users/me/relations?${params.toString()}`,
+      );
+      return response.data.map((relation) => relation.user ?? relation);
+    }
+
+    const response = await this.request<UnipileLegacyRelationsResponse>(
+      "GET",
+      `/users/relations?account_id=${encodeURIComponent(accountId)}&${params.toString()}`,
+    );
+    return response.items;
   }
 
   async sendConnectionInvite(

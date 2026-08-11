@@ -43,7 +43,7 @@ function DialogContent({ className, children, showCloseButton = true, ...props }
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-onboarding-neutral-150 bg-onboarding-neutral-0 p-6 text-onboarding-ink shadow-onboarding-button outline-none transition-[opacity,transform] duration-200 ease-out will-change-[opacity,transform] motion-reduce:transition-none data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:scale-95 data-starting-style:scale-95 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0",
+          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%_-_2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl border border-onboarding-neutral-150 bg-onboarding-neutral-0 p-6 text-onboarding-ink shadow-onboarding-button outline-none transition-[opacity,transform] duration-200 ease-out will-change-[opacity,transform] motion-reduce:transition-none data-ending-style:opacity-0 data-starting-style:opacity-0 data-ending-style:scale-95 data-starting-style:scale-95 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0",
           className,
         )}
         {...props}

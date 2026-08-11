@@ -7,7 +7,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "dev:web": "turbo dev --filter=@leadreacher/web",
-    "dev:api": "turbo dev --filter=@leadreacher/api"
+    "dev:api": "turbo dev --filter=@leadreacher/api",
+    "dev:worker": "pnpm --filter @leadreacher/api dev:worker"
   },
   "devDependencies": {
     "turbo": "^2.5.4"

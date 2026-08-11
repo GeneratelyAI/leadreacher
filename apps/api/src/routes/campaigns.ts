@@ -34,6 +34,9 @@ import {
 } from "../services/campaign-relationship-routing.js";
 import { launchCampaign } from "../services/campaign-launch.js";
 import { getCampaignChannelPreflight } from "../services/campaign-channel-preflight.js";
+import { readOnboardingDiscovery } from "../services/onboarding-prospect-discovery.js";
+import { CampaignNamingSchema, formatCampaignName } from "../lib/campaign-naming.js";
+import { publishDashboardEvent } from "../lib/dashboard-events.js";
 
 const ALLOWED_CHANNELS = OUTREACH_CHANNELS;
 
@@ -48,6 +51,7 @@ const SequenceStepSchema = z.object({
 
 const CampaignPatchSchema = z.object({
   name: z.string().trim().min(1).max(160).optional(),
+  naming: CampaignNamingSchema.optional(),
   status: z.enum(PATCHABLE_STATUSES).optional(),
   sequence: z.array(SequenceStepSchema).optional(),
   socialAccountId: z.string().trim().min(1).nullable().optional(),
@@ -63,12 +67,16 @@ const BulkCampaignPatchSchema = z.object({
 });
 
 const CreateCampaignBodySchema = z.object({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  naming: CampaignNamingSchema.optional(),
   channels: z.array(z.string()).min(1),
   sequence: z.array(SequenceStepSchema).min(1),
   socialAccountId: z.string().trim().min(1).optional(),
   channelAccounts: z.record(z.string(), z.string()).optional(),
   personalizeByChannel: z.boolean().default(false),
+}).refine((input) => Boolean(input.name || input.naming), {
+  message: "Provide campaign naming details",
+  path: ["naming"],
 });
 
 const ListCampaignsQuerySchema = z.object({
@@ -224,7 +232,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { name, channels, sequence, socialAccountId, channelAccounts, personalizeByChannel } = request.body;
+    const { name, naming, channels, sequence, socialAccountId, channelAccounts, personalizeByChannel } = request.body;
     validateChannels(channels);
 
     const validatedSequence = parseSequenceOrThrow(sequence);
@@ -239,7 +247,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const campaign = await prisma.campaign.create({
       data: {
         orgId,
-        name,
+        name: naming ? formatCampaignName(naming) : name!,
+        ...(naming ? { naming } : {}),
         channels,
         sequence: validatedSequence,
         status: "draft",
@@ -263,6 +272,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
 
     await invalidateDashboardChrome(orgId);
+    await publishDashboardEvent({ orgId, type: "campaign.updated", resources: { campaignId: campaign.id } });
     return reply.send(campaign);
   });
 
@@ -333,8 +343,13 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (!campaign) throw new NotFoundError("Campaign");
     if (campaign.orgId !== orgId) throw new ForbiddenError();
 
-    const [leadCount, messages, videoAssets, videoTemplate, videoMessages] = await Promise.all([
+    const [leadCount, reviewGroups, messages, videoAssets, videoTemplate, videoMessages] = await Promise.all([
       prisma.campaignLead.count({ where: { campaignId } }),
+      prisma.lead.groupBy({
+        by: ["reviewStatus"],
+        where: { campaigns: { some: { campaignId } } },
+        _count: { _all: true },
+      }),
       prisma.message.findMany({
         where: { campaignId },
         select: { direction: true, status: true },
@@ -368,6 +383,15 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     ).length;
     const replies = messages.filter((message) => message.direction === "inbound").length;
     const meetings = campaign.leads.filter((row) => row.lead.status === "meeting").length;
+    const reviewSummary = reviewGroups.reduce(
+      (summary, group) => {
+        if (group.reviewStatus === "pending") summary.pending = group._count._all;
+        if (group.reviewStatus === "approved") summary.approved = group._count._all;
+        if (group.reviewStatus === "excluded") summary.excluded = group._count._all;
+        return summary;
+      },
+      { pending: 0, approved: 0, excluded: 0 },
+    );
     const audienceRouting = await getCampaignRelationshipSummary({
       campaignId,
       senderId: campaign.socialAccountId,
@@ -384,16 +408,19 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({
       id: campaign.id,
       name: campaign.name,
+      naming: campaign.naming,
       status: campaign.status,
       channels: campaign.channels,
       sequence,
       aiConfig: campaign.aiConfig,
       archived: isCampaignArchived(campaign.aiConfig),
+      onboardingDiscovery: readOnboardingDiscovery(campaign.aiConfig),
       socialAccountId: campaign.socialAccountId,
       senderAccount: campaign.senderAccount,
       createdAt: campaign.createdAt,
       updatedAt: campaign.updatedAt,
       prospectCount: leadCount,
+      reviewSummary,
       metrics: {
         sent,
         replies,
@@ -423,6 +450,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       })),
       launchReady: {
         hasLeads: leadCount > 0,
+        hasApprovedAudience: reviewSummary.approved > 0 && reviewSummary.pending === 0,
         hasSequenceReview: asRecord(campaign.aiConfig)?.requiresSequenceReview !== true,
         hasSender:
           !campaign.channels.includes("linkedin") ||
@@ -433,6 +461,12 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           ),
         reasons: [
           ...(leadCount === 0 ? ["Add at least one approved prospect before launching."] : []),
+          ...(reviewSummary.pending > 0
+            ? [`Review every enrolled prospect before launching (${reviewSummary.pending} remaining).`]
+            : []),
+          ...(leadCount > 0 && reviewSummary.approved === 0
+            ? ["Approve at least one prospect before launching."]
+            : []),
           ...(asRecord(campaign.aiConfig)?.requiresSequenceReview === true
             ? ["Review and save the connection note before launching."]
             : []),
@@ -507,7 +541,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
             pipeline: "personalized",
             jobType: "template-orchestrate",
           },
-          { jobId: `retry-personalized-template:${campaignId}:${Date.now()}`, attempts: 1 },
+          { jobId: `retry-personalized-template-${campaignId}-${Date.now()}`, attempts: 1 },
         );
         return reply.send({ queued: true, pipeline: "personalized", scope: "template" });
       }
@@ -555,7 +589,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           videoAssetId: asset.id,
           templateId: template.id,
         },
-        { jobId: `retry-personalized-compose:${asset.id}:${Date.now()}`, attempts: 3 },
+        { jobId: `retry-personalized-compose-${asset.id}-${Date.now()}`, attempts: 3 },
       )));
       return reply.send({ queued: true, pipeline: "personalized", scope: "lead-assets", count: retryableAssets.length });
     }
@@ -583,7 +617,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     await videoGenerationQueue.add(
       "retry-standard-video",
       { orgId, campaignId, leadId, pipeline: "standard", jobType: "orchestrate" },
-      { jobId: `retry-standard-video:${campaignId}:${Date.now()}`, attempts: 1 },
+      { jobId: `retry-standard-video-${campaignId}-${Date.now()}`, attempts: 1 },
     );
     return reply.send({ queued: true, pipeline: "standard", scope: "campaign" });
   });
@@ -652,6 +686,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const body = request.body;
     if (
       body.name === undefined &&
+      body.naming === undefined &&
       body.status === undefined &&
       body.sequence === undefined &&
       body.socialAccountId === undefined &&
@@ -706,7 +741,13 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const data: Prisma.CampaignUpdateInput = {};
-    if (body.name !== undefined) data.name = body.name;
+    if (body.naming !== undefined) {
+      data.name = formatCampaignName(body.naming);
+      data.naming = body.naming;
+    } else if (body.name !== undefined) {
+      data.name = body.name;
+      data.naming = Prisma.JsonNull;
+    }
     if (body.channels !== undefined) data.channels = body.channels;
     if (senders) {
       data.senderAccount = senders.linkedInSocialAccountId
@@ -756,9 +797,13 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       await resumeCampaignSequenceJobs({ campaignId, orgId });
     }
 
+    await invalidateDashboardChrome(orgId);
+    await publishDashboardEvent({ orgId, type: "campaign.updated", resources: { campaignId } });
+
     return reply.send({
       id: updated.id,
       name: updated.name,
+      naming: updated.naming,
       status: updated.status,
       channels: updated.channels,
       socialAccountId: updated.socialAccountId,
@@ -782,6 +827,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       data: {
         orgId,
         name: `${source.name} (copy)`,
+        naming: Prisma.JsonNull,
         channels: source.channels,
         sequence: source.sequence as Prisma.InputJsonValue,
         status: "draft",
@@ -790,6 +836,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
+    await publishDashboardEvent({ orgId, type: "campaign.updated", resources: { campaignId: duplicate.id } });
     return reply.send(duplicate);
   });
 
@@ -855,6 +902,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await invalidateDashboardChrome(orgId);
+    await publishDashboardEvent({ orgId, type: "campaign.updated", resources: { campaignId } });
     return reply.send({ enrolled: created.length, queued });
   });
 

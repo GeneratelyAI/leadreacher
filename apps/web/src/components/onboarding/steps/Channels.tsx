@@ -31,6 +31,7 @@ import {
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 type SocialAccount = {
+  id: string;
   platform: string;
   providerType: string | null;
   accountName: string | null;
@@ -159,8 +160,10 @@ export default function Channels() {
   const [recommendedChannels, setRecommendedChannels] = useState<Set<ChannelRecommendationKey>>(
     new Set(),
   );
+  const [selectedLinkedInAccountId, setSelectedLinkedInAccountId] = useState("");
   const connectionFailed = searchParams.get("status") === "failed";
   const connectionReturned = searchParams.get("status") === "connected";
+  const returnedAccountId = searchParams.get("account_id");
 
   const loadAccounts = useCallback(async (sync = false, showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -193,8 +196,25 @@ export default function Channels() {
     if (!connectionReturned) return;
     let cancelled = false;
     const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
+    const connectionToken = window.localStorage.getItem("lr_pending_connection_token");
 
     async function pollForConnection() {
+      if (returnedAccountId) {
+        try {
+          await apiFetch("/social-accounts/connect/confirm", {
+            method: "POST",
+            body: JSON.stringify({
+              accountId: returnedAccountId,
+              ...(connectionToken && { connectionToken }),
+            }),
+          });
+        } catch {
+          // Hosted auth also persists the account through Unipile's webhook.
+          // A transient confirmation failure must not hide an account that is
+          // already active in the workspace.
+        }
+      }
+
       for (let attempt = 0; attempt < 15; attempt += 1) {
         // The hosted-auth webhook owns account creation. Poll our database
         // here instead of repeatedly reconciling the shared Unipile account
@@ -203,6 +223,7 @@ export default function Channels() {
         if (cancelled) return;
         if (nextAccounts && returnedConnectionIsActive(nextAccounts, pendingKey)) {
           window.localStorage.removeItem("lr_pending_channel_key");
+          window.localStorage.removeItem("lr_pending_connection_token");
           navigateOnboarding(onboardingHref("channels"), true);
           return;
         }
@@ -228,7 +249,19 @@ export default function Channels() {
     return () => {
       cancelled = true;
     };
-  }, [connectionReturned, loadAccounts, router]);
+  }, [connectionReturned, loadAccounts, returnedAccountId, router]);
+
+  useEffect(() => {
+    const activeLinkedInAccounts = accounts.filter(
+      (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
+    );
+    if (
+      activeLinkedInAccounts.length > 0 &&
+      !activeLinkedInAccounts.some((account) => account.id === selectedLinkedInAccountId)
+    ) {
+      setSelectedLinkedInAccountId(activeLinkedInAccounts[0].id);
+    }
+  }, [accounts, selectedLinkedInAccountId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,11 +296,12 @@ export default function Channels() {
     setIsConnecting(true);
     setError(null);
     try {
-      const result = await apiFetch<{ url: string }>("/social-accounts/connect", {
+      const result = await apiFetch<{ url: string; connectionToken: string }>("/social-accounts/connect", {
         method: "POST",
         body: JSON.stringify({ provider, returnTo: "onboarding" }),
       });
       window.localStorage.setItem("lr_pending_channel_key", channelKey);
+      window.localStorage.setItem("lr_pending_connection_token", result.connectionToken);
       window.location.assign(result.url);
     } catch (connectError) {
       setError(
@@ -283,17 +317,25 @@ export default function Channels() {
     setIsCompleting(true);
     setError(null);
     try {
-      await apiFetch<{
+      const result = await apiFetch<{
         completed: true;
         campaignId: string;
         launched: boolean;
         reviewRequired: boolean;
-        prospectCount: number;
+        discoveryStatus: "queued" | "running" | "completed" | "failed";
       }>(
         "/onboarding/complete",
-        { method: "POST" },
+        {
+          method: "POST",
+          body: JSON.stringify(
+            selectedLinkedInAccountId ? { socialAccountId: selectedLinkedInAccountId } : {},
+          ),
+        },
       );
-      router.push("/dashboard/prospects?reviewStatus=pending");
+      const params = new URLSearchParams({
+        reviewCampaignId: result.campaignId,
+      });
+      router.push(`/dashboard/campaigns?${params.toString()}`);
     } catch (completeError) {
       setError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",
@@ -305,6 +347,9 @@ export default function Channels() {
 
   const linkedInChannel = CHANNELS[0];
   const linkedInConnected = hasActiveAccount(accounts, linkedInChannel);
+  const activeLinkedInAccounts = accounts.filter(
+    (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
+  );
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
@@ -408,6 +453,26 @@ export default function Channels() {
             </Button>
           </div>
         </OnboardingCard>
+
+        {activeLinkedInAccounts.length > 1 ? (
+          <label className="mx-auto mt-4 grid w-full max-w-3xl gap-1.5 rounded-onboarding border border-onboarding-neutral-150 bg-card px-5 py-4 text-sm font-medium text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-850 dark:text-onboarding-neutral-0">
+            LinkedIn sender for this campaign
+            <select
+              className="h-10 rounded-onboarding border border-onboarding-neutral-200 bg-transparent px-3 text-sm font-normal dark:border-onboarding-neutral-650"
+              value={selectedLinkedInAccountId}
+              onChange={(event) => setSelectedLinkedInAccountId(event.target.value)}
+            >
+              {activeLinkedInAccounts.map((account) => (
+                <option key={account.id} value={account.id}>
+                  {account.accountName || "LinkedIn account"}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs font-normal text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+              Prospect discovery and delivery will use this account.
+            </span>
+          </label>
+        ) : null}
 
         <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
           Finishing setup creates a campaign draft. You will review the prospects and messages before anything is sent.

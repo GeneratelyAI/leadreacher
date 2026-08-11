@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "prisma generate && tsx watch src/index.ts",
+    "dev:worker": "prisma generate && RUNTIME_ROLE=worker ENABLE_CAMPAIGN_WORKER=true tsx watch src/worker.ts",
     "build": "prisma generate && tsc",
     "start": "node dist/index.js",
     "worker": "node dist/worker.js",

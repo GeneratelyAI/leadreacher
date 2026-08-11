@@ -195,7 +195,7 @@ export async function processTemplateOrchestrate(
         referenceUrls: context.referenceUrls,
         videoProvider: getConfiguredVideoProvider(),
       },
-      { jobId: `personalized-template-veo:${template.id}`, attempts: 1 },
+      { jobId: `personalized-template-veo-${template.id}`, attempts: 1 },
     );
   } catch (error) {
     await markTemplateFailed(orgId, template.id, "template-orchestration-failed", error);

@@ -85,7 +85,7 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
     await videoGenerationQueue.add(
       "personalized-template-orchestrate",
       { orgId, campaignId: campaign.id, pipeline, jobType: "template-orchestrate" },
-      { jobId: `personalized-template:${campaign.id}:1` },
+      { jobId: `personalized-template-${campaign.id}-1` },
     );
     return;
   }
@@ -99,7 +99,7 @@ async function enqueueActivationVideoIfEligible(orgId: string): Promise<void> {
   await videoGenerationQueue.add(
     "onboarding-video-generation",
     { orgId, campaignId: campaign.id, leadId: lead.id, pipeline, jobType: "orchestrate" },
-    { jobId: `onboarding-video:${orgId}:${strategy.id}:${campaign.id}:${lead.id}` },
+    { jobId: `onboarding-video-${orgId}-${strategy.id}-${campaign.id}-${lead.id}` },
   );
 }
 

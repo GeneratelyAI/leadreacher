@@ -17,6 +17,7 @@ import {
 } from "../adapters/video-provider.js";
 import { R2Adapter } from "../adapters/r2.js";
 import { prisma } from "../lib/prisma.js";
+import { publishDashboardEvent } from "../lib/dashboard-events.js";
 import {
   logOperationalError,
   logOperationalInfo,
@@ -254,6 +255,7 @@ async function processOrchestrate(
       where: { id: videoAsset.id },
       data: { seedImageUrl },
     });
+    await publishDashboardEvent({ orgId, type: "video.updated", resources: { campaignId, videoAssetId: videoAsset.id } });
 
     const variantBase = {
       orgId,
@@ -300,7 +302,7 @@ async function processOrchestrate(
         videoGenerationQueue.add(
           "generate-veo",
           veoPayload(asset.id),
-          { ...veoJobOptions, jobId: `generate-veo:${asset.id}` },
+          { ...veoJobOptions, jobId: `generate-veo-${asset.id}` },
         ),
       ),
     );

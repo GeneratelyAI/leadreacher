@@ -27,3 +27,11 @@ export type {
   ScrapedCompany,
   ScrapedProfile,
 } from "./apify.js";
+
+export type {
+  ProspectProfile,
+  ProspectSearchFilters,
+  ProspectSearchInput,
+  ProspectSearchProvider,
+  ProspectSearchResult,
+} from "./prospect-search.js";

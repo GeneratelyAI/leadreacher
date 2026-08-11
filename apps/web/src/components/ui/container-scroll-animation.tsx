@@ -105,7 +105,7 @@ export function ContainerScroll({
       id={id}
       className={cn("relative h-[300vh] min-h-[1800px]", className)}
     >
-      <div className="sticky top-0 h-svh overflow-hidden bg-[#0d1020] px-5 py-6 sm:px-8 lg:px-10">
+      <div className="sticky top-0 h-svh overflow-hidden rounded-t-[28px] bg-[#0d1020] px-5 py-6 sm:rounded-t-[40px] sm:px-8 lg:px-10">
         {backgroundComponent}
         {titleComponent ? (
           <m.div

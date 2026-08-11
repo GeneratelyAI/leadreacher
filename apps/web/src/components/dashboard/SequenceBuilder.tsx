@@ -13,12 +13,12 @@ export type SequenceStepDraft = {
 };
 
 const STEP_TYPE_OPTIONS = [
-  { value: "linkedin_invite", label: "LinkedIn invite" },
-  { value: "linkedin_message", label: "LinkedIn message" },
-  { value: "whatsapp_message", label: "WhatsApp message" },
-  { value: "facebook_message", label: "Facebook message" },
-  { value: "instagram_message", label: "Instagram message" },
-  { value: "email", label: "Email" },
+  { value: "linkedin_invite", label: "LinkedIn invite", channel: "linkedin" },
+  { value: "linkedin_message", label: "LinkedIn message", channel: "linkedin" },
+  { value: "whatsapp_message", label: "WhatsApp message", channel: "whatsapp" },
+  { value: "facebook_message", label: "Facebook message", channel: "facebook" },
+  { value: "instagram_message", label: "Instagram message", channel: "instagram" },
+  { value: "email", label: "Email", channel: "email" },
 ] as const;
 
 export function defaultSequenceDraft(): SequenceStepDraft[] {
@@ -39,11 +39,23 @@ export function defaultSequenceDraft(): SequenceStepDraft[] {
 type SequenceBuilderProps = {
   value: SequenceStepDraft[];
   onChange: (next: SequenceStepDraft[]) => void;
+  /** Limits new step actions to channels with an active sender. */
+  availableChannels?: readonly string[];
   disabled?: boolean;
   className?: string;
 };
 
-export function SequenceBuilder({ value, onChange, disabled = false, className }: SequenceBuilderProps) {
+export function SequenceBuilder({
+  value,
+  onChange,
+  availableChannels,
+  disabled = false,
+  className,
+}: SequenceBuilderProps) {
+  const availableOptions = availableChannels
+    ? STEP_TYPE_OPTIONS.filter((option) => availableChannels.includes(option.channel))
+    : STEP_TYPE_OPTIONS;
+
   function updateStep(index: number, patch: Partial<SequenceStepDraft>) {
     const next = value.map((step, stepIndex) =>
       stepIndex === index ? { ...step, ...patch } : step,
@@ -52,10 +64,14 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
   }
 
   function addFollowUp() {
+    const followUpOption = availableOptions.find((option) => option.value === "linkedin_message")
+      ?? availableOptions.find((option) => option.value !== "linkedin_invite")
+      ?? availableOptions[0];
+    if (!followUpOption) return;
     onChange([
       ...value,
       {
-        type: "linkedin_message",
+        type: followUpOption.value,
         message: "",
         delayHours: 48,
       },
@@ -72,6 +88,10 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
       {value.map((step, index) => {
         const isFirst = index === 0;
         const isEmail = step.type === "email";
+        const selectedOption = STEP_TYPE_OPTIONS.find((option) => option.value === step.type);
+        const selectedOptionUnavailable = Boolean(
+          selectedOption && !availableOptions.some((option) => option.value === selectedOption.value),
+        );
         return (
           <div
             key={`${step.type}-${index}`}
@@ -96,7 +116,7 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
               Channel / action
               <select
                 className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
-                disabled={disabled}
+                disabled={disabled || availableOptions.length === 0}
                 value={step.type}
                 onChange={(event) => {
                   const type = event.target.value;
@@ -106,12 +126,22 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
                   });
                 }}
               >
-                {STEP_TYPE_OPTIONS.map((option) => (
+                {selectedOptionUnavailable ? (
+                  <option value={selectedOption?.value} disabled>
+                    {selectedOption?.label} (sender unavailable)
+                  </option>
+                ) : null}
+                {availableOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
                 ))}
               </select>
+              {selectedOptionUnavailable ? (
+                <span className="text-xs font-normal text-amber-700 dark:text-amber-300">
+                  Connect a {selectedOption?.channel} account before changing this step.
+                </span>
+              ) : null}
             </label>
             <label className="grid gap-1.5 text-xs font-medium text-muted-foreground">
               Delay (hours before this step)
@@ -153,7 +183,7 @@ export function SequenceBuilder({ value, onChange, disabled = false, className }
         );
       })}
       {!disabled ? (
-        <Button type="button" size="sm" variant="outline" onClick={addFollowUp}>
+        <Button type="button" size="sm" variant="outline" disabled={availableOptions.length === 0} onClick={addFollowUp}>
           <Plus className="size-3.5" />
           Add step
         </Button>
