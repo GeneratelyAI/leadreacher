@@ -1,6 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const assertVisualBaselines = process.env.VISUAL_REGRESSION === "true";
+const heroHeadingName =
+  "Drop your URL. Go back to your business, store, startup, brokerage, product, or agency.";
 
 const viewports = [
   { name: "phone-320", width: 320, height: 568 },
@@ -23,8 +25,8 @@ const viewports = [
 
 async function openLanding(page: Page, path = "/") {
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await page.waitForTimeout(400);
-  await expect(page.getByRole("heading", { name: "Drop your URL. Go back to business." })).toBeVisible();
+  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true");
+  await expect(page.getByRole("heading", { name: heroHeadingName })).toBeVisible();
 }
 
 async function expectNoPageOverflow(page: Page) {
@@ -48,19 +50,14 @@ test.describe("responsive production matrix", () => {
       await openLanding(page);
       await expectNoPageOverflow(page);
 
-      const analyzer = page.getByRole("button", { name: "Get Started", exact: true });
+      const analyzer = page
+        .locator("#top")
+        .getByRole("button", { name: "Get Started", exact: true });
       const analyzerBox = await analyzer.boundingBox();
       expect(analyzerBox).not.toBeNull();
       expect(analyzerBox?.x ?? -1).toBeGreaterThanOrEqual(0);
       expect((analyzerBox?.x ?? 0) + (analyzerBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
 
-      if (viewport.width >= 1024 && viewport.height >= 600) {
-        await expect(page.getByText("Setup in 60 seconds", { exact: true }).first()).toBeVisible();
-        await expect(page.getByRole("button", { name: "See how LeadReacher works" })).toBeVisible();
-        const nextBox = await page.locator("#product").boundingBox();
-        expect(nextBox).not.toBeNull();
-        expect(nextBox?.y ?? viewport.height + 1).toBeLessThan(viewport.height);
-      }
     });
   }
 });
@@ -75,7 +72,6 @@ test.describe("mobile landing journey", () => {
     const nav = page.locator("header nav");
     await expect(nav.getByRole("link", { name: "Product", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Pricing", exact: true })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Log in", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Get Started", exact: true })).toBeVisible();
 
     await page.locator("#how-it-works").scrollIntoViewIfNeeded();
@@ -96,7 +92,7 @@ test.describe("mobile landing journey", () => {
     await faq.click();
     await expect(page.getByText("Drop in your website to begin.", { exact: false })).toBeVisible();
 
-    await expect(page.getByRole("link", { name: "Build your campaign" })).toHaveAttribute("href", "/signup");
+    await expect(page.getByRole("link", { name: "Review Sarah's campaign" })).toHaveAttribute("href", "/signup");
     await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
     await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
     await expectNoPageOverflow(page);

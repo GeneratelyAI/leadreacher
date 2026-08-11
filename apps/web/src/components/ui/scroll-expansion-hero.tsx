@@ -31,17 +31,22 @@ type ScrollExpandMediaProps = {
 function PersonalizationCallout({
   arrowProgress,
   textRotate,
+  compact = false,
 }: {
   arrowProgress: MotionValue<number> | number;
   textRotate: MotionValue<number>;
+  compact?: boolean;
 }) {
   const filterId = `crayon-${useId().replaceAll(":", "")}`;
 
   return (
-    <div className="relative h-36 w-36 text-left large-desktop:h-44 large-desktop:w-52">
+    <div className={cn("relative text-left", compact ? "h-48 w-44" : "h-36 w-36 large-desktop:h-44 large-desktop:w-52")}>
       <m.p
-        className="relative z-10 w-36 pt-1 text-[1.5rem] font-semibold leading-[1.05] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.65)] large-desktop:w-52 large-desktop:text-[2.15rem]"
-        style={{ fontFamily: '"Bradley Hand", "Comic Sans MS", cursive', rotate: textRotate, x: -16, y: -20 }}
+        className={cn(
+          "relative z-10 pt-1 font-semibold leading-[1.05] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,.65)]",
+          compact ? "w-44 text-[1.6rem]" : "w-36 text-[1.5rem] large-desktop:w-52 large-desktop:text-[2.15rem]",
+        )}
+        style={{ fontFamily: '"Bradley Hand", "Comic Sans MS", cursive', rotate: textRotate, x: compact ? 0 : -16, y: compact ? 0 : -20 }}
       >
         &quot;Customer Name&quot;
         <br />
@@ -53,9 +58,12 @@ function PersonalizationCallout({
       </m.p>
       <svg
         aria-hidden="true"
-        viewBox="0 0 208 176"
+        viewBox={compact ? "0 0 260 330" : "0 0 208 176"}
         fill="none"
-        className="pointer-events-none absolute inset-0 h-full w-40 overflow-visible large-desktop:w-[15.5rem]"
+        className={cn(
+          "pointer-events-none absolute overflow-visible",
+          compact ? "-top-24 left-0 h-[calc(100%+6rem)] w-[calc(100%+5rem)]" : "inset-0 h-full w-40 large-desktop:w-[15.5rem]",
+        )}
       >
         <defs>
           <filter id={filterId} x="-8%" y="-12%" width="116%" height="124%">
@@ -63,17 +71,30 @@ function PersonalizationCallout({
             <feDisplacementMap in="SourceGraphic" in2="grain" scale="1.8" />
           </filter>
         </defs>
-        <m.path
-          className="xl:hidden"
-          d="M70 146C70 180 92 205 135 214C153 218 171 215 185 205M163 190L185 205L162 222"
-          stroke="#70a8ff"
-          strokeWidth="9"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
-          filter={`url(#${filterId})`}
-          style={{ pathLength: arrowProgress }}
-        />
+        {compact ? (
+          <m.path
+            d="M88 246C125 236 154 187 179 123C193 87 204 56 215 28M191 45L215 28L216 58"
+            stroke="#70a8ff"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            filter={`url(#${filterId})`}
+            style={{ pathLength: arrowProgress }}
+          />
+        ) : (
+          <m.path
+            className="xl:hidden"
+            d="M70 146C70 180 92 205 135 214C153 218 171 215 185 205M163 190L185 205L162 222"
+            stroke="#70a8ff"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            filter={`url(#${filterId})`}
+            style={{ pathLength: arrowProgress }}
+          />
+        )}
         <m.path
           className="hidden xl:block"
           d="M82 170C80 224 100 272 145 292C160 299 173 300 185 292M164 277L185 292L162 309"
@@ -253,7 +274,7 @@ export function ScrollExpandMedia({
             <m.div
               aria-hidden
               style={{ opacity: greetingOpacity, y: greetingY, scale: greetingScale }}
-              className="pointer-events-none absolute left-5 top-[60%] z-20 hidden origin-left items-center gap-2 rounded-lg border border-white/20 bg-[#0b0d1be6] px-3 py-2 text-left shadow-xl backdrop-blur-md xl:flex"
+              className="pointer-events-none absolute bottom-3 right-3 z-20 flex origin-left items-center gap-2 rounded-lg border border-white/20 bg-[#0b0d1be6] px-3 py-2 text-left shadow-xl backdrop-blur-md xl:left-5 xl:right-auto xl:top-[60%] xl:bottom-auto"
             >
               <Image
                 src="/landing/portraits/prospect-68.webp"
@@ -280,7 +301,7 @@ export function ScrollExpandMedia({
             style={{ opacity: calloutOpacity, scale: calloutScale, y: calloutY }}
             className="relative z-30 mx-auto mt-6 block h-48 w-36 md:hidden max-md:transform-none! max-md:opacity-100!"
           >
-            <PersonalizationCallout arrowProgress={1} textRotate={textRotate} />
+            <PersonalizationCallout arrowProgress={1} textRotate={textRotate} compact />
           </m.div>
 
         </EdgeSurface>

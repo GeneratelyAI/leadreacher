@@ -64,9 +64,9 @@ export function FaqSectionCentered({
       </div>
 
       {supportEmail ? (
-        <p className="mt-7 flex items-center gap-2 text-sm text-[#6a7082]">
+        <p className="mt-7 flex flex-wrap items-center justify-center gap-x-2 text-sm text-[#6a7082]">
           <MessageCircle className="size-4" aria-hidden /> Still have questions?
-          <a href={`mailto:${supportEmail}`} className="font-semibold text-[#4e28df] hover:underline">Contact support</a>
+          <a href={`mailto:${supportEmail}`} className="inline-flex min-h-11 items-center font-semibold text-[#4e28df] hover:underline">Contact support</a>
         </p>
       ) : null}
     </div>
