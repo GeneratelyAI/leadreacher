@@ -4,7 +4,6 @@ import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
-  Check,
   CreditCard,
   Loader2,
   Lock,
@@ -12,10 +11,14 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
-import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { Chrome } from "@/components/onboarding/Chrome";
+import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
+import { ActionBar } from "@/components/ui/ActionBar";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
@@ -220,65 +223,38 @@ export default function Checkout() {
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
       <Chrome activeStep="checkout" />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-44 pt-28 lg:pb-28 lg:pt-34">
-        <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-          <HeroBadge icon={<CreditCard className="size-7" />} tone="warning" />
-          <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-            Review your plan
-          </h1>
-          <p className="mt-4 max-w-xl text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-            Your campaign setup is ready. Payment is handled on a secure hosted page.
-          </p>
-        </div>
+      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+        <PageHeader
+          className="mx-auto"
+          icon={<CreditCard className="size-7" aria-hidden />}
+          eyebrow="Launch review"
+          title="Review your plan"
+          description="Your campaign setup is ready. Payment is handled on a secure hosted page."
+        />
 
         {error ? (
-          <div className="mx-auto mt-6 flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 rounded-onboarding bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-900 dark:bg-onboarding-error-900 dark:text-onboarding-error-50" role="alert">
-            <p>{error}</p>
-            {!returnedFromCheckout && !isRedirecting ? <Button type="button" variant="secondary" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button> : null}
-          </div>
+          <Alert
+            tone="error"
+            className="mx-auto mt-6 w-full max-w-5xl"
+            action={!returnedFromCheckout && !isRedirecting ? <Button type="button" variant="secondary" size="sm" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>Try again</Button> : null}
+          >
+            {error}
+          </Alert>
         ) : null}
 
         {returnedFromCheckout ? (
-          <OnboardingCard className="mx-auto mt-6 flex w-full max-w-5xl items-start gap-3 border-onboarding-success-500 px-5 py-4" role="status" aria-live="polite">
-            <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-onboarding-pill bg-onboarding-success-50 text-onboarding-success-500">
-              {checkoutSucceeded ? (
-                <Check className="size-5" aria-hidden />
-              ) : (
-                <Loader2 className="size-5 animate-spin" aria-hidden />
-              )}
-            </span>
-            <div>
-              <p className="font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                {checkoutSucceeded ? "Payment confirmed" : "Confirming payment"}
-              </p>
-              <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                {checkoutSucceeded
-                  ? "Your subscription is active. Continue to connect your channels."
-                  : "We're waiting for the secure payment confirmation. This usually takes a few seconds."}
-              </p>
-            </div>
-          </OnboardingCard>
+          <Alert tone="success" className="mx-auto mt-6 w-full max-w-5xl" title={checkoutSucceeded ? "Payment confirmed" : "Confirming payment"} aria-live="polite">
+            {checkoutSucceeded
+              ? "Your subscription is active. Continue to connect your channels."
+              : "We're waiting for the secure payment confirmation. This usually takes a few seconds."}
+          </Alert>
         ) : null}
 
         <div className="mx-auto mt-8 grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(16rem,2fr)]">
-          <OnboardingCard className="px-5 py-5 sm:px-6">
-            <div className="flex items-center gap-3">
-              <Sparkles className="size-5 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
-              <div>
-                <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                  Your subscription
-                </h2>
-                <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                  Plans adjust to the choices you made in onboarding.
-                </p>
-              </div>
-            </div>
+          <ReviewPanel icon={<Sparkles className="size-5" aria-hidden />} title="Your subscription" description="Plans adjust to the choices you made in onboarding.">
 
             {isLoading ? (
-              <div className="flex items-center gap-3 py-10 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400" role="status" aria-live="polite">
-                <Loader2 className="size-5 animate-spin text-onboarding-purple-500" aria-hidden />
-                Loading pricing
-              </div>
+              <EmptyState className="min-h-36 py-6" icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading pricing" role="status" aria-live="polite" />
             ) : (
               <div className="mt-6 divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
                 {lineItems.map((item) => (
@@ -291,9 +267,9 @@ export default function Checkout() {
                         {item.interval ? `Billed ${item.interval}ly` : "Pricing managed externally"}
                       </p>
                     </div>
-                    <span className="status-badge bg-onboarding-purple-50 text-onboarding-purple-600 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-200">
+                    <StatusBadge tone="brand">
                       {formatPrice(item)}
-                    </span>
+                    </StatusBadge>
                   </div>
                 ))}
               </div>
@@ -303,12 +279,9 @@ export default function Checkout() {
               <ShieldCheck className="size-5 shrink-0 text-onboarding-success-500" aria-hidden />
               Payment details are entered only on a secure checkout page.
             </div>
-          </OnboardingCard>
+          </ReviewPanel>
 
-          <OnboardingCard muted className="px-5 py-5 sm:px-6">
-            <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-              Campaign summary
-            </h2>
+          <ReviewPanel muted title="Campaign summary">
             <dl className="mt-5 space-y-4 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
@@ -329,54 +302,35 @@ export default function Checkout() {
                 </dd>
               </div>
             </dl>
-          </OnboardingCard>
+          </ReviewPanel>
         </div>
       </main>
 
-      <div className="onboarding-actions pointer-events-none fixed inset-x-0 z-30 flex items-center justify-between">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigateOnboarding(onboardingHref("video-decision"))}
-          className="pointer-events-auto h-13 px-7 text-base"
-        >
-          <ArrowLeft className="size-5" aria-hidden />
-          Back
-        </Button>
-        <Button
-          type="button"
-          variant="brand"
-          disabled={
-            isLoading ||
-            isRedirecting ||
-            isVerifyingPayment ||
-            lineItems.length === 0
-          }
-          onClick={() => {
-            if (checkoutSucceeded) {
-              navigateOnboarding(onboardingHref("channels"));
-              return;
-            }
-            if (returnedFromCheckout) {
-              setVerificationAttempt((attempt) => attempt + 1);
-              return;
-            }
-            void handleCheckout();
-          }}
-          className="pointer-events-auto h-13 px-8 text-base sm:px-10"
-        >
-          {checkoutSucceeded
-            ? "Continue to channels"
-            : isVerifyingPayment
-                ? "Confirming payment..."
-                : isRedirecting
-                  ? "Opening checkout..."
-                  : returnedFromCheckout
-                    ? "Check payment status"
-                    : "Continue to secure checkout"}
-          {checkoutSucceeded ? <ArrowRight className="size-5" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-        </Button>
-      </div>
+      <ActionBar
+        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("video-decision"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
+        trailing={
+          <Button
+            type="button"
+            variant="primary"
+            disabled={isLoading || isRedirecting || isVerifyingPayment || lineItems.length === 0}
+            onClick={() => {
+              if (checkoutSucceeded) {
+                navigateOnboarding(onboardingHref("channels"));
+                return;
+              }
+              if (returnedFromCheckout) {
+                setVerificationAttempt((attempt) => attempt + 1);
+                return;
+              }
+              void handleCheckout();
+            }}
+            className="h-13 px-8 text-base sm:px-10"
+          >
+            {checkoutSucceeded ? "Continue to channels" : isVerifyingPayment ? "Confirming payment..." : isRedirecting ? "Opening checkout..." : returnedFromCheckout ? "Check payment status" : "Continue to secure checkout"}
+            {checkoutSucceeded ? <ArrowRight className="size-5" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+          </Button>
+        }
+      />
     </div>
   );
 }
