@@ -36,7 +36,12 @@ vi.mock("../../lib/redis.js", () => ({
 }));
 vi.mock("../../services/lead-import.js", () => ({ importScrapedProfiles }));
 
-import { generateStrategy } from "../strategy.js";
+import {
+  buildStrategyBrief,
+  generateStrategy,
+  StrategyGenerationBodySchema,
+  strategyBriefPersistence,
+} from "../strategy.js";
 
 const strategy = {
   id: "strategy-1",
@@ -86,6 +91,33 @@ beforeEach(() => {
 });
 
 describe("Strategy company-search degradation", () => {
+  it.each([
+    ["a null body", null],
+    ["an omitted body", undefined],
+    ["an empty object", {}],
+  ])("normalizes %s for strategy generation", (_label, body) => {
+    expect(StrategyGenerationBodySchema.parse(body)).toEqual({ force: false });
+  });
+
+  it("builds and persists a usable plan before external audience enrichment", () => {
+    const brief = buildStrategyBrief(strategy);
+    const persistence = strategyBriefPersistence(strategy, brief) as {
+      icpDefinition: { strategyBrief: { audience: string; decisionMakerRoles: string[] } };
+      positioning: { valueProposition: string };
+      messagingAngles: { outreachAngles: unknown[] };
+      executionPlan: unknown[];
+    };
+
+    expect(brief.goal).toContain("Engineering leaders");
+    expect(brief.decisionMakerRoles).toEqual(["Founder", "CEO"]);
+    expect(brief.outreachAngles).toHaveLength(3);
+    expect(brief.executionPlan).toHaveLength(3);
+    expect(persistence.icpDefinition.strategyBrief.audience).toBe("Engineering leaders");
+    expect(persistence.positioning.valueProposition).toContain("Developer data platform");
+    expect(persistence.messagingAngles.outreachAngles).toHaveLength(3);
+    expect(persistence.executionPlan).toHaveLength(3);
+  });
+
   it("keeps onboarding fast by deferring optional company enrichment", async () => {
     searchCompanies.mockResolvedValue({
       companies: [],
@@ -98,6 +130,11 @@ describe("Strategy company-search degradation", () => {
 
     const updateData = strategyUpdate.mock.calls[0]?.[0]?.data as {
       icpDefinition: {
+        strategyBrief: {
+          status: string;
+          audience: string;
+          audienceSample?: { decisionMakers: number };
+        };
         audienceAnalysis: {
           companies: { status: string; reason?: string; totalFound: number };
           decisionMakers: { totalFound: number };
@@ -113,6 +150,11 @@ describe("Strategy company-search degradation", () => {
       },
       decisionMakers: { totalFound: 1 },
       topIndustries: [],
+    });
+    expect(updateData.icpDefinition.strategyBrief).toMatchObject({
+      status: "ready",
+      audience: "Engineering leaders",
+      audienceSample: { decisionMakers: 1 },
     });
     expect(importScrapedProfiles).toHaveBeenCalledWith("org-1", [profile]);
     expect(searchCompanies).not.toHaveBeenCalled();

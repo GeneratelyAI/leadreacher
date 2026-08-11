@@ -47,8 +47,10 @@ type ChannelRecommendation = {
 
 type StrategyIcpDefinition = {
   idealCustomer?: unknown;
+  strategyBrief?: StrategyBrief;
   audienceAnalysis?: {
-    status: "completed" | "failed";
+    status: "running" | "completed" | "failed";
+    startedAt?: string;
     error?: string;
     generatedAt: string;
     companies: {
@@ -84,6 +86,31 @@ type StrategyIcpDefinition = {
 };
 
 type AudienceAnalysis = NonNullable<StrategyIcpDefinition["audienceAnalysis"]>;
+
+export type StrategyBrief = {
+  status: "ready";
+  generatedAt: string;
+  goal: string;
+  market: string;
+  audience: string;
+  offer: string;
+  valueProposition: string;
+  decisionMakerRoles: string[];
+  outreachAngles: Array<{
+    title: string;
+    description: string;
+    opener: string;
+  }>;
+  executionPlan: Array<{
+    step: number;
+    title: string;
+    description: string;
+  }>;
+  audienceSample?: {
+    decisionMakers: number;
+    topBuyerPersonas: string[];
+  };
+};
 
 type StrategyChannels = {
   suggestedChannels?: unknown;
@@ -124,6 +151,119 @@ export function hasCompletedAudienceAnalysis(strategy: Strategy): boolean {
   const icpDefinition = asRecord(strategy.icpDefinition);
   const audienceAnalysis = asRecord(icpDefinition.audienceAnalysis);
   return audienceAnalysis.status === "completed";
+}
+
+function getStoredDiscoveryInputs(strategy: Strategy): {
+  market: string;
+  offer: string;
+  audience: string;
+  competitiveAdvantage: string;
+} {
+  const positioning = asRecord(strategy.positioning);
+  const icpDefinition = asRecord(strategy.icpDefinition);
+  const market = recordString(positioning, "industry");
+  const offer = recordString(positioning, "businessModel");
+  const audience = recordString(icpDefinition, "idealCustomer");
+  const competitiveAdvantage = recordString(positioning, "strengths");
+
+  if (!market || !offer || !audience || !competitiveAdvantage) {
+    throw new ValidationError(
+      "Discovery data is incomplete. Complete the discovery step before generating strategy.",
+    );
+  }
+
+  return { market, offer, audience, competitiveAdvantage };
+}
+
+/**
+ * Builds the durable planning artifact synchronously from the customer's
+ * Discovery answers. Prospect sourcing enriches this plan later, but it must
+ * never be the first time a customer sees a strategy.
+ */
+export function buildStrategyBrief(strategy: Strategy): StrategyBrief {
+  const discovery = getStoredDiscoveryInputs(strategy);
+  const filters = buildStrategyFilters(discovery);
+  const valueProposition = `${discovery.offer} for ${discovery.audience}, built around ${discovery.competitiveAdvantage}.`;
+  const roles = filters.jobTitles.length > 0 ? filters.jobTitles : ["Founder", "CEO"];
+
+  return {
+    status: "ready",
+    generatedAt: new Date().toISOString(),
+    goal: `Start relevant conversations with ${discovery.audience} in ${discovery.market}.`,
+    market: discovery.market,
+    audience: discovery.audience,
+    offer: discovery.offer,
+    valueProposition,
+    decisionMakerRoles: roles,
+    outreachAngles: [
+      {
+        title: "Business outcome",
+        description: `Lead with the outcome ${discovery.audience} can achieve with ${discovery.offer}.`,
+        opener: `I noticed your team is focused on improving how ${discovery.audience} approach this work.`,
+      },
+      {
+        title: "Relevant differentiation",
+        description: `Make ${discovery.competitiveAdvantage} the proof point, not a generic product claim.`,
+        opener: `We put together a short idea based on ${discovery.competitiveAdvantage}.`,
+      },
+      {
+        title: "Low-friction next step",
+        description: "Use a concise, personalized question that earns a reply before asking for time.",
+        opener: "Would it be useful to compare notes on what this could look like for your team?",
+      },
+    ],
+    executionPlan: [
+      {
+        step: 1,
+        title: "Prioritize the right buyers",
+        description: `Validate ${roles.join(", ")} roles at ${discovery.market} organizations that match your audience.`,
+      },
+      {
+        step: 2,
+        title: "Personalize the opening",
+        description: "Use the buyer's company context to connect the first message to a credible business outcome.",
+      },
+      {
+        step: 3,
+        title: "Route and follow up",
+        description: "Use the strongest available channel, then keep every reply and follow-up in one reviewable workflow.",
+      },
+    ],
+  };
+}
+
+export function strategyBriefPersistence(strategy: Strategy, brief: StrategyBrief): {
+  icpDefinition: Prisma.InputJsonValue;
+  positioning: Prisma.InputJsonValue;
+  messagingAngles: Prisma.InputJsonValue;
+  executionPlan: Prisma.InputJsonValue;
+} {
+  const icpDefinition = asRecord(strategy.icpDefinition);
+  const positioning = asRecord(strategy.positioning);
+  const messagingAngles = asRecord(strategy.messagingAngles);
+
+  return {
+    icpDefinition: toJson({
+      ...icpDefinition,
+      idealCustomer: icpDefinition.idealCustomer ?? brief.audience,
+      strategyBrief: brief,
+    }),
+    positioning: toJson({
+      ...positioning,
+      industry: recordString(positioning, "industry") || brief.market,
+      businessModel: recordString(positioning, "businessModel") || brief.offer,
+      strengths: recordString(positioning, "strengths"),
+      valueProposition: brief.valueProposition,
+      differentiator: recordString(positioning, "strengths"),
+    }),
+    messagingAngles: toJson({
+      ...messagingAngles,
+      valueProposition: brief.valueProposition,
+      primaryAngle: brief.outreachAngles[0],
+      outreachAngles: brief.outreachAngles,
+    }),
+    executionPlan: toJson(brief.executionPlan),
+  };
 }
 
 function percentage(part: number, total: number): number {
@@ -511,13 +651,25 @@ export async function generateStrategy(
     const reachableProfiles = targetedProfiles.filter((profile) => hasText(profile.email)).length;
     const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
     const channels = asRecord(strategy.channels) as StrategyChannels;
+    const strategyBrief = buildStrategyBrief(strategy);
+    const buyerPersonas = topBuyerPersonas(targetedProfiles);
+    const enrichedBrief: StrategyBrief = {
+      ...strategyBrief,
+      audienceSample: {
+        decisionMakers: targetedProfiles.length,
+        topBuyerPersonas: buyerPersonas.map((persona) => persona.title),
+      },
+    };
+    const persistedPlan = strategyBriefPersistence(strategy, enrichedBrief);
 
     return await prisma.strategy.update({
       where: { id: strategy.id },
       data: {
+        ...persistedPlan,
         icpDefinition: toJson({
           ...icpDefinition,
           idealCustomer: icpDefinition.idealCustomer ?? discovery.audience,
+          strategyBrief: enrichedBrief,
           audienceAnalysis: {
             status: "completed",
             generatedAt: new Date().toISOString(),
@@ -544,7 +696,7 @@ export async function generateStrategy(
               totalProfiles: targetedProfiles.length,
             },
             topIndustries: companyDataUnavailable ? [] : topIndustries(companies),
-            topBuyerPersonas: topBuyerPersonas(targetedProfiles),
+            topBuyerPersonas: buyerPersonas,
             filters: {
               ...profileFilters,
               resolvedIndustryIds: profileIndustryIds,
