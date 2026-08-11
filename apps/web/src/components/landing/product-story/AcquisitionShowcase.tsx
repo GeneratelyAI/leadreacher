@@ -1,9 +1,11 @@
 "use client";
 
 import Image from "next/image";
+import { useState, type FormEvent } from "react";
 import { m, useReducedMotion } from "framer-motion";
 import {
   Activity,
+  ArrowRight,
   BriefcaseBusiness,
   ChartNoAxesCombined,
   Send,
@@ -115,6 +117,61 @@ function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelecte
     {["h-3", "h-5", "h-4", "h-7", "h-9"].map((height, barIndex) => <m.span key={height} className={cn("w-2 rounded-t-full bg-[#8f76ff]", height)} initial={reducedMotion ? false : { opacity: 0, scaleY: 0, originY: 1 }} animate={isSelected ? { opacity: 1, scaleY: 1 } : { opacity: 0.45, scaleY: 1 }} transition={reveal(0.32 + barIndex * 0.07)} />)}
     <m.span className="ml-2 text-xs font-semibold text-[#8f76ff]" initial={reducedMotion ? false : { opacity: 0, y: 5 }} animate={visible} transition={reveal(0.68)}>+31%</m.span>
   </div>;
+}
+
+function AcquisitionUrlPrompt() {
+  const [websiteUrl, setWebsiteUrl] = useState("");
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const heroInput = document.getElementById("landing-website-url") as HTMLInputElement | null;
+    if (!heroInput) return;
+
+    const value = websiteUrl.trim();
+    if (value) {
+      const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      valueSetter?.call(heroInput, value);
+      heroInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    document.getElementById("top")?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+    window.setTimeout(() => heroInput.focus(), 450);
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-3xl px-5 sm:mt-12">
+      <div className="rounded-[18px] border border-[#dcd9ea] bg-[linear-gradient(105deg,rgba(248,247,255,.96),rgba(255,255,255,.98),rgba(241,240,255,.94))] p-1 shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
+        <div className="flex min-h-16 flex-col items-stretch gap-4 rounded-[14px] px-5 py-4 sm:min-h-20 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-3">
+          <div className="shrink-0">
+            <p className="text-base font-semibold leading-5 text-[#171729]">Too good to be true?</p>
+            <p className="mt-1 text-sm leading-5 text-[#62697e]">Just pop in your URL.</p>
+          </div>
+          <div className="hidden h-9 w-px bg-[#e1deea] sm:block" aria-hidden />
+          <label htmlFor="acquisition-showcase-url" className="sr-only">Company website</label>
+          <input
+            id="acquisition-showcase-url"
+            type="url"
+            inputMode="url"
+            autoComplete="url"
+            value={websiteUrl}
+            onChange={(event) => setWebsiteUrl(event.target.value)}
+            placeholder="https://yourwebsite.com"
+            className="min-w-0 flex-1 bg-transparent text-sm text-[#49516a] outline-none placeholder:text-[#8b91a3] sm:text-base"
+          />
+          <button
+            type="submit"
+            aria-label="Analyze your website"
+            className="inline-flex size-11 shrink-0 items-center justify-center self-end rounded-full bg-[#5a32ed] text-white shadow-[0_8px_18px_rgba(90,50,237,.28)] transition-[transform,background-color,box-shadow] hover:-translate-y-0.5 hover:bg-[#6842f5] hover:shadow-[0_12px_24px_rgba(90,50,237,.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5a32ed] focus-visible:ring-offset-2 sm:self-auto"
+          >
+            <ArrowRight className="size-5" aria-hidden />
+          </button>
+        </div>
+      </div>
+    </form>
+  );
 }
 
 export function OrbitNetwork() {
@@ -314,20 +371,7 @@ function AcquisitionFlow() {
           );
         }}
       />
-      <div className="mx-auto mt-10 max-w-3xl px-5 sm:mt-12">
-        <div className="rounded-[22px] bg-gradient-to-r from-violet-600/70 via-white to-indigo-600/75 p-px shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
-          <div className="flex min-h-18 items-center justify-center rounded-[21px] bg-white px-5 py-4 text-center sm:min-h-20 sm:px-8">
-            <div>
-              <p className="text-lg font-semibold leading-7 text-[#171729] sm:text-xl">
-                AI + human touch. Built for B2B. Focused on results.
-              </p>
-              <p className="mt-1.5 text-sm leading-6 text-[#62697e] sm:text-base">
-                Fully done-for-you. You reply and close.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AcquisitionUrlPrompt />
     </div>
   );
 }
