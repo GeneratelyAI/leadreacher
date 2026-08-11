@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { returnedConnectionIsActive } from "../Channels";
 
 const linkedInAccount = {
+  id: "account-linkedin",
   platform: "linkedin",
   providerType: "linkedin",
   accountName: "QA LinkedIn",

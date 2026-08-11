@@ -33,6 +33,7 @@ import { cleanWebsiteDomain } from "@/lib/website-url";
 import { navigateOnboarding, strategyHref, type OnboardingStepParam } from "./steps";
 
 const SHOW_CAMPAIGN_PILL = false;
+const AI_RECOMMENDATION_TYPING_INTERVAL_MS = 18;
 
 function limitRecommendationWords(text: string, maximum = 20): string {
   const words = text.trim().split(/\s+/).filter(Boolean);
@@ -268,7 +269,7 @@ export default function Discovery({
       if (characterIndex < recommendation.length) {
         recommendationTypingTimerRef.current = window.setTimeout(
           typeNextCharacter,
-          24,
+          AI_RECOMMENDATION_TYPING_INTERVAL_MS,
         );
         return;
       }
