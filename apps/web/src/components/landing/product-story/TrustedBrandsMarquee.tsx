@@ -2,6 +2,7 @@
 
 import {
   type MutableRefObject,
+  type PointerEvent,
   useEffect,
   useRef,
   useState,
@@ -34,9 +35,12 @@ const TRUSTED_BRANDS: readonly TrustedBrand[] = [
 const BASE_SPEED_PX_PER_SECOND = 20;
 const SCROLL_VELOCITY_FACTOR = 0.16;
 const MAX_SCROLL_VELOCITY = 2_400;
-const ACTIVE_SCROLL_THRESHOLD = 40;
 const VELOCITY_SMOOTHING_RATE = 12;
 const MAX_FRAME_SECONDS = 0.05;
+
+function wrapTrackOffset(offset: number, loopWidth: number) {
+  return ((offset % loopWidth) + loopWidth) % loopWidth - loopWidth;
+}
 
 function useScrollVelocity(isActive: boolean, reducedMotion: boolean) {
   const velocityRef = useRef(0);
@@ -106,6 +110,8 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
   const trackRef = useRef<HTMLDivElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
   const offsetRef = useRef(0);
+  const dragStartRef = useRef<{ x: number; offset: number } | null>(null);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -130,12 +136,13 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
 
       previousTime = now;
       if (loopWidth > 0) {
-        const nextOffset = offsetRef.current - speed * elapsedSeconds;
-        offsetRef.current = ((nextOffset % loopWidth) + loopWidth) % loopWidth - loopWidth;
+        const nextOffset = isDraggingRef.current
+          ? offsetRef.current
+          : offsetRef.current - speed * elapsedSeconds;
+        offsetRef.current = wrapTrackOffset(nextOffset, loopWidth);
         track.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
       }
 
-      viewport.style.pointerEvents = scrollVelocity > ACTIVE_SCROLL_THRESHOLD ? "none" : "";
       if (isVisible) frameId = window.requestAnimationFrame(animate);
     };
 
@@ -153,19 +160,54 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
     observer.observe(viewport);
     return () => {
       observer.disconnect();
-      viewport.style.pointerEvents = "";
       stop();
     };
   }, [reducedMotion, velocityRef]);
+
+  const updateDragPosition = (clientX: number) => {
+    const start = dragStartRef.current;
+    const track = trackRef.current;
+    const loopWidth = groupRef.current?.offsetWidth ?? 0;
+    if (!start || !track || loopWidth === 0) return;
+
+    offsetRef.current = wrapTrackOffset(start.offset + clientX - start.x, loopWidth);
+    track.style.transform = `translate3d(${offsetRef.current}px, 0, 0)`;
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (reducedMotion) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragStartRef.current = { x: event.clientX, offset: offsetRef.current };
+    isDraggingRef.current = true;
+  };
+
+  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    updateDragPosition(event.clientX);
+  };
+
+  const stopDragging = (event: PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    updateDragPosition(event.clientX);
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
   return (
     <div
       ref={viewportRef}
       className={cn(
-        "overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]",
+        "cursor-grab touch-pan-y select-none overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)] active:cursor-grabbing",
         reducedMotion && "overflow-x-auto [mask-image:none]",
       )}
       aria-label="Brands that trust LeadReacher"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={stopDragging}
+      onPointerCancel={stopDragging}
     >
       <div ref={trackRef} className="flex w-max items-center py-2 will-change-transform">
         <BrandGroup groupRef={groupRef} />
