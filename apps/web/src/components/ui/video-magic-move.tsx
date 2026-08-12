@@ -102,6 +102,7 @@ export function VideoMagicMove({
   const scaleY = useMotionValue(1);
   const opacity = useMotionValue(0);
   const borderRadius = useMotionValue(INITIAL_BORDER_RADIUS_PX);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const measure = useCallback(() => {
     if (disabled || window.innerWidth < DESKTOP_BREAKPOINT_PX) return;
@@ -157,6 +158,7 @@ export function VideoMagicMove({
     (pageY: number) => {
       if (disabled || window.innerWidth < DESKTOP_BREAKPOINT_PX) {
         opacity.set(0);
+        setIsTransitioning(false);
         if (sourceRef.current) sourceRef.current.style.opacity = "";
         restoreSourceAudio(sourceRef.current, sourceAudioRef.current);
         sourceAudioRef.current = null;
@@ -174,6 +176,7 @@ export function VideoMagicMove({
       const progress = clamp((pageY - start) / Math.max(1, end - start));
       if (progress <= 0) {
         opacity.set(0);
+        setIsTransitioning(false);
         if (sourceRef.current) sourceRef.current.style.opacity = "";
         restoreSourceAudio(sourceRef.current, sourceAudioRef.current);
         sourceAudioRef.current = null;
@@ -181,6 +184,7 @@ export function VideoMagicMove({
       }
 
       if (sourceRef.current) sourceRef.current.style.opacity = "0";
+      setIsTransitioning(true);
       if (!sourceAudioRef.current) {
         const video = sourceVideo(sourceRef.current);
         if (video) {
@@ -255,19 +259,21 @@ export function VideoMagicMove({
         borderRadius,
       }}
     >
-      <video
-        suppressHydrationWarning
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        poster={posterSrc}
-        aria-label={mediaAlt}
-        className="size-full object-cover object-center"
-      >
-        <source src={mediaSrc} type="video/mp4" />
-      </video>
+      {isTransitioning ? (
+        <video
+          suppressHydrationWarning
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="none"
+          poster={posterSrc}
+          aria-label={mediaAlt}
+          className="size-full object-cover object-center"
+        >
+          <source src={mediaSrc} type="video/mp4" />
+        </video>
+      ) : null}
       <div className="absolute left-5 top-[60%] flex items-center gap-2 rounded-lg border border-white/20 bg-[#0b0d1be6] px-3 py-2 text-left shadow-xl backdrop-blur-md">
         <Image
           src="/landing/portraits/prospect-68.webp"
