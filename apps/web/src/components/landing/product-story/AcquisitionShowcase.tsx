@@ -145,30 +145,32 @@ function AcquisitionUrlPrompt() {
     <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-3xl px-5 sm:mt-12">
       <SpotlightCard spotlightColor="rgba(139, 92, 246, 0.14)" spotlightClassName="z-10 mix-blend-multiply" className="rounded-[18px] border-0 bg-transparent shadow-none">
         <div className="rounded-[18px] border border-[#dcd9ea] bg-[linear-gradient(105deg,rgba(248,247,255,.96),rgba(255,255,255,.98),rgba(241,240,255,.94))] p-1 shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
-          <div className="flex min-h-16 flex-col items-stretch gap-4 rounded-[14px] px-5 py-4 sm:min-h-20 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-3">
+          <div className="flex flex-col items-stretch gap-4 rounded-[14px] px-5 py-5 sm:min-h-20 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-3">
           <div className="shrink-0">
             <p className="text-base font-semibold leading-5 text-[#171729]">Too good to be true?</p>
             <p className="mt-1 text-sm leading-5 text-[#62697e]">Just pop in your URL.</p>
           </div>
           <div className="hidden h-9 w-px bg-[#e1deea] sm:block" aria-hidden />
-          <label htmlFor="acquisition-showcase-url" className="sr-only">Company website</label>
-          <input
-            id="acquisition-showcase-url"
-            type="url"
-            inputMode="url"
-            autoComplete="url"
-            value={websiteUrl}
-            onChange={(event) => setWebsiteUrl(event.target.value)}
-            placeholder="https://yourwebsite.com"
-            className="min-w-0 flex-1 bg-transparent text-sm text-[#49516a] outline-none placeholder:text-[#8b91a3] sm:text-base"
-          />
-          <button
-            type="submit"
-            aria-label="Analyze your website"
-            className="inline-flex size-11 shrink-0 items-center justify-center self-end rounded-full bg-[#5a32ed] text-white shadow-[0_8px_18px_rgba(90,50,237,.28)] transition-[transform,background-color,box-shadow] hover:-translate-y-0.5 hover:bg-[#6842f5] hover:shadow-[0_12px_24px_rgba(90,50,237,.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5a32ed] focus-visible:ring-offset-2 sm:self-auto"
-          >
-            <ArrowRight className="size-5" aria-hidden />
-          </button>
+          <div className="flex min-h-12 min-w-0 items-center rounded-xl border border-[#ded9ef] bg-white/90 px-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,.9)] transition-shadow focus-within:border-[#8c73f6] focus-within:shadow-[0_0_0_3px_rgba(109,79,238,.13)] sm:flex-1">
+            <label htmlFor="acquisition-showcase-url" className="sr-only">Company website</label>
+            <input
+              id="acquisition-showcase-url"
+              type="url"
+              inputMode="url"
+              autoComplete="url"
+              value={websiteUrl}
+              onChange={(event) => setWebsiteUrl(event.target.value)}
+              placeholder="https://yourwebsite.com"
+              className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[#49516a] outline-none placeholder:text-[#8b91a3] sm:text-base"
+            />
+            <button
+              type="submit"
+              aria-label="Analyze your website"
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#5a32ed] text-white shadow-[0_6px_14px_rgba(90,50,237,.28)] transition-[transform,background-color,box-shadow] hover:-translate-y-0.5 hover:bg-[#6842f5] hover:shadow-[0_10px_18px_rgba(90,50,237,.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5a32ed] focus-visible:ring-offset-2 active:translate-y-0 sm:size-11"
+            >
+              <ArrowRight className="size-5" aria-hidden />
+            </button>
+          </div>
           </div>
         </div>
       </SpotlightCard>
