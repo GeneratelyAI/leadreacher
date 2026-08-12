@@ -65,7 +65,8 @@ const envSchema = z.object({
   UNIPILE_DSN: z.string().min(1),
   UNIPILE_API_KEY: z.string().min(1),
   UNIPILE_WEBHOOK_SECRET: z.string().min(1),
-  APIFY_API_KEY: z.string().min(1),
+  // Apify is optional company enrichment. LinkedIn discovery always uses Unipile.
+  APIFY_API_KEY: z.string().optional().default(""),
   UPSTASH_REDIS_URL: redisConnectionUrl,
   UPSTASH_REDIS_TOKEN: z.string().min(1),
   SUPABASE_URL: z.string().url(),
@@ -86,6 +87,7 @@ const envSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
   R2_BUCKET_NAME: z.string().optional().default(""),
   R2_PUBLIC_URL: z.string().optional().default(""),
+  R2_PREFLIGHT_VIDEO_URL: optionalUrl,
   VIDEO_MOCK_MODE: booleanString,
   STRIPE_MOCK_MODE: enabledByDefaultBooleanString,
   STRIPE_SECRET_KEY: z.string().optional().default(""),
@@ -126,6 +128,7 @@ const envSchema = z.object({
   ENABLE_VIDEO_WORKER: optionalBoolean,
   ENABLE_ANALYTICS_INSIGHTS_WORKER: optionalBoolean,
   ENABLE_LIFECYCLE_WORKER: optionalBoolean,
+  PAUSED_WORKER_FAMILIES: z.string().default(""),
   ENABLE_API_DOCS: optionalBoolean,
   BULLMQ_IDLE_DRAIN_DELAY_SECONDS: z.coerce
     .number()
@@ -153,7 +156,14 @@ const envSchema = z.object({
     return;
   }
 
-  for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"] as const) {
+  for (const key of [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_PRICE_PERSONALIZED_OUTREACH",
+    "STRIPE_PRICE_AI_VIDEO_AD",
+    "STRIPE_PRICE_UPLOADED_VIDEO",
+    "STRIPE_PRICE_VIDEO_ADDON",
+  ] as const) {
     if (!value[key]) {
       ctx.addIssue({
         code: "custom",
@@ -183,6 +193,90 @@ if (env.STRIPE_MOCK_MODE && process.env.NODE_ENV === "production") {
 }
 
 export type Env = z.infer<typeof envSchema>;
+
+const REQUIRED_PRODUCTION_WORKER_FLAGS = [
+  "ENABLE_CAMPAIGN_WORKER",
+  "ENABLE_RECONCILE_WORKER",
+  "ENABLE_VIDEO_WORKER",
+  "ENABLE_ANALYTICS_INSIGHTS_WORKER",
+  "ENABLE_LIFECYCLE_WORKER",
+] as const;
+
+const WORKER_FAMILY_NAMES = [
+  "campaign",
+  "reconcile",
+  "video",
+  "analytics",
+  "lifecycle",
+] as const;
+
+export type WorkerFamilyName = (typeof WORKER_FAMILY_NAMES)[number];
+
+type ProductionWorkerConfiguration = Pick<
+  Env,
+  | "ENABLE_CAMPAIGN_WORKER"
+  | "ENABLE_RECONCILE_WORKER"
+  | "ENABLE_VIDEO_WORKER"
+  | "ENABLE_ANALYTICS_INSIGHTS_WORKER"
+  | "ENABLE_LIFECYCLE_WORKER"
+  | "SENTRY_DSN"
+  | "BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL"
+  | "BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL"
+  | "BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL"
+>;
+
+export function getMissingProductionWorkerConfiguration(
+  value: ProductionWorkerConfiguration,
+): string[] {
+  const missing: string[] = REQUIRED_PRODUCTION_WORKER_FLAGS.filter(
+    (key) => value[key] !== true,
+  );
+  if (!value.SENTRY_DSN) missing.push("SENTRY_DSN");
+  if (!value.BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL) {
+    missing.push("BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL");
+  }
+  if (!value.BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL) {
+    missing.push("BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL");
+  }
+  if (!value.BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL) {
+    missing.push("BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL");
+  }
+  return missing;
+}
+
+export function getPausedWorkerFamilies(): Set<WorkerFamilyName> {
+  const values = env.PAUSED_WORKER_FAMILIES.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const invalid = values.filter(
+    (value): value is string => !WORKER_FAMILY_NAMES.includes(value as WorkerFamilyName),
+  );
+  if (invalid.length > 0) {
+    throw new Error(`Invalid PAUSED_WORKER_FAMILIES values: ${invalid.join(", ")}`);
+  }
+  return new Set(values as WorkerFamilyName[]);
+}
+
+export function isWorkerFamilyPaused(name: WorkerFamilyName): boolean {
+  return getPausedWorkerFamilies().has(name);
+}
+
+/** Fail a production worker fast instead of serving a deployment with missing job families. */
+export function assertProductionWorkerConfiguration(): void {
+  if (process.env.NODE_ENV !== "production" || env.RUNTIME_ROLE !== "worker") {
+    return;
+  }
+
+  const missing = getMissingProductionWorkerConfiguration(env);
+
+  if (missing.length > 0) {
+    throw new Error(`Production worker configuration is incomplete: ${missing.join(", ")}`);
+  }
+}
+
+export function requiresWorkerReadiness(): boolean {
+  return process.env.NODE_ENV === "production" && env.RUNTIME_ROLE === "api";
+}
 
 export function isWorkerEnabled(value: boolean | undefined): boolean {
   if (env.RUNTIME_ROLE !== "worker") return false;

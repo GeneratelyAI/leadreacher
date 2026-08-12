@@ -1,6 +1,6 @@
 import { captureException, initializeSentry } from "./lib/sentry.js";
 import { buildServer } from "./server.js";
-import { env } from "./config/env.js";
+import { assertProductionWorkerConfiguration, env } from "./config/env.js";
 
 /**
  * Railway worker entry point. It registers the same Fastify lifecycle as the
@@ -11,6 +11,7 @@ async function main() {
   if (env.RUNTIME_ROLE !== "worker") {
     throw new Error('The worker entry point requires RUNTIME_ROLE="worker"');
   }
+  assertProductionWorkerConfiguration();
   initializeSentry();
   const app = await buildServer();
   await app.ready();
