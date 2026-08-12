@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "seed:demo": "tsx src/scripts/seed-demo-workspace.ts",
     "seed:messages": "tsx src/scripts/seed-messages-inbox-demo.ts",
-    "video:benchmark": "tsx src/scripts/evaluate-video-providers.ts"
+    "video:benchmark": "tsx src/scripts/evaluate-video-providers.ts",
+    "preflight:production": "tsx src/scripts/production-preflight.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",
@@ -22,9 +23,11 @@
     "@fastify/multipart": "^10.1.0",
     "@fastify/rate-limit": "^11.1.0",
     "@fastify/swagger": "^9.8.1",
-    "@google/genai": "^2.15.0",
-    "@prisma/adapter-pg": "^7.8.0",
-    "@prisma/client": "^7.8.0",
+    "@google/genai": "2.16.0",
+    "@hono/node-server": "2.1.0",
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@prisma/adapter-pg": "^7.9.1",
+    "@prisma/client": "^7.9.1",
     "@scalar/fastify-api-reference": "^1.63.0",
     "@sentry/node": "^10.69.0",
     "@supabase/supabase-js": "^2.107.0",
@@ -48,7 +51,7 @@
     "@types/archiver": "^8.0.0",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
-    "prisma": "^7.8.0",
+    "prisma": "^7.9.1",
     "tsx": "^4.19.4",
     "typescript": "^5",
     "vitest": "^4.1.9"
