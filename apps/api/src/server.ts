@@ -4,7 +4,7 @@ import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRawBody from "fastify-raw-body";
 import "./config/env.js";
-import { env, isWorkerEnabled } from "./config/env.js";
+import { env, isWorkerEnabled, isWorkerFamilyPaused } from "./config/env.js";
 import { apiErrorResponse } from "./lib/errors.js";
 import { startBetterStackHeartbeat } from "./lib/better-stack.js";
 import { installHttpErrorHandling } from "./lib/http-error-handler.js";
@@ -26,20 +26,26 @@ import { startReconciliationMaintenanceWorker } from "./workers/reconcile-mainte
 import { startVideoGenerationWorker } from "./workers/video-generation.js";
 import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
 import { startOnboardingProspectDiscoveryWorker } from "./workers/onboarding-prospect-discovery.js";
+import {
+  recordWorkerActivity,
+  startWorkerLeaseRenewal,
+  type WorkerLeaseName,
+} from "./lib/worker-leases.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
   configureOperationalLogger(app.log);
   const workers: Array<{ close: () => Promise<void> }> = [];
   const stopHeartbeats: Array<() => void> = [];
+  const activeLeaseNames: WorkerLeaseName[] = [];
 
   const registerWorker = <T extends {
     close: () => Promise<void>;
     on: (
-      event: "failed",
-      listener: (job: { id?: string } | undefined, error: Error) => void,
+      event: "failed" | "completed",
+      listener: ((job: { id?: string } | undefined, error: Error) => void) | ((job: { id?: string } | undefined) => void),
     ) => unknown;
-  }>(worker: T, name: string) => {
+  }>(worker: T, name: string, leaseNames: WorkerLeaseName[] = []) => {
     worker.on("failed", (job, error) => {
       captureException(error, {
         operation: "queue-job-failed",
@@ -47,6 +53,12 @@ export async function buildServer() {
         jobId: job?.id,
       });
     });
+    worker.on("completed", () => {
+      for (const leaseName of leaseNames) {
+        void recordWorkerActivity(leaseName);
+      }
+    });
+    activeLeaseNames.push(...leaseNames);
     workers.push(worker);
   };
 
@@ -99,15 +111,20 @@ export async function buildServer() {
   await app.register(publicPricingRoutes);
   await app.register(protectedRoutes);
 
-  const campaignWorkerEnabled = isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER);
-  const reconcileWorkerEnabled = isWorkerEnabled(env.ENABLE_RECONCILE_WORKER);
-  const videoWorkerEnabled = isWorkerEnabled(env.ENABLE_VIDEO_WORKER);
-  const analyticsInsightsWorkerEnabled = isWorkerEnabled(env.ENABLE_ANALYTICS_INSIGHTS_WORKER);
-  const lifecycleWorkerEnabled = isWorkerEnabled(env.ENABLE_LIFECYCLE_WORKER);
+  const campaignWorkerEnabled =
+    isWorkerEnabled(env.ENABLE_CAMPAIGN_WORKER) && !isWorkerFamilyPaused("campaign");
+  const reconcileWorkerEnabled =
+    isWorkerEnabled(env.ENABLE_RECONCILE_WORKER) && !isWorkerFamilyPaused("reconcile");
+  const videoWorkerEnabled =
+    isWorkerEnabled(env.ENABLE_VIDEO_WORKER) && !isWorkerFamilyPaused("video");
+  const analyticsInsightsWorkerEnabled =
+    isWorkerEnabled(env.ENABLE_ANALYTICS_INSIGHTS_WORKER) && !isWorkerFamilyPaused("analytics");
+  const lifecycleWorkerEnabled =
+    isWorkerEnabled(env.ENABLE_LIFECYCLE_WORKER) && !isWorkerFamilyPaused("lifecycle");
 
   if (campaignWorkerEnabled) {
-    registerWorker(startCampaignSequenceWorker(), "campaign-sequence");
-    registerWorker(startOnboardingProspectDiscoveryWorker(), "onboarding-prospect-discovery");
+    registerWorker(startCampaignSequenceWorker(), "campaign-sequence", ["campaign"]);
+    registerWorker(startOnboardingProspectDiscoveryWorker(), "onboarding-prospect-discovery", ["campaign"]);
     stopHeartbeats.push(
       startBetterStackHeartbeat({
         name: "campaign-worker",
@@ -124,6 +141,10 @@ export async function buildServer() {
         lifecycleEnabled: lifecycleWorkerEnabled,
       }),
       "reconcile-maintenance",
+      [
+        ...(reconcileWorkerEnabled ? ["reconcile" as const] : []),
+        ...(lifecycleWorkerEnabled ? ["lifecycle" as const] : []),
+      ],
     );
   }
 
@@ -137,7 +158,7 @@ export async function buildServer() {
   }
 
   if (videoWorkerEnabled) {
-    registerWorker(startVideoGenerationWorker(), "video-generation");
+    registerWorker(startVideoGenerationWorker(), "video-generation", ["video"]);
     stopHeartbeats.push(
       startBetterStackHeartbeat({
         name: "video-workers",
@@ -147,7 +168,16 @@ export async function buildServer() {
   }
 
   if (analyticsInsightsWorkerEnabled) {
-    registerWorker(startAnalyticsInsightsWorker(), "analytics-insights");
+    registerWorker(startAnalyticsInsightsWorker(), "analytics-insights", ["analytics"]);
+  }
+
+  if (env.RUNTIME_ROLE === "worker" && activeLeaseNames.length > 0) {
+    stopHeartbeats.push(
+      startWorkerLeaseRenewal({
+        names: [...new Set(activeLeaseNames)],
+        logger: app.log,
+      }),
+    );
   }
 
   app.addHook("onClose", async () => {
