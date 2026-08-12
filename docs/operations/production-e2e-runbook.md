@@ -22,25 +22,48 @@ AUTH_TOKEN="<staging Supabase JWT>" BASE_URL="https://<staging-api>" \
 The load test calls only liveness/readiness and read-only dashboard endpoints.
 It does not scrape, create campaigns, send outreach, or generate video.
 
+## Production preflight
+
+Run this with the production API environment before accepting a deployment:
+
+```bash
+pnpm --filter @leadreacher/api preflight:production
+```
+
+It validates live Stripe prices, a read-only Unipile account list, and an R2
+public MP4 range response. It requires `R2_PREFLIGHT_VIDEO_URL` and does not
+send outreach. Record the command output and `GET /ready` response as release
+evidence.
+
 ## Operator verification
 
-1. Create a draft campaign with a connected staging sender and at least one
+1. Complete Stripe Checkout and confirm signed webhook activation, billing
+   interruption, recovery, and portal access using an internal customer.
+2. Create a draft campaign with a connected staging sender and at least one
    approved prospect.
-2. Confirm the campaign is blocked until its sequence is reviewed where the
+3. Confirm the campaign is blocked until its sequence is reviewed where the
    onboarding contract requires it.
-3. For a generated video campaign, deliberately use the mock provider or a
+4. For a generated video campaign, deliberately use the mock provider or a
    staging provider quota to verify that a failed/review-required video shows
    `Retry generation` in the campaign detail view.
-4. Retry once and confirm the UI changes to `Generating`; campaign and outreach
+5. Retry once and confirm the UI changes to `Generating`; campaign and outreach
    status must remain unchanged.
-5. Verify an inbound webhook marks the associated conversation as needing a
+6. Verify the stored R2 MP4 plays inline in the dashboard with byte-range
+   requests, then verify an inbound webhook marks the associated conversation as needing a
    reply, without dispatching an automated response.
-6. Only after a human operator approves it, run one real outbound delivery from
+7. Only after a human operator approves it, run one real outbound delivery from
    the dedicated test account and verify the audit trail.
 
 ## Rollback
 
-If delivery, worker, or provider failures appear, first disable the relevant
-`ENABLE_*_WORKER` flag on the worker service. This stops new work without
-removing campaigns, messages, or existing provider output. Investigate Sentry
-and Better Stack before enabling it again.
+If delivery, worker, or provider failures appear, set
+`PAUSED_WORKER_FAMILIES` on both API and worker services to the required
+comma-separated family (`campaign`, `reconcile`, `video`, `analytics`, or
+`lifecycle`) and redeploy. This pauses new work without deleting campaigns,
+messages, or existing provider output. Record the affected queues, pause time,
+Sentry incident, and Better Stack heartbeat before removing the pause. Do not
+roll back by deleting Redis queues or campaign state.
+
+Configure Better Stack/Sentry alerts for API readiness failures, missing worker
+heartbeats, worker restarts, queue failures, stale queued jobs, failed delivery
+reconciliation, and webhook failure spikes.

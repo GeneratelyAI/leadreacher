@@ -17,10 +17,9 @@ This avoids two systems issuing competing deployment commands.
   `.github/workflows/deployment-smoke.yml` waits for the deployed API and web
   application, then verifies API readiness, API liveness, and the web root.
 
-Set the repository variable `DEPLOYMENT_SMOKE_ENABLED` to `true` only after the
-environment URLs below are configured. Until then, the workflow remains
-available through `workflow_dispatch` but will not create failing automatic
-checks for an unconfigured deployment target.
+Deployment smoke runs automatically after a successful CI deployment whenever
+both environment URLs below are configured. It records a skipped check until
+then, rather than producing a false failure for an unconfigured target.
 
 Create GitHub environments named `staging` and `production`. Add these
 environment secrets, pointing at the matching environment's public services:
@@ -68,20 +67,39 @@ The pre-deploy command runs `prisma migrate deploy`. Every directory under
 `apps/api/prisma/migrations` must contain a committed `migration.sql`; an empty
 migration directory makes Prisma reject the deployment.
 
-Railway checks `GET /ready`, which verifies Postgres and Redis. `GET /health`
+Railway checks `GET /ready`, which verifies Postgres and Redis. In production
+it also returns `503` until every required worker lease is fresh. `GET /health`
 is the process liveness endpoint.
 
-## Optional worker service
+## Required worker service
 
-If background processing is split from the API later, create a third service
-from the API package and use this start command:
+Create a third Railway service from the API package for all background work:
 
 ```text
 node dist/worker.js
 ```
 
-Disable worker flags on the API service and enable them only on the worker.
-Never run two consumers for the same queues unintentionally.
+Set these values on the worker service:
+
+```text
+RUNTIME_ROLE=worker
+ENABLE_CAMPAIGN_WORKER=true
+ENABLE_RECONCILE_WORKER=true
+ENABLE_VIDEO_WORKER=true
+ENABLE_ANALYTICS_INSIGHTS_WORKER=true
+ENABLE_LIFECYCLE_WORKER=true
+SENTRY_DSN=<required>
+BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL=<required>
+BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL=<required>
+BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL=<required>
+```
+
+Set every `ENABLE_*_WORKER` flag to `false` on the API service. Migrations run
+only through the API service pre-deploy command. The worker exits on startup in
+production when a required worker flag, Sentry DSN, or heartbeat URL is absent.
+The three external heartbeats cover campaign, video, and reconciliation work;
+lifecycle is part of reconciliation maintenance. Analytics has no separate
+heartbeat because its Redis lease is required by the API readiness check.
 
 ## Video prerequisites
 
@@ -96,7 +114,11 @@ integration in a non-production environment first.
    path and commands.
 2. Confirm the web deployment starts with `@leadreacher/web`.
 3. Confirm API pre-deploy migrations complete successfully.
-4. Confirm API `GET /health` and `GET /ready` return `200`.
-5. Check runtime logs and Sentry for startup or queue failures.
-6. Run the safe checks in
+4. Run `pnpm --filter @leadreacher/api preflight:production` with production
+   configuration. It validates Stripe prices, Unipile connectivity, and public
+   R2 MP4 byte-range playback without sending outreach.
+5. Confirm API `GET /health` and `GET /ready` return `200`; readiness proves
+   the worker leases are fresh.
+6. Check runtime logs and Sentry for startup or queue failures.
+7. Run the safe checks in
    [`production-e2e-runbook.md`](production-e2e-runbook.md).
