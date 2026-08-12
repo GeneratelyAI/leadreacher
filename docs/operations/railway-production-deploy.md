@@ -67,9 +67,11 @@ The pre-deploy command runs `prisma migrate deploy`. Every directory under
 `apps/api/prisma/migrations` must contain a committed `migration.sql`; an empty
 migration directory makes Prisma reject the deployment.
 
-Railway checks `GET /ready`, which verifies Postgres and Redis. In production
-it also returns `503` until every required worker lease is fresh. `GET /health`
-is the process liveness endpoint.
+Railway uses `GET /health` for API deployment liveness so API and worker
+services can deploy independently. `GET /ready` verifies Postgres and Redis;
+in production it also returns `503` until every required worker lease is fresh.
+Deployment smoke and release checks must use `/ready` as the strict dependency
+gate.
 
 ## Required worker service
 

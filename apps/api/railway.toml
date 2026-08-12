@@ -5,7 +5,9 @@ buildCommand = "npm run build"
 [deploy]
 startCommand = "node dist/index.js"
 preDeployCommand = "npx prisma migrate deploy"
-healthcheckPath = "/ready"
+# Deployment health must not depend on a separately deployed worker publishing
+# leases. CI and release smoke use /ready as the strict dependency gate.
+healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
