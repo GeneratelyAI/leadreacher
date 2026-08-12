@@ -1,5 +1,6 @@
 import type { Prisma, Strategy } from "@prisma/client";
 import {
+  classifyApifyFailure,
   type CompanySearchResult,
   type ICPFilters,
 } from "../adapters/apify.js";
@@ -318,11 +319,16 @@ export function resolveCompanySearchOutcome(
 ): CompanySearchResult {
   if (companyResult.status === "fulfilled") return companyResult.value;
 
+  const failureKind = classifyApifyFailure(companyResult.reason);
+  logOperationalInfo("strategy-company-enrichment-unavailable", { failureKind });
   return {
     companies: [],
     totalFound: 0,
     skipped: true,
-    reason: COMPANY_SEARCH_UNAVAILABLE_REASON,
+    reason:
+      failureKind === "quota"
+        ? "Company enrichment is temporarily unavailable. Your strategy and channel recommendations are ready."
+        : COMPANY_SEARCH_UNAVAILABLE_REASON,
   };
 }
 

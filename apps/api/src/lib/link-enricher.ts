@@ -464,6 +464,12 @@ export async function enrichFromUrl(url: string): Promise<string> {
   let markdown = "";
   const kind = classifyUrl(normalized);
 
+  // Social enrichment is optional. Onboarding continues with the website brief
+  // when Apify is unavailable or deliberately not configured.
+  if (kind !== "website" && !env.APIFY_API_KEY) {
+    return "";
+  }
+
   try {
     markdown = await enrichUrlByKind(normalized, kind);
   } catch (error) {
