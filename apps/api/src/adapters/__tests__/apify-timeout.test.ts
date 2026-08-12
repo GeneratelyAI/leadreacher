@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApifyAdapter } from "../apify.js";
+import { ApifyAdapter, classifyApifyFailure } from "../apify.js";
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {
@@ -12,6 +12,12 @@ describe("Apify adapter timeouts", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("classifies quota failures without retrying them", () => {
+    expect(classifyApifyFailure(new Error("free user run limit reached"))).toBe("quota");
+    expect(classifyApifyFailure(new Error("503 provider unavailable"))).toBe("transient");
+    expect(classifyApifyFailure(new Error("actor input is invalid"))).toBe("unavailable");
   });
 
   it("aborts the actor run before reporting a polling timeout", async () => {

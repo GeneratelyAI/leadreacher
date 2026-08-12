@@ -143,7 +143,7 @@ type FetchResultsResult<T> = {
   totalFound: number;
 };
 
-function isApifyQuotaMessage(message: string): boolean {
+export function isApifyQuotaMessage(message: string): boolean {
   const normalized = message.toLowerCase();
   return (
     normalized.includes("free user") ||
@@ -152,6 +152,17 @@ function isApifyQuotaMessage(message: string): boolean {
     normalized.includes("usage limit") ||
     normalized.includes("run limit")
   );
+}
+
+export type ApifyFailureKind = "quota" | "transient" | "unavailable";
+
+export function classifyApifyFailure(error: unknown): ApifyFailureKind {
+  const message = error instanceof Error ? error.message : String(error);
+  if (isApifyQuotaMessage(message)) return "quota";
+  if (/\b(?:408|429|5\d\d|timed?\s*out|timeout)\b/i.test(message)) {
+    return "transient";
+  }
+  return "unavailable";
 }
 
 function hasCompanySearchCriteria(input: CompanyActorRunInput): boolean {
@@ -177,16 +188,39 @@ export class ApifyAdapter {
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
-    const res = await fetch(this.buildUrl(path), {
-      method,
-      headers: { "Content-Type": "application/json" },
-      ...(body && { body: JSON.stringify(body) }),
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new ExternalServiceError("Apify", text);
+    const maxAttempts = method === "GET" ? 3 : 1;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const res = await fetch(this.buildUrl(path), {
+          method,
+          headers: { "Content-Type": "application/json" },
+          ...(body && { body: JSON.stringify(body) }),
+          signal: AbortSignal.timeout(30_000),
+        });
+        if (res.ok) {
+          return (await res.json()) as T;
+        }
+
+        const text = await res.text();
+        const error = new ExternalServiceError("Apify", `${res.status}: ${text}`);
+        if (classifyApifyFailure(error) !== "transient" || attempt === maxAttempts) {
+          throw error;
+        }
+        lastError = error;
+      } catch (error) {
+        if (classifyApifyFailure(error) !== "transient" || attempt === maxAttempts) {
+          throw error;
+        }
+        lastError = error;
+      }
+
+      const jitterMs = Math.floor(Math.random() * 150);
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** (attempt - 1) + jitterMs));
     }
-    return (await res.json()) as T;
+
+    throw externalServiceFailure("Apify", lastError ?? new Error("Request failed"));
   }
 
   /**
