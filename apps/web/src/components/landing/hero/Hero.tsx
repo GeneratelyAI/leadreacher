@@ -198,6 +198,7 @@ export default function Hero() {
             formStyle={taglineWidth ? { width: `${taglineWidth}px`, maxWidth: "100%" } : undefined}
             errorMessage={errorMessage && phase === "idle" ? errorMessage : null}
             disabled={phase === "running"}
+            spotlight
           />
 
           <div className="relative z-[1] mt-32 flex w-screen flex-col items-center bg-white px-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-16 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-white sm:mt-0 sm:w-full sm:bg-transparent sm:px-0 sm:before:hidden lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
