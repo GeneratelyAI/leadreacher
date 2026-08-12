@@ -23,6 +23,7 @@ import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
 import { Logo } from "@/components/ui/Logo";
 import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
 import { ScrollExpandMedia } from "@/components/ui/scroll-expansion-hero";
+import { SpotlightCard } from "@/components/ui/spotlight-card";
 import AnimatedHighlightText, { Highlight, SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { MarkerHighlight } from "@/components/ui/marker-highlight";
 import { PointerHighlight } from "@/components/ui/pointer-highlight";
@@ -201,7 +202,11 @@ function LandingPricingCard() {
         </LinkPreview>
       </p>
 
-      <div className="mt-8 grid min-h-60 gap-7 rounded-[22px] border border-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(105deg,rgba(147,51,234,.72),rgba(196,181,253,.82)_24%,rgba(255,255,255,.96)_48%,rgba(165,180,252,.86)_72%,rgba(79,70,229,.76))] p-5 shadow-[0_18px_45px_rgba(66,42,148,0.10)] [background-clip:padding-box,border-box] [background-origin:border-box] [background-size:100%_100%,220%_100%] sm:grid-cols-[.9fr_1.1fr] sm:p-7">
+      <SpotlightCard
+        spotlightColor="rgba(115, 79, 255, 0.16)"
+        className="mt-8 min-h-60 rounded-[22px] border border-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(105deg,rgba(147,51,234,.72),rgba(196,181,253,.82)_24%,rgba(255,255,255,.96)_48%,rgba(165,180,252,.86)_72%,rgba(79,70,229,.76))] shadow-[0_18px_45px_rgba(66,42,148,0.10)] [background-clip:padding-box,border-box] [background-origin:border-box] [background-size:100%_100%,220%_100%]"
+      >
+        <div className="grid min-h-60 gap-7 p-5 sm:grid-cols-[.9fr_1.1fr] sm:p-7">
         <div className="flex flex-col border-b border-[#e6e4f1] pb-6 sm:border-b-0 sm:border-r sm:pr-7 sm:pb-0">
           <p className="text-base font-semibold text-[#4e28df]">LeadReacher Pro</p>
           <div className="mt-4 flex items-end gap-1 text-[#111527]">
@@ -225,7 +230,8 @@ function LandingPricingCard() {
             </li>
           ))}
         </ul>
-      </div>
+        </div>
+      </SpotlightCard>
 
       <p className="mt-5 flex items-center gap-2 text-xs leading-5 text-[#62697e]">
         <ShieldCheck className="size-4 shrink-0 text-[#4e28df]" aria-hidden />
@@ -317,6 +323,7 @@ function FooterUrlBar() {
         onValueChange={setWebsiteUrl}
         onSubmit={handleSubmit}
         formClassName="w-full max-w-[calc(100vw-2rem)] sm:w-[34rem] lg:w-[36rem]"
+        spotlight
       />
       <p className="mt-3 text-center text-xs text-white/50">No credit card required</p>
     </div>

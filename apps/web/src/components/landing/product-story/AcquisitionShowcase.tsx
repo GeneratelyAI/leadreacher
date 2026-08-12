@@ -143,8 +143,9 @@ function AcquisitionUrlPrompt() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto mt-10 max-w-3xl px-5 sm:mt-12">
-      <div className="rounded-[18px] border border-[#dcd9ea] bg-[linear-gradient(105deg,rgba(248,247,255,.96),rgba(255,255,255,.98),rgba(241,240,255,.94))] p-1 shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
-        <div className="flex min-h-16 flex-col items-stretch gap-4 rounded-[14px] px-5 py-4 sm:min-h-20 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-3">
+      <SpotlightCard spotlightColor="rgba(139, 92, 246, 0.14)" spotlightClassName="z-10 mix-blend-multiply" className="rounded-[18px] border-0 bg-transparent shadow-none">
+        <div className="rounded-[18px] border border-[#dcd9ea] bg-[linear-gradient(105deg,rgba(248,247,255,.96),rgba(255,255,255,.98),rgba(241,240,255,.94))] p-1 shadow-[0_18px_45px_rgba(66,42,148,0.10)]">
+          <div className="flex min-h-16 flex-col items-stretch gap-4 rounded-[14px] px-5 py-4 sm:min-h-20 sm:flex-row sm:items-center sm:gap-6 sm:px-8 sm:py-3">
           <div className="shrink-0">
             <p className="text-base font-semibold leading-5 text-[#171729]">Too good to be true?</p>
             <p className="mt-1 text-sm leading-5 text-[#62697e]">Just pop in your URL.</p>
@@ -168,8 +169,9 @@ function AcquisitionUrlPrompt() {
           >
             <ArrowRight className="size-5" aria-hidden />
           </button>
+          </div>
         </div>
-      </div>
+      </SpotlightCard>
     </form>
   );
 }
@@ -308,8 +310,7 @@ function AcquisitionFlow() {
   return (
     <div className="bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-5 text-center sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#5544c8]">The acquisition engine</p>
-        <h2 className="mx-auto mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] text-[#111527] sm:text-5xl lg:text-6xl large-desktop:max-w-5xl large-desktop:text-7xl">
+        <h2 className="mx-auto max-w-4xl text-balance text-4xl font-semibold leading-[1.06] tracking-[-0.03em] text-[#111527] sm:text-5xl lg:text-6xl large-desktop:max-w-5xl large-desktop:text-7xl">
           Fully automates new <ShimmerText className="text-[#5d42e5]">customer acquisition.</ShimmerText>
         </h2>
         <p className="mx-auto mt-4 text-balance text-[1.375rem] font-medium leading-8 text-[#646b82] sm:text-[1.625rem] sm:leading-9">
