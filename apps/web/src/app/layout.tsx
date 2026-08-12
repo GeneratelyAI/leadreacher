@@ -10,7 +10,9 @@ import "./globals.css";
 // engines associate one canonical favicon and page identity with the site.
 const SITE_DESCRIPTION =
   "AI-powered multi-channel outreach with personalized video, built for review before launch.";
-const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png";
+// Social platforms cache previews independently. Version this URL whenever the
+// branded card changes so new shares cannot reuse an old third-party preview.
+const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png?v=20260812";
 // Keep a single, versioned browser icon URL. Safari caches favicons aggressively
 // by URL, so changing this value is the reliable way to refresh existing tabs.
 const FAVICON_IMAGE = "/leadreacher-favicon-v2.png?v=20260811";
