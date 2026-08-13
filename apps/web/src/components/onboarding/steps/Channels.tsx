@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { Chrome } from "@/components/onboarding/Chrome";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -22,7 +22,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
+import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
+import { openChannelConnection, waitForChannelConnection } from "@/lib/channel-connection";
 import {
   getChannelRecommendations,
   type ChannelRecommendationKey,
@@ -86,6 +87,7 @@ const CHANNELS = [
     available: true,
     provider: "GOOGLE" as const,
     matchPlatforms: ["email"] as const,
+    providerTypes: ["google", "gmail"] as const,
     recommendationKey: "email" as const,
   },
   {
@@ -97,6 +99,7 @@ const CHANNELS = [
     available: true,
     provider: "OUTLOOK" as const,
     matchPlatforms: ["email"] as const,
+    providerTypes: ["outlook", "microsoft"] as const,
     recommendationKey: "email" as const,
   },
 ] as const;
@@ -112,7 +115,10 @@ function accountMatchesChannel(
   ) {
     return false;
   }
-  return true;
+  if (!("providerTypes" in channel)) return true;
+  return channel.providerTypes.some(
+    (providerType) => providerType === account.providerType?.toLowerCase(),
+  );
 }
 
 function findAccountForChannel(
@@ -155,6 +161,8 @@ export default function Channels() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isWaitingForConnection, setIsWaitingForConnection] = useState(false);
+  const [activationPendingChannelKey, setActivationPendingChannelKey] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recommendedChannels, setRecommendedChannels] = useState<Set<ChannelRecommendationKey>>(
@@ -193,6 +201,47 @@ export default function Channels() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
+    if (pendingKey && CHANNELS.some((channel) => channel.key === pendingKey)) {
+      setActivationPendingChannelKey(pendingKey);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!activationPendingChannelKey) return;
+
+    let cancelled = false;
+    let checking = false;
+
+    const checkActivation = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const nextAccounts = await loadAccounts(false, false);
+        if (
+          !cancelled &&
+          nextAccounts &&
+          returnedConnectionIsActive(nextAccounts, activationPendingChannelKey)
+        ) {
+          window.localStorage.removeItem("lr_pending_channel_key");
+          window.localStorage.removeItem("lr_pending_connection_token");
+          setActivationPendingChannelKey(null);
+          setError(null);
+        }
+      } finally {
+        checking = false;
+      }
+    };
+
+    void checkActivation();
+    const interval = window.setInterval(() => void checkActivation(), 5_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activationPendingChannelKey, loadAccounts]);
+
+  useEffect(() => {
     if (!connectionReturned) return;
     let cancelled = false;
     const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
@@ -224,15 +273,14 @@ export default function Channels() {
         if (nextAccounts && returnedConnectionIsActive(nextAccounts, pendingKey)) {
           window.localStorage.removeItem("lr_pending_channel_key");
           window.localStorage.removeItem("lr_pending_connection_token");
+          setActivationPendingChannelKey(null);
           navigateOnboarding(onboardingHref("channels"), true);
           return;
         }
         await new Promise((resolve) => window.setTimeout(resolve, 2_000));
       }
       if (!cancelled) {
-        setError(
-          "The provider returned successfully, but the account is not active yet. Refresh to check again.",
-        );
+        setActivationPendingChannelKey(pendingKey);
         navigateOnboarding(onboardingHref("channels"), true);
       }
     }
@@ -268,7 +316,7 @@ export default function Channels() {
 
     (async () => {
       try {
-        const { orgId } = await bootstrapOrganization("LeadReacher");
+        const { orgId } = await bootstrapCurrentOrganization();
         const strategy = await apiFetch<{ channels: JsonValue }>(`/strategy/${orgId}`);
         if (cancelled) return;
         const recommendations = getChannelRecommendations(strategy.channels);
@@ -302,12 +350,45 @@ export default function Channels() {
       });
       window.localStorage.setItem("lr_pending_channel_key", channelKey);
       window.localStorage.setItem("lr_pending_connection_token", result.connectionToken);
-      window.location.assign(result.url);
+      setActivationPendingChannelKey(channelKey);
+      const initialMatchingAccountCount = accounts.filter((account) => {
+        const channel = CHANNELS.find((item) => item.key === channelKey);
+        return channel ? accountMatchesChannel(account, channel) : false;
+      }).length;
+      const connectionWindow = openChannelConnection(result.url);
+      if (!connectionWindow) {
+        window.location.assign(result.url);
+        return;
+      }
+
+      setIsWaitingForConnection(true);
+      const connected = await waitForChannelConnection(
+        async () => {
+          const nextAccounts = await loadAccounts(false, false);
+          if (!nextAccounts) return false;
+          const channel = CHANNELS.find((item) => item.key === channelKey);
+          if (!channel) return false;
+          const matchingAccountCount = nextAccounts.filter((account) => accountMatchesChannel(account, channel)).length;
+          return matchingAccountCount > initialMatchingAccountCount
+            && returnedConnectionIsActive(nextAccounts, channelKey);
+        },
+        () => connectionWindow.close(),
+      );
+
+      if (connected) {
+        window.localStorage.removeItem("lr_pending_channel_key");
+        window.localStorage.removeItem("lr_pending_connection_token");
+        setActivationPendingChannelKey(null);
+      } else {
+        setActivationPendingChannelKey(channelKey);
+      }
     } catch (connectError) {
       setError(
         connectError instanceof Error ? connectError.message : "Unable to start channel connection.",
       );
+    } finally {
       setIsConnecting(false);
+      setIsWaitingForConnection(false);
     }
   }
 
@@ -353,7 +434,7 @@ export default function Channels() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <Chrome activeStep="channels" />
+      <OnboardingChrome activeStep="channels" />
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
@@ -368,6 +449,31 @@ export default function Channels() {
         ) : null}
         {connectionReturned ? (
           <Alert tone="success" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">Connection request received. We&apos;re checking for the activated account now.</Alert>
+        ) : null}
+        {isWaitingForConnection ? (
+          <Alert tone="info" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">
+            Finish the provider sign-in in the small window. This page will update automatically.
+          </Alert>
+        ) : null}
+        {activationPendingChannelKey && !isWaitingForConnection ? (
+          <Alert
+            tone="info"
+            className="mx-auto mt-6 w-full max-w-3xl"
+            title="Activating your channel"
+            action={
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={isLoading}
+                onClick={() => void loadAccounts(false)}
+              >
+                Check now
+              </Button>
+            }
+          >
+            We&apos;re checking for the active account automatically. You can continue setup as soon as it appears.
+          </Alert>
         ) : null}
         {error ? (
           <Alert tone="error" className="mx-auto mt-6 w-full max-w-3xl">{error}</Alert>

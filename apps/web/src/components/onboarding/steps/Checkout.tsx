@@ -11,8 +11,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Chrome } from "@/components/onboarding/Chrome";
-import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
+import { Review } from "@/components/onboarding/Review";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -20,10 +20,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch, bootstrapOrganization } from "@/lib/api";
+import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
-const ORGANIZATION_NAME = "LeadReacher";
 const PAYMENT_VERIFICATION_ATTEMPTS = 5;
 const PAYMENT_VERIFICATION_DELAY_MS = 2_000;
 const ACTIVE_SUBSCRIPTION_STATUS = "active";
@@ -125,7 +124,7 @@ export default function Checkout() {
       try {
         const [pricing, bootstrap] = await Promise.all([
           apiFetch<PricingResponse>("/billing/pricing"),
-          bootstrapOrganization(ORGANIZATION_NAME),
+          bootstrapCurrentOrganization(),
         ]);
         const loadedStrategy = await apiFetch<StrategyResponse>(
           `/strategy/${bootstrap.orgId}`,
@@ -173,7 +172,7 @@ export default function Checkout() {
       }
 
       for (let attempt = 0; attempt < PAYMENT_VERIFICATION_ATTEMPTS; attempt += 1) {
-        const bootstrap = await bootstrapOrganization(ORGANIZATION_NAME);
+        const bootstrap = await bootstrapCurrentOrganization();
         if (cancelled) return;
         setSubscriptionStatus(bootstrap.subscriptionStatus);
         if (bootstrap.subscriptionStatus === ACTIVE_SUBSCRIPTION_STATUS) {
@@ -222,7 +221,7 @@ export default function Checkout() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <Chrome activeStep="checkout" />
+      <OnboardingChrome activeStep="checkout" />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
@@ -251,7 +250,7 @@ export default function Checkout() {
         ) : null}
 
         <div className="mx-auto mt-8 grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(16rem,2fr)]">
-          <ReviewPanel icon={<Sparkles className="size-5" aria-hidden />} title="Your subscription" description="Plans adjust to the choices you made in onboarding.">
+          <Review icon={<Sparkles className="size-5" aria-hidden />} title="Your subscription" description="Plans adjust to the choices you made in onboarding.">
 
             {isLoading ? (
               <EmptyState className="min-h-36 py-6" icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading pricing" role="status" aria-live="polite" />
@@ -279,9 +278,9 @@ export default function Checkout() {
               <ShieldCheck className="size-5 shrink-0 text-onboarding-success-500" aria-hidden />
               Payment details are entered only on a secure checkout page.
             </div>
-          </ReviewPanel>
+          </Review>
 
-          <ReviewPanel muted title="Campaign summary">
+          <Review muted title="Campaign summary">
             <dl className="mt-5 space-y-4 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
@@ -302,7 +301,7 @@ export default function Checkout() {
                 </dd>
               </div>
             </dl>
-          </ReviewPanel>
+          </Review>
         </div>
       </main>
 

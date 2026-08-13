@@ -22,15 +22,15 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { StepTransition } from "@/components/onboarding/StepTransition";
+import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
+import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { Chrome } from "@/components/onboarding/Chrome";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { ApiError, apiFetch, bootstrapOrganization } from "@/lib/api";
+import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import {
   getChannelRecommendations,
   type ChannelRecommendation,
@@ -313,7 +313,7 @@ function ScreenHeader({
 }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-      <HeroBadge icon={icon} />
+      <OnboardingBadge icon={icon} />
       <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
         {title}
       </h1>
@@ -1043,7 +1043,7 @@ export default function Strategy({
     setStrategyError(null);
     setStrategyErrorInProgress(false);
     try {
-      const { orgId } = await bootstrapOrganization("LeadReacher");
+      const { orgId } = await bootstrapCurrentOrganization();
       if (signal.aborted) return;
       let current: StrategyResponse | null = null;
 
@@ -1093,7 +1093,7 @@ export default function Strategy({
       if (error instanceof ApiError && error.status === 409) {
         setStrategyErrorInProgress(true);
         try {
-          const { orgId } = await bootstrapOrganization("LeadReacher");
+          const { orgId } = await bootstrapCurrentOrganization();
           if (signal.aborted) return;
           await pollForStrategy(orgId, signal);
           setStrategyErrorInProgress(false);
@@ -1120,7 +1120,7 @@ export default function Strategy({
 
   const warmStrategy = useCallback(async (signal: AbortSignal) => {
     try {
-      const { orgId } = await bootstrapOrganization("LeadReacher");
+      const { orgId } = await bootstrapCurrentOrganization();
       if (signal.aborted) return;
       const current = await apiFetch<StrategyResponse>(`/strategy/${orgId}`, { signal });
       if (signal.aborted) return;
@@ -1244,11 +1244,11 @@ export default function Strategy({
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <Chrome activeStep={activeStep} />
+      <OnboardingChrome activeStep={activeStep} />
 
-      <StepTransition transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
+      <StepMotion transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
         {activeSubstepContent}
-      </StepTransition>
+      </StepMotion>
 
       <ShellActions
         canContinue={canContinue}

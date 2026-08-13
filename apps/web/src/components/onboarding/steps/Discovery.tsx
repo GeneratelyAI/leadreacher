@@ -2,11 +2,11 @@
 
 import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "lucide-react";
 import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CampaignSummaryPanel } from "@/components/onboarding/CampaignSummaryPanel";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
+import { CampaignSummary } from "@/components/onboarding/CampaignSummary";
+import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { Chrome } from "@/components/onboarding/Chrome";
-import { AiRecommendationBubble } from "@/components/onboarding/AiRecommendationBubble";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
+import { AiRecommendation } from "@/components/onboarding/AiRecommendation";
 import { Button } from "@/components/ui/Button";
 import { ActionInputBar } from "@/components/ui/action-input-bar";
 import { Input } from "@/components/ui/Input";
@@ -307,7 +307,7 @@ export default function Discovery({
 
   return (
     <div className="onboarding-page relative min-h-dvh w-full overflow-y-auto">
-      <Chrome activeStep={activeStep} />
+      <OnboardingChrome activeStep={activeStep} />
 
       {SHOW_CAMPAIGN_PILL ? (
         <aside className="fixed top-24 right-6 z-20 hidden w-80 lg:block">
@@ -320,7 +320,7 @@ export default function Discovery({
                 Built from the information you&apos;ve shared.
               </p>
             </div>
-            <CampaignSummaryPanel summary={summary} />
+            <CampaignSummary summary={summary} />
           </OnboardingCard>
         </aside>
       ) : null}
@@ -328,7 +328,7 @@ export default function Discovery({
       {isWebsiteGatePending ? (
         <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
-            <HeroBadge className="animate-pulse" icon={<Sparkles className="size-6" />} />
+            <OnboardingBadge className="animate-pulse" icon={<Sparkles className="size-6" />} />
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
               Analyzing your website
             </h1>
@@ -340,7 +340,7 @@ export default function Discovery({
       ) : shouldShowWebsiteGate ? (
         <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10">
-            <HeroBadge icon={<Globe className="size-6" />} />
+            <OnboardingBadge icon={<Globe className="size-6" />} />
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
               What&apos;s your website?
             </h1>
@@ -421,7 +421,7 @@ export default function Discovery({
               leadingIcon={<PenLine className="size-5" aria-hidden />}
             />
             {!input.trim() && !isCompleting ? (
-              <AiRecommendationBubble
+              <AiRecommendation
                 recommendation={buildAiRecommendation(summary)}
                 onUse={handleUseRecommendation}
                 disabled={isCompleting || isTypingRecommendation}

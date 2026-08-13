@@ -20,15 +20,22 @@ describe("returnedConnectionIsActive", () => {
     expect(returnedConnectionIsActive([linkedInAccount], null)).toBe(true);
   });
 
-  it("treats Gmail and Outlook as the same connected email channel", () => {
-    const emailAccount = {
+  it("matches Gmail and Outlook with their provider type rather than the shared email platform", () => {
+    const gmailAccount = {
       ...linkedInAccount,
       platform: "email",
       providerType: "google",
     };
+    const outlookAccount = {
+      ...linkedInAccount,
+      platform: "email",
+      providerType: "outlook",
+    };
 
-    expect(returnedConnectionIsActive([emailAccount], "gmail")).toBe(true);
-    expect(returnedConnectionIsActive([emailAccount], "outlook")).toBe(true);
+    expect(returnedConnectionIsActive([gmailAccount], "gmail")).toBe(true);
+    expect(returnedConnectionIsActive([gmailAccount], "outlook")).toBe(false);
+    expect(returnedConnectionIsActive([outlookAccount], "gmail")).toBe(false);
+    expect(returnedConnectionIsActive([outlookAccount], "outlook")).toBe(true);
   });
 
   it("keeps polling when the returned account is not active", () => {
