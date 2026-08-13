@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { geist } from "@/lib/fonts/geist";
 import { themeInitScript } from "@/lib/theme-init-script";
 import { Toaster } from "@/components/ui/sonner";
-import HorizontalRouteTransition from "@/components/layout/HorizontalRouteTransition";
+import RouteTransition from "@/components/layout/RouteTransition";
 import { SITE_URL } from "@/lib/constants/brand";
 import "./globals.css";
 
@@ -101,7 +101,7 @@ export default function RootLayout({
       </head>
       <body className="flex min-h-dvh flex-col overscroll-y-none font-sans bg-white dark:bg-[#0a0e14] text-slate-900 dark:text-slate-50">
         {children}
-        <HorizontalRouteTransition />
+        <RouteTransition />
         <Toaster />
       </body>
     </html>

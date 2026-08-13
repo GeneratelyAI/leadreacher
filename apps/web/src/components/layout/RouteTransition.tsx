@@ -11,7 +11,7 @@ function isLandingPricingTransition(from: string, to: string) {
   return (from === "/" && to === "/pricing") || (from === "/pricing" && to === "/");
 }
 
-export default function HorizontalRouteTransition() {
+export default function RouteTransition() {
   const pathname = usePathname();
   const router = useRouter();
   const pendingPathRef = useRef<string | null>(null);
