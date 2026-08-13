@@ -3,34 +3,32 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Check,
+  BellDot,
   ChevronDown,
   ChevronLeft,
-  ChevronRight,
-  Filter,
+  CircleCheck,
+  Inbox as InboxIcon,
   Loader2,
   Maximize2,
+  Megaphone,
   MessageSquare,
   Minimize2,
   MoreHorizontal,
-  PanelLeftClose,
-  PanelLeftOpen,
   Search,
   Send,
   Sparkles,
 } from "lucide-react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { VideoAttachmentCard } from "@/components/dashboard/VideoAttachmentCard";
-import { useDashboardEvents } from "@/components/providers/DashboardQueryProvider";
+import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
+import { VideoAttachment } from "@/components/dashboard/VideoAttachment";
+import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,7 +117,7 @@ type ConversationListResponse = {
 
 type CampaignOption = { id: string; name: string; status: string };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 25;
 
 function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -196,7 +194,7 @@ function ConversationStatusIndicator({ conversation }: { conversation: Conversat
   if (conversation.unreadCount > 0) {
     return (
       <span
-        className="mt-0.5 inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-onboarding-error-500 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+        className="mt-0.5 inline-flex min-w-5 shrink-0 items-center justify-center rounded-full bg-onboarding-error-700 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
         aria-label={label}
         title={label}
       >
@@ -211,6 +209,103 @@ function ConversationStatusIndicator({ conversation }: { conversation: Conversat
       aria-label={label}
       title={label}
     />
+  );
+}
+
+function InboxNavigation({
+  state,
+  counts,
+  onStateChange,
+  channels,
+  channelFilter,
+  onChannelFilterChange,
+}: {
+  state: ConversationState;
+  counts: ConversationListResponse["counts"];
+  onStateChange: (state: ConversationState) => void;
+  channels: string[];
+  channelFilter: string;
+  onChannelFilterChange: (channel: string) => void;
+}) {
+  const navigationItems: Array<{
+    value: ConversationState;
+    label: string;
+    count: number;
+    icon: typeof InboxIcon;
+  }> = [
+    { value: "all", label: "All messages", count: counts.all, icon: InboxIcon },
+    { value: "unread", label: "Unread", count: counts.unread, icon: BellDot },
+    { value: "needs_reply", label: "Needs reply", count: counts.needsReply, icon: CircleCheck },
+  ];
+
+  return (
+    <aside className="messages-inbox-rail hidden h-full min-w-0 w-full flex-col border-r border-border bg-muted/20">
+      <div className="border-b border-border px-4 py-4">
+        <p className="text-base font-semibold text-foreground">Inbox</p>
+      </div>
+      <nav className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-2 py-3" aria-label="Inbox navigation">
+        <div className="space-y-1">
+          {navigationItems.map(({ value, label, count, icon: Icon }) => {
+            const active = state === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => onStateChange(value)}
+                className={cn(
+                  "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors",
+                  active
+                    ? "bg-onboarding-purple-50 font-medium text-onboarding-purple-700 dark:bg-onboarding-purple-900/35 dark:text-onboarding-purple-100"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                )}
+              >
+                <Icon className="size-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{label}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {channels.length ? (
+          <div className="space-y-1">
+            <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Channels</p>
+            <button
+              type="button"
+              onClick={() => onChannelFilterChange("")}
+              className={cn(
+                "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors",
+                !channelFilter
+                  ? "bg-onboarding-purple-50 font-medium text-onboarding-purple-700 dark:bg-onboarding-purple-900/35 dark:text-onboarding-purple-100"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
+            >
+              <MessageSquare className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">All channels</span>
+            </button>
+            {channels.map((channel) => {
+              const active = channel === channelFilter;
+              return (
+                <button
+                  key={channel}
+                  type="button"
+                  onClick={() => onChannelFilterChange(channel)}
+                  className={cn(
+                    "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm transition-colors",
+                    active
+                      ? "bg-onboarding-purple-50 font-medium text-onboarding-purple-700 dark:bg-onboarding-purple-900/35 dark:text-onboarding-purple-100"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <DashboardChannelLogo platform={channel} className="size-4" />
+                  <span className="min-w-0 flex-1 truncate">{channelDisplayName(channel)}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+      </nav>
+    </aside>
   );
 }
 
@@ -289,11 +384,11 @@ function buildFeedItems(
   return items;
 }
 
-export function MessagesWorkspace({ conversationId }: { conversationId?: string }) {
+export function Messages({ conversationId }: { conversationId?: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [page, setPage] = useState(1);
-  const [selectedId, setSelectedId] = useState<string | null>(conversationId ?? null);
+  const routedConversationId = conversationId ?? searchParams.get("conversationId");
+  const [selectedId, setSelectedId] = useState<string | null>(routedConversationId);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [message, setMessage] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
@@ -303,6 +398,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     return raw === "unread" || raw === "needs_reply" ? raw : "all";
   });
   const [campaignFilter, setCampaignFilter] = useState(() => searchParams.get("campaignId") ?? "");
+  const [channelFilter, setChannelFilter] = useState(() => searchParams.get("channel") ?? "");
   const [sortMode, setSortMode] = useState<SortMode>("last_activity");
   const [composerTab, setComposerTab] = useState<"reply" | "draft">("reply");
   const [draftSeen, setDraftSeen] = useState(false);
@@ -314,9 +410,9 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   const [failedMessage, setFailedMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [limitError, setLimitError] = useState<string | null>(null);
-  const [listSidebarOpen, setListSidebarOpen] = useState(true);
   const [amplified, setAmplified] = useState(false);
-  const listOpenBeforeAmplify = useRef(true);
+  const conversationListRef = useRef<HTMLDivElement | null>(null);
+  const conversationListEndRef = useRef<HTMLDivElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const latestInboundByConversationRef = useRef(new Map<string, string | null>());
   const queryClient = useQueryClient();
@@ -326,21 +422,34 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     const params = new URLSearchParams({
       state,
       limit: String(PAGE_SIZE),
-      offset: String((page - 1) * PAGE_SIZE),
     });
     if (debouncedQuery) params.set("query", debouncedQuery);
     if (campaignFilter) params.set("campaignId", campaignFilter);
+    if (channelFilter) params.set("channel", channelFilter);
     return params.toString();
-  }, [campaignFilter, debouncedQuery, page, state]);
+  }, [campaignFilter, channelFilter, debouncedQuery, state]);
 
-  const conversationsQuery = useQuery({
+  const conversationsQuery = useInfiniteQuery({
     queryKey: ["dashboard", "conversations", conversationParams],
-    queryFn: () => apiFetch<ConversationListResponse>(`/dashboard/conversations?${conversationParams}`),
-    placeholderData: keepPreviousData,
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams(conversationParams);
+      params.set("offset", String(pageParam));
+      return apiFetch<ConversationListResponse>(`/dashboard/conversations?${params.toString()}`);
+    },
+    getNextPageParam: (lastPage) => {
+      const nextOffset = lastPage.offset + lastPage.limit;
+      return nextOffset < lastPage.total ? nextOffset : undefined;
+    },
     staleTime: 30_000,
     refetchInterval: false,
     refetchIntervalInBackground: false,
   });
+  const {
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = conversationsQuery;
   const campaignsQuery = useQuery({
     queryKey: ["campaigns", "options"],
     queryFn: () => apiFetch<{ campaigns: CampaignOption[] }>("/campaigns"),
@@ -348,23 +457,17 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   });
 
   const conversations = useMemo(() => {
-    const rows = conversationsQuery.data?.conversations ?? [];
+    const rows = conversationsQuery.data?.pages.flatMap((page) => page.conversations) ?? [];
     if (sortMode !== "unread_first") return rows;
     return [...rows].sort((left, right) => {
       if (right.unreadCount !== left.unreadCount) return right.unreadCount - left.unreadCount;
       return new Date(right.latestMessage.occurredAt).getTime() - new Date(left.latestMessage.occurredAt).getTime();
     });
-  }, [conversationsQuery.data?.conversations, sortMode]);
-  const counts = conversationsQuery.data?.counts ?? { all: 0, unread: 0, needsReply: 0 };
-  const total = conversationsQuery.data?.total ?? 0;
+  }, [conversationsQuery.data?.pages, sortMode]);
+  const counts = conversationsQuery.data?.pages[0]?.counts ?? { all: 0, unread: 0, needsReply: 0 };
   const campaigns = campaignsQuery.data?.campaigns ?? [];
   const isLoading = conversationsQuery.isLoading && !conversationsQuery.data;
   const error = actionError ?? (conversationsQuery.error instanceof Error ? conversationsQuery.error.message : null);
-
-  useEffect(() => {
-    const savedState = window.localStorage.getItem("leadreacher-messages-sidebar-open");
-    if (savedState === "false") setListSidebarOpen(false);
-  }, []);
 
   useEffect(() => {
     if (!amplified) return;
@@ -372,59 +475,48 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
       if (event.key === "Escape") {
         event.preventDefault();
         setAmplified(false);
-        setListSidebarOpen(listOpenBeforeAmplify.current);
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [amplified]);
 
-  function toggleListSidebar() {
-    if (amplified) {
-      setAmplified(false);
-      setListSidebarOpen(true);
-      window.localStorage.setItem("leadreacher-messages-sidebar-open", "true");
-      return;
-    }
-    setListSidebarOpen((current) => {
-      const next = !current;
-      window.localStorage.setItem("leadreacher-messages-sidebar-open", String(next));
-      return next;
-    });
-  }
-
   function toggleAmplified() {
-    setAmplified((current) => {
-      if (current) {
-        setListSidebarOpen(listOpenBeforeAmplify.current);
-        return false;
-      }
-      listOpenBeforeAmplify.current = listSidebarOpen;
-      setListSidebarOpen(false);
-      return true;
-    });
+    setAmplified((current) => !current);
   }
 
-  const showListSidebar = listSidebarOpen && !amplified;
+  const showListSidebar = !amplified;
 
   useEffect(() => {
     if (!conversationsQuery.data) return;
     setSelectedId((current) => {
-      if (conversationId) return conversationId;
+      if (routedConversationId) return routedConversationId;
       if (current && conversations.some((row) => row.id === current)) return current;
-      // Keep list-first on phones/tablets; desktop can auto-open the first thread.
-      if (typeof window !== "undefined" && window.innerWidth < 1024) return null;
+      // The API returns conversations newest first, so the Messages route opens the latest thread.
       return conversations[0]?.id ?? null;
     });
-  }, [conversationId, conversations, conversationsQuery.data]);
+  }, [conversations, conversationsQuery.data, routedConversationId]);
 
   useEffect(() => {
-    setPage(1);
-  }, [campaignFilter, debouncedQuery, state]);
+    const root = conversationListRef.current;
+    const target = conversationListEndRef.current;
+    if (!root || !target || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { root, rootMargin: "160px" },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   useEffect(() => {
-    setSelectedId(conversationId ?? null);
-  }, [conversationId]);
+    setSelectedId(routedConversationId ?? null);
+  }, [routedConversationId]);
 
   const playReplySound = useCallback(() => {
     if (document.visibilityState !== "visible") return;
@@ -450,10 +542,19 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
   }, []);
 
   const loadDetail = useCallback(async (id: string, background = false) => {
-    if (!background) setIsDetailLoading(true);
+    const queryKey = ["dashboard", "conversation", id] as const;
+    const cached = queryClient.getQueryData<{ conversation: ConversationDetail }>(queryKey);
+
+    if (cached) {
+      setDetail(cached.conversation);
+      setIsDetailLoading(false);
+    } else if (!background) {
+      setIsDetailLoading(true);
+    }
+
     try {
       const result = await queryClient.fetchQuery({
-        queryKey: ["dashboard", "conversation", id],
+        queryKey,
         queryFn: () => apiFetch<{ conversation: ConversationDetail }>(`/dashboard/conversations/${id}`),
         staleTime: background ? 0 : 30_000,
       });
@@ -600,7 +701,6 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
     }
   }
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const feedItems = useMemo(
     () =>
       detail
@@ -612,22 +712,48 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
         : [],
     [detail],
   );
-  const hasInbound = Boolean(detail?.messages.some((item) => item.direction === "inbound"));
   const resetTime = detail?.senderLimit
     ? new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(detail.senderLimit.resetAt))
     : null;
   const isLimitReached = Boolean(detail?.senderLimit && detail.senderLimit.remaining <= 0);
-  const selectedCampaignLabel = campaigns.find((campaign) => campaign.id === campaignFilter)?.name ?? "All campaigns";
+  const availableChannels = useMemo(
+    () => [...new Set(conversations.map((conversation) => conversation.channel))].sort(),
+    [conversations],
+  );
+  const campaignFilterGroups: FilterGroup[] = campaigns.length
+    ? [{
+      label: "Campaigns",
+      options: campaigns.map((campaign) => ({
+        value: campaign.id,
+        label: campaign.name,
+      })),
+    }]
+    : [];
+  const channelFilterGroups: FilterGroup[] = availableChannels.length
+    ? [{
+      label: "Channels",
+      options: availableChannels.map((channel) => ({
+        value: channel,
+        label: channelDisplayName(channel),
+        icon: <DashboardChannelLogo platform={channel} className="size-5" />,
+      })),
+    }]
+    : [];
 
   function selectConversation(id: string) {
     setSelectedId(id);
-    router.push(`/dashboard/messages/${id}`);
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("conversationId", id);
+    router.push(`/dashboard/messages?${nextParams.toString()}`);
   }
 
   function backToList() {
     setSelectedId(null);
     setDetail(null);
-    router.push("/dashboard/messages");
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("conversationId");
+    const query = nextParams.toString();
+    router.push(query ? `/dashboard/messages?${query}` : "/dashboard/messages");
   }
 
   const mobileThreadOpen = Boolean(selectedId);
@@ -638,47 +764,50 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
         "flex flex-col",
         amplified
           ? "fixed inset-x-0 bottom-[var(--dashboard-bottom-nav-height,0px)] top-[4.75rem] z-30 bg-onboarding-neutral-0 p-3 sm:p-4 dark:bg-onboarding-neutral-950 lg:bottom-0 lg:left-[var(--dashboard-sidebar-width)]"
-          : "h-[calc(100dvh-4.75rem-var(--dashboard-bottom-nav-height,0px))] min-h-0 gap-0 lg:h-[calc(100dvh-7.25rem)] lg:min-h-[42rem] lg:gap-3",
+          : "h-full min-h-0 gap-0",
       )}
     >
-      {!amplified && !mobileThreadOpen ? (
-        <div className="min-w-0 shrink-0 px-4 pb-3 pt-4 lg:px-0 lg:pb-0 lg:pt-0">
-          <h1 className="text-2xl font-semibold tracking-tight lg:text-3xl">Chat</h1>
-          <p className="mt-1 hidden text-sm text-muted-foreground lg:block lg:truncate lg:whitespace-nowrap">
-            Operator inbox for your conversations. AI drafts are editable, and every reply is sent only after your explicit action.
-          </p>
-        </div>
-      ) : !amplified ? (
-        <div className="hidden min-w-0 lg:block">
-          <h1 className="text-3xl font-semibold tracking-tight">Chat</h1>
-          <p className="mt-1 truncate text-sm text-muted-foreground whitespace-nowrap">
-            Operator inbox for your conversations. AI drafts are editable, and every reply is sent only after your explicit action.
-          </p>
-        </div>
-      ) : null}
-
       {error ? (
         <div role="alert" className="mx-4 mb-3 rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 lg:mx-0 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
           {error}
         </div>
       ) : null}
 
-      <Card className="flex min-h-0 flex-1 overflow-hidden rounded-none border-x-0 border-b-0 shadow-none lg:rounded-xl lg:border lg:shadow-onboarding-small">
-        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <div
+          className={cn(
+            "messages-workspace flex min-h-0 flex-1 flex-col",
+            amplified && "messages-workspace--amplified",
+          )}
+        >
+          {!amplified ? (
+            <InboxNavigation
+              state={state}
+              counts={counts}
+              onStateChange={setState}
+              channels={availableChannels}
+              channelFilter={channelFilter}
+              onChannelFilterChange={setChannelFilter}
+            />
+          ) : null}
           <div
             className={cn(
-              "flex min-h-0 flex-col overflow-hidden transition-[width,height,opacity] duration-200 ease-out",
+              "messages-conversation-list relative flex min-h-0 flex-col overflow-hidden transition-[width,height,opacity] duration-200 ease-out",
               showListSidebar
-                ? "h-full w-full opacity-100 lg:w-96 lg:shrink-0 lg:border-r lg:border-b-0"
+                ? "h-full w-full border-r border-border opacity-100"
                 : "pointer-events-none h-0 w-0 border-0 opacity-0 lg:h-full",
-              mobileThreadOpen && "max-lg:hidden",
+              mobileThreadOpen && "max-[479px]:hidden",
             )}
           >
-            <aside className="flex h-full min-h-0 w-full flex-col lg:w-96">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 z-20 w-px bg-onboarding-neutral-300 dark:bg-onboarding-neutral-700"
+            />
+            <aside className="flex h-full min-h-0 w-full flex-col">
             <div className="space-y-2.5 border-b border-border px-3 py-3">
               <div className="flex items-center justify-between gap-2">
-                <Tabs value={state} onValueChange={(value) => setState(value as ConversationState)} className="min-w-0 flex-1">
-                  <TabsList variant="line" className="w-full justify-start gap-0 overflow-x-auto rounded-none p-0">
+                <Tabs value={state} onValueChange={(value) => setState(value as ConversationState)} className="min-w-0 flex-1 min-[480px]:hidden">
+                  <TabsList variant="line" className="w-full justify-start gap-0 overflow-hidden rounded-none p-0">
                     <TabsTrigger value="all" className="min-h-10 flex-none px-3 py-2.5 lg:min-h-0 lg:py-2">
                       All <span className="text-xs text-muted-foreground">{counts.all}</span>
                     </TabsTrigger>
@@ -690,16 +819,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                     </TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <button
-                  type="button"
-                  onClick={toggleListSidebar}
-                  className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 lg:inline-flex dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
-                  aria-label="Collapse conversation list"
-                  aria-expanded={showListSidebar}
-                  title="Collapse conversation list"
-                >
-                  <PanelLeftClose className="size-4" aria-hidden />
-                </button>
+                <p className="hidden min-w-0 flex-1 truncate text-sm font-semibold text-foreground min-[480px]:block">Messages</p>
               </div>
 
               <label className="flex h-11 items-center gap-2 rounded-xl border border-input px-3 lg:h-9 lg:rounded-lg">
@@ -714,32 +834,26 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               </label>
 
               <div className="flex gap-2 overflow-x-auto pb-0.5">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button size="sm" variant="secondary" className="h-10 shrink-0 gap-1.5 px-3 lg:h-8 lg:px-2.5" />
-                    }
-                  >
-                    <Filter className="size-3.5" />
-                    <span className="max-w-36 truncate">{selectedCampaignLabel}</span>
-                    <ChevronDown className="size-3.5 opacity-70" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="min-w-56">
-                    <DropdownMenuItem onClick={() => setCampaignFilter("")}>
-                      All campaigns
-                      {!campaignFilter ? <Check className="ml-auto size-3.5 shrink-0" /> : null}
-                    </DropdownMenuItem>
-                    {campaigns.map((campaign) => (
-                      <DropdownMenuItem
-                        key={campaign.id}
-                        onClick={() => setCampaignFilter(campaign.id)}
-                      >
-                        <TruncatedWithTooltip text={campaign.name} />
-                        {campaignFilter === campaign.id ? <Check className="ml-auto size-3.5 shrink-0" /> : null}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <VisualFilter
+                  value={channelFilter}
+                  groups={channelFilterGroups}
+                  onValueChange={setChannelFilter}
+                  allLabel="All channels"
+                  allIcon={<MessageSquare className="size-5" aria-hidden />}
+                  aria-label="Filter conversations by channel"
+                  className="h-9 min-w-0 max-w-44 px-2.5 text-xs lg:hidden"
+                  menuWidth="22rem"
+                />
+                <VisualFilter
+                  value={campaignFilter}
+                  groups={campaignFilterGroups}
+                  onValueChange={setCampaignFilter}
+                  allLabel="All campaigns"
+                  allIcon={<Megaphone className="size-5" aria-hidden />}
+                  aria-label="Filter conversations by campaign"
+                  className="h-9 min-w-0 max-w-48 px-2.5 text-xs"
+                  menuWidth="22rem"
+                />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -758,7 +872,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div ref={conversationListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               {isLoading ? (
                 <div className="space-y-3 p-4">
                   {Array.from({ length: 6 }, (_, index) => (
@@ -782,7 +896,14 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                         <button
                           type="button"
                           onClick={() => selectConversation(conversation.id)}
-                          onMouseEnter={() => {
+                          onPointerEnter={() => {
+                            void queryClient.prefetchQuery({
+                              queryKey: ["dashboard", "conversation", conversation.id],
+                              queryFn: () => apiFetch<{ conversation: ConversationDetail }>(`/dashboard/conversations/${conversation.id}`),
+                              staleTime: 30_000,
+                            });
+                          }}
+                          onFocus={() => {
                             void queryClient.prefetchQuery({
                               queryKey: ["dashboard", "conversation", conversation.id],
                               queryFn: () => apiFetch<{ conversation: ConversationDetail }>(`/dashboard/conversations/${conversation.id}`),
@@ -840,47 +961,22 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                   })}
                 </ul>
               )}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 border-t border-border px-3 py-2.5 text-xs text-muted-foreground">
-              <span className="truncate">
-                {total === 0 ? "0" : `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)}`} of {total.toLocaleString()}
-              </span>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="size-10 lg:size-8" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page">
-                  <ChevronLeft />
-                </Button>
-                <span className="px-1 font-medium text-foreground">
-                  {page}/{pageCount}
-                </span>
-                <Button variant="ghost" size="icon" className="size-10 lg:size-8" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page">
-                  <ChevronRight />
-                </Button>
+              <div ref={conversationListEndRef} className="flex h-12 items-center justify-center" aria-live="polite">
+                {isFetchingNextPage ? (
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" aria-label="Loading more conversations" />
+                ) : null}
               </div>
             </div>
             </aside>
           </div>
-
           <main
             className={cn(
-              "flex min-h-0 min-w-0 flex-1 flex-col",
-              !mobileThreadOpen && "max-lg:hidden",
+              "messages-thread flex min-h-0 min-w-0 flex-1 flex-col",
+              !mobileThreadOpen && "max-[479px]:hidden",
             )}
           >
             {isDetailLoading && !detail ? (
               <div className="relative flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                {!showListSidebar ? (
-                  <button
-                    type="button"
-                    onClick={toggleListSidebar}
-                    className="absolute top-4 left-4 inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
-                    aria-label="Expand conversation list"
-                    aria-expanded={showListSidebar}
-                    title="Expand conversation list"
-                  >
-                    <PanelLeftOpen className="size-4" aria-hidden />
-                  </button>
-                ) : null}
                 <Loader2 className="mr-2 size-4 animate-spin" /> Loading conversation
               </div>
             ) : detail ? (
@@ -896,18 +992,6 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                       >
                         <ChevronLeft className="size-5" aria-hidden />
                       </button>
-                      {!showListSidebar ? (
-                        <button
-                          type="button"
-                          onClick={toggleListSidebar}
-                          className="hidden size-9 shrink-0 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 lg:inline-flex dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
-                          aria-label="Expand conversation list"
-                          aria-expanded={showListSidebar}
-                          title="Expand conversation list"
-                        >
-                          <PanelLeftOpen className="size-4" aria-hidden />
-                        </button>
-                      ) : null}
                       <PersonAvatar name={detail.prospect.name} url={detail.prospect.avatarUrl} size="lg" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
@@ -973,39 +1057,6 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                     </div>
                   </div>
 
-                  <div className={cn(
-                    "mt-3 hidden gap-3 rounded-xl border border-border p-3 text-sm sm:grid-cols-2 lg:grid xl:grid-cols-[1fr_1.4fr_1fr_auto_auto] xl:items-center",
-                    amplified && "xl:max-w-5xl",
-                  )}>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Lifecycle</p>
-                      <p className="mt-1 flex items-center gap-1.5 font-medium">
-                        <Check className="size-3.5 text-onboarding-success-500" />
-                        {titleCase(detail.prospect.status)}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs text-muted-foreground">Current campaign</p>
-                      <p className="mt-1 flex min-w-0 font-medium text-onboarding-purple-600 dark:text-onboarding-purple-200">
-                        <TruncatedWithTooltip text={detail.campaign.name} />
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Last activity</p>
-                      <p className="mt-1 font-medium">
-                        {detail.messages.length
-                          ? relativeTimeLong(detail.messages[detail.messages.length - 1]!.occurredAt)
-                          : "No activity"}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Replied</p>
-                      <p className="mt-1 font-medium">{hasInbound ? "Yes" : "No"}</p>
-                    </div>
-                    <Button variant="outline" size="sm" className="justify-self-start xl:justify-self-end" asChild>
-                      <Link href={`/dashboard/prospects/${detail.leadId}`}>View prospect</Link>
-                    </Button>
-                  </div>
                 </div>
 
                 <div className="min-h-0 flex-1">
@@ -1089,7 +1140,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
                                                 attachment.type === "video" && attachment.videoUrl,
                                             )
                                             .map((attachment) => (
-                                              <VideoAttachmentCard
+                                              <VideoAttachment
                                                 key={attachment.videoUrl}
                                                 src={attachment.videoUrl!}
                                                 poster={attachment.thumbnailUrl}
@@ -1194,18 +1245,6 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
               </>
             ) : (
               <div className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-                {!showListSidebar ? (
-                  <button
-                    type="button"
-                    onClick={toggleListSidebar}
-                    className="mb-4 inline-flex size-9 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-onboarding-neutral-100 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:bg-onboarding-neutral-800"
-                    aria-label="Expand conversation list"
-                    aria-expanded={showListSidebar}
-                    title="Expand conversation list"
-                  >
-                    <PanelLeftOpen className="size-4" aria-hidden />
-                  </button>
-                ) : null}
                 <MessageSquare className="size-8 text-muted-foreground" />
                 <h2 className="mt-3 font-semibold">Choose a conversation</h2>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
@@ -1215,7 +1254,7 @@ export function MessagesWorkspace({ conversationId }: { conversationId?: string 
             )}
           </main>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
