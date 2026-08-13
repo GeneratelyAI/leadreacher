@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
   Check,
@@ -21,15 +23,12 @@ import {
   Clock3,
 } from "lucide-react";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
-import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { ImportProspectsModal } from "@/components/dashboard/ImportProspectsModal";
-import { SearchProspectModal } from "@/components/dashboard/SearchProspectModal";
-import { ScrapeProspectsModal } from "@/components/dashboard/ScrapeProspectsModal";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { TruncatedWithTooltip } from "@/components/dashboard/DashboardMenu";
+import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -61,6 +60,19 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
+
+const ImportProspects = dynamic(
+  () => import("@/components/dashboard/ImportProspects").then((module) => module.ImportProspects),
+  { ssr: false, loading: () => null },
+);
+const AddProspect = dynamic(
+  () => import("@/components/dashboard/AddProspect").then((module) => module.AddProspect),
+  { ssr: false, loading: () => null },
+);
+const FindProspects = dynamic(
+  () => import("@/components/dashboard/FindProspects").then((module) => module.FindProspects),
+  { ssr: false, loading: () => null },
+);
 
 type ReviewStatus = "all" | "pending" | "approved" | "excluded" | "booked";
 type LeadReviewStatus = Exclude<ReviewStatus, "all" | "booked">;
@@ -153,7 +165,8 @@ type ProspectListResponse = {
   offset: number;
 };
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [25, 50] as const;
+const DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0];
 const lifecycleStates = ["new", "contacted", "connected", "replied", "meeting", "converted", "lost", "skipped"];
 const sourceOptions = [
   { value: "apify", label: "LinkedIn search" },
@@ -184,7 +197,8 @@ function initials(name: string): string {
 
 function ProspectAvatar({ name, url, size = "default" }: { name: string; url: string | null; size?: "default" | "large" }) {
   const className = size === "large" ? "size-14 text-base" : "size-9 text-xs";
-  return url ? <img src={url} alt="" className={cn("shrink-0 rounded-full object-cover", className)} /> : <span aria-hidden className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-onboarding-purple-100 font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100", className)}>{initials(name)}</span>;
+  const dimension = size === "large" ? 56 : 36;
+  return url ? <Image src={url} width={dimension} height={dimension} alt="" unoptimized className={cn("shrink-0 rounded-full object-cover", className)} /> : <span aria-hidden className={cn("inline-flex shrink-0 items-center justify-center rounded-full bg-onboarding-purple-100 font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100", className)}>{initials(name)}</span>;
 }
 
 function ReachableSignals({ prospect }: { prospect: Prospect }) {
@@ -204,7 +218,7 @@ function ReviewBadge({ status }: { status: LeadReviewStatus }) {
   const styles = {
     pending: "border-onboarding-warning-200 bg-onboarding-warning-50 text-onboarding-warning-900 dark:border-onboarding-warning-500/70 dark:bg-onboarding-warning-900/60 dark:text-onboarding-warning-150",
     approved: "border-onboarding-success-200 bg-onboarding-success-50 text-onboarding-success-700 dark:border-onboarding-success-500/70 dark:bg-onboarding-success-900/60 dark:text-onboarding-neutral-0",
-    excluded: "border-onboarding-neutral-200 bg-onboarding-neutral-100 text-onboarding-neutral-600 dark:border-onboarding-neutral-500 dark:bg-onboarding-neutral-700 dark:text-onboarding-neutral-0",
+    excluded: "border-onboarding-neutral-200 bg-onboarding-neutral-100 text-onboarding-neutral-600 dark:border-onboarding-neutral-500 dark:bg-onboarding-neutral-800 dark:text-onboarding-neutral-200",
   } as const;
   return <Badge variant="outline" className={cn("font-medium", styles[status])}>{titleCase(status)}</Badge>;
 }
@@ -232,16 +246,14 @@ function TrendlessMetric({ label, value, detail, tone, icon }: { label: string; 
     blue: "text-blue-700 dark:text-[#dbeafe]",
   } as const;
   return (
-    <Card className="min-w-0">
-      <CardContent className="flex items-center gap-3.5 p-3.5 sm:gap-4 sm:p-4">
-        <span className={cn("inline-flex shrink-0 [&_svg]:size-5 sm:[&_svg]:size-6", tones[tone])}>{icon}</span>
-        <div className="min-w-0">
-          <p className="text-xl font-semibold tracking-tight sm:text-2xl">{value.toLocaleString()}</p>
-          <p className="truncate text-sm font-medium text-onboarding-ink dark:text-onboarding-neutral-0">{label}</p>
-          <p className="mt-0.5 truncate text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-300">{detail}</p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex min-w-0 items-center gap-3 border-r border-border px-3 last:border-r-0 sm:px-4">
+      <span className={cn("inline-flex shrink-0 [&_svg]:size-4", tones[tone])}>{icon}</span>
+      <div className="min-w-0">
+        <p className="text-base font-semibold tracking-tight sm:text-lg">{value.toLocaleString()}</p>
+        <p className="truncate text-xs font-medium text-onboarding-ink dark:text-onboarding-neutral-0">{label}</p>
+        <p className="sr-only">{detail}</p>
+      </div>
+    </div>
   );
 }
 
@@ -326,10 +338,11 @@ function SelectionActionBar({
   );
 }
 
-export function ProspectsWorkspace() {
+export function Prospects() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(DEFAULT_PAGE_SIZE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectedDetail, setSelectedDetail] = useState<ProspectDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -358,7 +371,7 @@ export function ProspectsWorkspace() {
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const prospectParams = useMemo(() => {
-    const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String((page - 1) * PAGE_SIZE) });
+    const params = new URLSearchParams({ limit: String(pageSize), offset: String((page - 1) * pageSize) });
     if (debouncedQuery) params.set("query", debouncedQuery);
     if (reviewStatus === "booked") {
       params.set("status", "meeting");
@@ -370,7 +383,7 @@ export function ProspectsWorkspace() {
     if (campaignFilter) params.set("campaignId", campaignFilter);
     if (campaignFilter && relationshipFilter) params.set("linkedinRelationship", relationshipFilter);
     return params.toString();
-  }, [campaignFilter, debouncedQuery, lifecycle, page, relationshipFilter, reviewStatus, source]);
+  }, [campaignFilter, debouncedQuery, lifecycle, page, pageSize, relationshipFilter, reviewStatus, source]);
   const prospectsQuery = useQuery({
     queryKey: ["dashboard", "prospects", prospectParams],
     queryFn: () => apiFetch<ProspectListResponse>(`/dashboard/prospects?${prospectParams}`),
@@ -393,18 +406,52 @@ export function ProspectsWorkspace() {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["dashboard", "prospects"] }),
       queryClient.invalidateQueries({ queryKey: ["campaigns", "options"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "campaigns"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "overview"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "analytics"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "activity"] }),
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
     ]);
   };
 
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, debouncedQuery, lifecycle, relationshipFilter, reviewStatus, source]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [campaignFilter, debouncedQuery, lifecycle, pageSize, relationshipFilter, reviewStatus, source]);
 
   useEffect(() => {
     if (!campaignFilter) setRelationshipFilter("");
   }, [campaignFilter]);
 
+  useEffect(() => {
+    if (total <= page * pageSize) return;
+    const nextParams = new URLSearchParams(prospectParams);
+    nextParams.set("offset", String(page * pageSize));
+    const nextPageParams = nextParams.toString();
+    void queryClient.prefetchQuery({
+      queryKey: ["dashboard", "prospects", nextPageParams],
+      queryFn: () => apiFetch<ProspectListResponse>(`/dashboard/prospects?${nextPageParams}`),
+      staleTime: 30_000,
+    });
+  }, [page, pageSize, prospectParams, queryClient, total]);
+
+  const fetchProspectDetail = useCallback((id: string) => queryClient.fetchQuery({
+    queryKey: ["dashboard", "prospect", id],
+    queryFn: () => apiFetch<{ lead: ProspectDetail }>(`/dashboard/prospects/${id}`),
+  }), [queryClient]);
+
+  const prefetchProspectDetail = useCallback((id: string) => {
+    void queryClient.prefetchQuery({
+      queryKey: ["dashboard", "prospect", id],
+      queryFn: () => apiFetch<{ lead: ProspectDetail }>(`/dashboard/prospects/${id}`),
+    });
+  }, [queryClient]);
+
   async function openDetail(id: string) {
+    const cached = queryClient.getQueryData<{ lead: ProspectDetail }>(["dashboard", "prospect", id]);
+    if (cached) {
+      setSelectedDetail(cached.lead);
+      setDetailOpen(true);
+    }
     try {
-      const response = await apiFetch<{ lead: ProspectDetail }>(`/dashboard/prospects/${id}`);
+      const response = await fetchProspectDetail(id);
       setSelectedDetail(response.lead);
       setDetailOpen(true);
     } catch (requestError) {
@@ -415,16 +462,25 @@ export function ProspectsWorkspace() {
   async function updateReview(leadIds: string[], nextStatus: "approved" | "excluded") {
     if (isUpdating) return;
     setIsUpdating(true);
+    const previous = queryClient.getQueriesData<ProspectListResponse>({ queryKey: ["dashboard", "prospects"] });
+    queryClient.setQueriesData<ProspectListResponse>({ queryKey: ["dashboard", "prospects"] }, (current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        leads: current.leads.map((lead) => leadIds.includes(lead.id) ? { ...lead, reviewStatus: nextStatus, reviewedAt: new Date().toISOString() } : lead),
+      };
+    });
+    if (selectedDetail && leadIds.includes(selectedDetail.id)) setSelectedDetail({ ...selectedDetail, reviewStatus: nextStatus });
     try {
       if (leadIds.length === 1) {
         await apiFetch(`/dashboard/prospects/${leadIds[0]}/review`, { method: "PATCH", body: JSON.stringify({ reviewStatus: nextStatus }) });
       } else {
         await apiFetch("/dashboard/prospects/review", { method: "POST", body: JSON.stringify({ leadIds, reviewStatus: nextStatus }) });
       }
-      if (selectedDetail && leadIds.includes(selectedDetail.id)) setSelectedDetail({ ...selectedDetail, reviewStatus: nextStatus });
       setSelected(new Set());
       await load();
     } catch (requestError) {
+      previous.forEach(([queryKey, data]) => queryClient.setQueryData(queryKey, data));
       setActionError(requestError instanceof Error ? requestError.message : "Unable to update prospect review.");
     } finally {
       setIsUpdating(false);
@@ -443,7 +499,7 @@ export function ProspectsWorkspace() {
     }
   }
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const approvedSelectedCount = useMemo(() => [...selected].filter((id) => leads.find((lead) => lead.id === id)?.reviewStatus === "approved").length, [leads, selected]);
   const visibleIds = leads.map((lead) => lead.id);
   const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
@@ -453,37 +509,41 @@ export function ProspectsWorkspace() {
     ? campaigns.find((campaign) => campaign.id === campaignFilter) ?? null
     : null;
 
+  const lifecycleFilterGroups: FilterGroup[] = [{
+    label: "Lifecycle states",
+    options: lifecycleStates.map((state) => ({ value: state, label: lifecycleLabel(state) })),
+  }];
+  const sourceFilterGroups: FilterGroup[] = [{
+    label: "Sources",
+    options: sourceOptions.map((option) => ({ value: option.value, label: option.label })),
+  }];
+  const campaignFilterGroups: FilterGroup[] = campaigns.length ? [{
+    label: "Campaigns",
+    options: campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name })),
+  }] : [];
+  const relationshipFilterGroups: FilterGroup[] = [{
+    label: "Relationship routes",
+    options: [
+      { value: "connected", label: "Direct message", icon: <CheckCircle2 className="size-5 text-onboarding-success-500" /> },
+      { value: "invite_required", label: "Invite first", icon: <MessageCircle className="size-5 text-onboarding-purple-600 dark:text-onboarding-purple-200" /> },
+      { value: "unresolved", label: "Unresolved", icon: <Clock3 className="size-5 text-onboarding-warning-500" /> },
+      { value: "unknown", label: "Not checked", icon: <Clock3 className="size-5 text-muted-foreground" /> },
+    ],
+  }];
   const filterControls = (
     <>
-      <Select value={lifecycle || null} onValueChange={(value) => setLifecycle(value === "__all" ? "" : value ?? "")}>
-        <SelectTrigger className="min-w-40 h-10 sm:h-9"><SelectValue placeholder="All lifecycle states" /></SelectTrigger>
-        <SelectContent><SelectItem value="__all">All lifecycle states</SelectItem>{lifecycleStates.map((state) => <SelectItem key={state} value={state}>{lifecycleLabel(state)}</SelectItem>)}</SelectContent>
-      </Select>
-      <Select value={source || null} onValueChange={(value) => setSource(value === "__all" ? "" : value ?? "")}>
-        <SelectTrigger className="min-w-32 h-10 sm:h-9"><SelectValue placeholder="All sources" /></SelectTrigger>
-        <SelectContent><SelectItem value="__all">All sources</SelectItem>{sourceOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
-      </Select>
-      <Select value={campaignFilter || null} onValueChange={(value) => setCampaignFilter(value === "__all" ? "" : value ?? "")}>
-        <SelectTrigger className="min-w-36 h-10 sm:h-9"><SelectValue placeholder="All campaigns" /></SelectTrigger>
-        <SelectContent><SelectItem value="__all">All campaigns</SelectItem>{campaigns.map((campaign) => <SelectItem key={campaign.id} value={campaign.id}>{campaign.name}</SelectItem>)}</SelectContent>
-      </Select>
+      <VisualFilter value={lifecycle} groups={lifecycleFilterGroups} onValueChange={setLifecycle} allLabel="All lifecycle states" className="h-9 min-w-40 text-sm font-normal" aria-label="Filter prospects by lifecycle" />
+      <VisualFilter value={source} groups={sourceFilterGroups} onValueChange={setSource} allLabel="All sources" className="h-9 min-w-32 text-sm font-normal" aria-label="Filter prospects by source" />
+      <VisualFilter value={campaignFilter} groups={campaignFilterGroups} onValueChange={setCampaignFilter} allLabel="All campaigns" className="h-9 min-w-36 text-sm font-normal" aria-label="Filter prospects by campaign" />
       {campaignFilter ? (
-        <Select
-          value={relationshipFilter || null}
-          onValueChange={(value) => {
-            const nextValue = value as string | null;
-            setRelationshipFilter(nextValue === "__all" || nextValue === null ? "" : nextValue as LinkedInRelationship);
-          }}
-        >
-          <SelectTrigger className="min-w-36 h-10 sm:h-9"><SelectValue placeholder="All relationship routes" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all">All relationship routes</SelectItem>
-            <SelectItem value="connected">Direct message</SelectItem>
-            <SelectItem value="invite_required">Invite first</SelectItem>
-            <SelectItem value="unresolved">Unresolved</SelectItem>
-            <SelectItem value="unknown">Not checked</SelectItem>
-          </SelectContent>
-        </Select>
+        <VisualFilter
+          value={relationshipFilter}
+          groups={relationshipFilterGroups}
+          onValueChange={(value) => setRelationshipFilter(value as LinkedInRelationship | "")}
+          allLabel="All relationship routes"
+          className="h-9 min-w-36 text-sm font-normal"
+          aria-label="Filter prospects by relationship route"
+        />
       ) : null}
     </>
   );
@@ -493,10 +553,10 @@ export function ProspectsWorkspace() {
   ) ?? null;
 
   return (
-    <div className={cn("space-y-4", selected.size > 0 && "pb-36 sm:pb-32")}>
+    <div className={cn("space-y-3", selected.size > 0 && "pb-36 sm:pb-32")}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-3xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {campaignFilter ? "Review campaign audience" : "Prospects"}
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
@@ -526,7 +586,7 @@ export function ProspectsWorkspace() {
         </div>
       </div>
 
-      <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid min-h-16 divide-y divide-border border-y border-border sm:grid-cols-2 sm:divide-y-0 xl:grid-cols-5 xl:divide-x xl:divide-y-0">
         <TrendlessMetric label="Total prospects" value={counts.all} detail="All imported prospects" tone="purple" icon={<Users strokeWidth={1.75} />} />
         <TrendlessMetric label="Pending review" value={counts.pending} detail="Awaiting a decision" tone="yellow" icon={<Clock3 strokeWidth={1.75} />} />
         <TrendlessMetric label="Approved" value={counts.approved} detail="Eligible for enrollment" tone="green" icon={<Check strokeWidth={1.75} />} />
@@ -550,7 +610,7 @@ export function ProspectsWorkspace() {
         </div>
       ) : null}
 
-      <Card className="overflow-hidden">
+      <section className="overflow-hidden border-y border-border">
         <div className="space-y-3 border-b border-border px-4 pt-4 pb-3">
           <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
             <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-lg border border-input bg-onboarding-neutral-0 px-3 dark:bg-onboarding-neutral-900 sm:h-9">
@@ -635,6 +695,8 @@ export function ProspectsWorkspace() {
                         type="button"
                         className="min-w-0 flex-1 text-left"
                         onClick={() => void openDetail(lead.id)}
+                        onPointerEnter={() => prefetchProspectDetail(lead.id)}
+                        onFocus={() => prefetchProspectDetail(lead.id)}
                       >
                         <div className="flex items-start gap-3">
                           <ProspectAvatar name={name} url={lead.avatarUrl} />
@@ -698,7 +760,13 @@ export function ProspectsWorkspace() {
                   {leads.map((lead) => {
                     const name = `${lead.firstName} ${lead.lastName}`.trim();
                     return (
-                      <TableRow key={lead.id} className="cursor-pointer" onClick={() => void openDetail(lead.id)}>
+                      <TableRow
+                        key={lead.id}
+                        className="cursor-pointer"
+                        onClick={() => void openDetail(lead.id)}
+                        onPointerEnter={() => prefetchProspectDetail(lead.id)}
+                        onFocus={() => prefetchProspectDetail(lead.id)}
+                      >
                         <TableCell onClick={(event) => event.stopPropagation()}>
                           <Checkbox
                             checked={selected.has(lead.id)}
@@ -767,14 +835,18 @@ export function ProspectsWorkspace() {
         )}
 
         <div className="flex flex-col gap-3 border-t border-border px-4 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <span>Showing {total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1} to {Math.min(page * PAGE_SIZE, total)} of {total.toLocaleString()} prospects</span>
-          <div className="flex items-center gap-1">
+          <span>Showing {total === 0 ? 0 : (page - 1) * pageSize + 1} to {Math.min(page * pageSize, total)} of {total.toLocaleString()} prospects</span>
+          <div className="flex flex-wrap items-center gap-1">
+            <Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value) as (typeof PAGE_SIZE_OPTIONS)[number])}>
+              <SelectTrigger className="h-8 w-28 text-xs" aria-label="Prospects per page"><SelectValue /></SelectTrigger>
+              <SelectContent>{PAGE_SIZE_OPTIONS.map((value) => <SelectItem key={value} value={String(value)}>{value} per page</SelectItem>)}</SelectContent>
+            </Select>
             <Button variant="ghost" size="icon" className="size-10 sm:size-8" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))} aria-label="Previous page"><ChevronLeft /></Button>
             <span className="px-2 text-xs font-medium text-foreground">Page {page} of {pageCount}</span>
             <Button variant="ghost" size="icon" className="size-10 sm:size-8" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))} aria-label="Next page"><ChevronRight /></Button>
           </div>
         </div>
-      </Card>
+      </section>
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
         <SheetContent side="bottom" className="gap-4 rounded-t-2xl pb-[max(1rem,var(--safe-area-bottom))] lg:hidden">
@@ -804,9 +876,9 @@ export function ProspectsWorkspace() {
         onClear={() => setSelected(new Set())}
       />
 
-      <ImportProspectsModal open={importOpen} onOpenChange={setImportOpen} onImported={load} />
-      <SearchProspectModal open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={load} />
-      <ScrapeProspectsModal open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
+      <ImportProspects open={importOpen} onOpenChange={setImportOpen} onImported={load} />
+      <AddProspect open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={load} />
+      <FindProspects open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">

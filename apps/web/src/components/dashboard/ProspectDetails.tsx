@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Check, ExternalLink, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -37,11 +38,11 @@ function titleCase(value: string): string {
 }
 
 function ProspectAvatar({ name, url }: { name: string; url: string | null }) {
-  if (url) return <img src={url} alt="" className="size-12 rounded-full object-cover" />;
+  if (url) return <Image src={url} width={48} height={48} alt="" unoptimized className="size-12 rounded-full object-cover" />;
   return <span className="inline-flex size-12 items-center justify-center rounded-full bg-onboarding-purple-100 text-sm font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">{initials(name)}</span>;
 }
 
-export function ProspectDetailPanel({ prospectId, presentation }: { prospectId: string; presentation: "page" | "drawer" }) {
+export function ProspectDetails({ prospectId, presentation }: { prospectId: string; presentation: "page" | "drawer" }) {
   const router = useRouter();
   const [prospect, setProspect] = useState<ProspectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);

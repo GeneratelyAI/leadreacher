@@ -1,14 +1,14 @@
 import { Suspense } from "react";
-import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
-import { ProspectsWorkspace } from "@/components/dashboard/ProspectsWorkspace";
+import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Prospects } from "@/components/dashboard/Prospects";
 
 export default function ProspectsPage() {
   return (
-    <DashboardPageFrame>
+    <PageFrame>
       <Suspense fallback={<DashboardRouteSkeleton />}>
-        <ProspectsWorkspace />
+        <Prospects />
       </Suspense>
-    </DashboardPageFrame>
+    </PageFrame>
   );
 }
 
