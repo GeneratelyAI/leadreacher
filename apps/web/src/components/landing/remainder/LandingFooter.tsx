@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { FinalCtaAndFooter } from "./LandingRemainder";
+import { FinalCtaAndFooter } from "./LandingSections";
 
-type StickyLandingFooterProps = {
+type LandingFooterProps = {
   children: ReactNode;
 };
 
-export default function StickyLandingFooter({ children }: StickyLandingFooterProps) {
+export default function LandingFooter({ children }: LandingFooterProps) {
   return (
     <div className="relative z-30 isolate bg-[#111318]">
       <div className="relative z-10">{children}</div>

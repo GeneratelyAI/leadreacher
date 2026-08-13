@@ -31,9 +31,10 @@ import { BubbleText } from "@/components/ui/bubble-text";
 import { LinkPreview } from "@/components/ui/link-preview";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { cn } from "@/lib/utils";
-import { UrlBar } from "@/components/landing/hero/UrlBar";
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/constants/brand";
+import { BrowserBar } from "@/components/landing/hero/BrowserBar";
 import { ApprovalPreview } from "./ApprovalPreview";
-import { IconFeatureList } from "./IconFeatureList";
+import { FeatureList } from "./FeatureList";
 import {
   approvalBenefits,
   approvalTabs,
@@ -140,7 +141,7 @@ function CampaignExpansionSection() {
               Nothing goes live <MarkerHighlight>until you approve it.</MarkerHighlight>
             </h2>
             <p className="mt-5 text-base leading-7 text-white/64 large-desktop:text-lg large-desktop:leading-8">Review the people, message sequence, channel routing, and video choice before launch.</p>
-            <IconFeatureList
+            <FeatureList
               items={[
                 { icon: UserCheck, label: approvalBenefits[0] },
                 { icon: FilePenLine, label: approvalBenefits[1] },
@@ -288,7 +289,7 @@ function PricingAndFaqSection() {
             eyebrow=""
             heading="Know what happens before you start."
             description="Clear answers about setup, channels, review, personalization, and campaign control."
-            supportEmail="support@leadreacher.com"
+            supportEmail={SUPPORT_EMAIL}
             className="max-w-none items-start"
           />
         </div>
@@ -297,7 +298,7 @@ function PricingAndFaqSection() {
   );
 }
 
-function FooterUrlBar() {
+function FooterBrowserBar() {
   const [websiteUrl, setWebsiteUrl] = useState("");
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -317,7 +318,7 @@ function FooterUrlBar() {
 
   return (
     <div className="lg:justify-self-end">
-      <UrlBar
+      <BrowserBar
         id="footer-website-url"
         value={websiteUrl}
         onValueChange={setWebsiteUrl}
@@ -349,7 +350,7 @@ export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
               <h2 className="mt-4 max-w-3xl text-balance text-3xl font-semibold leading-tight sm:text-4xl lg:text-5xl 2xl:text-6xl large-desktop:max-w-4xl large-desktop:text-[4.125rem]">Drop your URL. We’ll take it from there.</h2>
               <p className="mt-4 max-w-xl text-sm leading-6 text-white/68 sm:text-base sm:leading-7">See how LeadReacher turns your business into a reviewable audience, campaign, and outreach workflow.</p>
             </div>
-            <FooterUrlBar />
+            <FooterBrowserBar />
           </div>
           <div className="relative mt-10 grid gap-3 border-t border-white/10 pt-6 text-xs text-white/62 sm:grid-cols-3 sm:gap-6">
             <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-[#a994ff]" /> Your campaign stays reviewable</span>
@@ -362,10 +363,10 @@ export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
           <div>
             <Logo variant="white" align="left" className="h-8" />
             <p className="mt-5 max-w-sm text-sm leading-6 text-white/62">Multi-channel outreach and personalized video in one clear, reviewable workflow.</p>
-            <a href="mailto:support@leadreacher.com" className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-white/78 transition-colors hover:text-white"><Mail className="size-4 text-[#a994ff]" /> support@leadreacher.com</a>
+            <a href={SUPPORT_MAILTO} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-white/78 transition-colors hover:text-white"><Mail className="size-4 text-[#a994ff]" /> {SUPPORT_EMAIL}</a>
           </div>
           <nav aria-label="Product links"><p className="text-sm font-semibold text-white">Product</p><div className="mt-3 text-sm text-white/58"><Link href="/#product" className="flex min-h-11 items-center transition-colors hover:text-white">Product tour</Link><Link href="/#how-it-works" className="flex min-h-11 items-center transition-colors hover:text-white">How it works</Link><Link href="/pricing" className="flex min-h-11 items-center transition-colors hover:text-white">Pricing</Link></div></nav>
-          <nav aria-label="Resource links"><p className="text-sm font-semibold text-white">Resources</p><div className="mt-3 text-sm text-white/58"><a href="mailto:support@leadreacher.com" className="flex min-h-11 items-center transition-colors hover:text-white">Help center</a><Link href="/privacy" className="flex min-h-11 items-center transition-colors hover:text-white">Privacy</Link><Link href="/terms" className="flex min-h-11 items-center transition-colors hover:text-white">Terms</Link></div></nav>
+          <nav aria-label="Resource links"><p className="text-sm font-semibold text-white">Resources</p><div className="mt-3 text-sm text-white/58"><a href={SUPPORT_MAILTO} className="flex min-h-11 items-center transition-colors hover:text-white">Help center</a><Link href="/privacy" className="flex min-h-11 items-center transition-colors hover:text-white">Privacy</Link><Link href="/terms" className="flex min-h-11 items-center transition-colors hover:text-white">Terms</Link></div></nav>
           <nav aria-label="Account links"><p className="text-sm font-semibold text-white">Account</p><div className="mt-3 text-sm text-white/58"><Link href="/signup" className="flex min-h-11 items-center transition-colors hover:text-white">Get started</Link><Link href="/login" className="flex min-h-11 items-center transition-colors hover:text-white">Log in</Link></div></nav>
         </div>
         <div className="mx-auto flex max-w-7xl flex-col gap-3 border-t border-white/10 px-1 pt-6 text-xs text-white/40 sm:flex-row sm:items-center sm:justify-between large-desktop:max-w-[88rem]"><p>© 2026 LeadReacher. All rights reserved.</p><p>Built for visible, reviewable outreach.</p></div>
@@ -387,6 +388,6 @@ function FooterReveal() {
   );
 }
 
-export default function LandingRemainder() {
+export default function LandingSections() {
   return <><DifferentiationSection /><CampaignExpansionSection /><FooterReveal /></>;
 }

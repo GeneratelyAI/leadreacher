@@ -5,7 +5,7 @@ export type IconFeature = {
   label: string;
 };
 
-type IconFeatureListProps = {
+type FeatureListProps = {
   items: readonly IconFeature[];
   className: string;
   itemClassName: string;
@@ -13,7 +13,7 @@ type IconFeatureListProps = {
   iconClassName: string;
 };
 
-export function IconFeatureList({ items, className, itemClassName, iconWrapperClassName, iconClassName }: IconFeatureListProps) {
+export function FeatureList({ items, className, itemClassName, iconWrapperClassName, iconClassName }: FeatureListProps) {
   return (
     <ul className={className}>
       {items.map(({ icon: Icon, label }) => (
