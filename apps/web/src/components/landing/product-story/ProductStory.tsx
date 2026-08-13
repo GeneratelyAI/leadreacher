@@ -12,8 +12,8 @@ import { BackgroundPaths } from "@/components/ui/background-paths";
 import { WorkflowStepper } from "@/components/ui/workflow-stepper";
 import AcquisitionShowcase from "./AcquisitionShowcase";
 import HeroBreak from "@/components/landing/hero/HeroBreak";
-import TrustedBrandsMarquee from "./TrustedBrandsMarquee";
-import { InteractiveDashboardDemo } from "./InteractiveDashboardDemo";
+import BrandsMarquee from "./BrandsMarquee";
+import { DashboardDemo } from "./DashboardDemo";
 import {
   PRODUCT_STORY_STAGE_IDS,
   progressForStageIndex,
@@ -43,7 +43,7 @@ function StagePreview({
   onStageChange: (stageId: ProductStoryStageId) => void;
 }) {
   return (
-    <InteractiveDashboardDemo
+    <DashboardDemo
       stageId={stageId}
       reducedMotion={reducedMotion}
       onStageChange={onStageChange}
@@ -93,7 +93,7 @@ function WorkflowScene({ stage, activeIndex, reducedMotion, onSelect }: { stage:
               animate={{ scale: 1 }}
               transition={{ duration: reducedMotion ? 0 : 0.2, ease: "easeOut" }}
             >
-              <InteractiveDashboardDemo
+              <DashboardDemo
                 stageId={stage.id}
                 reducedMotion={reducedMotion}
                 onStageChange={(stageId) => {
@@ -225,7 +225,7 @@ export default function ProductStory() {
       <span id="how-it-works" className="absolute top-28 scroll-mt-24 sm:top-32 lg:top-36" aria-hidden />
       <span id="product" className="absolute top-0 scroll-mt-24" aria-hidden />
       <div className="relative bg-white">
-        <TrustedBrandsMarquee />
+        <BrandsMarquee />
         <AcquisitionShowcase />
         <DesktopStory />
         <MobileStory />

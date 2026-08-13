@@ -7,7 +7,7 @@ import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import ShimmerText from "@/components/ui/shimmer-text";
 import HeroBackground from "./HeroBackground";
-import { UrlBar } from "./UrlBar";
+import { BrowserBar } from "./BrowserBar";
 
 type AnalyzerPhase = "idle" | "running" | "failed";
 
@@ -186,7 +186,7 @@ export default function Hero() {
           </p>
           </div>
 
-          <UrlBar
+          <BrowserBar
             id="landing-website-url"
             value={websiteUrl}
             onValueChange={(value) => { setWebsiteUrl(value); if (errorMessage && phase === "idle") setErrorMessage(null); }}

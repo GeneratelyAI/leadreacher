@@ -217,7 +217,7 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
   );
 }
 
-export default function TrustedBrandsMarquee() {
+export default function BrandsMarquee() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
   const reducedMotion = Boolean(useReducedMotion());

@@ -14,7 +14,7 @@ import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { cn } from "@/lib/utils";
 
-type UrlBarProps = {
+type BrowserBarProps = {
   id: string;
   value: string;
   onValueChange: (value: string) => void;
@@ -29,7 +29,7 @@ type UrlBarProps = {
   spotlight?: boolean;
 };
 
-export function UrlBar({
+export function BrowserBar({
   id,
   value,
   onValueChange,
@@ -42,7 +42,7 @@ export function UrlBar({
   errorMessage,
   disabled = false,
   spotlight = false,
-}: UrlBarProps) {
+}: BrowserBarProps) {
   const [faviconHost, setFaviconHost] = useState<string | null>(null);
   const [faviconLoaded, setFaviconLoaded] = useState(false);
   const [faviconFailed, setFaviconFailed] = useState(false);

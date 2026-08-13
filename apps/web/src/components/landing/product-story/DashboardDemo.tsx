@@ -600,7 +600,7 @@ function ConversationsDemo(props: DemoProps) {
   );
 }
 
-export function InteractiveDashboardDemo(props: DemoProps) {
+export function DashboardDemo(props: DemoProps) {
   if (props.stageId === "website") return <WebsiteDemo {...props} />;
   if (props.stageId === "strategy") return <StrategyDemo {...props} />;
   if (props.stageId === "prospects") return <ProspectsDemo {...props} />;
