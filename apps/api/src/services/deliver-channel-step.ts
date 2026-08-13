@@ -13,6 +13,7 @@ import {
   acquireDeliveryReservation,
   markDeliveryReservationUnknown,
 } from "./delivery-attempt.js";
+import type { PersonalizedSequenceStep } from "./personalize-sequence-step.js";
 import {
   checkAndIncrementDailySendLimit,
   millisecondsUntilNextUtcDay,
@@ -94,7 +95,7 @@ export async function deliverMessagingChannelStep(input: {
   lead: Lead;
   step: number;
   sequence: SequenceStep[];
-  currentStep: SequenceStep;
+  currentStep: PersonalizedSequenceStep;
   sender: SenderAccount;
   existingChatId: string | null;
 }): Promise<{ sent: true; chatId: string } | { skipped: true; reason: string }> {
@@ -194,7 +195,13 @@ export async function deliverMessagingChannelStep(input: {
           leadId: input.leadId,
           orgId: input.orgId,
           channel: input.channel,
-          content: { type: "text", message: input.currentStep.message },
+          content: {
+            type: "text",
+            message: input.currentStep.message,
+            ...(input.currentStep.personalization
+              ? { personalization: input.currentStep.personalization.tags }
+              : {}),
+          },
           status: "sent",
           stepIndex: input.step,
           sentAt: new Date(),
@@ -259,7 +266,7 @@ export async function deliverEmailChannelStep(input: {
   lead: Lead;
   step: number;
   sequence: SequenceStep[];
-  currentStep: SequenceStep;
+  currentStep: PersonalizedSequenceStep;
   sender: SenderAccount;
 }): Promise<{ sent: true; emailId: string } | { skipped: true; reason: string }> {
   const email = resolveLeadAttendeeId("email", input.lead);
@@ -328,6 +335,9 @@ export async function deliverEmailChannelStep(input: {
             type: "email",
             subject: input.currentStep.subject,
             body: input.currentStep.message,
+            ...(input.currentStep.personalization
+              ? { personalization: input.currentStep.personalization.tags }
+              : {}),
           },
           status: "sent",
           stepIndex: input.step,

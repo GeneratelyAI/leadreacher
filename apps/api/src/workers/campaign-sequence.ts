@@ -384,7 +384,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
                 leadId: campaignLead.leadId,
                 orgId,
                 channel: "linkedin",
-                content: { type: "text", message: preparedStep.message },
+                content: {
+                  type: "text",
+                  message: preparedStep.message,
+                  ...(preparedStep.personalization
+                    ? { personalization: preparedStep.personalization.tags }
+                    : {}),
+                },
                 status: "sent",
                 stepIndex: step,
                 sentAt: new Date(),
@@ -477,7 +483,13 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
               leadId: campaignLead.leadId,
               orgId,
               channel: "linkedin",
-              content: { type: "text", message: preparedStep.message },
+              content: {
+                type: "text",
+                message: preparedStep.message,
+                ...(preparedStep.personalization
+                  ? { personalization: preparedStep.personalization.tags }
+                  : {}),
+              },
               status: "sent",
               stepIndex: step,
               sentAt: new Date(),

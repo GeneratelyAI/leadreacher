@@ -74,6 +74,12 @@ const CreateCampaignBodySchema = z.object({
   socialAccountId: z.string().trim().min(1).optional(),
   channelAccounts: z.record(z.string(), z.string()).optional(),
   personalizeByChannel: z.boolean().default(false),
+  personalization: z.object({
+    valueProposition: z.string().trim().min(1).max(280).optional(),
+    angle: z.string().trim().min(1).max(120).optional(),
+    cta: z.string().trim().min(1).max(120).optional(),
+    proofPoints: z.array(z.string().trim().min(1).max(180)).max(3).default([]),
+  }).optional(),
 }).refine((input) => Boolean(input.name || input.naming), {
   message: "Provide campaign naming details",
   path: ["naming"],
@@ -137,7 +143,21 @@ function withSequenceReviewComplete(aiConfig: unknown): Prisma.InputJsonValue {
   return { ...root, requiresSequenceReview: false } as Prisma.InputJsonValue;
 }
 
-function isGeneratedPersonalizedVideo(strategy: {
+type GeneratedVideoMode = "standardized" | "personalized";
+
+function generatedCampaignVideoMode(aiConfig: unknown): GeneratedVideoMode | null {
+  const videoConfig = asRecord(asRecord(aiConfig)?.video);
+  if (
+    videoConfig?.enabled === true &&
+    videoConfig.source === "generated" &&
+    (videoConfig.mode === "standardized" || videoConfig.mode === "personalized")
+  ) {
+    return videoConfig.mode;
+  }
+  return null;
+}
+
+function legacyGeneratedPersonalizedVideo(strategy: {
   campaignType: string | null;
   videoConfig: unknown;
 } | null): boolean {
@@ -148,7 +168,7 @@ function isGeneratedPersonalizedVideo(strategy: {
     videoConfig.mode === "personalized";
 }
 
-function isGeneratedStandardVideo(strategy: {
+function legacyGeneratedStandardVideo(strategy: {
   videoConfig: unknown;
 } | null): boolean {
   const videoConfig = asRecord(strategy?.videoConfig);
@@ -232,7 +252,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { name, naming, channels, sequence, socialAccountId, channelAccounts, personalizeByChannel } = request.body;
+    const { name, naming, channels, sequence, socialAccountId, channelAccounts, personalizeByChannel, personalization } = request.body;
     validateChannels(channels);
 
     const validatedSequence = parseSequenceOrThrow(sequence);
@@ -257,6 +277,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           channelPersonalization: {
             enabled: personalizeByChannel,
             version: 1,
+            ...(personalization ?? {}),
           },
         },
       },
@@ -497,6 +518,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       select: {
         id: true,
         strategyId: true,
+        aiConfig: true,
         leads: { select: { leadId: true }, orderBy: { createdAt: "asc" }, take: 1 },
       },
     });
@@ -508,11 +530,15 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
           select: { campaignType: true, videoConfig: true },
         })
       : null;
-    if (!isGeneratedStandardVideo(strategy)) {
+    const campaignMode = generatedCampaignVideoMode(campaign.aiConfig);
+    const legacyPersonalized = legacyGeneratedPersonalizedVideo(strategy);
+    const legacyGenerated = legacyGeneratedStandardVideo(strategy);
+    const mode = campaignMode ?? (legacyPersonalized ? "personalized" : legacyGenerated ? "standardized" : null);
+    if (!mode) {
       throw new ValidationError("This campaign does not use a generated video");
     }
 
-    if (isGeneratedPersonalizedVideo(strategy)) {
+    if (mode === "personalized") {
       const template = await prisma.campaignVideoTemplate.findFirst({
         where: { orgId, campaignId },
         orderBy: { version: "desc" },

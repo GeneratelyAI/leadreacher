@@ -61,7 +61,7 @@ export async function deliverSequenceStep1ViaChat(
   const [campaign, lead] = await Promise.all([
     prisma.campaign.findUnique({
       where: { id: campaignId },
-      select: { name: true, aiConfig: true },
+      select: { id: true, name: true, aiConfig: true },
     }),
     prisma.lead.findUnique({
       where: { id: leadId },
@@ -94,6 +94,9 @@ export async function deliverSequenceStep1ViaChat(
     leadId,
   });
   const messageText = preparedStep.message;
+  const personalization = preparedStep.personalization
+    ? { personalization: preparedStep.personalization.tags }
+    : {};
 
   const messageLimit = await checkAndIncrementDailySendLimit(
     unipileAccountId,
@@ -170,8 +173,9 @@ export async function deliverSequenceStep1ViaChat(
                     ...(campaignVideo.thumbnailUrl ? { thumbnailUrl: campaignVideo.thumbnailUrl } : {}),
                   },
                 ],
+                ...personalization,
               }
-            : { type: "text", message: messageText },
+            : { type: "text", message: messageText, ...personalization },
           status: "sent",
           stepIndex: 1,
           sentAt: new Date(),

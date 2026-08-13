@@ -363,9 +363,10 @@ describe("campaign lifecycle routes", () => {
 
   it("queues a retry only for a standard video that failed quality review", async () => {
     campaignFindFirst.mockResolvedValueOnce({
-        id: "campaign-1",
-        strategyId: "strategy-1",
-        leads: [{ leadId: "lead-1" }],
+      id: "campaign-1",
+      strategyId: "strategy-1",
+      aiConfig: { video: { enabled: true, source: "generated", mode: "standardized" } },
+      leads: [{ leadId: "lead-1" }],
       });
     strategyFindFirst.mockResolvedValue({
         campaignType: "ai_video_ad",
@@ -390,9 +391,10 @@ describe("campaign lifecycle routes", () => {
 
   it("does not enqueue a retry when a standard video is already usable", async () => {
     campaignFindFirst.mockResolvedValueOnce({
-        id: "campaign-1",
-        strategyId: "strategy-1",
-        leads: [{ leadId: "lead-1" }],
+      id: "campaign-1",
+      strategyId: "strategy-1",
+      aiConfig: { video: { enabled: true, source: "generated", mode: "standardized" } },
+      leads: [{ leadId: "lead-1" }],
       });
     strategyFindFirst.mockResolvedValue({
         campaignType: "ai_video_ad",
@@ -408,5 +410,23 @@ describe("campaign lifecycle routes", () => {
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({ message: "There is no failed or review-required video to retry" });
     expect(videoGenerationQueueAdd).not.toHaveBeenCalled();
+  });
+
+  it("retries a manually selected personalized campaign video", async () => {
+    campaignFindFirst.mockResolvedValueOnce({
+      id: "campaign-1",
+      strategyId: null,
+      aiConfig: { video: { enabled: true, source: "generated", mode: "personalized" } },
+      leads: [{ leadId: "lead-1" }],
+    });
+    campaignVideoTemplateFindFirst.mockResolvedValue(null);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/campaigns/campaign-1/video/retry",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ queued: true, pipeline: "personalized", scope: "template" });
   });
 });
