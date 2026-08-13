@@ -16,7 +16,7 @@ export interface ComparisonRow {
   values: (boolean | string)[];
 }
 
-interface PricingComparisonTableProps {
+interface PricingComparisonProps {
   eyebrow?: string;
   heading: string;
   plans: ComparisonPlan[];
@@ -24,7 +24,7 @@ interface PricingComparisonTableProps {
   ctaLabel?: string;
 }
 
-export default function PricingComparisonTable({ eyebrow, heading, plans, rows, ctaLabel = "Choose plan" }: PricingComparisonTableProps) {
+export default function PricingComparison({ eyebrow, heading, plans, rows, ctaLabel = "Choose plan" }: PricingComparisonProps) {
   const gridTemplateColumns = `minmax(240px,1.15fr) repeat(${plans.length}, minmax(220px,1fr))`;
   const featuredIndex = plans.findIndex((plan) => plan.featured);
 

@@ -7,21 +7,22 @@ import { ArrowRight, Check, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
-import StickyLandingFooter from "@/components/landing/remainder/StickyLandingFooter";
+import LandingFooter from "@/components/landing/remainder/LandingFooter";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
-import PricingComparisonTable, { type ComparisonRow } from "@/components/pricing/PricingComparisonTable";
+import PricingComparison, { type ComparisonRow } from "@/components/pricing/PricingComparison";
+import { SUPPORT_EMAIL } from "@/lib/constants/brand";
 
-type CampaignType = "personalized_outreach" | "ai_video_ad" | "uploaded_video";
+type CampaignGoal = "personalized_outreach" | "ai_video_ad" | "uploaded_video";
 type BillingCycle = "monthly" | "yearly";
 type PublicPlan = {
-  campaignType: CampaignType;
+  campaignType: CampaignGoal;
   label: string;
   unitAmount: number | null;
   currency: string | null;
   interval: string | null;
 };
 
-const PLANS: Record<CampaignType, {
+const PLANS: Record<CampaignGoal, {
   name: string;
   subtitle: string;
   description: string;
@@ -55,7 +56,7 @@ const PLANS: Record<CampaignType, {
   },
 };
 
-const ORDER: CampaignType[] = ["uploaded_video", "personalized_outreach", "ai_video_ad"];
+const ORDER: CampaignGoal[] = ["uploaded_video", "personalized_outreach", "ai_video_ad"];
 const comparisonRows: ComparisonRow[] = [
   { label: "Audience research", values: [true, true, true] },
   { label: "Multi-channel outreach", values: [true, true, true] },
@@ -92,7 +93,7 @@ function formatPrice(plan?: PublicPlan) {
 }
 
 export default function PricingPage() {
-  const [prices, setPrices] = useState<Partial<Record<CampaignType, PublicPlan>>>({});
+  const [prices, setPrices] = useState<Partial<Record<CampaignGoal, PublicPlan>>>({});
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
 
   useEffect(() => {
@@ -227,7 +228,7 @@ export default function PricingPage() {
       </section>
 
       <section className="relative border-t border-white/45 bg-transparent px-4 py-16 sm:px-6 sm:py-28">
-        <PricingComparisonTable
+        <PricingComparison
           eyebrow="Choose the workflow that fits"
           heading="Compare campaigns"
           ctaLabel="Choose plan"
@@ -248,7 +249,7 @@ export default function PricingPage() {
       </section>
 
     </main>
-    <StickyLandingFooter>
+    <LandingFooter>
       <div className="relative bg-[#111318] pt-px">
         <section data-navbar-theme="light" className="relative z-40 -mt-7 isolate overflow-hidden rounded-[28px] bg-white px-4 py-16 sm:-mt-9 sm:rounded-[40px] sm:px-6 sm:py-24 lg:py-28">
           <FaqSectionCentered
@@ -256,11 +257,11 @@ export default function PricingPage() {
             eyebrow="Questions before you launch"
             heading="Know what happens before you choose a campaign."
             description="Clear answers about pricing, review, delivery, and campaign control."
-            supportEmail="support@leadreacher.com"
+            supportEmail={SUPPORT_EMAIL}
           />
         </section>
       </div>
-    </StickyLandingFooter>
+    </LandingFooter>
     </>
   );
 }
