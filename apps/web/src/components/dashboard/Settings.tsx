@@ -11,12 +11,14 @@ import {
   LifeBuoy,
   Loader2,
   Plug,
+  ShieldCheck,
   SlidersHorizontal,
   Trash2,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { MfaSecurityPanel } from "@/components/auth/MfaSecurityPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -413,6 +415,10 @@ export function Settings() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
+            <SettingsSectionCard icon={<ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden />} title="Security">
+              <MfaSecurityPanel />
+            </SettingsSectionCard>
+
             <SettingsSectionCard icon={<SlidersHorizontal className="size-5" strokeWidth={1.75} aria-hidden />} title="Preferences">
               <div className="space-y-4">
                 <div className="grid gap-2">

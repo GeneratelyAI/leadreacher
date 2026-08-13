@@ -5,6 +5,8 @@ import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
 import { createClient } from "@/lib/supabase/server";
 
+type AuthFactor = { status: string };
+
 function displayName(input: { email?: string; user_metadata?: unknown }): string {
   if (
     input.user_metadata &&
@@ -36,6 +38,17 @@ export default async function DashboardLayout({
 
   if (!user || !session?.access_token || !user.email) {
     redirect("/login");
+  }
+
+  const [{ data: assurance }, { data: factors }] = await Promise.all([
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+    supabase.auth.mfa.listFactors(),
+  ]);
+  const hasVerifiedFactor = (factors?.all as AuthFactor[] | undefined)?.some(
+    (factor: AuthFactor) => factor.status === "verified",
+  );
+  if (hasVerifiedFactor && assurance?.currentLevel !== "aal2") {
+    redirect("/verify-mfa?next=/dashboard");
   }
 
   let bootstrap;

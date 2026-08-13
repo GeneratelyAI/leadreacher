@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { MfaSecurityPanel } from "@/components/auth/MfaSecurityPanel";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api";
@@ -66,7 +67,15 @@ export function LegalConsentForm() {
   );
 }
 
-export function OrganizationRecoveryForm({ canRecover, purgeAt }: { canRecover: boolean; purgeAt: string | null }) {
+export function OrganizationRecoveryForm({
+  canRecover,
+  purgeAt,
+  needsMfaEnrollment,
+}: {
+  canRecover: boolean;
+  purgeAt: string | null;
+  needsMfaEnrollment: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +101,17 @@ export function OrganizationRecoveryForm({ canRecover, purgeAt }: { canRecover: 
       <p className="mt-2 text-sm text-muted-foreground">
         Outreach and access are disabled. {canRecover ? "You can restore this workspace" : "Only an organization owner can restore this workspace"}{purgeAt ? ` before ${new Intl.DateTimeFormat(undefined, { dateStyle: "long" }).format(new Date(purgeAt))}` : " during its recovery period"}.
       </p>
+      {needsMfaEnrollment ? (
+        <div className="mt-6 border-t pt-6">
+          <h2 className="text-sm font-semibold">Verify your identity</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Set up an authenticator app before recovering this workspace.
+          </p>
+          <div className="mt-4">
+            <MfaSecurityPanel />
+          </div>
+        </div>
+      ) : null}
       {error ? <p role="alert" className="mt-4 text-sm text-red-600 dark:text-red-300">{error}</p> : null}
       <Button className="mt-6 w-full" disabled={loading || !canRecover} onClick={recover}>
         {loading ? <Loader2 className="animate-spin" aria-hidden /> : null}
