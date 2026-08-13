@@ -27,7 +27,7 @@ import {
   X,
   BarChart3,
 } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import {
@@ -39,12 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import { Filter } from "@/components/dashboard/Filter";
 import {
   Sheet,
   SheetContent,
@@ -58,8 +53,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/Input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CommandPalette, type CommandPaletteGroup } from "@/components/ui/command-palette";
 import { apiFetch, clearAccessTokenCache } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import { useThemeMode } from "@/hooks/useThemeMode";
@@ -85,7 +79,7 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/dashboard/prospects", label: "Prospects", icon: Users },
-  { href: "/dashboard/messages", label: "Chat", icon: MessageSquare },
+  { href: "/dashboard/messages", label: "Messages", icon: MessageSquare },
 ];
 
 const SECONDARY_NAV: NavItem[] = [
@@ -166,6 +160,10 @@ function relativeTime(value: string): string {
 function ShellActivityIcon({ kind }: { kind: ShellActivity["kind"] }) {
   const Icon = kind === "message" ? MessageSquare : kind === "prospect" ? Users : kind === "video" ? Video : Megaphone;
   return <Icon className="size-4" aria-hidden />;
+}
+
+function titleCase(value: string): string {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function WorkspaceSidebar({
@@ -321,8 +319,19 @@ export function DashboardShell({
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const rangeQuery = useMemo(() => {
+    const params = new URLSearchParams();
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    if (startDate && endDate) {
+      params.set("startDate", startDate);
+      params.set("endDate", endDate);
+    }
+    return params.toString();
+  }, [searchParams]);
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -334,30 +343,76 @@ export function DashboardShell({
 
   const prefetchWorkspace = useCallback((href: string) => {
     router.prefetch(href);
-    const request = href === "/dashboard"
-      ? { key: ["dashboard", "overview", ""], url: "/dashboard/overview" }
-      : href === "/dashboard/campaigns"
-        ? { key: ["dashboard", "campaigns", "status=all"], url: "/dashboard/campaigns?status=all" }
-        : href === "/dashboard/prospects"
-          ? { key: ["dashboard", "prospects", "limit=10&offset=0"], url: "/dashboard/prospects?limit=10&offset=0" }
-          : href === "/dashboard/messages"
-            ? { key: ["dashboard", "conversations", "state=all&limit=20&offset=0"], url: "/dashboard/conversations?state=all&limit=20&offset=0" }
-            : href === "/dashboard/activity"
-              ? { key: ["dashboard", "activity", "kind=all&limit=20&offset=0"], url: "/dashboard/activity?kind=all&limit=20&offset=0" }
-              : href === "/dashboard/channels"
-                ? { key: ["dashboard", "channels", ""], url: "/social-accounts" }
-                : href === "/dashboard/analytics"
-                  ? { key: ["dashboard", "analytics", "granularity=day"], url: "/dashboard/analytics?granularity=day" }
-                  : href === "/dashboard/settings"
-                    ? { key: ["dashboard", "settings"], url: "/dashboard/settings" }
-                    : null;
-    if (!request) return;
-    void queryClient.prefetchQuery({
-      queryKey: request.key,
-      queryFn: () => apiFetch(request.url),
-      staleTime: 30_000,
-    });
-  }, [queryClient, router]);
+    const withRange = (path: string) => `${path}?${rangeQuery}`;
+
+    if (href === "/dashboard") {
+      void Promise.all([
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "overview", rangeQuery], queryFn: () => apiFetch(withRange("/dashboard/overview")) }),
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "analytics", rangeQuery], queryFn: () => apiFetch(withRange("/dashboard/analytics")) }),
+      ]);
+      return;
+    }
+    if (href === "/dashboard/campaigns") {
+      void Promise.all([
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "campaigns", "status=all"], queryFn: () => apiFetch("/dashboard/campaigns?status=all") }),
+        queryClient.prefetchQuery({ queryKey: ["social-accounts"], queryFn: () => apiFetch("/social-accounts") }),
+      ]);
+      return;
+    }
+    if (href === "/dashboard/prospects") {
+      void Promise.all([
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "prospects", "limit=10&offset=0"], queryFn: () => apiFetch("/dashboard/prospects?limit=10&offset=0") }),
+        queryClient.prefetchQuery({ queryKey: ["campaigns", "options"], queryFn: () => apiFetch("/campaigns") }),
+      ]);
+      return;
+    }
+    if (href === "/dashboard/messages") {
+      const conversationParams = "state=all&limit=25";
+      const conversationKey = ["dashboard", "conversations", conversationParams] as const;
+      void queryClient.prefetchInfiniteQuery({
+        queryKey: conversationKey,
+        initialPageParam: 0,
+        queryFn: ({ pageParam }) => apiFetch<{ conversations: Array<{ id: string }>; offset: number; limit: number; total: number }>(`/dashboard/conversations?${conversationParams}&offset=${pageParam}`),
+        getNextPageParam: (lastPage: { offset: number; limit: number; total: number }) => {
+          const nextOffset = lastPage.offset + lastPage.limit;
+          return nextOffset < lastPage.total ? nextOffset : undefined;
+        },
+      }).then(() => {
+        const cached = queryClient.getQueryData<{ pages: Array<{ conversations: Array<{ id: string }> }> }>(conversationKey);
+        const conversationId = cached?.pages[0]?.conversations[0]?.id;
+        if (!conversationId) return;
+        void queryClient.prefetchQuery({
+          queryKey: ["dashboard", "conversation", conversationId],
+          queryFn: () => apiFetch(`/dashboard/conversations/${conversationId}`),
+        });
+      });
+      void queryClient.prefetchQuery({ queryKey: ["campaigns", "options"], queryFn: () => apiFetch("/campaigns") });
+      return;
+    }
+    if (href === "/dashboard/activity") {
+      void queryClient.prefetchQuery({ queryKey: ["dashboard", "activity", "kind=all&limit=10&offset=0"], queryFn: () => apiFetch("/dashboard/activity?kind=all&limit=10&offset=0") });
+      return;
+    }
+    if (href === "/dashboard/channels") {
+      void queryClient.prefetchQuery({ queryKey: ["dashboard", "channels", rangeQuery], queryFn: () => apiFetch(withRange("/social-accounts")) });
+      return;
+    }
+    if (href === "/dashboard/analytics") {
+      const analyticsParams = rangeQuery ? `granularity=day&${rangeQuery}` : "granularity=day";
+      void Promise.all([
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "analytics", analyticsParams], queryFn: () => apiFetch(`/dashboard/analytics?${analyticsParams}`) }),
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "analytics-insights"], queryFn: () => apiFetch("/dashboard/analytics/insights") }),
+      ]);
+      return;
+    }
+    if (href === "/dashboard/settings") {
+      void Promise.all([
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "settings"], queryFn: () => apiFetch("/dashboard/settings") }),
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "settings", "accounts"], queryFn: () => apiFetch("/social-accounts") }),
+        queryClient.prefetchQuery({ queryKey: ["dashboard", "settings", "exports"], queryFn: () => apiFetch("/dashboard/exports") }),
+      ]);
+    }
+  }, [queryClient, rangeQuery, router]);
 
   useEffect(() => {
     const savedState = window.localStorage.getItem("leadreacher-sidebar-open");
@@ -401,6 +456,7 @@ export function DashboardShell({
   useEffect(() => {
     if (!searchOpen) {
       setResults(null);
+      setIsSearching(false);
       return;
     }
     const normalized = search.trim();
@@ -410,12 +466,16 @@ export function DashboardShell({
     }
     let cancelled = false;
     const timeout = window.setTimeout(() => {
+      setIsSearching(true);
       void apiFetch<SearchResults>(`/dashboard/search?query=${encodeURIComponent(normalized)}`)
         .then((data) => {
           if (!cancelled) setResults(data);
         })
         .catch(() => {
           if (!cancelled) setResults(null);
+        })
+        .finally(() => {
+          if (!cancelled) setIsSearching(false);
         });
     }, 180);
     return () => {
@@ -428,9 +488,99 @@ export function DashboardShell({
     setSearchOpen(false);
     setSearch("");
     setResults(null);
+    setIsSearching(false);
   }
 
+  const commandGroups = useMemo((): CommandPaletteGroup[] => {
+    const navigation = NAVIGATION.map(({ href, label, icon }) => ({
+      id: `navigate-${href}`,
+      title: label,
+      description: `Open ${label.toLocaleLowerCase()}`,
+      icon,
+      keywords: ["navigate", "go", href],
+      onSelect: () => {
+        closeSearch();
+        router.push(href);
+      },
+    }));
+    const groups: CommandPaletteGroup[] = [
+      { id: "navigation", label: "Navigate", items: navigation },
+      {
+        id: "actions",
+        label: "Actions",
+        items: [
+          {
+            id: "toggle-theme",
+            title: isDark ? "Use light appearance" : "Use dark appearance",
+            description: "Change dashboard appearance",
+            icon: isDark ? Sun : Moon,
+            keywords: ["theme", "appearance", "dark", "light"],
+            onSelect: () => {
+              toggle();
+              closeSearch();
+            },
+          },
+          {
+            id: "open-activity",
+            title: "Open recent activity",
+            description: "Review delivery, reply, and campaign events",
+            icon: Clock3,
+            keywords: ["notifications", "events", "updates"],
+            onSelect: () => {
+              closeSearch();
+              router.push("/dashboard/activity");
+            },
+          },
+        ],
+      },
+    ];
+    if (results?.prospects.length) {
+      groups.push({
+        id: "prospects",
+        label: "Prospects",
+        items: results.prospects.map((prospect) => ({
+          id: `prospect-${prospect.id}`,
+          title: prospect.name,
+          description: prospect.company || "Prospect",
+          icon: Users,
+          keywords: ["prospect", prospect.company],
+          onSelect: () => {
+            closeSearch();
+            router.push(`/dashboard/prospects/${prospect.id}`);
+          },
+        })),
+      });
+    }
+    if (results?.campaigns.length) {
+      groups.push({
+        id: "campaigns",
+        label: "Campaigns",
+        items: results.campaigns.map((campaign) => ({
+          id: `campaign-${campaign.id}`,
+          title: campaign.name,
+          description: titleCase(campaign.status),
+          icon: Megaphone,
+          keywords: ["campaign", campaign.status],
+          onSelect: () => {
+            closeSearch();
+            router.push(`/dashboard/campaigns?reviewCampaignId=${encodeURIComponent(campaign.id)}`);
+          },
+        })),
+      });
+    }
+    return groups;
+  }, [isDark, results, router, toggle]);
+
   const pageRange = readableRange(searchParams.get("startDate"), searchParams.get("endDate"));
+  const selectedRange = useMemo(() => {
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    if (!startDate || !endDate) return "7";
+    const start = Date.parse(`${startDate}T00:00:00Z`);
+    const end = Date.parse(`${endDate}T00:00:00Z`);
+    const days = Math.round((end - start) / 86_400_000) + 1;
+    return RANGE_OPTIONS.some((option) => option.value === days) ? String(days) : "";
+  }, [searchParams]);
   const showRangeControl =
     pathname === "/dashboard" ||
     pathname.startsWith("/dashboard/activity") ||
@@ -614,27 +764,14 @@ export function DashboardShell({
               </button>
             </div>
 
-            <Dialog open={searchOpen} onOpenChange={(open) => open ? setSearchOpen(true) : closeSearch()}>
-              <DialogContent className="max-w-2xl p-0">
-                <DialogHeader className="border-b border-onboarding-neutral-150 px-5 py-4 dark:border-onboarding-neutral-750">
-                  <DialogTitle>Search workspace</DialogTitle>
-                  <DialogDescription>Find prospects and campaigns by name or company.</DialogDescription>
-                </DialogHeader>
-                <div className="px-5 pb-5">
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-onboarding-neutral-500" aria-hidden />
-                    <Input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search prospects or campaigns..." className="h-11 pl-9 pr-10" aria-label="Search prospects and campaigns" />
-                    {search ? <button type="button" onClick={() => setSearch("")} className="absolute top-1/2 right-2.5 inline-flex size-7 -translate-y-1/2 items-center justify-center rounded text-onboarding-neutral-400 hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300" aria-label="Clear search"><X className="size-3.5" /></button> : null}
-                  </div>
-                  <div className="mt-4 max-h-[22rem] overflow-y-auto">
-                    {search.trim().length < 2 ? <p className="py-8 text-center text-sm text-onboarding-neutral-500">Type at least two characters to search.</p> : null}
-                    {search.trim().length >= 2 && results && !results.prospects.length && !results.campaigns.length ? <p className="py-8 text-center text-sm text-onboarding-neutral-500">No matching prospects or campaigns.</p> : null}
-                    {results?.prospects.length ? <div className="py-1"><p className="px-1.5 pb-2 text-[10px] font-semibold tracking-[0.1em] text-onboarding-neutral-500 uppercase">Prospects</p><div className="space-y-1">{results.prospects.map((prospect) => <Link key={prospect.id} href={`/dashboard/prospects/${prospect.id}`} onClick={closeSearch} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-onboarding-neutral-50 focus-visible:bg-onboarding-neutral-50 focus-visible:outline-none dark:hover:bg-app-hover dark:focus-visible:bg-onboarding-neutral-800"><span className="inline-flex size-8 items-center justify-center overflow-hidden rounded-full bg-onboarding-purple-50 text-[10px] font-semibold text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100">{prospect.avatarUrl ? <img src={prospect.avatarUrl} alt="" className="size-full object-cover" /> : initials(prospect.name)}</span><span className="min-w-0"><span className="block truncate font-medium">{prospect.name}</span><span className="block truncate text-xs text-onboarding-neutral-500">{prospect.company}</span></span></Link>)}</div></div> : null}
-                    {results?.campaigns.length ? <div className="mt-2 border-t border-onboarding-neutral-150 py-3 dark:border-onboarding-neutral-750"><p className="px-1.5 pb-2 text-[10px] font-semibold tracking-[0.1em] text-onboarding-neutral-500 uppercase">Campaigns</p><div className="space-y-1">{results.campaigns.map((campaign) => <Link key={campaign.id} href={`/dashboard/campaigns?reviewCampaignId=${encodeURIComponent(campaign.id)}`} onClick={closeSearch} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors hover:bg-onboarding-neutral-50 focus-visible:bg-onboarding-neutral-50 focus-visible:outline-none dark:hover:bg-app-hover dark:focus-visible:bg-onboarding-neutral-800"><Megaphone className="size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" /><span className="min-w-0"><span className="block truncate font-medium">{campaign.name}</span><span className="block text-xs text-onboarding-neutral-500">{campaign.status}</span></span></Link>)}</div></div> : null}
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <CommandPalette
+              open={searchOpen}
+              onOpenChange={(open) => open ? setSearchOpen(true) : closeSearch()}
+              query={search}
+              onQueryChange={setSearch}
+              groups={commandGroups}
+              isLoading={isSearching}
+            />
 
             <div className="ml-auto flex items-center gap-1 sm:gap-2">
               <button
@@ -647,19 +784,18 @@ export function DashboardShell({
               </button>
               {showRangeControl ? (
                 <div className="block">
-                  <Select onValueChange={(value) => setRange(Number(value))}>
-                    <SelectTrigger aria-label="Date range" className="h-10 w-10 gap-0 border-onboarding-neutral-150 px-0 text-sm font-medium text-onboarding-ink hover:bg-onboarding-neutral-50 min-[430px]:w-auto min-[430px]:max-w-[11rem] min-[430px]:gap-2 min-[430px]:px-3 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-0 dark:hover:bg-app-hover">
-                      <CalendarDays className="size-4 shrink-0 text-onboarding-neutral-600 dark:text-onboarding-neutral-300" aria-hidden />
-                      <span className="hidden truncate min-[430px]:inline">{pageRange}</span>
-                    </SelectTrigger>
-                    <SelectContent align="end" className="w-44 border border-app-border bg-app-elevated text-app-fg">
-                      {RANGE_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={String(option.value)} className="px-3 py-2 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0">
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Filter
+                    value={selectedRange}
+                    groups={[{ label: "Date range", options: RANGE_OPTIONS.map((option) => ({ value: String(option.value), label: option.label, icon: <CalendarDays className="size-5" aria-hidden /> })) }]}
+                    onValueChange={(value) => setRange(Number(value))}
+                    allLabel={pageRange}
+                    allIcon={<CalendarDays className="size-4" aria-hidden />}
+                    showAll={false}
+                    aria-label="Date range"
+                    className="h-10 w-10 min-w-0 gap-0 border-onboarding-neutral-150 px-0 text-sm font-medium hover:bg-onboarding-neutral-50 min-[430px]:w-auto min-[430px]:min-w-40 min-[430px]:gap-2 min-[430px]:px-3 dark:border-onboarding-neutral-750 dark:hover:bg-app-hover"
+                    labelClassName="hidden min-[430px]:inline"
+                    menuWidth="11rem"
+                  />
                 </div>
               ) : null}
               <DropdownMenu>

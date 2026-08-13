@@ -4354,3 +4354,37 @@ html[data-page="discovery"].dark body {
     opacity: 0;
   }
 }
+
+@media (min-width: 480px) {
+  .messages-workspace:not(.messages-workspace--amplified) {
+    display: grid;
+    grid-template-columns: 22% 28% minmax(0, 1fr);
+  }
+
+  .messages-inbox-rail,
+  .messages-conversation-list,
+  .messages-thread {
+    min-width: 0;
+  }
+
+  .messages-inbox-rail {
+    display: flex;
+    grid-column: 1;
+    width: auto;
+  }
+
+  .messages-conversation-list {
+    grid-column: 2;
+    width: auto;
+    border-inline-end: 1px solid hsl(var(--border));
+  }
+
+  .messages-thread {
+    grid-column: 3;
+    width: auto;
+  }
+
+  .messages-workspace--amplified {
+    flex-direction: row;
+  }
+}

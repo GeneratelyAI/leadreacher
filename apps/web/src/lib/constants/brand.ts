@@ -1,4 +1,7 @@
 export const SITE_URL = "https://www.leadreacher.ai";
+export const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "support@leadreacher.com";
+export const SUPPORT_MAILTO = `mailto:${SUPPORT_EMAIL}`;
 
 export const ASSETS = {
   logoColored: "/logo/leadreacher_logo_colored_transparent.svg",
