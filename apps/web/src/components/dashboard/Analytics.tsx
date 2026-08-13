@@ -7,7 +7,6 @@ import {
   ArrowRight,
   ArrowUp,
   CalendarDays,
-  Check,
   ChevronDown,
   Download,
   Info,
@@ -19,19 +18,12 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { ChannelFilterMenu } from "@/components/dashboard/ChannelFilterMenu";
-import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
 import { channelDisplayName, DashboardChannelLogo, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
+import { Filter, MultiFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
 import {
   Tooltip,
@@ -251,7 +243,7 @@ function downloadCsv(filename: string, rows: string[][]) {
   URL.revokeObjectURL(url);
 }
 
-export function AnalyticsWorkspace() {
+export function Analytics() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const startDate = searchParams.get("startDate") ?? "";
@@ -330,6 +322,25 @@ export function AnalyticsWorkspace() {
     () => Math.max(0, ...(analytics?.campaigns.map((row) => row.meetingsBooked) ?? [0])),
     [analytics],
   );
+  const campaignFilterGroups: FilterGroup[] = (analytics?.filters.campaigns ?? []).length
+    ? [{
+      label: "Campaigns",
+      options: (analytics?.filters.campaigns ?? []).map((campaign) => ({
+        value: campaign.id,
+        label: campaign.name,
+      })),
+    }]
+    : [];
+  const channelFilterGroups: FilterGroup[] = (analytics?.filters.channels ?? []).length
+    ? [{
+      label: "Channels",
+      options: (analytics?.filters.channels ?? []).map((channel) => ({
+        value: channel,
+        label: channelDisplayName(channel),
+        icon: <DashboardChannelLogo platform={channel} className="size-6" />,
+      })),
+    }]
+    : [];
 
   const channelTotals = useMemo(() => {
     const rows = analytics?.channels ?? [];
@@ -451,49 +462,29 @@ export function AnalyticsWorkspace() {
           <span className="text-xs font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
             Campaign
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  className="h-9 w-full min-w-44 justify-between gap-2 px-3 font-normal"
-                  aria-label="Filter by campaign"
-                />
-              }
-            >
-              <span className="min-w-0 truncate">
-                {campaignFilter
-                  ? analytics?.filters.campaigns.find((campaign) => campaign.id === campaignFilter)?.name ?? "All campaigns"
-                  : "All campaigns"}
-              </span>
-              <ChevronDown className="size-4 shrink-0 opacity-70" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-56">
-              <DropdownMenuItem onClick={() => setCampaignFilterAndUrl("")}>
-                All campaigns
-                {!campaignFilter ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-              </DropdownMenuItem>
-              {(analytics?.filters.campaigns ?? []).map((campaign) => (
-                <DropdownMenuItem
-                  key={campaign.id}
-                  onClick={() => setCampaignFilterAndUrl(campaign.id)}
-                >
-                  <TruncatedWithTooltip text={campaign.name} />
-                  {campaignFilter === campaign.id ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Filter
+            value={campaignFilter}
+            groups={campaignFilterGroups}
+            onValueChange={setCampaignFilterAndUrl}
+            allLabel="All campaigns"
+            allIcon={<Send className="size-5" aria-hidden />}
+            className="h-9 min-w-44 text-sm font-normal"
+            aria-label="Filter analytics by campaign"
+          />
         </div>
 
         <div className="flex min-w-40 flex-col gap-1.5">
           <span className="text-xs font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
             Channels
           </span>
-          <ChannelFilterMenu
-            options={analytics?.filters.channels ?? []}
+          <MultiFilter
+            groups={channelFilterGroups}
             value={selectedChannels}
-            onChange={setSelectedChannels}
+            onValueChange={setSelectedChannels}
+            allLabel="All channels"
+            allIcon={<DashboardChannelLogo platform="linkedin" className="size-5" />}
+            className="h-9 min-w-40 text-sm font-normal"
+            aria-label="Filter analytics by channels"
           />
         </div>
 
@@ -501,30 +492,18 @@ export function AnalyticsWorkspace() {
           <span className="text-xs font-medium text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
             Time duration
           </span>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant="outline"
-                  className="h-9 w-full min-w-36 justify-between gap-2 px-3 font-normal"
-                  aria-label="Chart time duration"
-                />
-              }
-            >
-              <span>{granularity === "week" ? "Weekly" : "Daily"}</span>
-              <ChevronDown className="size-4 shrink-0 opacity-70" aria-hidden />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="min-w-36">
-              <DropdownMenuItem onClick={() => setGranularity("day")}>
-                Daily
-                {granularity === "day" ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setGranularity("week")}>
-                Weekly
-                {granularity === "week" ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Filter
+            value={granularity}
+            groups={[{ label: "Time duration", options: [
+              { value: "day", label: "Daily", icon: <CalendarDays className="size-5" /> },
+              { value: "week", label: "Weekly", icon: <CalendarDays className="size-5" /> },
+            ] }]}
+            onValueChange={(value) => setGranularity(value as "day" | "week")}
+            allLabel="Daily"
+            showAll={false}
+            className="h-9 min-w-36 text-sm font-normal"
+            aria-label="Chart time duration"
+          />
         </div>
       </div>
 
