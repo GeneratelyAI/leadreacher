@@ -4,9 +4,11 @@ import { env } from "../config/env.js";
 import {
   AuthError,
   ForbiddenError,
+  MfaRequiredError,
   OrganizationDisabledError,
   UnauthorizedError,
 } from "../lib/errors.js";
+import { authenticationAssuranceLevel } from "../lib/auth-assurance.js";
 import { prisma } from "../lib/prisma.js";
 
 const BOOTSTRAP_MESSAGE =
@@ -14,16 +16,21 @@ const BOOTSTRAP_MESSAGE =
 
 // User JWTs must be verified with the anon key (apikey header). Service role is
 // for admin operations only; using it here can break getUser(jwt) in some SDK versions.
-const supabase = createClient(
-  env.SUPABASE_URL.replace(/\/$/, ""),
-  env.SUPABASE_ANON_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
+let supabase: ReturnType<typeof createClient> | undefined;
+
+function getSupabaseClient() {
+  supabase ??= createClient(
+    env.SUPABASE_URL.replace(/\/$/, ""),
+    env.SUPABASE_ANON_KEY,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
     },
-  },
-);
+  );
+  return supabase;
+}
 
 function extractBearerToken(authorization: string | undefined): string | null {
   if (!authorization) {
@@ -51,7 +58,7 @@ export async function verifySupabaseJwt(
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser(token);
+  } = await getSupabaseClient().auth.getUser(token);
 
   if (error || !user) {
     throw new UnauthorizedError();
@@ -59,6 +66,27 @@ export async function verifySupabaseJwt(
 
   request.userId = user.id;
   request.userEmail = user.email ?? undefined;
+  request.authAal = authenticationAssuranceLevel(token);
+}
+
+export async function requireMfa(
+  request: FastifyRequest,
+  _reply: FastifyReply,
+): Promise<void> {
+  if (request.authAal !== "aal2") throw new MfaRequiredError();
+}
+
+/** Require MFA after initial onboarding so new workspaces can connect a sender. */
+export async function requireMfaForEstablishedOrganization(
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<void> {
+  if (!request.orgId) throw new AuthError();
+  const organization = await prisma.organization.findUnique({
+    where: { id: request.orgId },
+    select: { onboardedAt: true },
+  });
+  if (organization?.onboardedAt) await requireMfa(request, reply);
 }
 
 export async function requireOrg(

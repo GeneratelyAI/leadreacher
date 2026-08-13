@@ -70,6 +70,16 @@ export class ForbiddenError extends AppError {
   }
 }
 
+export class MfaRequiredError extends AppError {
+  constructor() {
+    super(
+      "Multi-factor authentication is required for this action",
+      403,
+      "MFA_REQUIRED",
+    );
+  }
+}
+
 export class ConflictError extends AppError {
   constructor(message: string) {
     super(message, 409, "CONFLICT");
