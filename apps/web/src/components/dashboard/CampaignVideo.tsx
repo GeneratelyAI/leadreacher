@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Copy,
   Download,
@@ -44,11 +45,13 @@ export type CampaignVideoSummary = {
   criticScore: number | null;
 };
 
-type CampaignVideoViewProps = {
+type CampaignVideoProps = {
   campaignId: string;
   video: CampaignVideoSummary | null | undefined;
   onVideoChange?: (next: CampaignVideoSummary) => void;
 };
+
+type VideoGenerationMode = "standardized" | "personalized";
 
 function formatCount(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
@@ -65,11 +68,12 @@ function isGenerating(status: string): boolean {
   return status === "pending" || status === "generating";
 }
 
-export function CampaignVideoView({ campaignId, video, onVideoChange }: CampaignVideoViewProps) {
+export function CampaignVideo({ campaignId, video, onVideoChange }: CampaignVideoProps) {
   const [failedThumbId, setFailedThumbId] = useState<string | null>(null);
   const [playOpen, setPlayOpen] = useState(false);
   const [pausing, setPausing] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [generationMode, setGenerationMode] = useState<VideoGenerationMode | null>(null);
 
   const resolved: CampaignVideoSummary = video ?? {
     id: null,
@@ -132,6 +136,26 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
     }
   }
 
+  async function enableVideo(mode: VideoGenerationMode) {
+    setGenerationMode(mode);
+    try {
+      const result = await apiFetch<{ status: string }>(`/dashboard/campaigns/${campaignId}/video/enable`, {
+        method: "POST",
+        body: JSON.stringify({ mode }),
+      });
+      onVideoChange?.({ ...resolved, status: result.status, paused: false });
+      toast.success(
+        mode === "personalized"
+          ? "Personalized video generation started"
+          : "Standard video generation started",
+      );
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Unable to enable campaign video");
+    } finally {
+      setGenerationMode(null);
+    }
+  }
+
   return (
     <>
       <AspectRatio
@@ -139,9 +163,12 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
         className="relative flex items-center justify-center overflow-hidden rounded-lg bg-onboarding-neutral-100 dark:bg-onboarding-neutral-850"
       >
         {hasThumb ? (
-          <img
+          <Image
             src={resolved.thumbnailUrl ?? ""}
             alt=""
+            fill
+            sizes="(max-width: 768px) 100vw, 720px"
+            unoptimized
             className="absolute inset-0 size-full object-cover"
             onError={() => setFailedThumbId(resolved.id)}
           />
@@ -254,9 +281,27 @@ export function CampaignVideoView({ campaignId, video, onVideoChange }: Campaign
             <span className="text-xs font-medium text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
               Video not used
             </span>
-            <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs">
-              <Link href={campaignsHref}>Enable video</Link>
-            </Button>
+            <span className="flex flex-wrap justify-center gap-2">
+              <Button
+                size="sm"
+                disabled={!canManage || generationMode !== null}
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                onClick={() => void enableVideo("standardized")}
+              >
+                {generationMode === "standardized" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Video className="size-3.5" aria-hidden />}
+                Generate standard video
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!canManage || generationMode !== null}
+                className="h-8 gap-1.5 px-2.5 text-xs"
+                onClick={() => void enableVideo("personalized")}
+              >
+                {generationMode === "personalized" ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Video className="size-3.5" aria-hidden />}
+                Generate personalized per prospect
+              </Button>
+            </span>
           </span>
         )}
       </AspectRatio>

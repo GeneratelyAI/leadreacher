@@ -4,19 +4,19 @@ import { ExternalLink, Play } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-type VideoAttachmentCardProps = {
+type VideoAttachmentProps = {
   src: string;
   poster?: string;
   filename?: string;
   className?: string;
 };
 
-export function VideoAttachmentCard({
+export function VideoAttachment({
   src,
   poster,
   filename = "Personalized video",
   className,
-}: VideoAttachmentCardProps) {
+}: VideoAttachmentProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
 

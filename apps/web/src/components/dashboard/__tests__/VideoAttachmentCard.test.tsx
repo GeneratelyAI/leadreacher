@@ -1,11 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { VideoAttachmentCard } from "../VideoAttachmentCard";
+import { VideoAttachment } from "../VideoAttachment";
 
-describe("VideoAttachmentCard", () => {
+describe("VideoAttachment", () => {
   it("renders a native inline video with an accessible playback control", () => {
     const markup = renderToStaticMarkup(
-      <VideoAttachmentCard
+      <VideoAttachment
         src="https://media.example/personalized-video.mp4"
         poster="https://media.example/personalized-video.jpg"
         filename="Sarah's personalized video"
