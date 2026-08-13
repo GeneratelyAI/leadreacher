@@ -6,9 +6,20 @@ const INVALID_REFRESH_TOKEN_PATTERN = /invalid refresh token|refresh token not f
 let browserClient: ReturnType<typeof createBrowserClient> | undefined;
 
 export function createClient() {
+  // The browser needs access to the session because this application calls a
+  // separate API with a bearer token. Keep session storage in Supabase's SSR
+  // cookies rather than localStorage; moving the token to HttpOnly cookies
+  // would require routing those API calls through a server-side BFF.
   browserClient ??= createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookieOptions: {
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      },
+    },
   );
 
   return browserClient;
