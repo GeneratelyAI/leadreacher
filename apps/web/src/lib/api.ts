@@ -1,4 +1,5 @@
 import { getBrowserSession } from "@/lib/supabase/client";
+import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 
 const TOKEN_CACHE_TTL_MS = 45_000;
 
@@ -167,4 +168,21 @@ export async function bootstrapOrganization(
       ...(accountType ? { accountType } : {}),
     }),
   });
+}
+
+/**
+ * Reuse the authenticated user's workspace name whenever a client onboarding
+ * step needs to resolve the current organization. The API is idempotent, so
+ * this name only affects a first-time bootstrap.
+ */
+export async function bootstrapCurrentOrganization(
+  anonScrapeId?: string,
+  accountType?: "individual" | "company",
+) {
+  const session = await getBrowserSession();
+  return bootstrapOrganization(
+    defaultOrgNameFromEmail(session?.user?.email ?? ""),
+    anonScrapeId,
+    accountType,
+  );
 }

@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { apiFetch } from "@/lib/api";
+import { SUPPORT_MAILTO } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
 type TeamMember = {
@@ -184,7 +185,7 @@ function SettingsSectionCard({
   );
 }
 
-export function SettingsWorkspace() {
+export function Settings() {
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [isSaving, setIsSaving] = useState(false);
@@ -215,16 +216,16 @@ export function SettingsWorkspace() {
     },
   });
   const settings = settingsQuery.data ?? null;
+  const preferencesOrganization = settingsQuery.data?.organization;
   const accounts = useMemo(() => accountsQuery.data?.accounts ?? [], [accountsQuery.data?.accounts]);
   const isLoading = settingsQuery.isLoading && !settingsQuery.data;
   const error = actionError ?? (settingsQuery.error instanceof Error ? settingsQuery.error.message : null);
 
   useEffect(() => {
-    const organization = settingsQuery.data?.organization;
-    if (!organization?.id) return;
-    setName(organization.name ?? "");
-    setPreferences(readPreferences(organization.id));
-  }, [settingsQuery.data?.organization?.id]);
+    if (!preferencesOrganization?.id) return;
+    setName(preferencesOrganization.name ?? "");
+    setPreferences(readPreferences(preferencesOrganization.id));
+  }, [preferencesOrganization?.id, preferencesOrganization?.name]);
 
   function updatePreference<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPreferences((current) => {
@@ -570,7 +571,7 @@ export function SettingsWorkspace() {
                 <LifeBuoy className="size-5 text-onboarding-purple-600 dark:text-onboarding-purple-200" />
                 <h3 className="mt-3 text-sm font-semibold">Help Center</h3>
                 <p className="mt-1 text-xs text-muted-foreground">Get operational help from the LeadReacher team.</p>
-                <Button variant="secondary" className="mt-4" asChild><a href="mailto:support@leadreacher.com">Contact support</a></Button>
+                <Button variant="secondary" className="mt-4" asChild><a href={SUPPORT_MAILTO}>Contact support</a></Button>
               </div>
               <div className="rounded-lg border border-red-200 p-4 dark:border-red-500/30">
                 <Trash2 className="size-5 text-red-600 dark:text-red-300" />
