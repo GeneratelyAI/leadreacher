@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import {
   Archive,
@@ -11,7 +12,6 @@ import {
   Copy,
   Ellipsis,
   Eye,
-  Filter,
   MessageCircle,
   MessageSquare,
   Pause,
@@ -27,12 +27,13 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";
-import { CampaignDetailSheet, type CampaignDetail } from "@/components/dashboard/CampaignDetailSheet";
+import type { CampaignDetail } from "@/components/dashboard/CampaignDetails";
 import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@/components/dashboard/SequenceBuilder";
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
-import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -58,6 +59,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApiError, apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
+
+const CampaignDetails = dynamic(
+  () => import("@/components/dashboard/CampaignDetails").then((module) => module.CampaignDetails),
+  { ssr: false, loading: () => null },
+);
 
 type CampaignStatus = "draft" | "review" | "active" | "paused" | "completed";
 type FilterStatus = "all" | "drafts" | "running" | "paused" | "completed" | "archived";
@@ -233,6 +239,45 @@ function VideoChip({ video }: { video?: CampaignVideoSummary | null }) {
   );
 }
 
+type ReadinessState = "ready" | "working" | "attention" | "not-used";
+
+const readinessStateClass: Record<ReadinessState, string> = {
+  ready: "bg-onboarding-success-500",
+  working: "bg-onboarding-purple-500 animate-pulse",
+  attention: "bg-onboarding-warning-500",
+  "not-used": "bg-onboarding-neutral-300 dark:bg-onboarding-neutral-750",
+};
+
+function getVideoReadiness(video: CampaignVideoSummary | null | undefined): ReadinessState {
+  if (!video || video.status === "unused") return "not-used";
+  if (video.needsReview || ["failed", "rejected"].includes(video.status)) return "attention";
+  if (["pending", "generating"].includes(video.status)) return "working";
+  return "ready";
+}
+
+function CampaignReadiness({ campaign }: { campaign: CampaignRow }) {
+  const items: Array<{ label: string; state: ReadinessState }> = [
+    { label: "Audience", state: campaign.prospectCount > 0 ? "ready" : "attention" },
+    {
+      label: "Sender",
+      state: campaign.senderAccount?.status === "active" ? "ready" : "attention",
+    },
+    { label: "Video", state: getVideoReadiness(campaign.video) },
+  ];
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5" aria-label="Campaign readiness" role="list">
+      <span className="text-[11px] font-semibold tracking-wide text-app-fg-subtle uppercase">Readiness</span>
+      {items.map((item) => (
+        <span key={item.label} className="inline-flex items-center gap-1.5 text-xs text-app-fg-muted" role="listitem">
+          <span className={cn("size-1.5 rounded-full", readinessStateClass[item.state])} aria-hidden />
+          {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function Metric({ icon: Icon, value, label, rate }: { icon: typeof Send; value: number; label: string; rate?: number | null }) {
   return (
     <div className="min-w-20 border-l border-app-border pl-5 first:border-l-0 first:pl-0">
@@ -257,8 +302,11 @@ type ActionHandlers = {
   onComplete: (campaign: CampaignRow) => void;
 };
 
+function isInteractiveTarget(target: EventTarget | null) {
+  return target instanceof Element && Boolean(target.closest("a, button, input, select, textarea, [role='checkbox']"));
+}
+
 function CampaignActions({ campaign, handlers }: { campaign: CampaignRow; handlers: ActionHandlers }) {
-  const primaryLabel = campaign.status === "completed" ? "View report" : campaign.status === "active" ? "View" : campaign.status === "paused" ? "View" : "Review";
   const needsProspects = ["draft", "review"].includes(campaign.status) && campaign.prospectCount === 0;
 
   return (
@@ -282,13 +330,6 @@ function CampaignActions({ campaign, handlers }: { campaign: CampaignRow; handle
           </Link>
         </Button>
       ) : null}
-      <Button
-        variant={campaign.status === "active" || needsProspects ? "outline" : "primary"}
-        size="sm"
-        onClick={() => handlers.onOpen(campaign)}
-      >
-        {primaryLabel}
-      </Button>
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More actions for ${campaign.name}`} />}>
           <Ellipsis />
@@ -356,9 +397,12 @@ function CampaignRowView({
     <li
       data-selected={selected ? "true" : undefined}
       className={cn(
-        "app-list-row relative px-5 py-5 transition-colors sm:px-6",
+        "app-list-row relative cursor-pointer px-5 py-5 transition-colors sm:px-6",
         selected && "bg-onboarding-purple-50/70 dark:bg-onboarding-purple-900/25",
       )}
+      onClick={(event) => {
+        if (!isInteractiveTarget(event.target)) handlers.onOpen(campaign);
+      }}
       onMouseEnter={() => onPrefetch(campaign.id)}
       onFocusCapture={() => onPrefetch(campaign.id)}
     >
@@ -387,7 +431,7 @@ function CampaignRowView({
               {campaign.senderAccount ? (
                 <>
                   <span aria-hidden>·</span>
-                  <span className={cn(campaign.senderAccount.status !== "active" && "text-onboarding-error-600")}>
+                  <span className={cn(campaign.senderAccount.status !== "active" && "text-onboarding-error-600 dark:text-onboarding-error-100")}>
                     {campaign.senderAccount.accountName}
                     {campaign.senderAccount.status !== "active" ? ` (${campaign.senderAccount.status})` : ""}
                   </span>
@@ -400,9 +444,10 @@ function CampaignRowView({
                 ? " · Add prospects before launch"
                 : ""}
             </p>
+            <CampaignReadiness campaign={campaign} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-5 xl:min-w-[28rem] xl:grid-cols-3">
+        <div className="grid grid-cols-3 gap-5 xl:min-w-[25rem] xl:grid-cols-3">
           <Metric icon={Send} value={campaign.metrics.sent} label="Sent" />
           <Metric icon={MessageCircle} value={campaign.metrics.replies} label="Replies" rate={campaign.metrics.replyRate} />
           <Metric icon={CalendarDays} value={campaign.metrics.meetings} label="Meetings" rate={campaign.metrics.meetingRate} />
@@ -425,6 +470,10 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
   const [sequence, setSequence] = useState<SequenceStepDraft[]>(() => defaultSequenceDraft());
   const [channelAccounts, setChannelAccounts] = useState<Record<string, string>>({});
   const [personalizeByChannel, setPersonalizeByChannel] = useState(true);
+  const [personalizationValue, setPersonalizationValue] = useState("");
+  const [personalizationAngle, setPersonalizationAngle] = useState("");
+  const [personalizationCta, setPersonalizationCta] = useState("");
+  const [proofPoints, setProofPoints] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const activeAccounts = useMemo(() => accounts.filter((account) => account.status === "active"), [accounts]);
@@ -487,6 +536,14 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
           socialAccountId: channelAccounts.linkedin || undefined,
           channelAccounts,
           personalizeByChannel,
+          ...(personalizeByChannel ? {
+            personalization: {
+              ...(personalizationValue.trim() ? { valueProposition: personalizationValue.trim() } : {}),
+              ...(personalizationAngle.trim() ? { angle: personalizationAngle.trim() } : {}),
+              ...(personalizationCta.trim() ? { cta: personalizationCta.trim() } : {}),
+              proofPoints: proofPoints.split("\n").map((point) => point.trim()).filter(Boolean).slice(0, 3),
+            },
+          } : {}),
           sequence: sequence.map((step, index) => ({
             type: step.type,
             message: step.message.trim(),
@@ -500,6 +557,10 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
       setSequence(defaultSequenceDraft());
       setChannelAccounts({});
       setPersonalizeByChannel(true);
+      setPersonalizationValue("");
+      setPersonalizationAngle("");
+      setPersonalizationCta("");
+      setProofPoints("");
       setOpen(false);
       toast.success("Campaign draft created");
       await onCreated();
@@ -564,6 +625,30 @@ function CampaignCreateDialog({ accounts, onCreated }: { accounts: SocialAccount
               </span>
             </span>
           </label>
+          {personalizeByChannel ? (
+            <div className="grid gap-3 border-l-2 border-primary/20 pl-4">
+              <p className="text-sm font-medium">Personalization guidance</p>
+              <label className="grid gap-2 text-sm font-medium">
+                Value proposition
+                <Input value={personalizationValue} onChange={(event) => setPersonalizationValue(event.target.value)} placeholder="What value is approved for this audience?" maxLength={280} />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-2 text-sm font-medium">
+                  Preferred angle
+                  <Input value={personalizationAngle} onChange={(event) => setPersonalizationAngle(event.target.value)} placeholder="Operational efficiency" maxLength={120} />
+                </label>
+                <label className="grid gap-2 text-sm font-medium">
+                  Preferred CTA
+                  <Input value={personalizationCta} onChange={(event) => setPersonalizationCta(event.target.value)} placeholder="Ask to share an overview" maxLength={120} />
+                </label>
+              </div>
+              <label className="grid gap-2 text-sm font-medium">
+                Approved proof points
+                <textarea value={proofPoints} onChange={(event) => setProofPoints(event.target.value)} placeholder={"One proof point per line, up to three"} rows={3} maxLength={542} className="min-h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring" />
+              </label>
+              <p className="text-xs text-muted-foreground">Messages cite recorded prospect facts and fall back to your sequence when a check cannot verify them.</p>
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
             {sequenceChannels.map((channel) => {
               const options = activeAccounts.filter((account) => account.platform === channel);
@@ -630,7 +715,7 @@ function CampaignSelectionActionBar({
   );
 }
 
-export function CampaignsPage() {
+export function Campaigns() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<FilterStatus>("all");
@@ -863,19 +948,20 @@ export function CampaignsPage() {
       <Tabs value={status} onValueChange={(value) => setStatus(value as FilterStatus)} className="gap-4">
         <div className="flex flex-col gap-3 border-b border-app-border pb-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="lg:hidden">
-            <Select value={status} onValueChange={(value) => setStatus(value as FilterStatus)}>
-              <SelectTrigger className="h-10 w-full" aria-label="Campaign status filter">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Campaigns</SelectItem>
-                <SelectItem value="drafts">Drafts ({summary?.drafts ?? 0})</SelectItem>
-                <SelectItem value="running">Running ({summary?.running ?? 0})</SelectItem>
-                <SelectItem value="paused">Paused ({summary?.paused ?? 0})</SelectItem>
-                <SelectItem value="completed">Completed ({summary?.completed ?? 0})</SelectItem>
-                <SelectItem value="archived">Archived ({summary?.archived ?? 0})</SelectItem>
-              </SelectContent>
-            </Select>
+            <Filter
+              value={status === "all" ? "" : status}
+              groups={[{ label: "Campaign status", options: [
+                { value: "drafts", label: `Drafts (${summary?.drafts ?? 0})` },
+                { value: "running", label: `Running (${summary?.running ?? 0})` },
+                { value: "paused", label: `Paused (${summary?.paused ?? 0})` },
+                { value: "completed", label: `Completed (${summary?.completed ?? 0})` },
+                { value: "archived", label: `Archived (${summary?.archived ?? 0})` },
+              ] }]}
+              onValueChange={(value) => setStatus((value || "all") as FilterStatus)}
+              allLabel="All Campaigns"
+              className="w-full"
+              aria-label="Campaign status filter"
+            />
           </div>
           <TabsList variant="line" className="hidden w-full flex-wrap justify-start lg:flex lg:w-auto">
             <TabsTrigger value="all">All Campaigns</TabsTrigger>
@@ -905,20 +991,19 @@ export function CampaignsPage() {
                 className="h-9 pl-9 sm:w-64"
               />
             </label>
-            <Select value={channel} onValueChange={(value) => setChannel(value ?? "all")}>
-              <SelectTrigger className="h-9 min-w-36">
-                <Filter className="size-4" />
-                <SelectValue placeholder="All Channels" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Channels</SelectItem>
-                {availableChannels.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {channelLabel(value)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Filter
+              value={channel === "all" ? "" : channel}
+              groups={[{ label: "Channels", options: availableChannels.map((value) => ({
+                value,
+                label: channelLabel(value),
+                icon: <DashboardChannelLogo platform={value} className="size-5" />,
+              })) }] as FilterGroup[]}
+              onValueChange={(value) => setChannel(value || "all")}
+              allLabel="All channels"
+              allIcon={<DashboardChannelLogo platform="linkedin" className="size-5" />}
+              className="h-9 min-w-36 text-sm font-normal"
+              aria-label="Campaign channel filter"
+            />
             {isRefreshing ? <span className="self-center text-xs text-muted-foreground" aria-live="polite">Updating…</span> : null}
           </div>
         </div>
@@ -996,7 +1081,7 @@ export function CampaignsPage() {
         onClear={() => setSelectedIds(new Set())}
       />
 
-      <CampaignDetailSheet
+      <CampaignDetails
         campaignId={selectedId}
         accounts={accounts}
         onClose={() => setSelectedId(null)}

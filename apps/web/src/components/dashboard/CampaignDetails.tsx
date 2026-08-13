@@ -17,7 +17,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { CampaignVideoView, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideoView";
+import { CampaignVideo, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
@@ -34,7 +34,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDashboardEvents } from "@/components/providers/DashboardQueryProvider";
+import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -108,7 +108,7 @@ export type CampaignDetail = {
   };
 };
 
-type CampaignDetailSheetProps = {
+type CampaignDetailsProps = {
   campaignId: string | null;
   accounts: Array<{ id: string; platform: string; accountName: string; status: string }>;
   onClose: () => void;
@@ -143,12 +143,12 @@ function asSequence(value: unknown): SequenceStep[] {
   );
 }
 
-export function CampaignDetailSheet({
+export function CampaignDetails({
   campaignId,
   accounts,
   onClose,
   onChanged,
-}: CampaignDetailSheetProps) {
+}: CampaignDetailsProps) {
   const queryClient = useQueryClient();
   const [detail, setDetail] = useState<CampaignDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -168,6 +168,7 @@ export function CampaignDetailSheet({
   const [isRetryingDiscovery, setIsRetryingDiscovery] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const sequenceSectionRef = useRef<HTMLElement>(null);
+  const launchReadinessRef = useRef<HTMLElement>(null);
 
   const checkChannels = useCallback(async (id: string) => {
     setIsCheckingChannels(true);
@@ -371,12 +372,62 @@ export function CampaignDetailSheet({
     detail.launchReady.hasSender;
   const sequenceEditable = detail ? ["draft", "review", "paused"].includes(detail.status) : false;
   const sequenceLocked = detail?.status === "active";
+  const launchChecklist = detail
+    ? [
+      {
+        key: "prospects",
+        complete: detail.launchReady.hasLeads,
+        label: "Prospects added",
+        description: detail.launchReady.hasLeads
+          ? `${detail.prospectCount} enrolled`
+          : "Add at least one prospect to this campaign.",
+        href: `/dashboard/prospects?enrollCampaignId=${detail.id}`,
+        action: "Add prospects",
+      },
+      {
+        key: "audience",
+        complete: detail.launchReady.hasApprovedAudience,
+        label: "Audience approved",
+        description: detail.launchReady.hasApprovedAudience
+          ? `${detail.reviewSummary.approved} approved`
+          : `${detail.reviewSummary.pending} prospect${detail.reviewSummary.pending === 1 ? "" : "s"} still need review.`,
+        href: `/dashboard/prospects?campaignId=${detail.id}`,
+        action: "Review audience",
+      },
+      {
+        key: "sequence",
+        complete: detail.launchReady.hasSequenceReview,
+        label: "Sequence reviewed",
+        description: detail.launchReady.hasSequenceReview
+          ? "Outreach copy is ready."
+          : "Review and save your outreach sequence.",
+        action: "Review sequence",
+      },
+      {
+        key: "sender",
+        complete: detail.launchReady.hasSender,
+        label: "Active sender",
+        description: detail.launchReady.hasSender
+          ? `${detail.senderAccount?.accountName ?? "Sender"} is active.`
+          : "Connect and select an active sender.",
+        href: "/dashboard/channels",
+        action: "Connect sender",
+      },
+    ]
+    : [];
 
   function reviewConnectionNote() {
     setEditing(true);
     setActiveTab("sequence");
     window.requestAnimationFrame(() => {
       sequenceSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function showLaunchReadiness() {
+    setActiveTab("overview");
+    window.requestAnimationFrame(() => {
+      launchReadinessRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }
 
@@ -447,7 +498,7 @@ export function CampaignDetailSheet({
             ) : null}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-0 flex-1 gap-0">
-              <TabsList variant="line" className="mx-5 shrink-0 overflow-x-auto border-b border-border sm:mx-6">
+              <TabsList variant="line" className="mx-5 w-auto min-w-0 shrink-0 overflow-hidden border-b border-border sm:mx-6">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="audience">Audience</TabsTrigger>
                 <TabsTrigger value="sequence">Sequence</TabsTrigger>
@@ -503,19 +554,15 @@ export function CampaignDetailSheet({
                   </Button>
                 ) : null}
                 {["draft", "review"].includes(detail.status) ? (
-                  <Button size="sm" className="min-h-10 sm:min-h-8" variant="brand" disabled={isSaving || !canLaunch} onClick={() => setConfirmLaunchOpen(true)}>
-                    {isSaving ? <Loader2 className="animate-spin" /> : <Play />} Launch
-                  </Button>
-                ) : null}
-                {sequenceEditable && !detail.launchReady.hasSequenceReview ? (
                   <Button
                     size="sm"
                     className="min-h-10 sm:min-h-8"
-                    variant="outline"
+                    variant="brand"
                     disabled={isSaving}
-                    onClick={reviewConnectionNote}
+                    onClick={() => (canLaunch ? setConfirmLaunchOpen(true) : showLaunchReadiness())}
                   >
-                    <Pencil /> Review connection note
+                    {isSaving ? <Loader2 className="animate-spin" /> : canLaunch ? <Play /> : <CheckCircle2 />}
+                    {canLaunch ? "Launch" : "Continue review"}
                   </Button>
                 ) : null}
                 {["active", "paused"].includes(detail.status) ? (
@@ -524,46 +571,79 @@ export function CampaignDetailSheet({
                   </Button>
                 ) : null}
                 <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
-                  <Link href={`/dashboard/prospects?enrollCampaignId=${detail.id}`}>
-                    <Users /> {detail.prospectCount === 0 ? "Add prospects" : "Add more"}
+                  <Link href={`/dashboard/prospects?campaignId=${detail.id}`}>
+                    <Users /> Audience
                   </Link>
-                </Button>
-                <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
-                  <Link href={`/dashboard/messages?campaignId=${detail.id}`}>
-                    <MessageSquare /> Messages
-                  </Link>
-                </Button>
-                <Button size="sm" className="min-h-10 sm:min-h-8" variant="outline" asChild>
-                  <Link href={`/dashboard/analytics?campaignId=${detail.id}`}>Analytics</Link>
                 </Button>
               </div>
 
-              {["draft", "review"].includes(detail.status) && detail.launchReady.reasons.length > 0 ? (
-                <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                  {detail.launchReady.reasons.map((reason) => (
-                    <p key={reason}>{reason}</p>
-                  ))}
-                </div>
+              {["draft", "review"].includes(detail.status) ? (
+                <section ref={launchReadinessRef} className="rounded-lg border border-border">
+                  <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">Launch readiness</h3>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {launchChecklist.filter((item) => item.complete).length} of {launchChecklist.length} checks complete
+                      </p>
+                    </div>
+                    {canLaunch ? <Badge className="bg-onboarding-success-700 text-white hover:bg-onboarding-success-700">Ready</Badge> : null}
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {launchChecklist.map((item) => (
+                      <li key={item.key} className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap">
+                        <CheckCircle2
+                          className={cn(
+                            "size-4 shrink-0",
+                            item.complete ? "text-onboarding-success-500" : "text-muted-foreground",
+                          )}
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium">{item.label}</p>
+                          <p className="text-xs text-muted-foreground">{item.description}</p>
+                        </div>
+                        {item.complete ? (
+                          <span className="text-xs font-medium text-onboarding-success-600">Ready</span>
+                        ) : item.href ? (
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={item.href}>{item.action}</Link>
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled={isSaving} onClick={reviewConnectionNote}>
+                            <Pencil /> {item.action}
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ) : null}
 
               {channelPreflight ? (
-                <section className="space-y-2 rounded-lg border border-border p-3 text-sm">
+                <section className="rounded-lg border border-border text-sm">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-semibold">Channel readiness</h3>
-                    <Button size="sm" variant="ghost" disabled={isCheckingChannels} onClick={() => campaignId && void checkChannels(campaignId)}>
+                    <div className="px-4 py-3">
+                      <h3 className="font-semibold">Channel readiness</h3>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Delivery checks for this campaign.</p>
+                    </div>
+                    <Button size="sm" className="mr-2" variant="ghost" disabled={isCheckingChannels} onClick={() => campaignId && void checkChannels(campaignId)}>
                       <RefreshCw className={cn(isCheckingChannels && "animate-spin")} /> Refresh
                     </Button>
                   </div>
-                  {channelPreflight.instagram ? (
-                    <p className="text-muted-foreground">
-                      Instagram: <strong className="text-foreground">{channelPreflight.instagram.reachable} ready</strong>, {channelPreflight.instagram.unresolved} unresolved, {channelPreflight.instagram.invalid} invalid, {channelPreflight.instagram.errors} errors, {channelPreflight.instagram.suppressed} suppressed. {titleCase(channelPreflight.instagram.capacity.stage)} account: {channelPreflight.instagram.capacity.dailyRemaining}/{channelPreflight.instagram.capacity.dailyLimit} daily and {channelPreflight.instagram.capacity.hourlyRemaining}/{channelPreflight.instagram.capacity.hourlyLimit} hourly actions remaining.
-                    </p>
-                  ) : null}
-                  {channelPreflight.whatsapp ? (
-                    <p className="text-muted-foreground">
-                      WhatsApp: <strong className="text-foreground">{channelPreflight.whatsapp.reachable} ready</strong>, {channelPreflight.whatsapp.invalidPhone} invalid numbers, {channelPreflight.whatsapp.missingConsent} missing consent, {channelPreflight.whatsapp.suppressed} suppressed.
-                    </p>
-                  ) : null}
+                  <div className="divide-y divide-border border-t border-border">
+                    {channelPreflight.instagram ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                        <span><strong>Instagram</strong> · {channelPreflight.instagram.reachable} ready</span>
+                        <span className="text-xs text-muted-foreground">{channelPreflight.instagram.capacity.dailyRemaining}/{channelPreflight.instagram.capacity.dailyLimit} daily actions left</span>
+                      </div>
+                    ) : null}
+                    {channelPreflight.whatsapp ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+                        <span><strong>WhatsApp</strong> · {channelPreflight.whatsapp.reachable} ready</span>
+                        <span className="text-xs text-muted-foreground">{channelPreflight.whatsapp.missingConsent} need consent</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </section>
               ) : null}
 
@@ -802,7 +882,7 @@ export function CampaignDetailSheet({
 
               <section className="space-y-3">
                 <h3 className="text-sm font-semibold">Video</h3>
-                <CampaignVideoView
+                <CampaignVideo
                   campaignId={detail.id}
                   video={detail.video}
                   onVideoChange={(next) => setDetail((current) => (current ? { ...current, video: next } : current))}
@@ -812,6 +892,12 @@ export function CampaignDetailSheet({
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold">More</h3>
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/dashboard/messages?campaignId=${detail.id}`}><MessageSquare /> Messages</Link>
+                  </Button>
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/dashboard/analytics?campaignId=${detail.id}`}>Analytics</Link>
+                  </Button>
                   <Button size="sm" variant="outline" asChild>
                     <Link href={`/dashboard/activity?kind=campaign&campaignId=${detail.id}`}>Open activity</Link>
                   </Button>
