@@ -3,27 +3,27 @@
 import { ArrowLeft, ArrowRight, Clapperboard, Loader2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { Chrome } from "@/components/onboarding/Chrome";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch, bootstrapOrganization } from "@/lib/api";
+import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
-import { AiCampaignVideo } from "./video-decision/AiCampaignVideo";
-import { PersonalizedVideo } from "./video-decision/PersonalizedVideo";
-import { MessageReview } from "./video-decision/MessageReview";
-import { UploadedVideo } from "./video-decision/UploadedVideo";
-import type { CampaignType, VideoConfig } from "./video-decision/types";
+import { GenerateVideo } from "./video-decision/GenerateVideo";
+import { PersonalizeVideo } from "./video-decision/PersonalizeVideo";
+import { ReviewMessage } from "./video-decision/ReviewMessage";
+import { UploadVideo } from "./video-decision/UploadVideo";
+import type { CampaignGoal, VideoConfig } from "./video-decision/types";
 
 type StrategyResponse = {
   campaignType?: unknown;
   videoConfig?: unknown;
 };
 
-const HERO_COPY: Record<CampaignType, { title: string; description: string }> = {
+const HERO_COPY: Record<CampaignGoal, { title: string; description: string }> = {
   personalized_outreach: {
     title: "Choose your video tone",
     description: "Set the style we use for videos personalized to each prospect.",
@@ -48,7 +48,7 @@ function disabledVideoConfig(): VideoConfig {
   };
 }
 
-function isCampaignType(value: unknown): value is CampaignType {
+function isCampaignGoal(value: unknown): value is CampaignGoal {
   return (
     value === "personalized_outreach" ||
     value === "ai_video_ad" ||
@@ -56,7 +56,7 @@ function isCampaignType(value: unknown): value is CampaignType {
   );
 }
 
-function parseVideoConfig(value: unknown, campaignType: CampaignType): VideoConfig {
+function parseVideoConfig(value: unknown, campaignType: CampaignGoal): VideoConfig {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return defaultEnabledVideoConfig(campaignType);
   }
@@ -108,7 +108,7 @@ function parseVideoConfig(value: unknown, campaignType: CampaignType): VideoConf
   };
 }
 
-function defaultEnabledVideoConfig(campaignType: CampaignType): VideoConfig {
+function defaultEnabledVideoConfig(campaignType: CampaignGoal): VideoConfig {
   if (campaignType === "personalized_outreach") {
     return {
       enabled: true,
@@ -138,20 +138,20 @@ function defaultEnabledVideoConfig(campaignType: CampaignType): VideoConfig {
   };
 }
 
-function canContinueWith(campaignType: CampaignType, videoConfig: VideoConfig): boolean {
+function canContinueWith(campaignType: CampaignGoal, videoConfig: VideoConfig): boolean {
   if (!videoConfig.enabled) return true;
   if (campaignType === "personalized_outreach") return videoConfig.tone !== null;
   if (campaignType === "ai_video_ad") return videoConfig.tone !== null;
   return videoConfig.uploadedVideoUrl !== null;
 }
 
-export default function VideoDecision() {
+export default function VideoSetup() {
   useLayoutEffect(() => {
     applyStoredTheme();
   }, []);
 
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [campaignType, setCampaignType] = useState<CampaignType | null>(null);
+  const [campaignType, setCampaignGoal] = useState<CampaignGoal | null>(null);
   const [videoConfig, setVideoConfig] = useState<VideoConfig>(disabledVideoConfig);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -161,23 +161,23 @@ export default function VideoDecision() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadVideoDecision() {
+    async function loadVideoSetup() {
       setIsLoading(true);
       setError(null);
       try {
-        const bootstrap = await bootstrapOrganization("LeadReacher");
+        const bootstrap = await bootstrapCurrentOrganization();
         const strategy = await apiFetch<StrategyResponse>(
           `/strategy/${bootstrap.orgId}`,
         );
         if (cancelled) return;
 
-        if (!isCampaignType(strategy.campaignType)) {
+        if (!isCampaignGoal(strategy.campaignType)) {
           navigateOnboarding(onboardingHref("campaign-type"));
           return;
         }
 
         setOrgId(bootstrap.orgId);
-        setCampaignType(strategy.campaignType);
+        setCampaignGoal(strategy.campaignType);
         const parsedVideoConfig = parseVideoConfig(
           strategy.videoConfig,
           strategy.campaignType,
@@ -200,7 +200,7 @@ export default function VideoDecision() {
       }
     }
 
-    void loadVideoDecision();
+    void loadVideoSetup();
     return () => {
       cancelled = true;
     };
@@ -236,7 +236,7 @@ export default function VideoDecision() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <Chrome activeStep="video-decision" />
+      <OnboardingChrome activeStep="video-decision" />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
@@ -280,23 +280,23 @@ export default function VideoDecision() {
           </OnboardingCard>
         ) : campaignType ? (
           <div className="mx-auto mt-8 w-full max-w-5xl space-y-6">
-            {orgId ? <MessageReview orgId={orgId} /> : null}
+            {orgId ? <ReviewMessage orgId={orgId} /> : null}
             {campaignType === "personalized_outreach" ? (
               orgId ? (
-                <PersonalizedVideo
+                <PersonalizeVideo
                   videoConfig={videoConfig}
                   setVideoConfig={setVideoConfig}
                 />
               ) : null
             ) : null}
             {campaignType === "ai_video_ad" ? (
-              <AiCampaignVideo
+              <GenerateVideo
                 videoConfig={videoConfig}
                 setVideoConfig={setVideoConfig}
               />
             ) : null}
             {campaignType === "uploaded_video" && orgId ? (
-              <UploadedVideo
+              <UploadVideo
                 orgId={orgId}
                 videoConfig={videoConfig}
                 setVideoConfig={setVideoConfig}

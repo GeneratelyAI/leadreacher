@@ -15,7 +15,7 @@ type UploadResponse = {
   };
 };
 
-export function UploadedVideo({
+export function UploadVideo({
   orgId,
   videoConfig,
   setVideoConfig,

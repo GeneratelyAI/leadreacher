@@ -1,8 +1,8 @@
 import { Clapperboard } from "lucide-react";
-import { ToneGrid } from "./ToneGrid";
+import { VideoToneGrid } from "./VideoToneGrid";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
-export function PersonalizedVideo({
+export function PersonalizeVideo({
   videoConfig,
   setVideoConfig,
 }: {
@@ -32,7 +32,7 @@ export function PersonalizedVideo({
           Choose the style for videos personalized to each prospect.
         </p>
         <div className="mt-4">
-          <ToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+          <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
         </div>
       </section>
     </div>

@@ -2,7 +2,7 @@
 
 import { Info, Loader2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
+import { Review } from "@/components/onboarding/Review";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -54,7 +54,7 @@ function getOrGenerateMessage(orgId: string): Promise<ResolvedOutreachMessage> {
   return request;
 }
 
-export function MessageReview({ orgId }: { orgId: string }) {
+export function ReviewMessage({ orgId }: { orgId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [ctaLabel, setCtaLabel] = useState("");
@@ -148,7 +148,7 @@ export function MessageReview({ orgId }: { orgId: string }) {
   }
 
   return (
-    <ReviewPanel
+    <Review
       className="sm:px-7 sm:py-6"
       title={
         <span className="flex flex-wrap items-center gap-2">
@@ -299,6 +299,6 @@ export function MessageReview({ orgId }: { orgId: string }) {
         <Info className="size-4 shrink-0" aria-hidden />
         This message and CTA are reviewed before they are sent to prospects.
       </p>
-    </ReviewPanel>
+    </Review>
   );
 }

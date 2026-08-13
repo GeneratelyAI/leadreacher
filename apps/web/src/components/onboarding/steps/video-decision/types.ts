@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from "react";
 
-export type CampaignType =
+export type CampaignGoal =
   | "personalized_outreach"
   | "ai_video_ad"
   | "uploaded_video";

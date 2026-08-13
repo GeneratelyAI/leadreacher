@@ -32,7 +32,7 @@ const TONES: Array<{
   },
 ];
 
-export function ToneGrid({
+export function VideoToneGrid({
   selectedTone,
   onSelect,
 }: {

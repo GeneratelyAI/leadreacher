@@ -1,9 +1,9 @@
 import { Clapperboard } from "lucide-react";
-import { HeroBadge } from "@/components/onboarding/HeroBadge";
-import { ToneGrid } from "./ToneGrid";
+import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
+import { VideoToneGrid } from "./VideoToneGrid";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
-export function AiCampaignVideo({
+export function GenerateVideo({
   videoConfig,
   setVideoConfig,
 }: {
@@ -23,7 +23,7 @@ export function AiCampaignVideo({
   return (
     <section aria-labelledby="video-style-heading">
       <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-        <HeroBadge icon={<Clapperboard className="size-7" />} />
+        <OnboardingBadge icon={<Clapperboard className="size-7" />} />
         <h2 id="video-style-heading" className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
           Select your preferred video style
         </h2>
@@ -32,7 +32,7 @@ export function AiCampaignVideo({
         </p>
       </div>
       <div className="mt-9">
-        <ToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+        <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
       </div>
     </section>
   );

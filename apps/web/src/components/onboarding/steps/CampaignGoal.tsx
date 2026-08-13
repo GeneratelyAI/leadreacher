@@ -13,14 +13,14 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
-import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
-import { Chrome } from "@/components/onboarding/Chrome";
+import { Review } from "@/components/onboarding/Review";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch, bootstrapOrganization } from "@/lib/api";
+import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import {
   onboardingHref,
   navigateOnboarding,
@@ -64,21 +64,21 @@ const VIDEO_ADVANTAGE_STATS = [
   { value: "Scale", label: "Choose the right format", icon: CirclePlay },
 ] as const;
 
-type CampaignType = (typeof CAMPAIGN_TYPE_OPTIONS)[number]["id"];
+type CampaignGoal = (typeof CAMPAIGN_TYPE_OPTIONS)[number]["id"];
 
 type StrategyResponse = {
   id: string;
   orgId: string;
-  campaignType: CampaignType | null;
+  campaignType: CampaignGoal | null;
 };
 
-export default function CampaignType() {
+export default function CampaignGoal() {
   useLayoutEffect(() => {
     applyStoredTheme();
   }, []);
 
   const [orgId, setOrgId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<CampaignType | null>(null);
+  const [selectedType, setSelectedType] = useState<CampaignGoal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export default function CampaignType() {
       setIsLoading(true);
       setError(null);
       try {
-        const bootstrap = await bootstrapOrganization("LeadReacher");
+        const bootstrap = await bootstrapCurrentOrganization();
         if (cancelled) return;
 
         setOrgId(bootstrap.orgId);
@@ -148,7 +148,7 @@ export default function CampaignType() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <Chrome activeStep="campaign-type" />
+      <OnboardingChrome activeStep="campaign-type" />
 
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
@@ -169,7 +169,7 @@ export default function CampaignType() {
           </Alert>
         ) : null}
 
-        <ReviewPanel
+        <Review
           className="mx-auto mt-8 w-full max-w-5xl"
           icon={<Sparkles className="size-6" strokeWidth={1.75} aria-hidden />}
           title="Video advantage"
@@ -198,7 +198,7 @@ export default function CampaignType() {
               })}
             </div>
           </div>
-        </ReviewPanel>
+        </Review>
 
         <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
           {CAMPAIGN_TYPE_OPTIONS.map((option) => {
