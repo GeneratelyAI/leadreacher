@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
-import { ReviewPanel } from "@/components/onboarding/ReviewPanel";
+import { Review } from "@/components/onboarding/Review";
 import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
 import { ActionBar } from "../ActionBar";
 import { Alert } from "../Alert";
@@ -50,7 +50,7 @@ describe("design system primitives", () => {
     const markup = renderToStaticMarkup(
       <>
         <PageHeader eyebrow="Strategy" title="Review your campaign" />
-        <ReviewPanel title="Message review">Campaign content</ReviewPanel>
+        <Review title="Message review">Campaign content</Review>
         <ChoiceCard selected>Recommended option</ChoiceCard>
         <StatusBadge tone="success">Ready</StatusBadge>
         <ActionBar leading="Back" trailing="Continue" />

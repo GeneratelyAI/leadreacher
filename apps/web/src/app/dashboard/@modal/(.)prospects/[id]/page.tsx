@@ -1,4 +1,4 @@
-import { ProspectDetailPanel } from "@/components/dashboard/ProspectDetailPanel";
+import { ProspectDetails } from "@/components/dashboard/ProspectDetails";
 
 export default async function InterceptedProspectDetailPage({
   params,
@@ -6,5 +6,5 @@ export default async function InterceptedProspectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ProspectDetailPanel prospectId={id} presentation="drawer" />;
+  return <ProspectDetails prospectId={id} presentation="drawer" />;
 }

@@ -39,7 +39,7 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         danger:
-          "bg-onboarding-error-500 text-white shadow-onboarding-button hover:bg-[#dc2626] focus-visible:border-onboarding-error-500 focus-visible:ring-onboarding-error-500/30",
+          "bg-onboarding-error-700 text-white shadow-onboarding-button hover:bg-onboarding-error-800 focus-visible:border-onboarding-error-700 focus-visible:ring-onboarding-error-500/30",
         "glass-accent":
           "rounded-full liquid-glass-button liquid-glass-button--accent font-medium transition-transform hover:scale-[1.02] active:translate-y-0",
         "glass-outline":

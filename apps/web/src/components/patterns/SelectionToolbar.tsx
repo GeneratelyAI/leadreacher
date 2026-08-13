@@ -14,7 +14,7 @@ const actionButtonClassName =
 
 /**
  * Shared bottom selection toolbar for multi-select screens (Campaigns, Prospects, …).
- * Chrome + enter/exit motion are fixed; pass screen-specific actions as `children` / `trailing`.
+ * OnboardingChrome + enter/exit motion are fixed; pass screen-specific actions as `children` / `trailing`.
  *
  * @example
  * <SelectionToolbar

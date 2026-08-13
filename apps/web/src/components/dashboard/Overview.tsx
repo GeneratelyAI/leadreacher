@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
-  ArrowDown,
   ArrowRight,
   ArrowUp,
   CalendarDays,
@@ -19,17 +19,15 @@ import {
 } from "lucide-react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { channelDisplayName, DashboardChannelLogo, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
-import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
+import { PageFrame } from "@/components/dashboard/PageFrame";
 import { useDashboardShell } from "@/components/dashboard/DashboardShell";
+import { AdvancedMetrics } from "@/components/dashboard/AdvancedMetrics";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -88,10 +86,6 @@ type AnalyticsResponse = {
 };
 
 const MODE_STORAGE_KEY = "leadreacher.overview-mode";
-const DUAL_CHART_CONFIG = {
-  primary: { label: "Primary", color: "var(--onboarding-purple-500)" },
-  secondary: { label: "Secondary", color: "var(--onboarding-success-500)" },
-} satisfies ChartConfig;
 
 const CONNECT_CHANNELS = [
   { id: "linkedin", label: "LinkedIn", detail: "Professional outreach and follow-up sequences.", image: "/dashboard/linkedin-logo.png" },
@@ -131,18 +125,6 @@ function greeting(): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
-}
-
-function TrendText({ trend }: { trend?: Trend }) {
-  if (!trend) return <span className="text-muted-foreground">No comparison available</span>;
-  const positive = trend.direction === "up" || trend.direction === "new";
-  const negative = trend.direction === "down";
-  return (
-    <span className={cn("inline-flex items-center gap-1", positive && "text-onboarding-success-500", negative && "text-onboarding-error-500", trend.direction === "flat" && "text-muted-foreground")}>
-      {trend.direction === "up" ? <ArrowUp className="size-3" /> : trend.direction === "down" ? <ArrowDown className="size-3" /> : null}
-      {trend.direction === "new" ? "New activity" : trend.direction === "flat" ? "No change" : `${trend.percent ?? 0}% vs prior period`}
-    </span>
-  );
 }
 
 function OverviewModeSwitcher({ mode, onChange }: { mode: OverviewMode; onChange: (mode: OverviewMode) => void }) {
@@ -390,7 +372,7 @@ function ChannelPerformanceCard({ analytics }: { analytics: AnalyticsResponse | 
               <TableFooter><TableRow><TableCell>Total</TableCell><TableCell className="text-right">{formatNumber(totals.messagesSent)}</TableCell><TableCell className="text-right">{totals.replyRate}%</TableCell><TableCell className="text-right">{formatNumber(totals.replies)}</TableCell></TableRow></TableFooter>
             </Table>
           </div>
-          {best ? <div className="mx-4 mb-4 flex items-center gap-3 rounded-lg bg-onboarding-purple-50 px-3 py-2.5 text-xs dark:bg-onboarding-purple-900/40"><ArrowUp className="size-4 text-onboarding-purple-600" /><span><strong>{channelDisplayName(best.channel)}</strong> has the highest recorded reply rate.</span></div> : null}
+          {best ? <div className="mx-4 mb-4 flex items-center gap-3 rounded-lg bg-onboarding-purple-50 px-3 py-2.5 text-xs dark:bg-onboarding-purple-900/40"><ArrowUp className="size-4 text-onboarding-purple-600 dark:text-onboarding-purple-200" /><span><strong>{channelDisplayName(best.channel)}</strong> has the highest recorded reply rate.</span></div> : null}
         </>
       ) : <div className="px-5 py-10 text-center text-sm text-muted-foreground">Channel performance appears after outreach is sent.</div>}
     </Card>
@@ -406,120 +388,43 @@ function CampaignPerformanceCard({ analytics }: { analytics: AnalyticsResponse |
   );
 }
 
-type ChartMetric = {
-  label: string;
-  value: string;
-  detail: string;
-  trend?: Trend;
-  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-};
-
-function DualMetricChart({
-  metrics,
-  data,
-}: {
-  metrics: [ChartMetric, ChartMetric];
-  data: Array<{ date: string; primary: number; secondary: number }>;
-}) {
-  const [primaryMetric, secondaryMetric] = metrics;
-  const chartConfig = {
-    ...DUAL_CHART_CONFIG,
-    primary: { ...DUAL_CHART_CONFIG.primary, label: primaryMetric.label },
-    secondary: { ...DUAL_CHART_CONFIG.secondary, label: secondaryMetric.label },
-  } satisfies ChartConfig;
-
-  return (
-    <div className="flex h-full min-w-0 flex-col px-6 py-5 lg:px-8">
-      <div className="grid grid-cols-2 gap-5">
-        {metrics.map(({ label, value, detail, trend, icon: Icon }, index) => (
-          <div key={label} className={cn("min-w-0", index === 1 && "border-l border-app-border pl-5")}>
-            <div className="flex items-center gap-3">
-              <Icon className={cn("size-4 shrink-0", index === 0 ? "text-onboarding-purple-600 dark:text-onboarding-purple-200" : "text-onboarding-success-500")} aria-hidden />
-              <div className="min-w-0"><p className="text-xl font-semibold">{value}</p><p className="truncate text-xs font-medium">{label}</p></div>
-            </div>
-            <p className="mt-2 truncate text-xs text-muted-foreground">{detail}</p>
-            <p className="mt-1.5 text-[11px]"><TrendText trend={trend} /></p>
-          </div>
-        ))}
-      </div>
-      <ChartContainer config={chartConfig} className="mt-auto h-32 w-full pt-5 aspect-auto" aria-label={`${primaryMetric.label} and ${secondaryMetric.label} trends`}>
-        <AreaChart data={data} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
-          <CartesianGrid vertical={false} strokeDasharray="3 3" />
-          <XAxis dataKey="date" hide />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent indicator="line" labelFormatter={(date) => String(date)} />} />
-          <Area type="monotone" dataKey="primary" stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.08} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-          <Area type="monotone" dataKey="secondary" stroke="var(--color-secondary)" fill="var(--color-secondary)" fillOpacity={0.05} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-        </AreaChart>
-      </ChartContainer>
-    </div>
-  );
-}
-
-function AdvancedMetrics({ analytics }: { analytics: AnalyticsResponse }) {
-  const activityMetrics: [ChartMetric, ChartMetric] = [
-    { label: "Messages sent", value: formatNumber(analytics.summary.messagesSent), detail: "Recorded outbound messages", trend: analytics.summary.trends.messagesSent, icon: Send },
-    { label: "Prospects reached", value: formatNumber(analytics.summary.prospectsReached), detail: "Distinct prospects", trend: analytics.summary.trends.prospectsReached, icon: Users },
-  ];
-  const outcomeMetrics: [ChartMetric, ChartMetric] = [
-    { label: "Replies", value: formatNumber(analytics.summary.repliesReceived), detail: `${analytics.summary.replyRate}% reply rate`, trend: analytics.summary.trends.repliesReceived, icon: MessageSquare },
-    { label: "Meetings booked", value: formatNumber(analytics.summary.meetingsBooked), detail: "Recorded meetings", trend: analytics.summary.trends.meetingsBooked, icon: CalendarDays },
-  ];
-
-  return (
-    <Card className="h-full overflow-hidden">
-      <div className="grid h-full sm:grid-cols-2 sm:divide-x sm:divide-app-border">
-        <DualMetricChart
-          metrics={activityMetrics}
-          data={analytics.activityTrend.map((point) => ({ date: point.date, primary: point.messagesSent, secondary: point.prospectsReached }))}
-        />
-        <DualMetricChart
-          metrics={outcomeMetrics}
-          data={analytics.activityTrend.map((point) => ({ date: point.date, primary: point.repliesReceived, secondary: point.meetingsBooked }))}
-        />
-      </div>
-    </Card>
-  );
-}
-
 function ConnectChannels({ overview }: { overview: DashboardOverview }) {
   const active = new Set(overview.channels.filter((channel) => channel.status === "active").map((channel) => channel.platform.toLowerCase()));
-  const available = CONNECT_CHANNELS.filter((channel) => channel.id === "gmail" || channel.id === "outlook" ? !["email", "google", "microsoft", "outlook", "imap"].some((key) => active.has(key)) : !active.has(channel.id));
-  if (!available.length) return null;
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="flex-row items-center justify-between gap-3 border-b border-app-border py-4"><div><CardTitle>Expand your reach</CardTitle><p className="mt-1 text-xs text-muted-foreground">Connect another supported channel for future campaigns.</p></div><Link href="/dashboard/channels" className="text-xs font-semibold text-onboarding-purple-600 hover:underline dark:text-onboarding-purple-200">View channels</Link></CardHeader>
-      <CardContent className="px-3 py-4 sm:px-5">
-        <Carousel opts={{ align: "start" }} className="px-0 sm:px-8">
-          <CarouselContent className="xl:justify-center">
-            {available.map((channel) => (
-              <CarouselItem key={channel.id} className="basis-[82%] sm:basis-1/2 lg:basis-1/3 2xl:basis-1/5">
-                <div className="group flex h-full min-h-44 flex-col items-center rounded-lg bg-transparent p-4 text-center transition-colors hover:bg-app-hover">
-                  <div className="flex flex-col items-center gap-2">
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Link
-                            href="/dashboard/channels"
-                            aria-label={`Connect ${channel.label}`}
-                            className="relative z-10 inline-flex size-14 shrink-0 items-center justify-center rounded-lg transition-transform duration-200 ease-out hover:-translate-y-1 hover:scale-110 focus-visible:-translate-y-1 focus-visible:scale-110 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 motion-reduce:transform-none motion-reduce:transition-none"
-                          />
-                        }
-                      >
-                        {channel.image ? <img src={channel.image} alt="" className="size-12 object-contain" /> : <ChannelLogo name="whatsapp-mark" className="size-12" />}
-                      </TooltipTrigger>
-                      <TooltipContent side="top">Connect {channel.label}</TooltipContent>
-                    </Tooltip>
-                    <p className="font-semibold">{channel.label}</p>
-                  </div>
-                  <p className="mt-3 max-w-52 flex-1 text-xs leading-5 text-muted-foreground">{channel.detail}</p>
-                  <Button asChild variant="outline" size="sm" className="mt-4 w-full max-w-48"><Link href="/dashboard/channels">Connect</Link></Button>
-                </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious className="hidden sm:inline-flex" />
-          <CarouselNext className="hidden sm:inline-flex" />
-        </Carousel>
+      <CardContent className="flex min-h-16 items-center gap-4 px-4 py-3 sm:px-5">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold">Expand your reach</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">Manage your channels and add more for future campaigns.</p>
+          <Link href="/dashboard/channels" className="mt-1 inline-flex text-xs font-semibold text-onboarding-purple-600 hover:underline dark:text-onboarding-purple-200">
+            View channels <ArrowRight className="ml-1 size-3" />
+          </Link>
+        </div>
+        <div className="flex max-w-[58%] shrink-0 items-center gap-3 overflow-x-auto touch-pan-x overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:max-w-none">
+          {CONNECT_CHANNELS.map((channel) => {
+            const isConnected = channel.id === "gmail" || channel.id === "outlook"
+              ? ["email", "google", "microsoft", "outlook", "imap"].some((key) => active.has(key))
+              : active.has(channel.id);
+            const label = `${channel.label}${isConnected ? " connected" : " channel settings"}`;
+
+            return (
+              <Tooltip key={channel.id}>
+                <TooltipTrigger
+                  render={
+                    <Link
+                      href="/dashboard/channels"
+                      aria-label={label}
+                      className="inline-flex size-9 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
+                    />
+                  }
+                >
+                  {channel.image ? <Image src={channel.image} width={24} height={24} alt="" unoptimized className="size-6 object-contain" /> : <ChannelLogo name="whatsapp-mark" className="size-6" />}
+                </TooltipTrigger>
+                <TooltipContent side="top">{label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );
@@ -567,7 +472,7 @@ export function Overview() {
   const error = requestError instanceof ApiError && requestError.status === 401 ? "Your session has expired. Please sign in again." : requestError instanceof Error ? requestError.message : null;
 
   return (
-    <DashboardPageFrame className="min-w-0">
+    <PageFrame className="min-w-0">
       <div className="relative mb-5 grid gap-4 lg:min-h-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
           <h1 className="text-[1.35rem] font-semibold leading-tight tracking-tight sm:text-[1.75rem]">{greeting()}, <span className="break-words">{accountFirstName(overview, memberName)}</span> <span aria-hidden>👋</span></h1>
@@ -581,6 +486,6 @@ export function Overview() {
       {!overview && overviewQuery.isLoading ? <OverviewSkeleton /> : overview ? mode === "casual" ? <CasualOverview overview={overview} analytics={analytics} /> : <AdvancedOverview overview={overview} analytics={analytics} /> : null}
 
       {overview ? <footer className="mt-4 flex flex-col gap-2 rounded-lg border border-app-border bg-app-chrome px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span className="inline-flex items-center gap-2"><ShieldCheck className="size-4 text-onboarding-success-500" />{overview.engine.label}</span><span>{overviewQuery.isFetching || analyticsQuery.isFetching ? "Updating workspace data" : "Workspace data synchronized"}</span></footer> : null}
-    </DashboardPageFrame>
+    </PageFrame>
   );
 }
