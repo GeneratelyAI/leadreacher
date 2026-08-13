@@ -103,7 +103,7 @@ function CampaignSummaryTextField({
       return () => window.clearTimeout(timer);
     }
 
-    timer = window.setTimeout(() => setContentVisible(true), 280);
+    timer = window.setTimeout(() => setContentVisible(true), 100);
     return () => window.clearTimeout(timer);
   }, [isDone, isRevealing]);
 
@@ -177,7 +177,7 @@ function CampaignSummaryCard({
         <div className={showAnalyzingLabel ? "mt-2" : "mt-1.5"}>
           <CampaignSummaryTextField
             targetText={getCampaignFieldText(summary, item.key)}
-            speedMs={item.key === "nextStep" ? 45 : 30}
+            speedMs={item.key === "nextStep" ? 20 : 14}
             phase={phase}
             textVariant={
               item.key === "nextStep"
@@ -194,7 +194,7 @@ function CampaignSummaryCard({
   );
 }
 
-export function CampaignSummaryPanel({
+export function CampaignSummary({
   summary,
 }: {
   summary: DiscoverySummary;

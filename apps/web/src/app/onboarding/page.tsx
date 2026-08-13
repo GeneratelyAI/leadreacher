@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import Flow from "@/components/onboarding/Flow";
+import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import {
   isOnboardingStep,
   isStrategySubstep,
@@ -60,7 +60,7 @@ export default async function OnboardingPage({
       defaultOrgNameFromEmail(user.email ?? ""),
     );
   } catch {
-    return <Flow initialStep="discovery" />;
+    return <OnboardingFlow initialStep="discovery" />;
   }
 
   if (workspaceAccess.disabledAt) redirect("/recover-organization");
@@ -120,7 +120,7 @@ export default async function OnboardingPage({
   }
 
   return (
-    <Flow
+    <OnboardingFlow
       initialStep={initialStep}
       initialStrategySubstep={canonicalStrategySubstep}
     />

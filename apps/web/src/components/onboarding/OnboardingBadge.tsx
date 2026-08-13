@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type HeroBadgeTone = "brand" | "success" | "warning" | "info";
+type OnboardingBadgeTone = "brand" | "success" | "warning" | "info";
 
-type HeroBadgeProps = {
+type OnboardingBadgeProps = {
   icon: ReactNode;
-  tone?: HeroBadgeTone;
+  tone?: OnboardingBadgeTone;
   className?: string;
 };
 
-export function HeroBadge({ icon, tone = "brand", className }: HeroBadgeProps) {
+export function OnboardingBadge({ icon, tone = "brand", className }: OnboardingBadgeProps) {
   return (
     <span
       className={cn("onboarding-hero-badge", `onboarding-hero-badge--${tone}`, className)}

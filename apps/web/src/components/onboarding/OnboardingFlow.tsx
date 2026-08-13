@@ -2,14 +2,14 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { StepTransition } from "@/components/onboarding/StepTransition";
+import { StepMotion } from "@/components/onboarding/StepMotion";
 import { Button } from "@/components/ui/Button";
-import CampaignType from "@/components/onboarding/steps/CampaignType";
+import CampaignGoal from "@/components/onboarding/steps/CampaignGoal";
 import Channels from "@/components/onboarding/steps/Channels";
 import Checkout from "@/components/onboarding/steps/Checkout";
 import Discovery from "@/components/onboarding/steps/Discovery";
 import Strategy from "@/components/onboarding/steps/Strategy";
-import VideoDecision from "@/components/onboarding/steps/VideoDecision";
+import VideoSetup from "@/components/onboarding/steps/VideoSetup";
 import {
   isOnboardingStep,
   isStrategySubstep,
@@ -110,7 +110,7 @@ function DiscoveryBootstrapBridge({
   return <Discovery activeStep={activeStep} />;
 }
 
-export default function Flow({
+export default function OnboardingFlow({
   initialStep,
   initialStrategySubstep = "how-it-works",
 }: {
@@ -138,9 +138,9 @@ export default function Flow({
       />
     );
   } else if (activeStep === "campaign-type") {
-    activeStepContent = <CampaignType />;
+    activeStepContent = <CampaignGoal />;
   } else if (activeStep === "video-decision") {
-    activeStepContent = <VideoDecision />;
+    activeStepContent = <VideoSetup />;
   } else if (activeStep === "checkout") {
     activeStepContent = <Checkout />;
   } else {
@@ -148,8 +148,8 @@ export default function Flow({
   }
 
   return (
-    <StepTransition transitionKey={activeStep} className="min-h-dvh">
+    <StepMotion transitionKey={activeStep} className="min-h-dvh">
       {activeStepContent}
-    </StepTransition>
+    </StepMotion>
   );
 }

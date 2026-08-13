@@ -3,19 +3,19 @@
 import { Bot, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type AiRecommendationBubbleProps = {
+type AiRecommendationProps = {
   recommendation: string;
   onUse: () => void;
   disabled?: boolean;
   className?: string;
 };
 
-export function AiRecommendationBubble({
+export function AiRecommendation({
   recommendation,
   onUse,
   disabled = false,
   className,
-}: AiRecommendationBubbleProps) {
+}: AiRecommendationProps) {
   return (
     <aside
       aria-label="AI recommendation"

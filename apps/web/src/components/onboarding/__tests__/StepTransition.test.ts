@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSlideDirection } from "../StepTransition";
+import { getSlideDirection } from "../StepMotion";
 import { ONBOARDING_STEPS, STRATEGY_SUBSTEPS } from "../steps/steps";
 
 describe("getSlideDirection", () => {

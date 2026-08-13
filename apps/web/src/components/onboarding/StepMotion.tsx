@@ -33,7 +33,7 @@ export function getSlideDirection(currentKey: string, nextKey: string): SlideDir
   return "forward";
 }
 
-export function StepTransition({
+export function StepMotion({
   transitionKey,
   children,
   className,

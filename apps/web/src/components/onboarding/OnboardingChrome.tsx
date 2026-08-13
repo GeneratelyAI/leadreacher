@@ -12,7 +12,7 @@ type ChromeProps = {
   activeStep: OnboardingStepParam;
 };
 
-export function Chrome({ activeStep }: ChromeProps) {
+export function OnboardingChrome({ activeStep }: ChromeProps) {
   const { isVisible } = useNavbarTheme();
 
   return (

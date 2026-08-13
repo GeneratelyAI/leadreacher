@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { cn } from "@/lib/utils";
 
-type ReviewPanelProps = Omit<ComponentProps<"section">, "title"> & {
+type ReviewProps = Omit<ComponentProps<"section">, "title"> & {
   title: ReactNode;
   description?: ReactNode;
   icon?: ReactNode;
@@ -10,7 +10,7 @@ type ReviewPanelProps = Omit<ComponentProps<"section">, "title"> & {
   muted?: boolean;
 };
 
-export function ReviewPanel({
+export function Review({
   className,
   title,
   description,
@@ -19,7 +19,7 @@ export function ReviewPanel({
   muted = false,
   children,
   ...props
-}: ReviewPanelProps) {
+}: ReviewProps) {
   return (
     <OnboardingCard muted={muted} className={cn("px-5 py-5 sm:px-6", className)}>
       <section {...props}>
@@ -39,4 +39,4 @@ export function ReviewPanel({
   );
 }
 
-export type { ReviewPanelProps };
+export type { ReviewProps };
