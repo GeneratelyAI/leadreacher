@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getMissingProductionWorkerConfiguration,
   getProductionPublicConfigurationErrors,
+  requiresProductionPublicConfigurationValidation,
 } from "../env.js";
 
 const completeConfiguration = {
@@ -38,6 +39,27 @@ describe("production worker configuration", () => {
 });
 
 describe("production public configuration", () => {
+  it("only applies browser-origin validation to the API runtime", () => {
+    expect(
+      requiresProductionPublicConfigurationValidation({
+        nodeEnv: "production",
+        runtimeRole: "api",
+      }),
+    ).toBe(true);
+    expect(
+      requiresProductionPublicConfigurationValidation({
+        nodeEnv: "production",
+        runtimeRole: "worker",
+      }),
+    ).toBe(false);
+    expect(
+      requiresProductionPublicConfigurationValidation({
+        nodeEnv: "development",
+        runtimeRole: "api",
+      }),
+    ).toBe(false);
+  });
+
   it("requires explicit public URLs outside localhost", () => {
     expect(getProductionPublicConfigurationErrors({})).toEqual([
       "APP_URL is required",

@@ -216,7 +216,19 @@ export function getProductionPublicConfigurationErrors(value: {
   return errors;
 }
 
-if (process.env.NODE_ENV === "production") {
+export function requiresProductionPublicConfigurationValidation(value: {
+  nodeEnv?: string;
+  runtimeRole?: string;
+}): boolean {
+  return value.nodeEnv === "production" && value.runtimeRole !== "worker";
+}
+
+if (
+  requiresProductionPublicConfigurationValidation({
+    nodeEnv: process.env.NODE_ENV,
+    runtimeRole: env.RUNTIME_ROLE,
+  })
+) {
   const errors = getProductionPublicConfigurationErrors(process.env);
   if (errors.length > 0) {
     throw new Error(`Invalid production environment variables: ${errors.join(", ")}`);
