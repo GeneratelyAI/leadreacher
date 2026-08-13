@@ -184,6 +184,45 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 
+function isLoopbackUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+export function getProductionPublicConfigurationErrors(value: {
+  APP_URL?: string;
+  CORS_ORIGIN?: string;
+}): string[] {
+  const appUrl = value.APP_URL?.trim();
+  const corsOrigin = value.CORS_ORIGIN?.trim();
+  const errors: string[] = [];
+
+  if (!appUrl) errors.push("APP_URL is required");
+  if (!corsOrigin) errors.push("CORS_ORIGIN is required");
+  if (appUrl && isLoopbackUrl(appUrl)) {
+    errors.push("APP_URL must not point to localhost");
+  }
+  if (corsOrigin) {
+    const origins = corsOrigin.split(",").map((origin) => origin.trim()).filter(Boolean);
+    if (origins.some(isLoopbackUrl)) {
+      errors.push("CORS_ORIGIN must not contain localhost");
+    }
+  }
+
+  return errors;
+}
+
+if (process.env.NODE_ENV === "production") {
+  const errors = getProductionPublicConfigurationErrors(process.env);
+  if (errors.length > 0) {
+    throw new Error(`Invalid production environment variables: ${errors.join(", ")}`);
+  }
+}
+
 if (env.VIDEO_MOCK_MODE && process.env.NODE_ENV === "production") {
   throw new Error("VIDEO_MOCK_MODE cannot be enabled in production");
 }
