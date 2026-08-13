@@ -41,6 +41,43 @@ const OperatorReplyBodySchema = z.object({
 
 type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function campaignPromise(aiConfig: unknown): string | undefined {
+  const personalization = asRecord(asRecord(aiConfig)?.channelPersonalization);
+  const value = personalization?.valueProposition;
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, 280) : undefined;
+}
+
+function replyGoal(messages: Array<{ direction: string; content: unknown }>): "answer" | "qualify" | "book" | "close" {
+  const latestInbound = [...messages].reverse().find((message) => message.direction === "inbound");
+  const text = jsonText(latestInbound?.content).toLowerCase();
+  if (/\b(no thanks|not interested|unsubscribe|stop)\b/.test(text)) return "close";
+  if (/\b(calendar|meeting|call|available|schedule)\b/.test(text)) return "book";
+  if (/\b(price|pricing|budget|team|use case|how does)\b/.test(text)) return "qualify";
+  return "answer";
+}
+
+function latestPersonalizationContext(messages: Array<{ direction: string; content: unknown }>): {
+  angle?: string;
+  cta?: string;
+  evidenceTypes: string[];
+} | undefined {
+  const latestOutbound = [...messages].reverse().find((message) => message.direction === "outbound");
+  const personalization = asRecord(asRecord(latestOutbound?.content)?.personalization);
+  if (!personalization) return undefined;
+  const evidenceTypes = Array.isArray(personalization.evidenceTypes)
+    ? personalization.evidenceTypes.filter((value): value is string => typeof value === "string").slice(0, 3)
+    : [];
+  const angle = typeof personalization.angle === "string" ? personalization.angle.slice(0, 80) : undefined;
+  const cta = typeof personalization.cta === "string" ? personalization.cta.slice(0, 80) : undefined;
+  return angle || cta || evidenceTypes.length ? { angle, cta, evidenceTypes } : undefined;
+}
+
 function jsonText(value: unknown): string {
   if (!value || typeof value !== "object" || Array.isArray(value)) return "";
   const record = value as Record<string, unknown>;
@@ -517,7 +554,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
         campaignId: true,
         leadId: true,
         lead: { select: { firstName: true, lastName: true, company: true } },
-        campaign: { select: { name: true } },
+        campaign: { select: { name: true, aiConfig: true } },
       },
     });
     if (!campaignLead) throw new NotFoundError("Conversation");
@@ -535,6 +572,9 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       campaignName: campaignLead.campaign.name,
       prospectName: leadName(campaignLead.lead),
       company: campaignLead.lead.company || "the prospect's company",
+      campaignPromise: campaignPromise(campaignLead.campaign.aiConfig),
+      personalizationContext: latestPersonalizationContext(messages),
+      goal: replyGoal(messages),
       conversation: messages.map((message) => ({ direction: message.direction === "inbound" ? "inbound" : "outbound", content: jsonText(message.content) || "Message content unavailable" })),
     });
     return reply.send(result);

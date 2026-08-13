@@ -34,10 +34,14 @@ describe("reply draft agent", () => {
       campaignName: "Founder outreach",
       prospectName: "Ada Lovelace",
       company: "Analytical Engines",
+      campaignPromise: "Make approved outreach more relevant.",
+      personalizationContext: { angle: "role_company", cta: "overview", evidenceTypes: ["role_company"] },
+      goal: "qualify",
       conversation: [{ direction: "inbound", content: "Can you share more detail?" }],
     })).resolves.toEqual({ drafts: ["Thanks for sharing that. Would a short call next week be useful?"] });
 
     expect(callGroq).toHaveBeenCalledTimes(2);
+    expect(callGroq.mock.calls[0]?.[1]?.[0]?.content).toContain("GOAL: qualify");
     expect(pipelineRunUpdate).toHaveBeenLastCalledWith({
       where: { id: "run-1" },
       data: { output: { drafts: ["Thanks for sharing that. Would a short call next week be useful?"] }, status: "completed" },

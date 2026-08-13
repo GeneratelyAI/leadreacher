@@ -8,6 +8,13 @@ const ReplyDraftAgentInputSchema = z.object({
   campaignName: z.string().min(1),
   prospectName: z.string().min(1),
   company: z.string().min(1),
+  campaignPromise: z.string().max(280).optional(),
+  personalizationContext: z.object({
+    angle: z.string().max(80).optional(),
+    cta: z.string().max(80).optional(),
+    evidenceTypes: z.array(z.string().max(80)).max(3),
+  }).optional(),
+  goal: z.enum(["answer", "qualify", "book", "close"]).default("answer"),
   conversation: z.array(z.object({
     direction: z.enum(["inbound", "outbound"]),
     content: z.string().min(1),
@@ -19,13 +26,13 @@ export const ReplyDraftAgentOutputSchema = z.object({
 });
 
 export type ReplyDraftAgentResult = z.infer<typeof ReplyDraftAgentOutputSchema>;
-type ReplyDraftAgentInput = z.infer<typeof ReplyDraftAgentInputSchema>;
+type ReplyDraftAgentInput = z.input<typeof ReplyDraftAgentInputSchema>;
 
 const MAX_VALIDATION_RETRIES = 2;
 
 const SYSTEM_PROMPT = `You write concise human-reviewed LinkedIn reply drafts for B2B conversations.
 
-Use only the campaign and conversation facts provided. Write one to three short sentences per draft. Answer the prospect's latest point directly, be helpful, and end with a natural low-commitment next step when appropriate.
+Use only the campaign and conversation facts provided. Write one to three short sentences per draft. Answer the prospect's latest point directly, preserve the campaign promise where relevant, and work toward the supplied GOAL without repeating the original pitch. Be helpful and end with a natural low-commitment next step when appropriate.
 
 Do not claim that a meeting is booked, fabricate outcomes or statistics, use emojis, use em dashes, or mention that you are an AI. These are draft suggestions only. Return valid JSON with this exact shape:
 {
@@ -56,6 +63,9 @@ export async function runReplyDraftAgent(
   const userMessage = `CAMPAIGN: ${validated.campaignName}
 PROSPECT: ${validated.prospectName}
 COMPANY: ${validated.company}
+GOAL: ${validated.goal}
+CAMPAIGN PROMISE: ${validated.campaignPromise ?? "Not supplied"}
+PERSONALIZATION CONTEXT: ${JSON.stringify(validated.personalizationContext ?? {})}
 
 CONVERSATION:
 ${conversation}
