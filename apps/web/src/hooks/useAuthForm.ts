@@ -8,9 +8,13 @@ import { createClient } from "@/lib/supabase/client";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { promoteAnonymousDiscoveryCache } from "@/lib/discovery-scrape-cache";
 import { postLoginRedirectPath } from "@/lib/auth/post-login-redirect";
+import { authErrorMessage } from "@/lib/auth/auth-errors";
+import { validateNewPassword } from "@/lib/auth/password-policy";
+import { isCaptchaEnabled } from "@/components/auth/AuthCaptcha";
 
 type AuthMode = "login" | "signup";
 type AccountType = "individual" | "company";
+type AuthFactor = { status: string };
 
 export function useAuthForm(mode: AuthMode) {
   const router = useRouter();
@@ -25,6 +29,8 @@ export function useAuthForm(mode: AuthMode) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
 
   const isSignup = mode === "signup";
 
@@ -58,6 +64,19 @@ export function useAuthForm(mode: AuthMode) {
       return;
     }
 
+    if (isSignup) {
+      const passwordError = validateNewPassword(password);
+      if (passwordError) {
+        setError(passwordError);
+        return;
+      }
+    }
+
+    if (isCaptchaEnabled && !captchaToken) {
+      setError("Complete the security verification to continue.");
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -67,9 +86,10 @@ export function useAuthForm(mode: AuthMode) {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: fullName
-            ? { data: { full_name: fullName.trim() } }
-            : undefined,
+          options: {
+            ...(fullName ? { data: { full_name: fullName.trim() } } : {}),
+            ...(captchaToken ? { captchaToken } : {}),
+          },
         });
         if (signUpError) {
           throw signUpError;
@@ -84,6 +104,7 @@ export function useAuthForm(mode: AuthMode) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: captchaToken ? { captchaToken } : undefined,
         });
         if (signInError) {
           throw signInError;
@@ -91,6 +112,19 @@ export function useAuthForm(mode: AuthMode) {
       }
 
       clearAccessTokenCache();
+
+      const [{ data: assurance }, { data: factors }] = await Promise.all([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        supabase.auth.mfa.listFactors(),
+      ]);
+      const hasVerifiedFactor = (factors?.all as AuthFactor[] | undefined)?.some(
+        (factor: AuthFactor) => factor.status === "verified",
+      );
+      if (hasVerifiedFactor && assurance?.currentLevel !== "aal2") {
+        router.replace("/verify-mfa?next=/dashboard");
+        router.refresh();
+        return;
+      }
 
       await waitForReadyToNavigate(5000).catch((caught) => {
         if (process.env.NODE_ENV === "development") {
@@ -103,9 +137,9 @@ export function useAuthForm(mode: AuthMode) {
       router.push(postLoginRedirectPath(bootstrap.onboardedAt));
       router.refresh();
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Authentication failed",
-      );
+      setCaptchaToken(null);
+      setCaptchaResetKey((current) => current + 1);
+      setError(authErrorMessage(caught, isSignup ? "sign-up" : "sign-in"));
     } finally {
       setLoading(false);
     }
@@ -141,6 +175,9 @@ export function useAuthForm(mode: AuthMode) {
     setShowPassword,
     error,
     loading,
+    captchaToken,
+    setCaptchaToken,
+    captchaResetKey,
     isSignup,
     handleEmailSubmit,
     handleOAuth,

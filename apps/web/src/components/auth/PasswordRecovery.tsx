@@ -1,31 +1,49 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
 import type { AuthChangeEvent } from "@supabase/supabase-js";
+import { AuthCaptcha, isCaptchaEnabled } from "@/components/auth/AuthCaptcha";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { createClient, getBrowserSession } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/auth/auth-errors";
+import { MIN_PASSWORD_LENGTH, validateNewPassword } from "@/lib/auth/password-policy";
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaResetKey, setCaptchaResetKey] = useState(0);
+  const handleCaptchaTokenChange = useCallback((token: string | null) => {
+    setCaptchaToken(token);
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (isCaptchaEnabled && !captchaToken) {
+      setError("Complete the security verification to continue.");
+      return;
+    }
     setLoading(true);
     setError(null);
     const { error: resetError } = await createClient().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
     setLoading(false);
-    if (resetError) setError(resetError.message);
+    if (resetError) {
+      setCaptchaToken(null);
+      setCaptchaResetKey((current) => current + 1);
+      setError(authErrorMessage(resetError, "recovery"));
+    }
     else setSent(true);
   }
 
@@ -48,6 +66,10 @@ export function ForgotPasswordForm() {
                   <Input id="recovery-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className="pl-9" />
                 </div>
               </div>
+              <AuthCaptcha
+                onTokenChange={handleCaptchaTokenChange}
+                resetKey={captchaResetKey}
+              />
               {error ? <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p> : null}
               <Button className="w-full" disabled={loading}>
                 {loading ? <Loader2 className="animate-spin" /> : null} Send recovery link
@@ -80,6 +102,11 @@ export function ResetPasswordForm() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    const passwordError = validateNewPassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
     if (password !== confirmation) {
       setError("Passwords do not match.");
       return;
@@ -88,7 +115,7 @@ export function ResetPasswordForm() {
     setError(null);
     const { error: updateError } = await createClient().auth.updateUser({ password });
     setLoading(false);
-    if (updateError) setError(updateError.message);
+    if (updateError) setError(authErrorMessage(updateError, "password-update"));
     else setComplete(true);
   }
 
@@ -104,8 +131,8 @@ export function ResetPasswordForm() {
             </div>
           ) : ready ? (
             <form onSubmit={submit} className="mt-6 space-y-4">
-              <div className="space-y-2"><Label htmlFor="new-password">New password</Label><Input id="new-password" type="password" autoComplete="new-password" minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} /></div>
-              <div className="space-y-2"><Label htmlFor="confirm-password">Confirm password</Label><Input id="confirm-password" type="password" autoComplete="new-password" minLength={8} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div>
+              <div className="space-y-2"><Label htmlFor="new-password">New password</Label><Input id="new-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={password} onChange={(event) => setPassword(event.target.value)} /><PasswordRequirements password={password} /></div>
+              <div className="space-y-2"><Label htmlFor="confirm-password">Confirm password</Label><Input id="confirm-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required value={confirmation} onChange={(event) => setConfirmation(event.target.value)} /></div>
               {error ? <p role="alert" className="text-sm text-red-600 dark:text-red-300">{error}</p> : null}
               <Button className="w-full" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : null} Update password</Button>
             </form>

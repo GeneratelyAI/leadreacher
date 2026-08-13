@@ -17,12 +17,15 @@ import {
 } from "lucide-react";
 import AuthBranding from "@/components/auth/AuthBranding";
 import MobileAuth from "@/components/auth/MobileAuth";
+import { AuthCaptcha } from "@/components/auth/AuthCaptcha";
+import { PasswordRequirements } from "@/components/auth/PasswordRequirements";
 import { GoogleIcon, MicrosoftIcon } from "@/components/auth/OAuthIcons";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { useAuthForm } from "@/hooks/useAuthForm";
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
 import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "signup";
@@ -63,6 +66,8 @@ export default function AuthForm({ mode }: AuthFormProps) {
     setShowPassword,
     error,
     loading,
+    setCaptchaToken,
+    captchaResetKey,
     isSignup,
     handleEmailSubmit,
     handleOAuth,
@@ -329,7 +334,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       autoComplete={isSignup ? "new-password" : "current-password"}
                       enterKeyHint="go"
                       required
-                      minLength={6}
+                      minLength={isSignup ? MIN_PASSWORD_LENGTH : undefined}
                       placeholder={
                         isSignup ? "Create a password" : "Enter your password"
                       }
@@ -350,6 +355,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
                       )}
                     </button>
                   </div>
+                  {isSignup ? <PasswordRequirements password={password} /> : null}
                   {!isSignup ? (
                     <div className="mt-1.5 flex items-center justify-end h-compact:mt-1 lg:mt-2">
                       <Link
@@ -361,6 +367,11 @@ export default function AuthForm({ mode }: AuthFormProps) {
                     </div>
                   ) : null}
                 </div>
+
+                <AuthCaptcha
+                  onTokenChange={setCaptchaToken}
+                  resetKey={captchaResetKey}
+                />
 
                 {error ? (
                   <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-100 h-compact:py-1.5 lg:px-4 lg:py-3 lg:text-sm dark:bg-red-500/10 dark:text-red-300 dark:ring-red-400/20">
