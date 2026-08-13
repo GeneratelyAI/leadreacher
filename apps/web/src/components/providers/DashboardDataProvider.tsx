@@ -1,6 +1,6 @@
 "use client";
 
-import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { dehydrate, hydrate, keepPreviousData, QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { apiStream } from "@/lib/api";
 
@@ -14,6 +14,21 @@ const DASHBOARD_EVENT_TYPES = new Set([
 ]);
 const STREAM_RECONNECT_DELAY_MS = 5_000;
 const STREAM_FALLBACK_REFETCH_MS = 30_000;
+const DASHBOARD_CACHE_TTL_MS = 10 * 60_000;
+const DASHBOARD_CACHE_VERSION = "v1";
+const PERSISTED_DASHBOARD_QUERY_TYPES = new Set([
+  "chrome",
+  "overview",
+  "campaigns",
+  "campaign",
+  "prospects",
+  "prospect",
+  "conversations",
+  "conversation",
+  "activity",
+  "channels",
+  "analytics",
+]);
 
 export type DashboardEvent = {
   version: 1;
@@ -136,20 +151,100 @@ export function useDashboardEvents(listener: DashboardEventListener): void {
  * Dashboard data is short-lived operational data. Keeping it fresh enough for
  * operators while retaining it during navigation avoids blank page reloads.
  */
-export function DashboardQueryProvider({ children }: { children: ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 30_000,
-            gcTime: 5 * 60_000,
-            retry: 1,
-            refetchOnWindowFocus: true,
-          },
-        },
-      }),
-  );
+function dashboardCacheKey(scope: string): string {
+  return `leadreacher:dashboard-cache:${DASHBOARD_CACHE_VERSION}:${scope}`;
+}
 
-  return <QueryClientProvider client={queryClient}><DashboardLiveEvents>{children}</DashboardLiveEvents></QueryClientProvider>;
+function shouldPersistDashboardQuery(queryKey: readonly unknown[]): boolean {
+  return queryKey[0] === "dashboard"
+    && typeof queryKey[1] === "string"
+    && PERSISTED_DASHBOARD_QUERY_TYPES.has(queryKey[1]);
+}
+
+function restoreDashboardCache(queryClient: QueryClient, scope: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.sessionStorage.getItem(dashboardCacheKey(scope));
+    if (!raw) return;
+    const persisted = JSON.parse(raw) as { savedAt?: unknown; state?: unknown };
+    if (typeof persisted.savedAt !== "number" || Date.now() - persisted.savedAt > DASHBOARD_CACHE_TTL_MS || !persisted.state) {
+      window.sessionStorage.removeItem(dashboardCacheKey(scope));
+      return;
+    }
+    hydrate(queryClient, persisted.state);
+  } catch {
+    window.sessionStorage.removeItem(dashboardCacheKey(scope));
+  }
+}
+
+function DashboardHydrationFallback() {
+  return (
+    <div className="h-dvh bg-app-canvas" aria-busy="true" aria-label="Loading workspace">
+      <div className="mx-auto flex h-full w-full max-w-[104rem] items-center justify-center px-4">
+        <div className="h-5 w-36 animate-pulse rounded bg-onboarding-neutral-100 dark:bg-onboarding-neutral-800" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Keeps operational data through a browser refresh without retaining it after
+ * the session ends. Form state and settings are intentionally not persisted.
+ */
+export function DashboardDataProvider({ children, scope }: { children: ReactNode; scope: string }) {
+  const [queryClient] = useState(
+    () => new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 60_000,
+          gcTime: 15 * 60_000,
+          placeholderData: keepPreviousData,
+          retry: 1,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: true,
+        },
+      },
+    }),
+  );
+  const [cacheRestored, setCacheRestored] = useState(false);
+
+  useEffect(() => {
+    restoreDashboardCache(queryClient, scope);
+    setCacheRestored(true);
+  }, [queryClient, scope]);
+
+  useEffect(() => {
+    if (!cacheRestored) return;
+    const key = dashboardCacheKey(scope);
+    let writeTimer: number | undefined;
+    const persist = () => {
+      window.clearTimeout(writeTimer);
+      writeTimer = window.setTimeout(() => {
+        try {
+          const state = dehydrate(queryClient, {
+            shouldDehydrateQuery: (query) => shouldPersistDashboardQuery(query.queryKey),
+          });
+          window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), state }));
+        } catch {
+          window.sessionStorage.removeItem(key);
+        }
+      }, 200);
+    };
+    const unsubscribe = queryClient.getQueryCache().subscribe(persist);
+    persist();
+    void queryClient.invalidateQueries({
+      predicate: (query) => shouldPersistDashboardQuery(query.queryKey),
+      refetchType: "active",
+    });
+    return () => {
+      window.clearTimeout(writeTimer);
+      unsubscribe();
+    };
+  }, [cacheRestored, queryClient, scope]);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      {cacheRestored ? <DashboardLiveEvents>{children}</DashboardLiveEvents> : <DashboardHydrationFallback />}
+    </QueryClientProvider>
+  );
 }

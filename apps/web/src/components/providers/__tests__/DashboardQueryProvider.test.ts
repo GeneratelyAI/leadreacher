@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDashboardEvent } from "../DashboardQueryProvider";
+import { parseDashboardEvent } from "../DashboardDataProvider";
 
 describe("parseDashboardEvent", () => {
   it("accepts versioned dashboard events", () => {
