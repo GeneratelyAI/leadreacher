@@ -4,7 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Mail } from "lucide-react";
 import type { AuthChangeEvent } from "@supabase/supabase-js";
-import AuthPageShell from "@/components/auth/AuthPageShell";
+import AuthLayout from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -30,7 +30,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <AuthPageShell>
+    <AuthLayout>
       <Card className="mx-4 w-full max-w-md sm:mx-auto">
         <CardContent className="p-7 sm:p-9">
           <h1 className="text-2xl font-semibold">Reset your password</h1>
@@ -57,7 +57,7 @@ export function ForgotPasswordForm() {
           <Link href="/login" className="mt-6 inline-block text-sm font-medium text-brand-purple">Return to login</Link>
         </CardContent>
       </Card>
-    </AuthPageShell>
+    </AuthLayout>
   );
 }
 
@@ -93,7 +93,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <AuthPageShell>
+    <AuthLayout>
       <Card className="mx-4 w-full max-w-md sm:mx-auto">
         <CardContent className="p-7 sm:p-9">
           <h1 className="text-2xl font-semibold">Choose a new password</h1>
@@ -114,6 +114,6 @@ export function ResetPasswordForm() {
           )}
         </CardContent>
       </Card>
-    </AuthPageShell>
+    </AuthLayout>
   );
 }

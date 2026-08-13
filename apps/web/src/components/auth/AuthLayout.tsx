@@ -1,13 +1,13 @@
 import Link from "next/link";
-import AuthThemeToggle from "@/components/auth/AuthThemeToggle";
+import ThemeToggle from "@/components/auth/ThemeToggle";
 import { ASSETS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
 
-type AuthPageShellProps = {
+type AuthLayoutProps = {
   children: React.ReactNode;
 };
 
-export default function AuthPageShell({ children }: AuthPageShellProps) {
+export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <main
       className={cn(
@@ -47,7 +47,7 @@ export default function AuthPageShell({ children }: AuthPageShellProps) {
           "lg:top-6 lg:right-6 xl:top-8 xl:right-8",
         )}
       >
-        <AuthThemeToggle />
+        <ThemeToggle />
       </div>
 
       <div

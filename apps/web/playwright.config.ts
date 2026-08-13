@@ -31,7 +31,7 @@ export default defineConfig({
     },
     {
       name: "desktop-chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: { ...devices["Desktop OnboardingChrome"] },
     },
     {
       name: "desktop-firefox",
@@ -43,7 +43,7 @@ export default defineConfig({
     },
     {
       name: "desktop-chrome",
-      use: { ...devices["Desktop Chrome"], channel: "chrome" },
+      use: { ...devices["Desktop OnboardingChrome"], channel: "chrome" },
     },
     {
       name: "desktop-edge",

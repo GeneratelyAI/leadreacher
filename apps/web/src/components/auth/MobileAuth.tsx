@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "signup";
 
-type MobileAuthViewProps = {
+type MobileAuthProps = {
   mode: AuthMode;
 };
 
@@ -41,7 +41,7 @@ const oauthButtonClassName = cn(
   "h-10 px-3 text-sm",
 );
 
-export default function MobileAuthView({ mode }: MobileAuthViewProps) {
+export default function MobileAuth({ mode }: MobileAuthProps) {
   const {
     email,
     setEmail,

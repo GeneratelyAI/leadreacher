@@ -1,4 +1,4 @@
-import { LegalConsentForm } from "@/components/auth/WorkspaceAccessForms";
+import { LegalConsentForm } from "@/components/auth/WorkspaceAccess";
 
 export default function LegalConsentPage() {
   return <LegalConsentForm />;

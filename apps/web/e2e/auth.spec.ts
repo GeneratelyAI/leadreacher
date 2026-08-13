@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-// AuthForm renders both MobileAuthView and the desktop form at once -
+// AuthForm renders both MobileAuth and the desktop form at once -
 // `lg:hidden` is CSS-only, not removed from the DOM - so locators must be
 // scoped to whichever view is actually visible at the current viewport, or
 // they'll strict-mode-collide against the other view's duplicate fields.
@@ -17,7 +17,7 @@ async function gotoReady(page: Page, path: string) {
   await page.waitForLoadState("networkidle");
 }
 
-// This whole file exercises MobileAuthView specifically, which is display:none
+// This whole file exercises MobileAuth specifically, which is display:none
 // at desktop widths - not just slower there, genuinely not the active UI.
 test.beforeEach(async ({ isMobile }) => {
   test.skip(!isMobile, "mobile-auth-view only - desktop coverage belongs in a separate spec");
@@ -105,7 +105,7 @@ test.describe("login - mobile", () => {
   test("theme toggle updates the mobile browser-chrome color in sync", async ({ page }) => {
     await gotoReady(page, "/login");
 
-    // AuthThemeToggle renders once in AuthPageShell, outside both the
+    // ThemeToggle renders once in AuthLayout, outside both the
     // mobile and desktop view wrappers - only repositioned via responsive
     // classes, not duplicated - so this is intentionally unscoped.
     const getThemeColor = () => page.locator('meta[name="theme-color"]').getAttribute("content");

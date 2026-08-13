@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 
 type AuthMode = "login" | "signup";
 
-type AuthMarketingPanelProps = {
+type AuthBrandingProps = {
   mode: AuthMode;
 };
 
@@ -123,7 +123,7 @@ function StatusBadge({
   );
 }
 
-export default function AuthMarketingPanel({ mode }: AuthMarketingPanelProps) {
+export default function AuthBranding({ mode }: AuthBrandingProps) {
   const { status, message, websiteUrl } = useWebsiteScrapeStatus();
 
   const activeIndex = useMemo(() => {

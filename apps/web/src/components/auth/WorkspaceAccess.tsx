@@ -4,18 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
-import AuthPageShell from "@/components/auth/AuthPageShell";
+import AuthLayout from "@/components/auth/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api";
 
 function AccessCard({ children }: { children: React.ReactNode }) {
   return (
-    <AuthPageShell>
+    <AuthLayout>
       <Card className="mx-auto w-full max-w-md">
         <CardContent className="p-7 sm:p-9">{children}</CardContent>
       </Card>
-    </AuthPageShell>
+    </AuthLayout>
   );
 }
 

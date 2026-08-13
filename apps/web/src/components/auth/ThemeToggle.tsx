@@ -3,7 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useThemeMode } from "@/hooks/useThemeMode";
 
-export default function AuthThemeToggle() {
+export default function ThemeToggle() {
   const { isDark, toggle } = useThemeMode();
 
   return (

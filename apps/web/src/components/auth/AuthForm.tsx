@@ -15,8 +15,8 @@ import {
   User,
   Users,
 } from "lucide-react";
-import AuthMarketingPanel from "@/components/auth/AuthMarketingPanel";
-import MobileAuthView from "@/components/auth/MobileAuthView";
+import AuthBranding from "@/components/auth/AuthBranding";
+import MobileAuth from "@/components/auth/MobileAuth";
 import { GoogleIcon, MicrosoftIcon } from "@/components/auth/OAuthIcons";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -78,7 +78,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <>
       <div className="lg:hidden">
-        <MobileAuthView mode={mode} />
+        <MobileAuth mode={mode} />
       </div>
 
       <div
@@ -96,7 +96,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
               "w-full lg:order-2 lg:flex lg:w-[62%] lg:shrink-0",
             )}
           >
-            <AuthMarketingPanel mode={mode} />
+            <AuthBranding mode={mode} />
           </div>
         ) : null}
 
