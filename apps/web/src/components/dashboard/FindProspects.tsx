@@ -22,13 +22,13 @@ function splitList(value: string): string[] {
     .filter(Boolean);
 }
 
-type ScrapeProspectsModalProps = {
+type FindProspectsProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScraped: () => Promise<void> | void;
 };
 
-export function ScrapeProspectsModal({ open, onOpenChange, onScraped }: ScrapeProspectsModalProps) {
+export function FindProspects({ open, onOpenChange, onScraped }: FindProspectsProps) {
   const [jobTitles, setJobTitles] = useState("");
   const [locations, setLocations] = useState("");
   const [keywords, setKeywords] = useState("");

@@ -1,7 +1,8 @@
 "use client";
 
 import { ExternalLink, Loader2, Plus, Search } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +18,20 @@ import { Input } from "@/components/ui/Input";
 import { ApiError, apiFetch } from "@/lib/api";
 
 const SEARCH_RESULT_LIMIT = 8;
+const ACCOUNT_STATUS_POLL_INTERVAL_MS = 2_000;
+const SEARCH_DEBOUNCE_MS = 400;
+const MINIMUM_SEARCH_LENGTH = 2;
+
+type SocialAccount = {
+  id: string;
+  platform: string;
+  accountName: string;
+  status: string;
+};
+
+type SocialAccountsResponse = {
+  accounts: SocialAccount[];
+};
 
 type ProspectProfile = {
   linkedinUrl: string;
@@ -35,7 +50,7 @@ type ProspectProfile = {
   enrichmentData: Record<string, unknown>;
 };
 
-type SearchProspectModalProps = {
+type AddProspectProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAdded: () => Promise<void> | void;
@@ -54,16 +69,53 @@ function profileDescription(profile: ProspectProfile): string {
   return [profile.title, profile.company, profile.location].filter(Boolean).join(" · ");
 }
 
-export function SearchProspectModal({
+function isUsableLinkedInProfileUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    const identifier = url.pathname.match(/^\/in\/([^/]+)/i)?.[1];
+    return url.protocol === "https:" && url.hostname.endsWith("linkedin.com") && identifier !== undefined && !["undefined", "null"].includes(identifier.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+function uniqueProfiles(profiles: ProspectProfile[]): ProspectProfile[] {
+  const seen = new Set<string>();
+  return profiles.filter((profile) => {
+    if (!isUsableLinkedInProfileUrl(profile.linkedinUrl)) return false;
+    const identifier = profile.providerLinkedinId || profile.linkedinUrl;
+    if (seen.has(identifier)) return false;
+    seen.add(identifier);
+    return true;
+  });
+}
+
+export function AddProspect({
   open,
   onOpenChange,
   onAdded,
-}: SearchProspectModalProps) {
+}: AddProspectProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<ProspectProfile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const accountsQuery = useQuery({
+    queryKey: ["social-accounts", "prospect-search"],
+    queryFn: () => apiFetch<SocialAccountsResponse>("/social-accounts"),
+    enabled: open,
+    refetchInterval: (query) => {
+      const hasActiveLinkedIn = query.state.data?.accounts.some(
+        (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
+      );
+      return hasActiveLinkedIn ? false : ACCOUNT_STATUS_POLL_INTERVAL_MS;
+    },
+  });
+  const activeLinkedInAccount = accountsQuery.data?.accounts.find(
+    (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
+  );
+  const isCheckingLinkedIn = accountsQuery.isLoading || accountsQuery.isFetching;
+  const canSearch = Boolean(activeLinkedInAccount);
 
   function handleOpenChange(nextOpen: boolean) {
     onOpenChange(nextOpen);
@@ -75,46 +127,60 @@ export function SearchProspectModal({
   }
   const [addingProfileUrl, setAddingProfileUrl] = useState<string | null>(null);
 
-  async function searchProspects(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
     const keyword = query.trim();
-    if (!keyword) {
-      setError("Enter a name, title, company, or keyword to search LinkedIn.");
+    if (!open || !canSearch || keyword.length < MINIMUM_SEARCH_LENGTH) {
+      setIsSearching(false);
+      if (keyword.length < MINIMUM_SEARCH_LENGTH) {
+        setResults([]);
+        setError(null);
+        setHasSearched(false);
+      }
       return;
     }
 
-    setIsSearching(true);
-    setError(null);
-    setHasSearched(true);
-    try {
-      const result = await apiFetch<{ profiles: ProspectProfile[] }>(
-        "/prospects/search/preview",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            filters: {
-              jobTitles: [],
-              industries: [],
-              companySizes: [],
-              locations: [],
-              keywords: [keyword],
-            },
-            maxResults: SEARCH_RESULT_LIMIT,
-          }),
-        },
-      );
-      setResults(result.profiles);
-    } catch (requestError) {
-      setResults([]);
-      setError(
-        requestError instanceof ApiError
-          ? requestError.message
-          : "Unable to search LinkedIn right now.",
-      );
-    } finally {
-      setIsSearching(false);
-    }
-  }
+    let current = true;
+    const timeout = window.setTimeout(async () => {
+      setIsSearching(true);
+      setError(null);
+      setHasSearched(true);
+      try {
+        const result = await apiFetch<{ profiles: ProspectProfile[] }>(
+          "/prospects/search/preview",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              filters: {
+                jobTitles: [],
+                industries: [],
+                companySizes: [],
+                locations: [],
+                keywords: [keyword],
+              },
+              maxResults: SEARCH_RESULT_LIMIT,
+            }),
+          },
+        );
+        if (current) setResults(uniqueProfiles(result.profiles));
+      } catch (requestError) {
+        if (current) {
+          setResults([]);
+          setError(
+            requestError instanceof ApiError
+              ? requestError.message
+              : "Unable to search LinkedIn right now.",
+          );
+        }
+      } finally {
+        if (current) setIsSearching(false);
+      }
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      current = false;
+      window.clearTimeout(timeout);
+    };
+  }, [canSearch, open, query]);
 
   async function addProspect(profile: ProspectProfile) {
     setAddingProfileUrl(profile.linkedinUrl);
@@ -152,25 +218,41 @@ export function SearchProspectModal({
           <DialogHeader>
             <DialogTitle>Add a prospect</DialogTitle>
             <DialogDescription>
-              Search your connected LinkedIn account, then add one person for review.
+              {activeLinkedInAccount
+                ? `Searching as ${activeLinkedInAccount.accountName}. Add one person for review.`
+                : "Connect LinkedIn to search and add one person for review."}
             </DialogDescription>
           </DialogHeader>
 
-          <form className="flex gap-2" onSubmit={(event) => void searchProspects(event)}>
-            <Input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setHasSearched(false);
-              }}
-              placeholder="Name, title, company, or keyword"
-              aria-label="Search LinkedIn prospects"
-            />
-            <Button type="submit" variant="brand" disabled={isSearching}>
-              {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
-              Search
-            </Button>
-          </form>
+          {canSearch ? (
+            <div className="relative">
+              <Input
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                }}
+                placeholder="Name, title, company, or keyword"
+                aria-label="Search LinkedIn prospects"
+              />
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-muted-foreground" aria-hidden>
+                {isSearching ? <Loader2 className="size-4 animate-spin" /> : <Search className="size-4" />}
+              </div>
+              <span className="sr-only" aria-live="polite">
+                {isSearching ? "Searching LinkedIn" : ""}
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground" aria-live="polite">
+              <p className="font-medium text-foreground">
+                {isCheckingLinkedIn ? "Checking your LinkedIn connection..." : "LinkedIn is not ready for search."}
+              </p>
+              <p className="mt-1">
+                {isCheckingLinkedIn
+                  ? "The search will appear here as soon as the connected account becomes active."
+                  : "Connect or reconnect the account in Channels, then this dialog will update automatically."}
+              </p>
+            </div>
+          )}
 
           {error ? (
             <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
@@ -184,7 +266,7 @@ export function SearchProspectModal({
                 const name = `${profile.firstName} ${profile.lastName}`;
                 const isAdding = addingProfileUrl === profile.linkedinUrl;
                 return (
-                  <li key={profile.linkedinUrl} className="flex items-center gap-3 p-3">
+                  <li key={profile.providerLinkedinId || profile.linkedinUrl} className="flex items-center gap-3 p-3">
                     <Avatar className="size-10">
                       {profile.avatarUrl ? <AvatarImage src={profile.avatarUrl} alt="" /> : null}
                       <AvatarFallback>{initials(profile)}</AvatarFallback>

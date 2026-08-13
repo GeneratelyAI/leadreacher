@@ -115,13 +115,13 @@ function splitCsvLine(line: string): string[] {
   return cells;
 }
 
-type ImportProspectsModalProps = {
+type ImportProspectsProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onImported: () => Promise<void> | void;
 };
 
-export function ImportProspectsModal({ open, onOpenChange, onImported }: ImportProspectsModalProps) {
+export function ImportProspects({ open, onOpenChange, onImported }: ImportProspectsProps) {
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
