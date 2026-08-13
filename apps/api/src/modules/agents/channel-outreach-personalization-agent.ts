@@ -11,23 +11,31 @@ const ChannelPersonalizationInputSchema = z.object({
   campaignName: z.string().min(1),
   baseMessage: z.string().min(1),
   step: z.number().int().min(0),
+  campaignBrief: z.object({
+    campaignName: z.string().min(1),
+    step: z.number().int().min(0),
+    valueProposition: z.string().max(280).optional(),
+    requestedAngle: z.string().max(120).optional(),
+    requestedCta: z.string().max(120).optional(),
+    proofPoints: z.array(z.string().max(180)).max(3),
+  }).default({ campaignName: "Campaign", step: 0, proofPoints: [] }),
+  evidence: z.array(z.object({
+    id: z.string().min(1).max(80),
+    value: z.string().min(1).max(280),
+    source: z.enum(["lead", "enrichment"]),
+  })).max(3).default([]),
   prospect: z.object({
     firstName: z.string(),
-    title: z.string(),
-    company: z.string(),
-    industry: z.string().nullable(),
-    companySize: z.string().nullable(),
-    location: z.string().nullable(),
-    enrichment: z.unknown().optional(),
   }),
 });
 
 export const ChannelPersonalizationOutputSchema = z.object({
   message: z.string().trim().min(1).max(1_000),
   rationale: z.string().trim().min(1).max(300),
+  evidenceFactIds: z.array(z.string().min(1).max(80)).max(2),
 });
 
-type ChannelPersonalizationInput = z.infer<typeof ChannelPersonalizationInputSchema>;
+type ChannelPersonalizationInput = z.input<typeof ChannelPersonalizationInputSchema>;
 export type ChannelPersonalizationResult = z.infer<typeof ChannelPersonalizationOutputSchema>;
 
 const SYSTEM_PROMPT = `You personalize B2B outreach using only the supplied factual prospect and campaign context.
@@ -42,13 +50,14 @@ Write for the requested channel:
 Rules:
 - Preserve the base message's real offer and intent.
 - Use the prospect's first name naturally.
-- Use at most two specific personalization facts.
+- Use at most two facts from EVIDENCE only. Cite every fact used by its exact EVIDENCE id.
+- Treat the CAMPAIGN BRIEF as the approved strategic context. Do not turn proof points into unverified claims.
 - Never infer protected traits, private behavior, intent, pain, budget, or personal circumstances.
 - Never fabricate metrics, customers, relationships, events, or content engagement.
 - Do not use markdown, emojis, em dashes, or unresolved {{placeholders}}.
 
 Return only valid JSON:
-{"message":"<channel-native personalized message>","rationale":"<facts used, briefly>"}`;
+{"message":"<channel-native personalized message>","rationale":"<facts used, briefly>","evidenceFactIds":["<evidence id>"]}`;
 
 export async function runChannelOutreachPersonalizationAgent(
   input: ChannelPersonalizationInput,

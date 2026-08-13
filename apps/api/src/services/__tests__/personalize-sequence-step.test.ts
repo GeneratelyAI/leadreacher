@@ -4,6 +4,16 @@ const { runAgent } = vi.hoisted(() => ({ runAgent: vi.fn() }));
 vi.mock("../../modules/agents/channel-outreach-personalization-agent.js", () => ({
   runChannelOutreachPersonalizationAgent: runAgent,
 }));
+vi.mock("../../lib/redis.js", () => ({
+  redis: {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue("OK"),
+    lrange: vi.fn().mockResolvedValue([]),
+    lpush: vi.fn().mockResolvedValue(1),
+    ltrim: vi.fn().mockResolvedValue("OK"),
+    expire: vi.fn().mockResolvedValue(1),
+  },
+}));
 
 import {
   personalizeSequenceStep,
@@ -40,7 +50,11 @@ describe("personalizeSequenceStep", () => {
   });
 
   it("uses the channel agent when personalization is enabled", async () => {
-    runAgent.mockResolvedValue({ message: "Personalized WhatsApp message", rationale: "Title" });
+    runAgent.mockResolvedValue({
+      message: "Personalized WhatsApp message from Ada at Analytical Engines?",
+      rationale: "Used the recorded title and company.",
+      evidenceFactIds: ["role_company"],
+    });
     const result = await personalizeSequenceStep({
       orgId: "org-1",
       channel: "whatsapp",
@@ -49,12 +63,19 @@ describe("personalizeSequenceStep", () => {
       step: 0,
       sequenceStep: { type: "whatsapp_message", message: "Base", delayHours: 0 },
     });
-    expect(result.message).toBe("Personalized WhatsApp message");
+    expect(result.message).toBe("Personalized WhatsApp message from Ada at Analytical Engines?");
+    expect(result.personalization?.tags).toMatchObject({
+      source: "groq",
+      evidenceTypes: ["role_company"],
+      quality: "accepted",
+    });
     expect(runAgent).toHaveBeenCalledWith(expect.objectContaining({
       channel: "whatsapp",
-      prospect: expect.objectContaining({
-        enrichment: { summary: "Builds analytics products" },
-      }),
+      evidence: expect.arrayContaining([
+        expect.objectContaining({ id: "role_company", value: "Founder at Analytical Engines" }),
+        expect.objectContaining({ id: "industry", value: "Software" }),
+      ]),
+      prospect: { firstName: "Ada" },
     }));
   });
 

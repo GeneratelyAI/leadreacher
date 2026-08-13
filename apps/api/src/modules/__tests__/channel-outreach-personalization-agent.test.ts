@@ -26,6 +26,7 @@ describe("channel outreach personalization agent", () => {
     callGroq.mockResolvedValue(JSON.stringify({
       message: "Hi Ada, I am reaching out because you lead engineering at Analytical Engines. Would a short overview be useful?",
       rationale: "Used the recorded title and company.",
+      evidenceFactIds: ["role_company"],
     }));
 
     const result = await runChannelOutreachPersonalizationAgent({
@@ -34,14 +35,14 @@ describe("channel outreach personalization agent", () => {
       campaignName: "Founder outreach",
       baseMessage: "Hi Ada, we help software teams improve outreach.",
       step: 0,
+      campaignBrief: {
+        campaignName: "Founder outreach",
+        step: 0,
+        proofPoints: ["Approved outreach"],
+      },
+      evidence: [{ id: "role_company", value: "Engineering leader at Analytical Engines", source: "lead" }],
       prospect: {
         firstName: "Ada",
-        title: "Engineering leader",
-        company: "Analytical Engines",
-        industry: "Software",
-        companySize: "11-50",
-        location: "London",
-        enrichment: { headline: "Building reliable systems" },
       },
     });
 
