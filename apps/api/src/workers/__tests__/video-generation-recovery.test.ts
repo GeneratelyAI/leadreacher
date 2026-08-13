@@ -256,6 +256,15 @@ describe("resolveVideoGenerationPipeline", () => {
       }),
     ).toBe("standard");
   });
+
+  it("uses an explicitly enabled personalized campaign video over the legacy strategy type", () => {
+    expect(
+      resolveVideoGenerationPipeline(
+        { campaignType: "ai_video_ad", videoConfig: { mode: "standardized", source: "generated" } },
+        { aiConfig: { video: { enabled: true, mode: "personalized", source: "generated" } } },
+      ),
+    ).toBe("personalized");
+  });
 });
 
 describe("reconcileUnknownVeoOperations", () => {

@@ -198,7 +198,18 @@ export function buildTemplateVideoContext(
 
 export function resolveVideoGenerationPipeline(
   strategy: Pick<StrategyRecord, "campaignType" | "videoConfig"> | null,
+  campaign?: Pick<CampaignRecord, "aiConfig"> | null,
 ): VideoGenerationPipeline {
+  const campaignAiConfig = asRecord(campaign?.aiConfig);
+  const campaignVideoConfig = asRecord(campaignAiConfig?.video);
+  if (
+    campaignVideoConfig?.enabled === true &&
+    campaignVideoConfig.mode === "personalized" &&
+    campaignVideoConfig.source === "generated"
+  ) {
+    return "personalized";
+  }
+
   const videoConfig = asRecord(strategy?.videoConfig);
   return strategy?.campaignType === "personalized_outreach" &&
     videoConfig?.mode === "personalized" &&

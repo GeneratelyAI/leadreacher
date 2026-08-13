@@ -95,7 +95,7 @@ export async function processTemplateOrchestrate(
   const strategy = campaign.strategyId
     ? await prisma.strategy.findFirst({ where: { id: campaign.strategyId, orgId } })
     : null;
-  if (resolveVideoGenerationPipeline(strategy) !== "personalized") return;
+  if (resolveVideoGenerationPipeline(strategy, campaign) !== "personalized") return;
 
   const template = await prisma.campaignVideoTemplate.upsert({
     where: { campaignId_version: { campaignId, version: 1 } },

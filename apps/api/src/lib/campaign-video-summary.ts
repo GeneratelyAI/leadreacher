@@ -56,9 +56,22 @@ export function buildPrimaryCampaignVideoSummary(input: {
   needsReview: boolean;
   criticScore: number | null;
 } {
-  const asset = pickPrimaryCampaignVideo(input.assets);
-  const template = input.template ?? null;
   const videoConfig = asRecord(asRecord(input.aiConfig)?.video);
+  const isGeneratedVideo =
+    videoConfig?.enabled === true &&
+    videoConfig.source === "generated" &&
+    (videoConfig.mode === "standardized" || videoConfig.mode === "personalized");
+  const legacyUsableAssets = input.assets.filter(
+    (candidate) =>
+      !["failed", "rejected"].includes(candidate.status) &&
+      candidate.needsReview !== true,
+  );
+  const asset = pickPrimaryCampaignVideo(
+    isGeneratedVideo ? input.assets : legacyUsableAssets,
+  );
+  const template = isGeneratedVideo && videoConfig?.mode === "personalized"
+    ? input.template ?? null
+    : null;
   const uploadedVideoUrl =
     videoConfig?.enabled === true &&
     videoConfig.source === "uploaded" &&
