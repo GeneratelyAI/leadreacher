@@ -34,8 +34,8 @@ beforeEach(() => {
 describe("analytics insight aggregation", () => {
   it("uses persisted sent messages and campaign lead lifecycle state for per-campaign metrics", async () => {
     messageFindMany.mockResolvedValue([
-      { leadId: "lead-1", channel: "linkedin", status: "sent", direction: "outbound", content: { message: "A concise intro" } },
-      { leadId: "lead-2", channel: "linkedin", status: "delivered", direction: "outbound", content: { message: "A concise intro" } },
+      { leadId: "lead-1", channel: "linkedin", status: "sent", direction: "outbound", content: { message: "A concise intro", personalization: { quality: "accepted", angle: "role_company", cta: "question", evidenceTypes: ["role_company"] } } },
+      { leadId: "lead-2", channel: "linkedin", status: "delivered", direction: "outbound", content: { message: "A concise intro", personalization: { quality: "accepted", angle: "role_company", cta: "question", evidenceTypes: ["role_company"] } } },
       { leadId: "lead-1", channel: "linkedin", status: "replied", direction: "inbound", content: { message: "Interested" } },
       { leadId: "lead-3", channel: "linkedin", status: "draft", direction: "outbound", content: { message: "Not sent" } },
     ]);
@@ -53,6 +53,7 @@ describe("analytics insight aggregation", () => {
       replyRate: 50,
       channels: [{ channel: "linkedin", sent: 2, replies: 1 }],
       topMessages: [{ message: "A concise intro", sent: 2, replies: 1, replyRate: 50 }],
+      personalizationSegments: [{ angle: "role_company", cta: "question", evidenceTypes: ["role_company"], sent: 2, replies: 1, replyRate: 50 }],
     });
   });
 

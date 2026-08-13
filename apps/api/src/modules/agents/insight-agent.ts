@@ -16,6 +16,15 @@ const MessageMetricSchema = z.object({
   replyRate: z.number().min(0).max(100),
 });
 
+const PersonalizationSegmentSchema = z.object({
+  angle: z.string().min(1).max(80),
+  cta: z.string().min(1).max(80),
+  evidenceTypes: z.array(z.string().min(1).max(80)).max(3),
+  sent: z.number().int().positive(),
+  replies: z.number().int().nonnegative(),
+  replyRate: z.number().min(0).max(100),
+});
+
 const InsightAgentInputSchema = z.object({
   orgId: z.string().min(1),
   campaignId: z.string().min(1),
@@ -26,6 +35,7 @@ const InsightAgentInputSchema = z.object({
   channels: z.array(ChannelMetricSchema),
   topMessages: z.array(MessageMetricSchema).max(3),
   bottomMessages: z.array(MessageMetricSchema).max(3),
+  personalizationSegments: z.array(PersonalizationSegmentSchema).max(6).default([]),
 });
 
 export const InsightAgentOutputSchema = z.object({
@@ -43,14 +53,14 @@ export const InsightAgentOutputSchema = z.object({
     .max(5),
 });
 
-export type InsightAgentInput = z.infer<typeof InsightAgentInputSchema>;
+export type InsightAgentInput = z.input<typeof InsightAgentInputSchema>;
 export type InsightAgentResult = z.infer<typeof InsightAgentOutputSchema>;
 
 const MAX_VALIDATION_RETRIES = 2;
 
 const SYSTEM_PROMPT = `You narrate B2B outreach performance using only the metrics supplied in the user input.
 
-Every claim must be directly supported by those metrics. Use only numbers present in the input. Do not invent trends, forecasts, sentiment, benchmarks, confidence, causes, or facts. Do not give generic advice. Refer to the exact campaign, channels, and message excerpts provided.
+Every claim must be directly supported by those metrics. Use only numbers present in the input. Do not invent trends, forecasts, sentiment, benchmarks, confidence, causes, or facts. Do not give generic advice. Refer to the exact campaign, channels, message excerpts, and personalization segments provided. A personalization segment is a compact tag, not a customer fact.
 
 Return up to five concise items for each section. Priority 1 is the biggest lever. Return only valid JSON with this exact shape:
 {

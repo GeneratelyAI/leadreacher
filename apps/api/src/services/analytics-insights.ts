@@ -16,6 +16,15 @@ type MessageMetric = {
   replyRate: number;
 };
 
+type PersonalizationSegment = {
+  angle: string;
+  cta: string;
+  evidenceTypes: string[];
+  sent: number;
+  replies: number;
+  replyRate: number;
+};
+
 export type CampaignInsightMetrics = Omit<InsightAgentInput, "orgId">;
 
 export type DashboardInsights = {
@@ -46,6 +55,20 @@ function messageText(content: unknown): string {
   }
 
   return "";
+}
+
+function personalizationSegment(content: unknown): Pick<PersonalizationSegment, "angle" | "cta" | "evidenceTypes"> | null {
+  if (!content || typeof content !== "object" || Array.isArray(content)) return null;
+  const personalization = (content as Record<string, unknown>).personalization;
+  if (!personalization || typeof personalization !== "object" || Array.isArray(personalization)) return null;
+  const record = personalization as Record<string, unknown>;
+  if (record.quality !== "accepted") return null;
+  const evidenceTypes = Array.isArray(record.evidenceTypes)
+    ? record.evidenceTypes.filter((value): value is string => typeof value === "string" && value.length <= 80).slice(0, 3)
+    : [];
+  const angle = typeof record.angle === "string" ? record.angle.slice(0, 80) : "general";
+  const cta = typeof record.cta === "string" ? record.cta.slice(0, 80) : "none";
+  return { angle, cta, evidenceTypes };
 }
 
 function replyRate(sent: number, replies: number): number {
@@ -90,6 +113,11 @@ export async function computeCampaignInsightMetrics(
   );
   const channelCounts = new Map<string, { sent: number; repliedLeadIds: Set<string> }>();
   const messageCounts = new Map<string, { sent: number; repliedLeadIds: Set<string> }>();
+  const personalizationCounts = new Map<string, {
+    segment: Pick<PersonalizationSegment, "angle" | "cta" | "evidenceTypes">;
+    sent: number;
+    repliedLeadIds: Set<string>;
+  }>();
 
   for (const message of outbound) {
     const channel = channelCounts.get(message.channel) ?? {
@@ -109,6 +137,19 @@ export async function computeCampaignInsightMetrics(
     grouped.sent += 1;
     if (repliedLeadIds.has(message.leadId)) grouped.repliedLeadIds.add(message.leadId);
     messageCounts.set(text, grouped);
+
+    const segment = personalizationSegment(message.content);
+    if (segment) {
+      const key = JSON.stringify(segment);
+      const groupedSegment = personalizationCounts.get(key) ?? {
+        segment,
+        sent: 0,
+        repliedLeadIds: new Set<string>(),
+      };
+      groupedSegment.sent += 1;
+      if (repliedLeadIds.has(message.leadId)) groupedSegment.repliedLeadIds.add(message.leadId);
+      personalizationCounts.set(key, groupedSegment);
+    }
   }
 
   const messageMetrics: MessageMetric[] = [...messageCounts.entries()].map(
@@ -126,6 +167,15 @@ export async function computeCampaignInsightMetrics(
     (left, right) => left.replyRate - right.replyRate || right.sent - left.sent,
   );
   const totalReplies = repliedLeadIds.size;
+  const personalizationSegments: PersonalizationSegment[] = [...personalizationCounts.values()]
+    .map(({ segment, sent, repliedLeadIds }) => ({
+      ...segment,
+      sent,
+      replies: repliedLeadIds.size,
+      replyRate: replyRate(sent, repliedLeadIds.size),
+    }))
+    .sort((left, right) => right.sent - left.sent || right.replyRate - left.replyRate)
+    .slice(0, 6);
 
   return {
     campaignId,
@@ -140,6 +190,7 @@ export async function computeCampaignInsightMetrics(
     })),
     topMessages: orderedBest.slice(0, 3),
     bottomMessages: orderedWorst.slice(0, 3),
+    personalizationSegments,
   };
 }
 
