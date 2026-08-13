@@ -16,6 +16,8 @@ import {
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { requireOrganizationOwner } from "../lib/organization-access.js";
+import { requireMfa } from "../plugins/auth.js";
 import {
   createBillingPortalSession,
   createSubscriptionCheckoutSession,
@@ -103,12 +105,13 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/billing/checkout-session",
     {
+      preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Create Stripe checkout session"),
       },
     },
     async (request, reply) => {
-      const orgId = requireOrgId(request);
+      const { orgId } = await requireOrganizationOwner(request);
       const strategy = await getLatestStrategy(orgId);
       const { campaignType, videoEnabled, lineItems } = await buildLineItems(strategy);
       const organization = await prisma.organization.findUnique({
@@ -135,12 +138,13 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/billing/portal-session",
     {
+      preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Create Stripe customer portal session"),
       },
     },
     async (request, reply) => {
-      const orgId = requireOrgId(request);
+      const { orgId } = await requireOrganizationOwner(request);
       const organization = await prisma.organization.findUnique({
         where: { id: orgId },
         select: { stripeCustomerId: true },
@@ -157,13 +161,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/billing/checkout-session/reconcile",
     {
+      preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Reconcile a completed Stripe Checkout session"),
         body: CheckoutSessionReconcileSchema,
       },
     },
     async (request, reply) => {
-      const orgId = requireOrgId(request);
+      const { orgId } = await requireOrganizationOwner(request);
       const session = await retrieveSubscriptionCheckoutSession(request.body.sessionId);
       const sessionOrgId = session.metadata?.orgId ?? session.client_reference_id;
       if (sessionOrgId !== orgId) {

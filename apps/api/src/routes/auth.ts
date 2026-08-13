@@ -17,7 +17,7 @@ import { AuthError, ValidationError } from "../lib/errors.js";
 import { bearerSecurity, errorResponses } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
-import { verifySupabaseJwt } from "../plugins/auth.js";
+import { requireMfa, verifySupabaseJwt } from "../plugins/auth.js";
 import { recoverOrganization } from "../services/organization-lifecycle.js";
 
 const BootstrapBodySchema = z.object({
@@ -132,7 +132,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/auth/organization/recover",
     {
-      preHandler: [verifySupabaseJwt],
+      preHandler: [verifySupabaseJwt, requireMfa],
       schema: {
         tags: ["Auth"],
         summary: "Recover an organization pending deletion",

@@ -3,9 +3,10 @@ import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../lib/errors.js";
 
-const { strategyFindFirst, organizationFindUnique } = vi.hoisted(() => ({
+const { strategyFindFirst, organizationFindUnique, userFindFirst } = vi.hoisted(() => ({
   strategyFindFirst: vi.fn(),
   organizationFindUnique: vi.fn(),
+  userFindFirst: vi.fn(),
 }));
 const {
   getStripePrice,
@@ -36,6 +37,7 @@ vi.mock("../../lib/prisma.js", () => ({
   prisma: {
     strategy: { findFirst: strategyFindFirst },
     organization: { findUnique: organizationFindUnique },
+    user: { findFirst: userFindFirst },
   },
 }));
 vi.mock("../../lib/stripe.js", () => ({
@@ -66,6 +68,8 @@ async function buildTestApp() {
   applyZodCompilers(app);
   app.addHook("preHandler", async (request) => {
     request.orgId = "org-1";
+    request.dbUserId = "user-1";
+    request.authAal = request.headers["x-test-aal"] === "aal1" ? "aal1" : "aal2";
   });
   app.setErrorHandler((error, _request, reply) => {
     if (error instanceof AppError) {
@@ -84,6 +88,7 @@ let app: Awaited<ReturnType<typeof buildTestApp>>;
 beforeEach(async () => {
   strategyFindFirst.mockReset();
   organizationFindUnique.mockReset();
+  userFindFirst.mockReset();
   getStripePrice.mockReset();
   createBillingPortalSession.mockReset();
   createSubscriptionCheckoutSession.mockReset();
@@ -95,6 +100,7 @@ beforeEach(async () => {
     id: "org-1",
     stripeCustomerId: null,
   });
+  userFindFirst.mockResolvedValue({ id: "user-1" });
   getStripePrice.mockImplementation(async (priceId: string) => ({
     priceId,
     unitAmount: null,
@@ -171,6 +177,19 @@ describe("billing routes", () => {
       priceIds: ["mock_price_personalized_outreach", "mock_price_video_addon"],
       customerId: null,
     });
+  });
+
+  it("requires a second factor before creating a checkout session", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/checkout-session",
+      headers: { "x-test-aal": "aal1" },
+      payload: {},
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "MFA_REQUIRED" });
+    expect(createSubscriptionCheckoutSession).not.toHaveBeenCalled();
   });
 
   it("rejects checkout when campaign type has not been selected", async () => {

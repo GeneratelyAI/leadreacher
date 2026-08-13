@@ -19,6 +19,7 @@ import { prisma } from "../lib/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { publishDashboardEvent } from "../lib/dashboard-events.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { requireMfaForEstablishedOrganization } from "../plugins/auth.js";
 import { redis } from "../lib/redis.js";
 import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
@@ -260,6 +261,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   });
 
   r.post("/social-accounts/connect", {
+    preHandler: [requireMfaForEstablishedOrganization],
     schema: {
       ...authenticatedRoute("SocialAccounts", "Create Unipile hosted-auth connect link"),
       body: ConnectSocialAccountBodySchema,
@@ -299,6 +301,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   });
 
   r.post("/social-accounts/connect/confirm", {
+    preHandler: [requireMfaForEstablishedOrganization],
     config: {
       rateLimit: {
         max: 5,

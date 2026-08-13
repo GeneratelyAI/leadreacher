@@ -100,6 +100,9 @@ vi.mock("../../lib/prisma.js", () => ({
         return state.organization;
       }),
     },
+    user: {
+      findFirst: vi.fn(async () => ({ id: "user-e2e" })),
+    },
     socialAccount: {
       findFirst: vi.fn(async () => state.socialAccounts.find((account) => account.platform === "linkedin" && account.status === "active") ?? null),
       findMany: vi.fn(async () => state.socialAccounts),
@@ -196,6 +199,8 @@ async function buildTestApp() {
   applyZodCompilers(app);
   app.addHook("preHandler", async (request) => {
     request.orgId = ORG_ID;
+    request.dbUserId = "user-e2e";
+    request.authAal = "aal2";
   });
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof AppError) {
