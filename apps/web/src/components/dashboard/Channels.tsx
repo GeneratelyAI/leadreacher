@@ -38,6 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiFetch } from "@/lib/api";
+import { openChannelConnection, waitForChannelConnection } from "@/lib/channel-connection";
 import { cn } from "@/lib/utils";
 
 type ChannelTrend = {
@@ -48,6 +49,7 @@ type ChannelTrend = {
 type ChannelAccount = {
   id: string;
   platform: string;
+  providerType: string | null;
   accountName: string;
   avatarUrl: string | null;
   status: string;
@@ -95,6 +97,12 @@ const CONNECT_CHANNEL_OPTIONS: Array<{
   { provider: "GOOGLE", label: "Gmail", mark: "gmail" },
   { provider: "OUTLOOK", label: "Outlook", mark: "outlook" },
 ];
+
+function platformForProvider(provider: ConnectProvider): string {
+  if (provider === "GOOGLE" || provider === "OUTLOOK" || provider === "MAIL") return "email";
+  if (provider === "MESSENGER") return "facebook";
+  return provider.toLowerCase();
+}
 
 function ConnectChannelMark({ mark }: { mark: (typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"] }) {
   return <ChannelLogo name={mark === "whatsapp" ? "whatsapp-mark" : mark} className="size-full object-contain" />;
@@ -223,7 +231,9 @@ function ChannelAccountRow({
         : platform === "instagram"
           ? "INSTAGRAM"
           : platform === "email" || platform === "google" || platform === "outlook" || platform === "microsoft" || platform === "imap" || platform === "mail"
-            ? "GOOGLE"
+            ? account.providerType?.toLowerCase() === "outlook" || account.providerType?.toLowerCase() === "microsoft"
+              ? "OUTLOOK"
+              : "GOOGLE"
             : "LINKEDIN";
 
   return (
@@ -312,8 +322,8 @@ function ChannelAccountRow({
             {healthy ? "Healthy" : "Needs attention"}
           </span>
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" asChild aria-label={`Open ${channelName(account.platform)} channel`}>
-              <Link href="/dashboard/settings">
+            <Button variant="ghost" size="icon" asChild aria-label={`View ${channelName(account.platform)} activity`}>
+              <Link href={`/dashboard/activity?channel=${encodeURIComponent(account.platform)}`}>
                 <ChevronRight className="size-4" />
               </Link>
             </Button>
@@ -337,13 +347,14 @@ function ChannelAccountRow({
   );
 }
 
-export function ChannelsWorkspace() {
+export function Channels() {
   const searchParams = useSearchParams();
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
   const connectStatus = searchParams.get("status");
 
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isWaitingForConnection, setIsWaitingForConnection] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -400,14 +411,49 @@ export function ChannelsWorkspace() {
   async function connect(provider: ConnectProvider) {
     setIsConnecting(true);
     try {
+      const platform = platformForProvider(provider);
+      const initialMatchingAccountCount = accounts.filter(
+        (account) => account.platform.toLowerCase() === platform,
+      ).length;
       const result = await apiFetch<{ url: string }>("/social-accounts/connect", {
         method: "POST",
         body: JSON.stringify({ provider, returnTo: "dashboard" }),
       });
-      window.location.assign(result.url);
+      const connectionWindow = openChannelConnection(result.url);
+      if (!connectionWindow) {
+        window.location.assign(result.url);
+        return;
+      }
+
+      setIsWaitingForConnection(true);
+      const connected = await waitForChannelConnection(
+        async () => {
+          const response = await apiFetch<ChannelsResponse>(`/social-accounts${queryString ? `?${queryString}` : ""}`);
+          const matchingAccounts = response.accounts.filter(
+            (account) => account.platform.toLowerCase() === platform,
+          );
+          if (
+            matchingAccounts.length <= initialMatchingAccountCount
+            || !matchingAccounts.some((account) => account.status === "active")
+          ) return false;
+
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["dashboard", "channels"] }),
+            queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
+          ]);
+          return true;
+        },
+        () => connectionWindow.close(),
+      );
+
+      if (!connected) {
+        setActionError("The account is still being activated. Keep this page open and refresh shortly.");
+      }
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to start channel connection.");
+    } finally {
       setIsConnecting(false);
+      setIsWaitingForConnection(false);
     }
   }
 
@@ -435,6 +481,11 @@ export function ChannelsWorkspace() {
       {notice ? (
         <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-700 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
           {notice}
+        </div>
+      ) : null}
+      {isWaitingForConnection ? (
+        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-700 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
+          Finish the provider sign-in in the small window. This page will update automatically.
         </div>
       ) : null}
 
