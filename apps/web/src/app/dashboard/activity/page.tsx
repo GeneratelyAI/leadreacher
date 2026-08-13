@@ -1,14 +1,14 @@
 import { Suspense } from "react";
-import { ActivityWorkspace } from "@/components/dashboard/ActivityWorkspace";
-import { DashboardPageFrame } from "@/components/dashboard/DashboardPageFrame";
+import { Activity } from "@/components/dashboard/Activity";
+import { PageFrame } from "@/components/dashboard/PageFrame";
 
 export default function ActivityPage() {
   return (
-    <DashboardPageFrame>
+    <PageFrame>
       <Suspense fallback={<DashboardRouteSkeleton />}>
-        <ActivityWorkspace />
+        <Activity />
       </Suspense>
-    </DashboardPageFrame>
+    </PageFrame>
   );
 }
 

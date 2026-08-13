@@ -6,11 +6,8 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarDays,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Loader2,
   Megaphone,
   MessageSquare,
@@ -20,19 +17,13 @@ import {
   Users,
   Video,
 } from "lucide-react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { TruncatedWithTooltip } from "@/components/dashboard/dashboard-menu";
-import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -219,7 +210,8 @@ function TrendLine({ trend }: { trend: ActivityTrend }) {
   );
 }
 
-export function ActivityWorkspace() {
+export function Activity() {
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
@@ -263,13 +255,53 @@ export function ActivityWorkspace() {
     setPage(1);
   }, [kind, channelFilter, campaignFilter, startDate, endDate]);
 
+  useEffect(() => {
+    if (total <= page * PAGE_SIZE) return;
+    const nextParams = new URLSearchParams(activityParams);
+    nextParams.set("offset", String(page * PAGE_SIZE));
+    const nextPageParams = nextParams.toString();
+    void queryClient.prefetchQuery({
+      queryKey: ["dashboard", "activity", nextPageParams],
+      queryFn: () => apiFetch<ActivityResponse>(`/dashboard/activity?${nextPageParams}`),
+      staleTime: 30_000,
+    });
+  }, [activityParams, page, queryClient, total]);
+
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const dayGroups = useMemo(() => groupByDay(activity), [activity]);
-  const filterLabel = campaignFilter
-    ? campaigns.find((campaign) => campaign.id === campaignFilter)?.name ?? "Campaign"
-    : channelFilter
-      ? channelFilter
-      : "Filter";
+  const selectedFilter = campaignFilter ? `campaign:${campaignFilter}` : channelFilter ? `channel:${channelFilter}` : "";
+  const filterGroups: FilterGroup[] = [
+    {
+      label: "Channels",
+      options: channels.map((channel) => ({
+        value: `channel:${channel}`,
+        label: channelDisplayName(channel),
+        icon: <DashboardChannelLogo platform={channel} className="size-6" />,
+      })),
+    },
+    {
+      label: "Campaigns",
+      options: campaigns.map((campaign) => ({
+        value: `campaign:${campaign.id}`,
+        label: campaign.name,
+      })),
+    },
+  ].filter((group) => group.options.length > 0);
+
+  function setVisualFilter(next: string) {
+    if (!next) {
+      setChannelFilter("");
+      setCampaignFilter("");
+      return;
+    }
+    if (next.startsWith("channel:")) {
+      setChannelFilter(next.slice("channel:".length));
+      setCampaignFilter("");
+      return;
+    }
+    setCampaignFilter(next.slice("campaign:".length));
+    setChannelFilter("");
+  }
 
   return (
     <div className="space-y-6">
@@ -337,48 +369,13 @@ export function ActivityWorkspace() {
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
           <div className="flex items-center gap-2"><h2 className="text-sm font-semibold">{dayGroups[0]?.label ?? "Activity"}</h2>{isRefreshing ? <span className="text-xs text-muted-foreground">Updating…</span> : null}</div>
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2.5" />}>
-              <Filter className="size-3.5" />
-              <span className="max-w-40 truncate">{filterLabel}</span>
-              <ChevronDown className="size-3.5 opacity-70" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-56">
-              <DropdownMenuItem
-                onClick={() => {
-                  setChannelFilter("");
-                  setCampaignFilter("");
-                }}
-              >
-                All activity
-                {!channelFilter && !campaignFilter ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-              </DropdownMenuItem>
-              {channels.map((channel) => (
-                <DropdownMenuItem
-                  key={channel}
-                  onClick={() => {
-                    setChannelFilter(channel);
-                    setCampaignFilter("");
-                  }}
-                >
-                  Channel: {channel}
-                  {channelFilter === channel ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-                </DropdownMenuItem>
-              ))}
-              {campaigns.map((campaign) => (
-                <DropdownMenuItem
-                  key={campaign.id}
-                  onClick={() => {
-                    setCampaignFilter(campaign.id);
-                    setChannelFilter("");
-                  }}
-                >
-                  <TruncatedWithTooltip text={campaign.name} />
-                  {campaignFilter === campaign.id ? <Check className="ml-auto size-3.5 shrink-0" aria-hidden /> : null}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Filter
+            value={selectedFilter}
+            groups={filterGroups}
+            onValueChange={setVisualFilter}
+            allLabel="All activity"
+            aria-label="Filter activity"
+          />
         </div>
 
         {isLoading ? (
