@@ -92,6 +92,21 @@ export const CAMPAIGN_PRICE_CONFIG: Record<
 
 export const CAMPAIGN_TYPES = CampaignTypeSchema.options;
 
+const PLAN_DISPLAY_LABELS = new Set<string>(
+  Object.values(CAMPAIGN_PRICE_CONFIG).map((entry) => entry.label),
+);
+
+// organizations.plan is a free-text column (no DB enum), so stale rows can
+// hold a raw campaignType key or other internal value instead of a label.
+// Guard the boundary rather than trust it - never let a stored value that
+// isn't a known display label reach the UI verbatim.
+export function resolvePlanDisplayLabel(plan: string | null | undefined): string {
+  if (plan && PLAN_DISPLAY_LABELS.has(plan)) {
+    return plan;
+  }
+  return "Starter";
+}
+
 function resolvePriceId(
   key: CatalogLineItem["key"],
   envKey: keyof typeof env,

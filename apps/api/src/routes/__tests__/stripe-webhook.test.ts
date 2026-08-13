@@ -140,7 +140,7 @@ describe("POST /webhooks/stripe", () => {
         subscriptionStatus: "active",
         planPriceId: "price_personalized",
         currentPeriodEnd: new Date(1_800_000_000 * 1000),
-        plan: "personalized_outreach",
+        plan: "Personalized outreach",
       },
     });
     expect(add).toHaveBeenCalledWith(

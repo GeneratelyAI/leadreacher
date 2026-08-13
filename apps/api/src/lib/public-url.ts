@@ -170,7 +170,7 @@ export async function fetchPublicText(
         dispatcher,
         redirect: "manual",
         headers: {
-          "User-Agent": "LeadReacher/1.0 (+https://leadreacher.com)",
+          "User-Agent": "LeadReacher/1.0 (+https://www.leadreacher.ai)",
           Accept: options.accept ?? "text/html,application/xhtml+xml",
         },
         signal: AbortSignal.timeout(timeoutMs),

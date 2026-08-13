@@ -4,6 +4,7 @@ import { z } from "zod";
 import { authenticatedRoute } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
+import { resolvePlanDisplayLabel } from "../lib/billing/pricing.js";
 
 const UpdateDashboardSettingsSchema = z.object({
   organizationName: z.string().trim().min(1).max(120),
@@ -48,7 +49,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
         ? {
             id: organization.id,
             name: organization.name,
-            plan: organization.plan,
+            plan: resolvePlanDisplayLabel(organization.plan),
             subscriptionStatus: organization.subscriptionStatus,
             currentPeriodEnd: organization.currentPeriodEnd,
             hasBillingPortal: Boolean(organization.stripeCustomerId),
@@ -82,7 +83,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
       organization: {
         id: organization.id,
         name: organization.name,
-        plan: organization.plan,
+        plan: resolvePlanDisplayLabel(organization.plan),
         subscriptionStatus: organization.subscriptionStatus,
         currentPeriodEnd: organization.currentPeriodEnd,
         hasBillingPortal: Boolean(organization.stripeCustomerId),

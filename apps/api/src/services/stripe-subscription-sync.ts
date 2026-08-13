@@ -1,3 +1,4 @@
+import { CAMPAIGN_PRICE_CONFIG, type CampaignType } from "../lib/billing/pricing.js";
 import { prisma } from "../lib/prisma.js";
 import { videoGenerationQueue } from "../lib/queue.js";
 import { subscriptionIsEntitled, synchronizeBillingSuspension } from "./entitlements.js";
@@ -39,6 +40,13 @@ function readCurrentPeriodEnd(subscription: JsonRecord): Date | null {
   return typeof value === "number" && Number.isFinite(value)
     ? new Date(value * 1000)
     : null;
+}
+
+function resolvePlanLabel(campaignType: string | null): string {
+  if (campaignType && campaignType in CAMPAIGN_PRICE_CONFIG) {
+    return CAMPAIGN_PRICE_CONFIG[campaignType as CampaignType].label;
+  }
+  return "starter";
 }
 
 async function resolveOrganizationForStripeObject(
@@ -148,7 +156,7 @@ export async function synchronizeStripeSubscription(value: unknown): Promise<{
       subscriptionStatus: status,
       ...(planPriceId ? { planPriceId } : {}),
       ...(currentPeriodEnd ? { currentPeriodEnd } : {}),
-      plan: isActive ? (campaignType ?? "starter") : "starter",
+      plan: isActive ? resolvePlanLabel(campaignType) : "starter",
     },
   });
 
