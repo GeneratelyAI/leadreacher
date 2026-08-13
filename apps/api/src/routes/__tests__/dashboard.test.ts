@@ -42,6 +42,7 @@ const {
   runReplyDraftAgent,
   readCachedAnalyticsInsights,
   analyticsInsightsQueueAdd,
+  videoGenerationQueueAdd,
   readDashboardChrome,
   cacheDashboardChrome,
   invalidateDashboardChrome,
@@ -85,6 +86,7 @@ const {
   runReplyDraftAgent: vi.fn(),
   readCachedAnalyticsInsights: vi.fn(),
   analyticsInsightsQueueAdd: vi.fn(),
+  videoGenerationQueueAdd: vi.fn(),
   readDashboardChrome: vi.fn(),
   cacheDashboardChrome: vi.fn(),
   invalidateDashboardChrome: vi.fn(),
@@ -110,6 +112,11 @@ vi.mock("../../lib/prisma.js", () => ({
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_ANALYTICS_INSIGHTS: "analytics-insights",
   analyticsInsightsQueue: { add: analyticsInsightsQueueAdd },
+  videoGenerationQueue: { add: videoGenerationQueueAdd },
+}));
+vi.mock("../../lib/dashboard-events.js", () => ({
+  dashboardEventChannel: (orgId: string) => `dashboard:${orgId}`,
+  publishDashboardEvent: vi.fn(),
 }));
 vi.mock("../../lib/dashboard-cache.js", () => ({
   readDashboardChrome,
@@ -372,7 +379,7 @@ describe("dashboard overview", () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers["server-timing"]).toMatch(/^app;dur=/);
     expect(response.json()).toMatchObject({
-      organization: { name: "Acme", plan: "starter" },
+      organization: { name: "Acme", plan: "Starter" },
       engine: { status: "running" },
       unreadNotificationCount: 1,
       channels: expect.arrayContaining([expect.objectContaining({ id: "account-1", platform: "linkedin" })]),
@@ -480,6 +487,60 @@ describe("dashboard overview", () => {
     );
   });
 
+  it("enables a standard campaign video and queues generation", async () => {
+    campaignFindFirst.mockResolvedValue({ id: "campaign-1", aiConfig: {} });
+    campaignLeadFindFirst.mockResolvedValue({ leadId: "lead-1" });
+    campaignUpdate.mockResolvedValue({ id: "campaign-1" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/campaigns/campaign-1/video/enable",
+      payload: { mode: "standardized" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ id: "campaign-1", status: "generating" });
+    expect(campaignUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "campaign-1" },
+      data: expect.objectContaining({
+        aiConfig: expect.objectContaining({
+          video: expect.objectContaining({ enabled: true, source: "generated", mode: "standardized" }),
+        }),
+      }),
+    }));
+    expect(videoGenerationQueueAdd).toHaveBeenCalledWith(
+      "enable-standard-campaign-video",
+      expect.objectContaining({ campaignId: "campaign-1", leadId: "lead-1", jobType: "orchestrate" }),
+      expect.objectContaining({ jobId: "standard-campaign-video-campaign-1" }),
+    );
+  });
+
+  it("enables personalized campaign video generation with a template job", async () => {
+    campaignFindFirst.mockResolvedValue({ id: "campaign-1", aiConfig: {} });
+    campaignLeadFindFirst.mockResolvedValue({ leadId: "lead-1" });
+    campaignUpdate.mockResolvedValue({ id: "campaign-1" });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/dashboard/campaigns/campaign-1/video/enable",
+      payload: { mode: "personalized" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(campaignUpdate).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({
+        aiConfig: expect.objectContaining({
+          video: expect.objectContaining({ enabled: true, source: "generated", mode: "personalized" }),
+        }),
+      }),
+    }));
+    expect(videoGenerationQueueAdd).toHaveBeenCalledWith(
+      "enable-personalized-campaign-video",
+      expect.objectContaining({ campaignId: "campaign-1", pipeline: "personalized", jobType: "template-orchestrate" }),
+      expect.objectContaining({ jobId: "personalized-campaign-video-campaign-1" }),
+    );
+  });
+
   it("builds primary campaign video summaries for unused and ready assets", () => {
     expect(
       buildPrimaryCampaignVideoSummary({
@@ -546,6 +607,24 @@ describe("dashboard overview", () => {
       paused: true,
       needsReview: false,
       criticScore: null,
+    });
+
+    expect(
+      buildPrimaryCampaignVideoSummary({
+        aiConfig: { video: { paused: true } },
+        assets: [{
+          id: "stale-video-1",
+          status: "failed",
+          videoUrl: null,
+          thumbnailUrl: null,
+          needsReview: true,
+        }],
+        outboundContents: [],
+      }),
+    ).toMatchObject({
+      id: null,
+      status: "unused",
+      needsReview: false,
     });
   });
 
@@ -877,7 +956,7 @@ describe("dashboard overview", () => {
       organization: {
         id: "org-1",
         name: "Acme",
-        plan: "starter",
+        plan: "Starter",
         subscriptionStatus: "active",
         hasBillingPortal: true,
       },

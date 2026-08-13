@@ -9,11 +9,13 @@ import {
   errorResponses
 } from "../lib/openapi.js";
 import { prisma } from "../lib/prisma.js";
+import { resolvePlanDisplayLabel } from "../lib/billing/pricing.js";
 import { cacheDashboardChrome, invalidateDashboardChrome, readDashboardChrome } from "../lib/dashboard-cache.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { buildPrimaryCampaignVideoSummary } from "../lib/campaign-video-summary.js";
-import { dashboardEventChannel } from "../lib/dashboard-events.js";
+import { dashboardEventChannel, publishDashboardEvent } from "../lib/dashboard-events.js";
+import { videoGenerationQueue } from "../lib/queue.js";
 import { createRedisSubscriber } from "../lib/redis.js";
 import { registerDashboardSettingsRoutes } from "./dashboard-settings.js";
 import { registerDashboardProspectRoutes } from "./dashboard-prospects.js";
@@ -120,6 +122,10 @@ const DashboardCampaignsQuerySchema = z.object({
 
 const CampaignVideoPatchSchema = z.object({
   paused: z.boolean(),
+});
+
+const CampaignVideoEnableSchema = z.object({
+  mode: z.enum(["standardized", "personalized"]),
 });
 
 const SENT_MESSAGE_STATUSES = ["sent", "delivered", "opened", "replied"];
@@ -417,7 +423,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         select: { id: true, platform: true, accountName: true, status: true },
       }),
       prisma.message.count({
-        where: { orgId, direction: "inbound", OR: [{ readAt: null }, { handledAt: null }] },
+        where: { orgId, direction: "inbound", readAt: null },
       }),
       prisma.message.findMany({
         where: { orgId },
@@ -435,7 +441,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     ]);
 
     const value: DashboardChrome = {
-      organization: { name: organization?.name ?? "Workspace", plan: organization?.plan ?? "starter" },
+      organization: { name: organization?.name ?? "Workspace", plan: resolvePlanDisplayLabel(organization?.plan) },
       engine: resolveDashboardEngine({
         subscriptionStatus: organization?.subscriptionStatus ?? null,
         activeChannelCount,
@@ -692,7 +698,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         where: {
           orgId,
           direction: "inbound",
-          OR: [{ readAt: null }, { handledAt: null }],
+          readAt: null,
         },
       }),
       prisma.message.findMany({
@@ -1149,7 +1155,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({
       organization: {
         name: organization?.name ?? "LeadReacher workspace",
-        plan: organization?.plan ?? "starter",
+        plan: resolvePlanDisplayLabel(organization?.plan),
         subscriptionStatus: organization?.subscriptionStatus ?? null,
         hasBillingPortal: Boolean(organization?.stripeCustomerId),
       },
@@ -1218,6 +1224,81 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     });
 
     return reply.send({ id: campaign.id, paused: body.paused });
+  });
+
+  r.post("/dashboard/campaigns/:campaignId/video/enable", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Generate a campaign video"),
+      params: CampaignIdParamsSchema,
+      body: CampaignVideoEnableSchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { campaignId } = request.params;
+    const { mode } = request.body;
+    const [campaign, firstCampaignLead] = await Promise.all([
+      prisma.campaign.findFirst({
+        where: { id: campaignId, orgId },
+        select: { id: true, aiConfig: true },
+      }),
+      prisma.campaignLead.findFirst({
+        where: { campaignId, campaign: { orgId } },
+        orderBy: { createdAt: "asc" },
+        select: { leadId: true },
+      }),
+    ]);
+    if (!campaign) throw new NotFoundError("Campaign not found");
+    if (!firstCampaignLead) {
+      throw new NotFoundError("Add a prospect before enabling a campaign video");
+    }
+
+    const aiConfig = asRecord(campaign.aiConfig) ?? {};
+    const currentVideo = asRecord(aiConfig.video) ?? {};
+    const nextAiConfig = {
+      ...aiConfig,
+      video: {
+        ...currentVideo,
+        enabled: true,
+        source: "generated",
+        mode,
+        tone: typeof currentVideo.tone === "string" ? currentVideo.tone : "professional",
+        paused: false,
+      },
+    };
+
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { aiConfig: nextAiConfig },
+    });
+    const isPersonalized = mode === "personalized";
+    await videoGenerationQueue.add(
+      isPersonalized
+        ? "enable-personalized-campaign-video"
+        : "enable-standard-campaign-video",
+      isPersonalized
+        ? {
+            orgId,
+            campaignId,
+            pipeline: "personalized",
+            jobType: "template-orchestrate" as const,
+          }
+        : {
+            orgId,
+            campaignId,
+            leadId: firstCampaignLead.leadId,
+            pipeline: "standard",
+            jobType: "orchestrate" as const,
+          },
+      {
+        jobId: isPersonalized
+          ? `personalized-campaign-video-${campaignId}`
+          : `standard-campaign-video-${campaignId}`,
+        attempts: 3,
+      },
+    );
+    await publishDashboardEvent({ orgId, type: "video.updated", resources: { campaignId } });
+
+    return reply.send({ id: campaign.id, status: "generating" });
   });
 
   r.get("/dashboard/activity", {

@@ -34,10 +34,23 @@ function splitHeadline(headline: string | undefined): { title: string; company: 
   };
 }
 
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+function isUsableLinkedInProfileUrl(value: string | undefined): value is string {
+  if (!value?.startsWith("https://www.linkedin.com/in/")) return false;
+  const identifier = value.slice("https://www.linkedin.com/in/".length).split(/[/?#]/, 1)[0]?.trim();
+  return Boolean(identifier) && !["undefined", "null"].includes(identifier.toLowerCase());
+}
+
 function profileUrl(result: UnipilePeopleSearchResult): string | null {
-  if (result.profile_url?.startsWith("https://")) return result.profile_url;
-  if (result.public_identifier) {
-    return `https://www.linkedin.com/in/${result.public_identifier}`;
+  const providerUrl = optionalString(result.profile_url);
+  if (isUsableLinkedInProfileUrl(providerUrl)) return providerUrl;
+
+  const publicIdentifier = optionalString(result.public_identifier);
+  if (publicIdentifier && !["undefined", "null"].includes(publicIdentifier.toLowerCase())) {
+    return `https://www.linkedin.com/in/${publicIdentifier}`;
   }
   return null;
 }
@@ -54,11 +67,11 @@ export function normalizeUnipileProspect(
     linkedinUrl,
     ...name,
     ...headline,
-    location: result.location,
-    industry: result.industry,
-    publicIdentifier: result.public_identifier,
+    location: optionalString(result.location),
+    industry: optionalString(result.industry),
+    publicIdentifier: optionalString(result.public_identifier),
     providerLinkedinId: result.id,
-    avatarUrl: result.public_picture_url_large ?? result.public_picture_url,
+    avatarUrl: optionalString(result.public_picture_url_large) ?? optionalString(result.public_picture_url),
     enrichmentData: {
       provider: "unipile",
       product: result.product,

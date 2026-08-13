@@ -46,6 +46,37 @@ describe("normalizeUnipileProspect", () => {
     })).toBeNull();
   });
 
+  it("drops provider placeholders instead of generating an undefined LinkedIn URL", () => {
+    expect(normalizeUnipileProspect({
+      id: "placeholder-id",
+      display_name: "Clara Example",
+      public_identifier: "undefined",
+      profile_url: "https://www.linkedin.com/in/undefined",
+      network_distance: "OUT_OF_NETWORK",
+      product: "classic",
+    })).toBeNull();
+  });
+
+  it("omits null provider fields from the import-safe profile", () => {
+    const prospect = normalizeUnipileProspect({
+      id: "ACo123",
+      display_name: "Ada Lovelace",
+      public_identifier: "ada-lovelace",
+      location: null as unknown as string,
+      industry: null as unknown as string,
+      public_picture_url: null as unknown as string,
+      network_distance: "SECOND_DEGREE",
+      product: "classic",
+    });
+
+    expect(prospect).toEqual(expect.objectContaining({
+      linkedinUrl: "https://www.linkedin.com/in/ada-lovelace",
+      location: undefined,
+      industry: undefined,
+      avatarUrl: undefined,
+    }));
+  });
+
   it("uses the DSN-based search for legacy connected account IDs", async () => {
     const searchLinkedInPeopleLegacy = vi.fn().mockResolvedValue({ items: [], total_count: 0 });
     const listLinkedInRelations = vi.fn().mockResolvedValue([]);
