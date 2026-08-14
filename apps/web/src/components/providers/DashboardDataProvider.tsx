@@ -15,7 +15,10 @@ const DASHBOARD_EVENT_TYPES = new Set([
 const STREAM_RECONNECT_DELAY_MS = 5_000;
 const STREAM_FALLBACK_REFETCH_MS = 30_000;
 const DASHBOARD_CACHE_TTL_MS = 10 * 60_000;
-const DASHBOARD_CACHE_VERSION = "v1";
+// v2 discards caches created while pending prefetches were serializable. A
+// pending query can reject after hydration and makes React Query report an
+// unhandled dehydration error even though the view can recover normally.
+const DASHBOARD_CACHE_VERSION = "v2";
 const PERSISTED_DASHBOARD_QUERY_TYPES = new Set([
   "chrome",
   "overview",
@@ -222,7 +225,13 @@ export function DashboardDataProvider({ children, scope }: { children: ReactNode
       writeTimer = window.setTimeout(() => {
         try {
           const state = dehydrate(queryClient, {
-            shouldDehydrateQuery: (query) => shouldPersistDashboardQuery(query.queryKey),
+            // Persist data, never an in-flight request. Navigation prefetches
+            // are intentionally optimistic and may fail independently of the
+            // active page; dehydrating one as pending causes a later rejection
+            // to surface as a React Query console error during hydration.
+            shouldDehydrateQuery: (query) => (
+              query.state.status === "success" && shouldPersistDashboardQuery(query.queryKey)
+            ),
           });
           window.sessionStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), state }));
         } catch {
