@@ -1,10 +1,15 @@
 name: Staging functional E2E
 
 on:
-  workflow_run:
-    workflows: [Deployment smoke]
-    types: [completed]
+  push:
     branches: [develop]
+    paths:
+      - ".github/workflows/staging-functional-e2e.yml"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "packages/shared/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   workflow_dispatch:
     inputs:
       ref:
@@ -22,14 +27,12 @@ concurrency:
 
 jobs:
   browser-flows:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 35
     environment: staging
     env:
       PLAYWRIGHT_BASE_URL: ${{ secrets.STAGING_WEB_URL }}
+      STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
       E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL }}
       E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
       E2E_PROSPECT_QUERY: ${{ secrets.STAGING_E2E_PROSPECT_QUERY }}
@@ -45,7 +48,7 @@ jobs:
         id: candidate
         shell: bash
         env:
-          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
         run: |
           candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
           if ! git merge-base --is-ancestor "$candidate" origin/develop; then
@@ -55,8 +58,7 @@ jobs:
           echo "sha=$candidate" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
-          # Pin the tests to the deployment-smoke candidate after verifying
-          # that it is part of the trusted staging branch history.
+          # Pin the tests to the trusted staging candidate after verification.
           ref: ${{ steps.candidate.outputs.sha }}
           fetch-depth: 1
 
@@ -66,6 +68,7 @@ jobs:
         run: |
           required=(
             PLAYWRIGHT_BASE_URL
+            STAGING_API_URL
             E2E_EMAIL
             E2E_PASSWORD
             E2E_PROSPECT_QUERY
@@ -83,6 +86,22 @@ jobs:
             exit 0
           fi
           echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the trusted staging deployment
+        if: steps.configuration.outputs.configured == 'true'
+        shell: bash
+        env:
+          API_URL: ${{ env.STAGING_API_URL }}
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 10 "$API_URL/ready" >/dev/null; then
+              exit 0
+            fi
+            echo "Staging API is not ready yet (attempt $attempt/30)."
+            sleep 10
+          done
+          echo "Staging API did not become ready within five minutes." >&2
+          exit 1
 
       - uses: pnpm/action-setup@v4
         if: steps.configuration.outputs.configured == 'true'

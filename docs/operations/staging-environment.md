@@ -110,16 +110,22 @@ manual staging delivery described in the release runbook.
 
 ## Automated checks
 
-- **Staging provider canary** runs nightly and can be started manually. It
-  checks out `develop` and invokes the shared provider readiness function once.
+- **Staging provider canary** runs nightly, on relevant trusted `develop`
+  changes, and can be started manually. The push trigger is intentional:
+  GitHub does not register a newly introduced `workflow_dispatch` workflow
+  until it exists on the default branch, so this provides staging evidence
+  before any production promotion. It checks out `develop` and invokes the
+  shared provider readiness function once.
   It validates Stripe test price IDs, a read-only Unipile account list, R2 MP4
   range playback, and optional Apify connectivity. It archives its structured
   report and does not replace `preflight:production`.
-- **Staging functional E2E** runs after successful deployment smoke and extends
-  the existing eight-project Playwright matrix. The controlled path signs in,
-  synchronizes channels, runs a read-only prospect search, and opens the
-  campaign review gate. It does not add a prospect or send outreach.
-- **Staging safe journeys** run after successful staging browser checks. They
+- **Staging functional E2E** runs on relevant trusted `develop` changes,
+  waits for API readiness, and extends the existing eight-project Playwright
+  matrix. The controlled path signs in, synchronizes channels, runs a
+  read-only prospect search, and opens the campaign review gate. It does not
+  add a prospect or send outreach.
+- **Staging safe journeys** run on the same trusted changes but wait for the
+  successful functional E2E result for the exact candidate commit. They
   create run-scoped, synthetic fixtures, create and expire a Stripe test
   Checkout Session, send one signed synthetic `checkout.session.completed`
   webhook plus its duplicate, verify campaign review blocking, and verify the

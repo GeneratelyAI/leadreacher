@@ -1,10 +1,15 @@
 name: Staging safe journeys
 
 on:
-  workflow_run:
-    workflows: [Staging functional E2E]
-    types: [completed]
+  push:
     branches: [develop]
+    paths:
+      - ".github/workflows/staging-safe-journeys.yml"
+      - "apps/api/**"
+      - "apps/web/**"
+      - "packages/shared/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   workflow_dispatch:
     inputs:
       ref:
@@ -22,9 +27,6 @@ concurrency:
 
 jobs:
   safe-journeys:
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: staging
@@ -51,7 +53,7 @@ jobs:
         id: candidate
         shell: bash
         env:
-          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
         run: |
           candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
           if ! git merge-base --is-ancestor "$candidate" origin/develop; then
@@ -93,6 +95,31 @@ jobs:
             exit 0
           fi
           echo "configured=true" >> "$GITHUB_OUTPUT"
+      - name: Wait for functional staging validation for this commit
+        if: steps.configuration.outputs.configured == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+        run: |
+          for attempt in $(seq 1 35); do
+            result="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?event=push&head_sha=${CANDIDATE_SHA}&per_page=100" --jq '[.workflow_runs[] | select(.name == "Staging functional E2E")] | sort_by(.created_at) | last // empty')"
+            if [ -n "$result" ]; then
+              status="$(jq -r '.status' <<<"$result")"
+              conclusion="$(jq -r '.conclusion // empty' <<<"$result")"
+              if [ "$status" = "completed" ]; then
+                if [ "$conclusion" = "success" ]; then
+                  exit 0
+                fi
+                echo "Functional staging validation ended with $conclusion." >&2
+                exit 1
+              fi
+            fi
+            echo "Functional staging validation is not complete yet (attempt $attempt/35)."
+            sleep 10
+          done
+          echo "Functional staging validation did not complete within six minutes." >&2
+          exit 1
       - uses: pnpm/action-setup@v4
         if: steps.configuration.outputs.configured == 'true'
         with:

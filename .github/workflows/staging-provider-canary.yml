@@ -1,6 +1,14 @@
 name: Staging provider canary
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/staging-provider-canary.yml"
+      - "apps/api/**"
+      - "packages/shared/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
   schedule:
     - cron: "23 3 * * *"
   workflow_dispatch:
@@ -71,7 +79,7 @@ jobs:
         id: candidate
         shell: bash
         env:
-          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || 'develop' }}
+          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
         run: |
           candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
           if ! git merge-base --is-ancestor "$candidate" origin/develop; then
