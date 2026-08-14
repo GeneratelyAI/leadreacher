@@ -5,6 +5,7 @@ on:
     branches: [develop]
     paths:
       - ".github/workflows/staging-functional-e2e.yml"
+      - ".github/workflows/staging-safe-journeys.yml"
       - "apps/api/**"
       - "apps/web/**"
       - "packages/shared/**"
