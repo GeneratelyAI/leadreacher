@@ -1040,7 +1040,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 lg:size-8" aria-label="Conversation actions" />}>
-                          <MoreHorizontal />
+                          <MoreHorizontal weight="regular" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem render={<Link href={`/dashboard/prospects/${detail.leadId}`} />}>

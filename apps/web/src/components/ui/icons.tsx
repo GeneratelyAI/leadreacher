@@ -28,6 +28,8 @@ import {
   ChatText,
   Check,
   CheckCircle,
+  CheckFat,
+  CheckSquare,
   Circle,
   CircleNotch,
   Clock,
@@ -76,6 +78,7 @@ import {
   Robot,
   Shield,
   ShieldCheck,
+  SidebarSimple,
   SignOut,
   SlidersHorizontal,
   Sparkle,
@@ -104,9 +107,14 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 import type { Icon as AppIcon, IconProps, IconWeight } from "@phosphor-icons/react";
+import { forwardRef } from "react";
 
 export type { AppIcon, IconProps, IconWeight };
 export { IconContext };
+
+export const Link2 = forwardRef<SVGSVGElement, IconProps>(function Link2({ weight = "bold", ...props }, ref) {
+  return <LinkSimple ref={ref} {...props} weight={weight} />;
+});
 
 export {
   Archive,
@@ -119,6 +127,8 @@ export {
   Brain,
   Briefcase,
   Check,
+  CheckFat,
+  CheckSquare,
   Circle,
   Clock,
   Command,
@@ -190,7 +200,6 @@ export {
   Info as InfoIcon,
   SquaresFour as LayoutDashboard,
   Lifebuoy as LifeBuoy,
-  LinkSimple as Link2,
   CircleNotch as Loader2,
   CircleNotch as Loader2Icon,
   CircleNotch as LoaderCircle,
@@ -204,8 +213,8 @@ export {
   DotsThree as MoreHorizontal,
   DotsThreeVertical as MoreVertical,
   XCircle as OctagonXIcon,
-  SquaresFour as PanelLeftClose,
-  SquaresFour as PanelLeftOpen,
+  SidebarSimple as PanelLeftClose,
+  SidebarSimple as PanelLeftOpen,
   Pen as PenLine,
   PencilSimple as Pencil,
   ArrowsClockwise as RefreshCw,

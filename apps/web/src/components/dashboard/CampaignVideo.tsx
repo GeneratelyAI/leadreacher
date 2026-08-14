@@ -202,7 +202,7 @@ export function CampaignVideo({ campaignId, video, onVideoChange }: CampaignVide
               />
             }
           >
-            <MoreHorizontal className="size-5" aria-hidden />
+            <MoreHorizontal className="size-5" weight="regular" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             {isPreviewable(resolved) && canManage ? (

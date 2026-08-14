@@ -329,7 +329,7 @@ function ChannelAccountRow({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Channel actions" />}>
-                <MoreVertical className="size-4" />
+                <MoreVertical className="size-4" weight="regular" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onReconnect(reconnectProvider)}>

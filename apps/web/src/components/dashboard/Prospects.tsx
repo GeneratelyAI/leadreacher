@@ -725,7 +725,7 @@ export function Prospects() {
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 shrink-0" aria-label={`Actions for ${name}`} />}>
-                          <MoreHorizontal />
+                          <MoreHorizontal weight="regular" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>
@@ -816,7 +816,7 @@ export function Prospects() {
                         <TableCell onClick={(event) => event.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}>
-                              <MoreHorizontal />
+                              <MoreHorizontal weight="regular" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>
