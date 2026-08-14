@@ -41,6 +41,10 @@ export async function getStaleWorkerLeases(
     (name) => !getPausedWorkerFamilies().has(name),
   ),
 ): Promise<WorkerLeaseName[]> {
+  if (required.length === 0) {
+    return [];
+  }
+
   const values = await redis.mget(required.map(leaseKey));
   return required.filter((_, index) => !values[index]);
 }

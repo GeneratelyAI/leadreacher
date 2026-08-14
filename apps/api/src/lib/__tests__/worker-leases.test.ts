@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const redisMocks = vi.hoisted(() => ({
   mget: vi.fn(),
@@ -23,12 +23,21 @@ import {
 } from "../worker-leases.js";
 
 describe("worker leases", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("reports only worker families with missing leases", async () => {
     redisMocks.mget.mockResolvedValueOnce(["fresh", null, "fresh"]);
 
     await expect(
       getStaleWorkerLeases(["campaign", "video", "analytics"]),
     ).resolves.toEqual(["video"]);
+  });
+
+  it("does not issue an invalid Redis command when no worker families are required", async () => {
+    await expect(getStaleWorkerLeases([])).resolves.toEqual([]);
+    expect(redisMocks.mget).not.toHaveBeenCalled();
   });
 
   it("renews leases and records activity without customer payloads", async () => {
