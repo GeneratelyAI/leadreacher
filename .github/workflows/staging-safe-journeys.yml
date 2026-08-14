@@ -29,7 +29,9 @@ concurrency:
 jobs:
   safe-journeys:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The functional browser matrix can take up to 35 minutes. Leave enough
+    # time for it and the safe API journeys to finish on the same candidate.
+    timeout-minutes: 55
     environment: staging
     env:
       STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
@@ -103,7 +105,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
         run: |
-          for attempt in $(seq 1 35); do
+          for attempt in $(seq 1 240); do
             result="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs?event=push&head_sha=${CANDIDATE_SHA}&per_page=100" --jq '[.workflow_runs[] | select(.name == "Staging functional E2E")] | sort_by(.created_at) | last // empty')"
             if [ -n "$result" ]; then
               status="$(jq -r '.status' <<<"$result")"
@@ -116,10 +118,10 @@ jobs:
                 exit 1
               fi
             fi
-            echo "Functional staging validation is not complete yet (attempt $attempt/35)."
+            echo "Functional staging validation is not complete yet (attempt $attempt/240)."
             sleep 10
           done
-          echo "Functional staging validation did not complete within six minutes." >&2
+          echo "Functional staging validation did not complete within 40 minutes." >&2
           exit 1
       - uses: pnpm/action-setup@v4
         if: steps.configuration.outputs.configured == 'true'
