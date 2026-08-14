@@ -20,7 +20,7 @@ import {
   TrendingUp,
   UserRound,
   Users,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";

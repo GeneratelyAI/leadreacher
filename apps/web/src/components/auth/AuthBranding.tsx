@@ -9,8 +9,8 @@ import {
   Sparkles,
   TrendingUp,
   Users,
-  type LucideIcon,
-} from "lucide-react";
+  type AppIcon,
+} from "@/components/ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import {
   useWebsiteScrapeStatus,
@@ -30,7 +30,7 @@ type InsightRow = {
     "market" | "offer" | "audience" | "value" | "strategyStatus"
   >;
   label: string;
-  icon: LucideIcon;
+  icon: AppIcon;
 };
 
 const INSIGHT_ROWS: InsightRow[] = [

@@ -14,7 +14,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Trash2,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";

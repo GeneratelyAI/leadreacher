@@ -9,7 +9,7 @@ import {
   useScroll,
   useTransform,
 } from "framer-motion";
-import { Check, UserRound } from "lucide-react";
+import { Check, UserRound } from "@/components/ui/icons";
 import VideoPlayer from "@/components/ui/video-player";
 import { cn } from "@/lib/utils";
 import { EdgeSurface } from "@/components/ui/edge-surface";

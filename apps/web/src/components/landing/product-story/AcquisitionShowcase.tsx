@@ -13,7 +13,7 @@ import {
   UserRound,
   UsersRound,
   WandSparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { CoverflowCarousel, type CoverflowSlide } from "@/components/ui/coverflow-carousel";
 import { MarkerHighlight } from "@/components/ui/marker-highlight";

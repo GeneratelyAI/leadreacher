@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
-import { DollarSign, ShieldCheck, SquarePlay, UserRound, Zap } from "lucide-react";
+import { DollarSign, ShieldCheck, SquarePlay, UserRound, Zap } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import ShimmerText from "@/components/ui/shimmer-text";

@@ -16,7 +16,7 @@ import {
   Sparkles,
   UserCheck,
   Video,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { DisplayCards } from "@/components/ui/display-cards";
 import { EdgeSurface } from "@/components/ui/edge-surface";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";

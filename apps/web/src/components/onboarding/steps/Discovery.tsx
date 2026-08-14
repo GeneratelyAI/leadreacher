@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "@/components/ui/icons";
 import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CampaignSummary } from "@/components/onboarding/CampaignSummary";
 import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";

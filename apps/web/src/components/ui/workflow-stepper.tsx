@@ -1,7 +1,7 @@
 "use client";
 
 import { m } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/icons";
 import type { KeyboardEvent } from "react";
 import { cn } from "@/lib/utils";
 

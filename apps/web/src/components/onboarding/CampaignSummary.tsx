@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Building2, Compass, TrendingUp, User } from "lucide-react";
+import { Briefcase, Building2, Compass, TrendingUp, User } from "@/components/ui/icons";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   getCampaignFieldText,

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Copy, Loader2, ShieldCheck, Trash2 } from "lucide-react";
+import { CheckCircle2, Copy, Loader2, ShieldCheck, Trash2 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";

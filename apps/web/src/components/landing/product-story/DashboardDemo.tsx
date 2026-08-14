@@ -21,7 +21,7 @@ import {
   UserRoundCheck,
   Video,
   X,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useState, type ReactNode } from "react";
 import { siWhatsapp } from "simple-icons";
 import type { ProductStoryStageId } from "@/lib/product-story";

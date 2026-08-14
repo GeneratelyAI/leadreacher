@@ -10,7 +10,7 @@ import {
   TrendingUp,
   Upload,
   UserPlus,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
 import { Review } from "@/components/onboarding/Review";

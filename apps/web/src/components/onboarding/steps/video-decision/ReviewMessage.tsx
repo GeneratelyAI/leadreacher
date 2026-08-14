@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Loader2, Pencil } from "lucide-react";
+import { Info, Loader2, Pencil } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { Review } from "@/components/onboarding/Review";
 import { Alert } from "@/components/ui/Alert";

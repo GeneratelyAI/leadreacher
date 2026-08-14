@@ -1,4 +1,4 @@
-import { MessagesSquare, ShieldCheck, UsersRound } from "lucide-react";
+import { MessagesSquare, ShieldCheck, UsersRound } from "@/components/ui/icons";
 import type { OrbitalTimelineItem } from "@/components/ui/radial-orbital-timeline";
 
 export const comparisonRows = [

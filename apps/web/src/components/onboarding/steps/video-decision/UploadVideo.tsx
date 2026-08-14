@@ -1,4 +1,4 @@
-import { FileVideo, Loader2, Upload } from "lucide-react";
+import { FileVideo, Loader2, Upload } from "@/components/ui/icons";
 import { useRef, useState } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { Button } from "@/components/ui/Button";

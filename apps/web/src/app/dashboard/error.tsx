@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayoutDashboard, RefreshCw } from "lucide-react";
+import { LayoutDashboard, RefreshCw } from "@/components/ui/icons";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 

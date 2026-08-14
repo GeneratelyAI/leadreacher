@@ -21,7 +21,7 @@ import {
   Users,
   X,
   Clock3,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/DashboardMenu";

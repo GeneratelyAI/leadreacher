@@ -23,7 +23,7 @@ import {
   Trophy,
   Users,
   Video,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { toast } from "sonner";

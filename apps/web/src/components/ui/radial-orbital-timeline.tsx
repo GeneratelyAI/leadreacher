@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import { ArrowUpRight, Check, Link2, Zap } from "lucide-react";
+import { ArrowUpRight, Check, Link2, Zap } from "@/components/ui/icons";
 import { SocialMediaIcon } from "@/components/ui/SocialMediaIcon";
 import { cn } from "@/lib/utils";
 

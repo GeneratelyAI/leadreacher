@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, Minus } from "lucide-react";
+import { ArrowRight, Check, Minus } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export interface ComparisonPlan {

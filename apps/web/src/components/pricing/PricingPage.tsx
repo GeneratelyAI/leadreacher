@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Video } from "lucide-react";
+import { ArrowRight, Check, Video } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";

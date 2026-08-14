@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { FileText, ShieldCheck } from "lucide-react";
+import { FileText, ShieldCheck } from "@/components/ui/icons";
 import { ArrowIcon } from "@/components/ui/ArrowIcon";
 import { buttonVariants } from "@/components/ui/Button";
 import { Logo } from "@/components/ui/Logo";

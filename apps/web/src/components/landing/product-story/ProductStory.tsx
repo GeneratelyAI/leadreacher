@@ -5,7 +5,7 @@ import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import {
   Check,
   CheckCircle2,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
 import { EdgeSurface } from "@/components/ui/edge-surface";
 import { BackgroundPaths } from "@/components/ui/background-paths";

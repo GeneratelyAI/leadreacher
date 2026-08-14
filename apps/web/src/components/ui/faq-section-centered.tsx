@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 type FaqItem = readonly [question: string, answer: string];

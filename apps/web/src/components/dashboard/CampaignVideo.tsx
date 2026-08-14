@@ -13,7 +13,7 @@ import {
   Replace,
   TriangleAlert,
   Video,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";

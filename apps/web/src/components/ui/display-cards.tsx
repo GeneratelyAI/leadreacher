@@ -2,14 +2,14 @@
 
 import { useState } from "react";
 import { m, useReducedMotion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
-import { ArrowUpRight, CheckCircle2 } from "lucide-react";
+import type { AppIcon } from "@/components/ui/icons";
+import { ArrowUpRight, CheckCircle2 } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export type DisplayCard = {
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   eyebrow?: string;
   status?: string;
   accent?: "violet" | "blue" | "green";

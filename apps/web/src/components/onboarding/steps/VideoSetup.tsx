@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Clapperboard, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clapperboard, Loader2 } from "@/components/ui/icons";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";

@@ -16,7 +16,7 @@ import {
   Trophy,
   Users,
   Video,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";

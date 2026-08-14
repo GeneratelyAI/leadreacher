@@ -14,7 +14,7 @@ import {
   Mail,
   User,
   Users,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import AuthBranding from "@/components/auth/AuthBranding";
 import MobileAuth from "@/components/auth/MobileAuth";
 import { AuthCaptcha } from "@/components/auth/AuthCaptcha";

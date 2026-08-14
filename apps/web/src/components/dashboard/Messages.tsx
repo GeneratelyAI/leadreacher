@@ -17,7 +17,7 @@ import {
   Search,
   Send,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";

@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { Check } from "lucide-react";
+import { Check } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 type ChoiceCardProps = Omit<ComponentProps<"button">, "type"> & {

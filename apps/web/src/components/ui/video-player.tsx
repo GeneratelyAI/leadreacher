@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Pause, Play, Volume1, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Volume1, Volume2, VolumeX } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 type VideoPlayerProps = {

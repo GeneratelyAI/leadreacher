@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRef, useState, type RefObject } from "react";
-import { ArrowRight, Pause, Play } from "lucide-react";
+import { ArrowRight, Pause, Play } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { approvalTabs, type ApprovalTab } from "./content";
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, LoaderCircle } from "lucide-react";
+import { ArrowRight, LoaderCircle } from "@/components/ui/icons";
 import type { FormEvent, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
