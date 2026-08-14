@@ -1,9 +1,17 @@
 /** Read-only release gate. It never creates campaigns or sends outreach. */
-import { runProductionPreflight } from "../lib/production-preflight.js";
+import {
+  assertLiveProviderModes,
+  assertProviderReadiness,
+  runProductionPreflight,
+} from "../lib/production-preflight.js";
 
 async function main(): Promise<void> {
-  await runProductionPreflight();
-  console.info("Production preflight passed: Stripe, Unipile, and R2 are reachable.");
+  // Keep the live-mode policy in this protected command. Shared provider
+  // readiness checks are also used by staging with Stripe test-mode.
+  assertLiveProviderModes();
+  const report = await runProductionPreflight();
+  assertProviderReadiness(report);
+  console.info(JSON.stringify(report));
 }
 
 void main().catch((error: unknown) => {

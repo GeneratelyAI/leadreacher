@@ -14,7 +14,11 @@
     "seed:demo": "tsx src/scripts/seed-demo-workspace.ts",
     "seed:messages": "tsx src/scripts/seed-messages-inbox-demo.ts",
     "video:benchmark": "tsx src/scripts/evaluate-video-providers.ts",
-    "preflight:production": "tsx src/scripts/production-preflight.ts"
+    "preflight:production": "tsx src/scripts/production-preflight.ts",
+    "preflight:staging": "tsx src/scripts/staging-provider-canary.ts",
+    "test:staging-safe-journeys": "tsx src/scripts/staging-safe-journeys.ts",
+    "verify:release-canary": "tsx src/scripts/verify-release-canary.ts",
+    "test:integration": "RUN_DATABASE_INTEGRATION=true vitest run src/integration"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",

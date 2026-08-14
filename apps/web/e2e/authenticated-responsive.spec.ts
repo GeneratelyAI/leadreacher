@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 const email = process.env.E2E_EMAIL;
 const password = process.env.E2E_PASSWORD;
+const prospectQuery = process.env.E2E_PROSPECT_QUERY;
+const reviewCampaignId = process.env.E2E_REVIEW_CAMPAIGN_ID;
 const assertVisualBaselines = process.env.VISUAL_REGRESSION === "true";
 const routes = [
   "/onboarding",
@@ -109,5 +111,42 @@ test.describe("authenticated responsive staging", () => {
         animations: "disabled",
       });
     }
+  });
+
+  test("exercises configured staging channel, prospect, and review paths without sending outreach", async ({ page }, testInfo) => {
+    // The route-reachability test above retains the eight-device matrix. This
+    // controlled integration path runs once so it does not repeatedly call a
+    // real staging sender or prospect provider from every browser project.
+    test.skip(testInfo.project.name !== "desktop-chromium", "Run the controlled provider path once per staging build");
+    test.skip(
+      !prospectQuery || !reviewCampaignId,
+      "Set E2E_PROSPECT_QUERY and E2E_REVIEW_CAMPAIGN_ID for the controlled staging tenant",
+    );
+
+    await login(page);
+
+    await page.goto("/dashboard/channels", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Channels" })).toBeVisible();
+    await page.getByRole("button", { name: "Sync accounts" }).click();
+    await expect(page.getByText("Accounts synced.", { exact: true })).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("LinkedIn", { exact: true }).first()).toBeVisible();
+
+    await page.goto("/dashboard/prospects", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Add prospect" }).click();
+    const dialog = page.getByRole("dialog");
+    const search = dialog.getByLabel("Search LinkedIn prospects");
+    await expect(search).toBeVisible();
+    await search.fill(prospectQuery!);
+
+    const emptyResults = dialog.getByText("No prospects found. Try a broader title, company, or keyword.");
+    const resultList = dialog.locator("ul").filter({ has: dialog.getByRole("button", { name: "Add" }) });
+    await expect(emptyResults.or(resultList)).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.getByRole("alert")).toHaveCount(0);
+
+    await page.goto(`/dashboard/prospects?campaignId=${encodeURIComponent(reviewCampaignId!)}`, {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(page.getByRole("heading", { name: "Review campaign audience" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Review campaign" }).first()).toBeVisible();
   });
 });

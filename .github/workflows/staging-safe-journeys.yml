@@ -1,0 +1,117 @@
+name: Staging safe journeys
+
+on:
+  workflow_run:
+    workflows: [Staging functional E2E]
+    types: [completed]
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact staging commit or branch to validate
+        required: false
+        default: develop
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-safe-journeys
+  cancel-in-progress: false
+
+jobs:
+  safe-journeys:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    env:
+      STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+      STAGING_DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
+      STAGING_SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+      STAGING_SUPABASE_ANON_KEY: ${{ secrets.STAGING_SUPABASE_ANON_KEY }}
+      STAGING_E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL }}
+      STAGING_E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+      STAGING_STRIPE_SECRET_KEY: ${{ secrets.STAGING_STRIPE_SECRET_KEY }}
+      STAGING_STRIPE_WEBHOOK_SECRET: ${{ secrets.STAGING_STRIPE_WEBHOOK_SECRET }}
+      STAGING_STRIPE_PRICE_PERSONALIZED_OUTREACH: ${{ secrets.STAGING_STRIPE_PRICE_PERSONALIZED_OUTREACH }}
+      STAGING_SAFE_JOURNEYS_RUN_ID: gh-${{ github.run_id }}-${{ github.run_attempt }}
+      STAGING_SAFE_JOURNEYS_REPORT_PATH: ${{ github.workspace }}/artifacts/staging-safe-journeys.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # This job has database, auth, and Stripe test credentials. Inspect
+          # an input only after checking out the protected staging branch.
+          ref: develop
+          fetch-depth: 0
+      - name: Verify staging candidate belongs to develop
+        id: candidate
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+        run: |
+          candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
+          if ! git merge-base --is-ancestor "$candidate" origin/develop; then
+            echo "Staging safe-journey candidates must be commits reachable from develop." >&2
+            exit 1
+          fi
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.candidate.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Verify safe-journey configuration
+        id: configuration
+        shell: bash
+        run: |
+          required=(
+            STAGING_API_URL
+            STAGING_DIRECT_URL
+            STAGING_SUPABASE_URL
+            STAGING_SUPABASE_ANON_KEY
+            STAGING_E2E_EMAIL
+            STAGING_E2E_PASSWORD
+            STAGING_STRIPE_SECRET_KEY
+            STAGING_STRIPE_WEBHOOK_SECRET
+            STAGING_STRIPE_PRICE_PERSONALIZED_OUTREACH
+          )
+          missing=()
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            mkdir -p artifacts
+            printf '{"target":"staging-safe-journeys","status":"skipped","reason":"missing GitHub staging secrets","missing":"%s"}\n' "$(IFS=,; echo "${missing[*]}")" > artifacts/staging-safe-journeys.json
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Staging safe journeys skipped until the documented GitHub environment secrets are configured."
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+      - uses: pnpm/action-setup@v4
+        if: steps.configuration.outputs.configured == 'true'
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        if: steps.configuration.outputs.configured == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install workspace dependencies
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Run synthetic Stripe, campaign review, and video retry-state journeys
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm --filter @leadreacher/api test:staging-safe-journeys
+      - name: Archive safe-journey evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-safe-journeys-${{ github.run_id }}
+          path: artifacts/staging-safe-journeys.json
+          if-no-files-found: warn

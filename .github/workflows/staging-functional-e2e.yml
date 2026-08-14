@@ -1,0 +1,113 @@
+name: Staging functional E2E
+
+on:
+  workflow_run:
+    workflows: [Deployment smoke]
+    types: [completed]
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Exact staging commit or branch to validate
+        required: false
+        default: develop
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-functional-e2e
+  cancel-in-progress: false
+
+jobs:
+  browser-flows:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: staging
+    env:
+      PLAYWRIGHT_BASE_URL: ${{ secrets.STAGING_WEB_URL }}
+      E2E_EMAIL: ${{ secrets.STAGING_E2E_EMAIL }}
+      E2E_PASSWORD: ${{ secrets.STAGING_E2E_PASSWORD }}
+      E2E_PROSPECT_QUERY: ${{ secrets.STAGING_E2E_PROSPECT_QUERY }}
+      E2E_REVIEW_CAMPAIGN_ID: ${{ secrets.STAGING_E2E_REVIEW_CAMPAIGN_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The workflow has controlled-account credentials. Validate manual
+          # refs from the protected staging branch before executing their code.
+          ref: develop
+          fetch-depth: 0
+      - name: Verify staging candidate belongs to develop
+        id: candidate
+        shell: bash
+        env:
+          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.event.workflow_run.head_sha }}
+        run: |
+          candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
+          if ! git merge-base --is-ancestor "$candidate" origin/develop; then
+            echo "Staging E2E candidates must be commits reachable from develop." >&2
+            exit 1
+          fi
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          # Pin the tests to the deployment-smoke candidate after verifying
+          # that it is part of the trusted staging branch history.
+          ref: ${{ steps.candidate.outputs.sha }}
+          fetch-depth: 1
+
+      - name: Verify controlled staging test configuration
+        id: configuration
+        shell: bash
+        run: |
+          required=(
+            PLAYWRIGHT_BASE_URL
+            E2E_EMAIL
+            E2E_PASSWORD
+            E2E_PROSPECT_QUERY
+            E2E_REVIEW_CAMPAIGN_ID
+          )
+          missing=()
+          for key in "${required[@]}"; do
+            if [ -z "${!key}" ]; then
+              missing+=("$key")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Staging functional E2E skipped until the controlled tenant secrets are configured."
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.configuration.outputs.configured == 'true'
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        if: steps.configuration.outputs.configured == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install workspace dependencies
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm --dir apps/web exec playwright install --with-deps
+      - name: Run the existing eight-device responsive matrix and safe functional paths
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm --dir apps/web exec playwright test e2e/authenticated-responsive.spec.ts
+      - name: Archive Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-functional-e2e-${{ github.run_id }}
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          if-no-files-found: warn
