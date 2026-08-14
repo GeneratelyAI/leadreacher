@@ -8,6 +8,7 @@ import {
   BarChart3,
   CalendarDays,
   Check,
+  CheckFat,
   Clock3,
   Copy,
   Ellipsis,
@@ -173,7 +174,7 @@ function activityHref(campaignId: string): string {
 }
 
 function StatusIcon({ status }: { status: CampaignStatus }) {
-  const Icon = status === "active" ? Play : status === "completed" ? Check : status === "paused" ? Pause : Pencil;
+  const Icon = status === "active" ? Play : status === "completed" ? CheckFat : status === "paused" ? Pause : Pencil;
   return (
     <Icon
       className={cn(
@@ -183,6 +184,7 @@ function StatusIcon({ status }: { status: CampaignStatus }) {
         ["draft", "review", "paused"].includes(status) && "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
       )}
       strokeWidth={1.75}
+      weight={status === "completed" ? "fill" : undefined}
       aria-hidden
     />
   );
@@ -279,16 +281,18 @@ function CampaignReadiness({ campaign }: { campaign: CampaignRow }) {
 }
 
 function Metric({ icon: Icon, value, label, rate }: { icon: typeof Send; value: number; label: string; rate?: number | null }) {
+  const hasRate = rate !== undefined && rate !== null;
+
   return (
-    <div className="min-w-20 border-l border-app-border pl-5 first:border-l-0 first:pl-0">
-      <div className="flex items-center gap-2 text-xl font-semibold tracking-tight">
+    <div className="grid min-w-20 grid-rows-[1.75rem_1.5rem_1rem] content-start border-l border-app-border pl-5 first:border-l-0 first:pl-0">
+      <div className="flex items-center gap-2 text-xl leading-7 font-semibold tracking-tight">
         <Icon className="size-4 text-onboarding-purple-600 sm:size-[1.125rem] dark:text-onboarding-purple-300" strokeWidth={1.75} aria-hidden />
         {value}
       </div>
-      <p className="mt-1 text-sm text-app-fg-muted">{label}</p>
-      {rate !== undefined && rate !== null ? (
-        <p className="mt-1 text-xs font-semibold text-onboarding-success-600 dark:text-onboarding-success-400">{rate}%</p>
-      ) : null}
+      <p className="text-sm leading-6 text-app-fg-muted">{label}</p>
+      <p className={cn("text-xs leading-4 font-semibold text-onboarding-success-600 dark:text-onboarding-success-400", !hasRate && "invisible")}>
+        {hasRate ? `${rate}%` : "0%"}
+      </p>
     </div>
   );
 }
@@ -332,7 +336,7 @@ function CampaignActions({ campaign, handlers }: { campaign: CampaignRow; handle
       ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More actions for ${campaign.name}`} />}>
-          <Ellipsis />
+          <Ellipsis weight="regular" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => handlers.onOpen(campaign)}>
@@ -406,8 +410,8 @@ function CampaignRowView({
       onMouseEnter={() => onPrefetch(campaign.id)}
       onFocusCapture={() => onPrefetch(campaign.id)}
     >
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+        <div className="flex min-w-0 items-start gap-3 lg:w-[20rem] lg:shrink-0 xl:w-[29rem]">
           <Checkbox
             checked={selected}
             onCheckedChange={(checked) => onToggleSelect(campaign.id, checked === true)}
@@ -447,12 +451,12 @@ function CampaignRowView({
             <CampaignReadiness campaign={campaign} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-5 xl:min-w-[25rem] xl:grid-cols-3">
+        <div className="grid grid-cols-3 gap-5 lg:w-[21rem] lg:shrink-0 xl:w-[25rem]">
           <Metric icon={Send} value={campaign.metrics.sent} label="Sent" />
           <Metric icon={MessageCircle} value={campaign.metrics.replies} label="Replies" rate={campaign.metrics.replyRate} />
           <Metric icon={CalendarDays} value={campaign.metrics.meetings} label="Meetings" rate={campaign.metrics.meetingRate} />
         </div>
-        <div className="flex flex-col items-stretch gap-3 xl:items-end">
+        <div className="flex flex-col items-stretch gap-3 lg:ml-auto lg:w-24 lg:shrink-0 lg:items-end xl:w-36">
           <span className="text-xs text-app-fg-subtle">
             Updated {relativeTime(campaign.updatedAt)}
           </span>
