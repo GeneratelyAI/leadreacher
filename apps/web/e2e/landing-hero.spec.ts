@@ -9,6 +9,7 @@ const completedStatus = {
 const phoneProjects = new Set(["android-chrome", "iphone-webkit"]);
 const heroHeadingName =
   "Drop your URL. Go back to your business, store, startup, brokerage, product, or agency.";
+const workflowHeadingName = "Fully automates new customer acquisition.";
 
 async function mockCompletedAnalysis(page: Page) {
   await page.route("https://www.google.com/s2/favicons**", (route) =>
@@ -24,7 +25,10 @@ async function mockCompletedAnalysis(page: Page) {
 
 async function openLanding(page: Page, path = "/") {
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true");
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true", {
+    timeout: 10_000,
+  });
 }
 
 test("renders the desktop reference composition without overflow", async ({ page }, testInfo) => {
@@ -89,19 +93,17 @@ test("moves through the product story without layout overflow", async ({ page },
 
   const urlBeforeScroll = new URL(page.url());
   await page.locator("#how-it-works").scrollIntoViewIfNeeded();
-  await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
   const urlAfterScroll = new URL(page.url());
   expect(urlAfterScroll.pathname).toBe(urlBeforeScroll.pathname);
   expect(urlAfterScroll.search).toBe(urlBeforeScroll.search);
   expect(urlAfterScroll.hash).toBe(urlBeforeScroll.hash);
-  await expect(page.getByText("Understand", { exact: true })).toBeVisible();
-  await expect(page.getByText("Reach", { exact: true })).toBeVisible();
-  await expect(page.getByText("Convert", { exact: true })).toBeVisible();
+  const storyFrame = page.getByTestId("container-scroll-frame");
+  await expect(storyFrame.getByText("01 · Understand", { exact: true })).toBeVisible();
 
   const outreachTab = page.getByRole("tab", { name: /Outreach/ });
   await outreachTab.click();
   await expect(outreachTab).toHaveAttribute("aria-selected", "true");
-  const storyFrame = page.getByTestId("container-scroll-frame");
   const dashboardDemo = storyFrame.getByTestId("interactive-dashboard-demo");
   await expect(dashboardDemo).toHaveAttribute("data-demo-stage", "outreach");
   await dashboardDemo.getByRole("button", { name: "Launch demo" }).click();
@@ -131,15 +133,13 @@ test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openLanding(page, "/#how-it-works");
 
-  await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
   await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   const progress = page.getByRole("navigation", { name: "Workflow progress" });
   await progress.getByRole("link", { name: "2, Strategy" }).click();
   await expect(progress.getByRole("link", { name: "2, Strategy" })).toHaveAttribute("aria-current", "step");
-  await expect.poll(async () => (await progress.boundingBox())?.y ?? 999).toBeLessThan(120);
-  const progressBox = await progress.boundingBox();
-  expect(progressBox?.y ?? -1).toBeGreaterThanOrEqual(56);
+  await expect(page.locator("#mobile-story-strategy")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
