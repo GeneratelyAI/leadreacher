@@ -236,7 +236,6 @@ export function CoverflowCarousel({
                 role="button"
                 tabIndex={0}
                 aria-roledescription="slide"
-                aria-label={`${index + 1} of ${count}${slide.title ? `, ${slide.title}` : ""}`}
                 aria-current={index === selected || undefined}
                 onClick={() => {
                   if (!didDragRef.current) goTo(index);
@@ -274,8 +273,8 @@ export function CoverflowCarousel({
         </> : null}
       </div>
 
-      {showPagination ? <div className="mt-1 flex items-center justify-center gap-2" aria-label="Carousel slides">
-        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] hover:bg-[#bdb5e5]")} />)}
+      {showPagination ? <div className="mt-1 flex items-center justify-center" aria-label="Carousel slides">
+        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className="group flex size-6 items-center justify-center rounded-full"><span aria-hidden className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] group-hover:bg-[#bdb5e5]")} /></button>)}
       </div> : null}
     </div>
   );

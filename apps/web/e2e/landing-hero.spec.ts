@@ -117,21 +117,87 @@ test("moves through the product story without layout overflow", async ({ page },
   expect(urlAfterScroll.search).toBe(urlBeforeScroll.search);
   expect(urlAfterScroll.hash).toBe(urlBeforeScroll.hash);
   const storyFrame = page.getByTestId("container-scroll-frame");
-  await expect(storyFrame.getByText("01 · Understand", { exact: true })).toBeVisible();
+  await expect(storyFrame).toHaveCSS("transform", "none");
+  await expect(storyFrame.getByText("01 · Strategy", { exact: true })).toBeVisible();
 
   const outreachTab = page.getByRole("tab", { name: /Outreach/ });
   await outreachTab.click();
   await expect(outreachTab).toHaveAttribute("aria-selected", "true");
   const dashboardDemo = storyFrame.getByTestId("interactive-dashboard-demo");
   await expect(dashboardDemo).toHaveAttribute("data-demo-stage", "outreach");
-  await dashboardDemo.getByRole("button", { name: "Launch demo" }).click();
-  await expect(dashboardDemo.getByRole("button", { name: "Campaign running" })).toBeVisible();
+  const instagramChannel = dashboardDemo.locator('button[aria-label*="Instagram"]');
+  await instagramChannel.click();
+  await expect(instagramChannel).toHaveAttribute("aria-pressed", "true");
+  await dashboardDemo.getByRole("button", { name: "Send automatically", exact: true }).click();
+  await expect(dashboardDemo.getByRole("button", { name: "Sent automatically", exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const box = await storyFrame.boundingBox();
+    return box ? Math.abs(box.y + box.height / 2 - 512) : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(1);
   const frameBox = await storyFrame.boundingBox();
   expect(frameBox).not.toBeNull();
   expect(frameBox?.y ?? -1).toBeGreaterThanOrEqual(0);
   expect((frameBox?.y ?? 0) + (frameBox?.height ?? 0)).toBeLessThanOrEqual(1025);
+  expect(Math.abs((frameBox?.y ?? 0) + (frameBox?.height ?? 0) / 2 - 512)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 1366, height: 768 },
+  { width: 1536, height: 1024 },
+]) {
+  test(`keeps the product story canvas pixel-stable at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story sizing only");
+    await page.setViewportSize(viewport);
+    await openLanding(page);
+    await page.locator("#how-it-works").scrollIntoViewIfNeeded();
+
+    const tabs = page.getByRole("tablist", { name: "LeadReacher workflow stages" }).getByRole("tab");
+    const reference = await page.evaluate(() => {
+      const bounds = (selector: string) => {
+        const rect = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+        return rect ? { width: rect.width, height: rect.height } : null;
+      };
+      return {
+        frame: bounds('[data-testid="container-scroll-frame"]'),
+        tablet: bounds("#product-story-panel")?.width,
+        tabletHeight: bounds("#product-story-panel")?.height,
+      };
+    });
+
+    expect(reference.frame).not.toBeNull();
+    expect(reference.tablet).toBeGreaterThan(0);
+    expect(reference.tabletHeight).toBeGreaterThan(0);
+
+    for (let index = 0; index < await tabs.count(); index += 1) {
+      await tabs.nth(index).click();
+      const samples = [];
+      for (let sampleIndex = 0; sampleIndex < 12; sampleIndex += 1) {
+        if (sampleIndex > 0) await page.waitForTimeout(20);
+        samples.push(await page.evaluate(() => {
+          const frame = document.querySelector<HTMLElement>('[data-testid="container-scroll-frame"]')?.getBoundingClientRect();
+          const panel = document.querySelector<HTMLElement>("#product-story-panel")?.getBoundingClientRect();
+          const demo = document.querySelector<HTMLElement>('[data-testid="interactive-dashboard-demo"]')?.getBoundingClientRect();
+          return {
+            frame: frame ? { width: frame.width, height: frame.height } : null,
+            panel: panel ? { width: panel.width, height: panel.height } : null,
+            demo: demo ? { width: demo.width, height: demo.height } : null,
+          };
+        }));
+      }
+
+      for (const sample of samples) {
+        expect(sample.frame?.width).toBe(reference.frame?.width);
+        expect(sample.frame?.height).toBe(reference.frame?.height);
+        expect(sample.panel?.width).toBe(reference.tablet);
+        expect(sample.panel?.height).toBe(reference.tabletHeight);
+        expect(sample.demo?.width).toBe(reference.tablet);
+        expect(sample.demo?.height).toBe(reference.tabletHeight);
+      }
+    }
+  });
+}
 
 test("supports keyboard stage navigation and reduced motion", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop tab interaction only");

@@ -16,7 +16,7 @@ const SITE_DESCRIPTION =
 const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png?v=20260812";
 // Keep a single, versioned browser icon URL. Safari caches favicons aggressively
 // by URL, so changing this value is the reliable way to refresh existing tabs.
-const FAVICON_IMAGE = "/leadreacher-favicon-v2.png?v=20260811";
+const FAVICON_IMAGE = "/logo/leadreacher_icon_colored.svg?v=20260824";
 
 // theme-color is intentionally omitted here: themeInitScript and
 // useThemeMode own that meta tag directly (they remove/recreate it on
@@ -46,10 +46,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
+      { url: FAVICON_IMAGE, type: "image/svg+xml" },
     ],
     shortcut: [
-      { url: FAVICON_IMAGE, sizes: "192x192", type: "image/png" },
+      { url: FAVICON_IMAGE, type: "image/svg+xml" },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
