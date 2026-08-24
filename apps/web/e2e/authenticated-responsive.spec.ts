@@ -5,8 +5,7 @@ const password = process.env.E2E_PASSWORD;
 const prospectQuery = process.env.E2E_PROSPECT_QUERY;
 const reviewCampaignId = process.env.E2E_REVIEW_CAMPAIGN_ID;
 const assertVisualBaselines = process.env.VISUAL_REGRESSION === "true";
-const routes = [
-  "/onboarding",
+const dashboardRoutes = [
   "/dashboard",
   "/dashboard/campaigns",
   "/dashboard/prospects",
@@ -34,7 +33,9 @@ const onboardingViewports = [
 
 const onboardingThemes = ["light", "dark"] as const;
 
-async function login(page: Page) {
+type AuthDestination = "dashboard" | "onboarding";
+
+async function login(page: Page): Promise<AuthDestination> {
   // The auth form is server-rendered before React attaches its handlers.
   // WebKit can otherwise hydrate between the two fills and replace the
   // email input, leaving the visually completed form unable to submit.
@@ -45,7 +46,27 @@ async function login(page: Page) {
   await emailInput.fill(email!);
   await authForm.getByPlaceholder("Enter your password").fill(password!);
   await authForm.getByRole("button", { name: "Log in" }).click();
-  await page.waitForURL(/\/(dashboard|onboarding)/);
+  await page.waitForURL(/\/(dashboard|onboarding)(?:[/?#]|$)/);
+  await page.waitForLoadState("domcontentloaded");
+
+  return new URL(page.url()).pathname.startsWith("/dashboard")
+    ? "dashboard"
+    : "onboarding";
+}
+
+async function gotoAppRoute(page: Page, route: string) {
+  try {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+  } catch (error) {
+    // The onboarding router canonicalizes locked/future steps to the current
+    // step. WebKit reports that expected redirect as an interrupted goto.
+    if (!(error instanceof Error) || !error.message.includes("interrupted by another navigation")) {
+      throw error;
+    }
+    await page.waitForLoadState("domcontentloaded");
+  }
+
+  await expect(page.locator("main").first()).toBeVisible();
 }
 
 test.describe("authenticated responsive staging", () => {
@@ -53,19 +74,26 @@ test.describe("authenticated responsive staging", () => {
     test.skip(!email || !password, "Set E2E_EMAIL and E2E_PASSWORD for the seeded staging organization");
   });
 
-  test("keeps onboarding and every dashboard route reachable on a phone", async ({ page }) => {
-    await login(page);
+  test("keeps every available dashboard route reachable on a phone", async ({ page }) => {
+    const destination = await login(page);
+    test.skip(
+      destination === "onboarding",
+      "The seeded staging account must complete onboarding before dashboard routes are available",
+    );
 
-    for (const route of routes) {
-      await page.goto(route, { waitUntil: "domcontentloaded" });
-      await expect(page.locator("main").first()).toBeVisible();
+    for (const route of dashboardRoutes) {
+      await gotoAppRoute(page, route);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, `${route} has page-level horizontal overflow`).toBeLessThanOrEqual(0);
     }
   });
 
   test("keeps every onboarding step responsive in light and dark themes", async ({ page }) => {
-    await login(page);
+    const destination = await login(page);
+    test.skip(
+      destination === "dashboard",
+      "The seeded staging account has already completed onboarding",
+    );
 
     for (const theme of onboardingThemes) {
       await page.evaluate((selectedTheme) => {
@@ -76,8 +104,7 @@ test.describe("authenticated responsive staging", () => {
         await page.setViewportSize(viewport);
 
         for (const route of onboardingRoutes) {
-          await page.goto(route, { waitUntil: "domcontentloaded" });
-          await expect(page.locator("main").first()).toBeVisible();
+          await gotoAppRoute(page, route);
           await expect.poll(() => page.evaluate(
             () => document.documentElement.classList.contains("dark"),
           )).toBe(theme === "dark");
@@ -95,7 +122,11 @@ test.describe("authenticated responsive staging", () => {
   });
 
   test("captures the dashboard overview baseline", async ({ page }) => {
-    await login(page);
+    const destination = await login(page);
+    test.skip(
+      destination === "onboarding",
+      "The seeded staging account must complete onboarding before dashboard screenshots are available",
+    );
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
@@ -125,7 +156,11 @@ test.describe("authenticated responsive staging", () => {
       "Set E2E_PROSPECT_QUERY and E2E_REVIEW_CAMPAIGN_ID for the controlled staging tenant",
     );
 
-    await login(page);
+    const destination = await login(page);
+    test.skip(
+      destination === "onboarding",
+      "The seeded staging account must complete onboarding before provider paths are available",
+    );
 
     await page.goto("/dashboard/channels", { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { name: "Channels" })).toBeVisible();
