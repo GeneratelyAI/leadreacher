@@ -27,9 +27,26 @@ const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(r
 
 function useRotatingHeroWord(isPageVisible: boolean) {
   const [word, setWord] = useState<string>(HERO_HEADLINE_WORDS[0]);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   useEffect(() => {
-    if (!isPageVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!isPageVisible || hasInteracted) return;
+
+    const beginRotation = () => setHasInteracted(true);
+    const options = { once: true, passive: true } as const;
+    window.addEventListener("pointermove", beginRotation, options);
+    window.addEventListener("touchstart", beginRotation, options);
+    window.addEventListener("keydown", beginRotation, { once: true });
+
+    return () => {
+      window.removeEventListener("pointermove", beginRotation);
+      window.removeEventListener("touchstart", beginRotation);
+      window.removeEventListener("keydown", beginRotation);
+    };
+  }, [hasInteracted, isPageVisible]);
+
+  useEffect(() => {
+    if (!isPageVisible || !hasInteracted || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let wordIndex = 0;
     let characterCount = HERO_HEADLINE_WORDS[wordIndex].length;
@@ -61,7 +78,7 @@ function useRotatingHeroWord(isPageVisible: boolean) {
     return () => {
       if (timeout !== undefined) window.clearTimeout(timeout);
     };
-  }, [isPageVisible]);
+  }, [hasInteracted, isPageVisible]);
 
   return word;
 }
