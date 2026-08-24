@@ -8,6 +8,8 @@ const { socialAccountUpsert } = vi.hoisted(() => ({
 
 vi.mock("../../config/env.js", () => ({
   env: {
+    REDIS_URL: "redis://localhost:6379",
+    REDIS_PASSWORD: "",
     UNIPILE_DSN: "api.example.test:13111",
     UNIPILE_API_KEY: "unipile-key",
     UNIPILE_WEBHOOK_SECRET: "hosted-auth-test-secret",

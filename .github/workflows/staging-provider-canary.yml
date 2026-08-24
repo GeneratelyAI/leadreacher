@@ -39,8 +39,7 @@ jobs:
       RUNTIME_ROLE: api
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/leadreacher
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/leadreacher
-      UPSTASH_REDIS_URL: redis://localhost:6379
-      UPSTASH_REDIS_TOKEN: canary-placeholder
+      REDIS_URL: redis://localhost:6379
       SUPABASE_URL: https://example.supabase.co
       SUPABASE_ANON_KEY: canary-anon-key
       SUPABASE_SERVICE_ROLE_KEY: canary-service-role-key
