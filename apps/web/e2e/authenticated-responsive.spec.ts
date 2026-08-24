@@ -147,6 +147,10 @@ test.describe("authenticated responsive staging", () => {
       "The seeded staging account has already completed onboarding",
     );
 
+    // A page created from storage state starts at about:blank. Establish the
+    // staging origin before accessing its localStorage-backed theme setting.
+    await gotoAppRoute(page, onboardingRoutes[0]);
+
     for (const theme of onboardingThemes) {
       await page.evaluate((selectedTheme) => {
         window.localStorage.setItem("lr_theme", selectedTheme);
