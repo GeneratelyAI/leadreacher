@@ -81,7 +81,7 @@ async function cleanupFixture(fixture: Fixture): Promise<void> {
 integrationDescribe("durable delivery persistence", () => {
   beforeAll(async () => {
     const databaseUrl = process.env.DATABASE_URL;
-    const redisUrl = process.env.UPSTASH_REDIS_URL;
+    const redisUrl = process.env.REDIS_URL;
     if (!databaseUrl || !redisUrl) {
       throw new Error("Database and Redis URLs are required for durable delivery integration tests");
     }

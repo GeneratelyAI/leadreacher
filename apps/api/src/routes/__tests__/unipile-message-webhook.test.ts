@@ -26,6 +26,8 @@ const {
 
 vi.mock("../../config/env.js", () => ({
   env: {
+    REDIS_URL: "redis://localhost:6379",
+    REDIS_PASSWORD: "",
     UNIPILE_DSN: "dsn",
     UNIPILE_API_KEY: "key",
     UNIPILE_WEBHOOK_SECRET: "webhook-secret",

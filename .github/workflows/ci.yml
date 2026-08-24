@@ -53,8 +53,7 @@ jobs:
       UNIPILE_API_KEY: test-unipile-key
       UNIPILE_WEBHOOK_SECRET: test-unipile-webhook-secret
       APIFY_API_KEY: test-apify-key
-      UPSTASH_REDIS_URL: redis://localhost:6379
-      UPSTASH_REDIS_TOKEN: test-redis-token
+      REDIS_URL: redis://localhost:6379
       GROQ_API_KEY: test-groq-key
       STRIPE_MOCK_MODE: "true"
       VIDEO_MOCK_MODE: "true"

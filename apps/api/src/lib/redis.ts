@@ -1,8 +1,8 @@
 import IORedis from "ioredis";
 import { env } from "../config/env.js";
 
-const isTlsRedis = (env.UPSTASH_REDIS_URL ?? "").startsWith("rediss://");
-const redisPassword = isTlsRedis ? env.UPSTASH_REDIS_TOKEN : undefined;
+const isTlsRedis = env.REDIS_URL.startsWith("rediss://");
+const redisPassword = env.REDIS_PASSWORD || undefined;
 
 const REDIS_OPTIONS = {
   maxRetriesPerRequest: null,
@@ -11,18 +11,18 @@ const REDIS_OPTIONS = {
     : {}),
 } as const;
 
-export const redis = new IORedis(env.UPSTASH_REDIS_URL, {
+export const redis = new IORedis(env.REDIS_URL, {
   ...REDIS_OPTIONS,
   password: redisPassword,
 });
 
-export const redisSubscriber = new IORedis(env.UPSTASH_REDIS_URL, {
+export const redisSubscriber = new IORedis(env.REDIS_URL, {
   ...REDIS_OPTIONS,
   password: redisPassword,
 });
 
 export function createRedisSubscriber(): IORedis {
-  return new IORedis(env.UPSTASH_REDIS_URL, {
+  return new IORedis(env.REDIS_URL, {
     ...REDIS_OPTIONS,
     password: redisPassword,
   });

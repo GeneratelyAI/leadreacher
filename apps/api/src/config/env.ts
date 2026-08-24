@@ -67,8 +67,10 @@ const envSchema = z.object({
   UNIPILE_WEBHOOK_SECRET: z.string().min(1),
   // Apify is optional company enrichment. LinkedIn discovery always uses Unipile.
   APIFY_API_KEY: z.string().optional().default(""),
-  UPSTASH_REDIS_URL: redisConnectionUrl,
-  UPSTASH_REDIS_TOKEN: z.string().min(1),
+  // Provider-neutral Redis configuration. The password may be embedded in
+  // REDIS_URL (the common Railway/Redis URL form) or supplied separately.
+  REDIS_URL: redisConnectionUrl,
+  REDIS_PASSWORD: z.string().optional().default(""),
   SUPABASE_URL: z.string().url(),
   SUPABASE_ANON_KEY: z.string().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
@@ -174,7 +176,16 @@ const envSchema = z.object({
   }
 });
 
-const parsed = envSchema.safeParse(process.env);
+// Read the neutral names everywhere in the application. The legacy aliases
+// keep existing deployed/local environments working for one migration cycle;
+// remove them after every environment has REDIS_URL configured.
+const rawEnv = {
+  ...process.env,
+  REDIS_URL: process.env.REDIS_URL ?? process.env.UPSTASH_REDIS_URL,
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? process.env.UPSTASH_REDIS_TOKEN,
+};
+
+const parsed = envSchema.safeParse(rawEnv);
 
 if (!parsed.success) {
   throw new Error(
