@@ -1,4 +1,4 @@
-import { Clapperboard } from "lucide-react";
+import { Clapperboard } from "@/components/ui/icons";
 import { VideoToneGrid } from "./VideoToneGrid";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 

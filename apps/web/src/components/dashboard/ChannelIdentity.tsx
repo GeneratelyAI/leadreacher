@@ -1,4 +1,4 @@
-import { Mail } from "lucide-react";
+import { Mail } from "@/components/ui/icons";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { cn } from "@/lib/utils";
 

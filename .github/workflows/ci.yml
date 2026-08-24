@@ -17,6 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: leadreacher
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d leadreacher"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       redis:
         image: redis:7-alpine
         ports:
@@ -46,6 +59,7 @@ jobs:
       STRIPE_MOCK_MODE: "true"
       VIDEO_MOCK_MODE: "true"
       CI_DIRECT_URL: ${{ secrets.CI_DIRECT_URL }}
+      INTEGRATION_TEST_RUN_ID: ci-${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -58,13 +72,23 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir apps/api exec prisma validate
       - run: pnpm --dir apps/api exec prisma generate
+      - run: pnpm --dir apps/api exec prisma migrate deploy
       - run: pnpm --dir apps/api run lint
       - run: pnpm --dir apps/api run test
+      - run: pnpm --dir apps/api run test:integration
       - run: pnpm --dir apps/api run build
       - run: pnpm --dir apps/web run lint
       - run: pnpm --dir apps/web run test
       - run: pnpm --dir apps/web exec tsc --noEmit
       - run: pnpm --filter @leadreacher/web build
+      - run: pnpm --dir apps/web run test:performance
+      - name: Archive Lighthouse evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ github.run_id }}
+          path: apps/web/.lighthouseci
+          if-no-files-found: warn
       - name: Check migration drift
         if: ${{ env.CI_DIRECT_URL != '' }}
         env:

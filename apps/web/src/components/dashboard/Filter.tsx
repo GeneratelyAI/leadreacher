@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronDown, Filter as FilterIcon } from "lucide-react";
+import { ChevronDown, Filter as FilterIcon } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import {
   DropdownMenu,

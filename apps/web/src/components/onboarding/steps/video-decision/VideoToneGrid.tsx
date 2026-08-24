@@ -1,4 +1,4 @@
-import { MessageCircle, ShieldCheck, Zap } from "lucide-react";
+import { MessageCircle, ShieldCheck, Zap } from "@/components/ui/icons";
 import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
 import type { VideoTone } from "./types";
 

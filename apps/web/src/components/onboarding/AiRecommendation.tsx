@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Check } from "lucide-react";
+import { Bot, Check } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 type AiRecommendationProps = {

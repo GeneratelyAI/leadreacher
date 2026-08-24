@@ -1,7 +1,7 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import { Command as CommandIcon, Search } from "lucide-react";
+import type { AppIcon } from "@/components/ui/icons";
+import { Command as CommandIcon, Search } from "@/components/ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/Input";
@@ -11,7 +11,7 @@ export type CommandPaletteItem = {
   id: string;
   title: string;
   description?: string;
-  icon: LucideIcon;
+  icon: AppIcon;
   keywords?: string[];
   shortcut?: string;
   onSelect: () => void;

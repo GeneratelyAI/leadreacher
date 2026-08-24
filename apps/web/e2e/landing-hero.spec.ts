@@ -9,6 +9,7 @@ const completedStatus = {
 const phoneProjects = new Set(["android-chrome", "iphone-webkit"]);
 const heroHeadingName =
   "Drop your URL. Go back to your business, store, startup, brokerage, product, or agency.";
+const workflowHeadingName = "Fully automates new customer acquisition.";
 
 async function mockCompletedAnalysis(page: Page) {
   await page.route("https://www.google.com/s2/favicons**", (route) =>
@@ -24,7 +25,10 @@ async function mockCompletedAnalysis(page: Page) {
 
 async function openLanding(page: Page, path = "/") {
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true");
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true", {
+    timeout: 10_000,
+  });
 }
 
 test("renders the desktop reference composition without overflow", async ({ page }, testInfo) => {
@@ -35,6 +39,24 @@ test("renders the desktop reference composition without overflow", async ({ page
   await expect(page.locator('header a[href="/"]').filter({ has: page.locator('img[alt="leadreacher"]') })).toBeVisible();
   await expect(page.locator("#top").getByRole("button", { name: "Get Started", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("defers below-fold video bytes and pauses the hero canvas outside its viewport", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop lifecycle behavior only");
+  await page.setViewportSize({ width: 1536, height: 1024 });
+  await openLanding(page);
+
+  const fiberFlow = page.locator("#top [data-animation-active]");
+  await expect(fiberFlow).toHaveAttribute("data-animation-active", "true");
+
+  await expect(page.locator('[data-testid="scroll-expand-video-source"] video source')).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
+  await expect(fiberFlow).toHaveAttribute("data-animation-active", "false");
+
+  const videoFrame = page.getByTestId("scroll-expand-video-source");
+  await videoFrame.scrollIntoViewIfNeeded();
+  await expect(videoFrame.locator("video source")).toHaveCount(1);
 });
 
 test("opens and dismisses the resources navigation menu accessibly", async ({ page }, testInfo) => {
@@ -89,29 +111,93 @@ test("moves through the product story without layout overflow", async ({ page },
 
   const urlBeforeScroll = new URL(page.url());
   await page.locator("#how-it-works").scrollIntoViewIfNeeded();
-  await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
   const urlAfterScroll = new URL(page.url());
   expect(urlAfterScroll.pathname).toBe(urlBeforeScroll.pathname);
   expect(urlAfterScroll.search).toBe(urlBeforeScroll.search);
   expect(urlAfterScroll.hash).toBe(urlBeforeScroll.hash);
-  await expect(page.getByText("Understand", { exact: true })).toBeVisible();
-  await expect(page.getByText("Reach", { exact: true })).toBeVisible();
-  await expect(page.getByText("Convert", { exact: true })).toBeVisible();
+  const storyFrame = page.getByTestId("container-scroll-frame");
+  await expect(storyFrame).toHaveCSS("transform", "none");
+  await expect(storyFrame.getByText("01 · Strategy", { exact: true })).toBeVisible();
 
   const outreachTab = page.getByRole("tab", { name: /Outreach/ });
   await outreachTab.click();
   await expect(outreachTab).toHaveAttribute("aria-selected", "true");
-  const storyFrame = page.getByTestId("container-scroll-frame");
   const dashboardDemo = storyFrame.getByTestId("interactive-dashboard-demo");
   await expect(dashboardDemo).toHaveAttribute("data-demo-stage", "outreach");
-  await dashboardDemo.getByRole("button", { name: "Launch demo" }).click();
-  await expect(dashboardDemo.getByRole("button", { name: "Campaign running" })).toBeVisible();
+  const instagramChannel = dashboardDemo.locator('button[aria-label*="Instagram"]');
+  await instagramChannel.click();
+  await expect(instagramChannel).toHaveAttribute("aria-pressed", "true");
+  await dashboardDemo.getByRole("button", { name: "Send automatically", exact: true }).click();
+  await expect(dashboardDemo.getByRole("button", { name: "Sent automatically", exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const box = await storyFrame.boundingBox();
+    return box ? Math.abs(box.y + box.height / 2 - 512) : Number.POSITIVE_INFINITY;
+  }).toBeLessThanOrEqual(1);
   const frameBox = await storyFrame.boundingBox();
   expect(frameBox).not.toBeNull();
   expect(frameBox?.y ?? -1).toBeGreaterThanOrEqual(0);
   expect((frameBox?.y ?? 0) + (frameBox?.height ?? 0)).toBeLessThanOrEqual(1025);
+  expect(Math.abs((frameBox?.y ?? 0) + (frameBox?.height ?? 0) / 2 - 512)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
+
+for (const viewport of [
+  { width: 1024, height: 768 },
+  { width: 1366, height: 768 },
+  { width: 1536, height: 1024 },
+]) {
+  test(`keeps the product story canvas pixel-stable at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story sizing only");
+    await page.setViewportSize(viewport);
+    await openLanding(page);
+    await page.locator("#how-it-works").scrollIntoViewIfNeeded();
+
+    const tabs = page.getByRole("tablist", { name: "LeadReacher workflow stages" }).getByRole("tab");
+    const reference = await page.evaluate(() => {
+      const bounds = (selector: string) => {
+        const rect = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+        return rect ? { width: rect.width, height: rect.height } : null;
+      };
+      return {
+        frame: bounds('[data-testid="container-scroll-frame"]'),
+        tablet: bounds("#product-story-panel")?.width,
+        tabletHeight: bounds("#product-story-panel")?.height,
+      };
+    });
+
+    expect(reference.frame).not.toBeNull();
+    expect(reference.tablet).toBeGreaterThan(0);
+    expect(reference.tabletHeight).toBeGreaterThan(0);
+
+    for (let index = 0; index < await tabs.count(); index += 1) {
+      await tabs.nth(index).click();
+      const samples = [];
+      for (let sampleIndex = 0; sampleIndex < 12; sampleIndex += 1) {
+        if (sampleIndex > 0) await page.waitForTimeout(20);
+        samples.push(await page.evaluate(() => {
+          const frame = document.querySelector<HTMLElement>('[data-testid="container-scroll-frame"]')?.getBoundingClientRect();
+          const panel = document.querySelector<HTMLElement>("#product-story-panel")?.getBoundingClientRect();
+          const demo = document.querySelector<HTMLElement>('[data-testid="interactive-dashboard-demo"]')?.getBoundingClientRect();
+          return {
+            frame: frame ? { width: frame.width, height: frame.height } : null,
+            panel: panel ? { width: panel.width, height: panel.height } : null,
+            demo: demo ? { width: demo.width, height: demo.height } : null,
+          };
+        }));
+      }
+
+      for (const sample of samples) {
+        expect(sample.frame?.width).toBe(reference.frame?.width);
+        expect(sample.frame?.height).toBe(reference.frame?.height);
+        expect(sample.panel?.width).toBe(reference.tablet);
+        expect(sample.panel?.height).toBe(reference.tabletHeight);
+        expect(sample.demo?.width).toBe(reference.tablet);
+        expect(sample.demo?.height).toBe(reference.tabletHeight);
+      }
+    }
+  });
+}
 
 test("supports keyboard stage navigation and reduced motion", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop tab interaction only");
@@ -131,15 +217,13 @@ test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openLanding(page, "/#how-it-works");
 
-  await expect(page.getByRole("heading", { name: "Customer acquisition that runs itself." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
   await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   const progress = page.getByRole("navigation", { name: "Workflow progress" });
   await progress.getByRole("link", { name: "2, Strategy" }).click();
   await expect(progress.getByRole("link", { name: "2, Strategy" })).toHaveAttribute("aria-current", "step");
-  await expect.poll(async () => (await progress.boundingBox())?.y ?? 999).toBeLessThan(120);
-  const progressBox = await progress.boundingBox();
-  expect(progressBox?.y ?? -1).toBeGreaterThanOrEqual(56);
+  await expect(page.locator("#mobile-story-strategy")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

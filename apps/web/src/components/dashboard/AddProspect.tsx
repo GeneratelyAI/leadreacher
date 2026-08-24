@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Loader2, Plus, Search } from "lucide-react";
+import { ExternalLink, Loader2, Plus, Search } from "@/components/ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

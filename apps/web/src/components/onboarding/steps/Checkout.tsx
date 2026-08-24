@@ -9,7 +9,7 @@ import {
   Lock,
   ShieldCheck,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Review } from "@/components/onboarding/Review";

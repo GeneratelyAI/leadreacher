@@ -3,6 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 const assertVisualBaselines = process.env.VISUAL_REGRESSION === "true";
 const heroHeadingName =
   "Drop your URL. Go back to your business, store, startup, brokerage, product, or agency.";
+const workflowHeadingName = "Fully automates new customer acquisition.";
 
 const viewports = [
   { name: "phone-320", width: 320, height: 568 },
@@ -25,7 +26,10 @@ const viewports = [
 
 async function openLanding(page: Page, path = "/") {
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true");
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
+  await expect(page.locator("#top")).toHaveAttribute("data-hydrated", "true", {
+    timeout: 10_000,
+  });
   await expect(page.getByRole("heading", { name: heroHeadingName })).toBeVisible();
 }
 
@@ -109,7 +113,7 @@ test.describe("mobile pricing", () => {
       await page.setViewportSize(viewport);
       await page.goto("/pricing", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Pricing designed for effortless outreach." })).toBeVisible();
-      await page.waitForTimeout(400);
+      await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
       await expectNoPageOverflow(page);
 
       const billingControl = page.getByRole("group", { name: "Billing cycle" });
@@ -164,10 +168,22 @@ test.describe("visual baselines", () => {
     await openLanding(page);
 
     const sections = [
-      ["product-story.png", page.locator("section").filter({ has: page.getByRole("heading", { name: "Customer acquisition that runs itself." }) })],
-      ["differentiation.png", page.locator("section").filter({ has: page.getByRole("heading", { name: "Why LeadReacher is different." }) })],
-      ["campaign-preview.png", page.locator("section").filter({ has: page.getByRole("heading", { name: "See the work before it reaches a prospect." }) })],
-      ["approval.png", page.locator("section").filter({ has: page.getByRole("heading", { name: "Nothing goes live until you approve it." }) })],
+      [
+        "product-story.png",
+        page.locator("section").filter({ has: page.getByRole("heading", { name: workflowHeadingName }) }),
+      ],
+      [
+        "differentiation.png",
+        page.locator("section").filter({ has: page.getByRole("heading", { name: "Why LeadReacher is different." }) }),
+      ],
+      [
+        "campaign-preview.png",
+        page.locator("section").filter({ has: page.getByRole("heading", { name: /The first to feature one/ }) }),
+      ],
+      [
+        "approval.png",
+        page.locator("section").filter({ has: page.getByRole("heading", { name: /Nothing goes live/ }) }),
+      ],
       ["pricing-and-faq.png", page.locator("#pricing")],
     ] as const;
 

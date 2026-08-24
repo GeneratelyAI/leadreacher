@@ -46,7 +46,7 @@ While editing:
 - Reuse `apiFetch` for authenticated browser requests and preserve its error
   handling. Do not add raw fetch calls that bypass the access token.
 - Use existing onboarding cards, dashboard tokens, `Button`, social logos, and
-  Lucide icons. Do not add a second visual system for one screen.
+  the shared Phosphor icon module. Do not add a second visual system for one screen.
 - Preserve loading, empty, error, and partial-data states. A missing metric is
   not permission to fabricate a number, trend, forecast, recommendation, or
   completion state.

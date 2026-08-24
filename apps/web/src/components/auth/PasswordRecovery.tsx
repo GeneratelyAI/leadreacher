@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Mail } from "lucide-react";
+import { CheckCircle2, Loader2, Mail } from "@/components/ui/icons";
 import type { AuthChangeEvent } from "@supabase/supabase-js";
 import { AuthCaptcha, isCaptchaEnabled } from "@/components/auth/AuthCaptcha";
 import AuthLayout from "@/components/auth/AuthLayout";

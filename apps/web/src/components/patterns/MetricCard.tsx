@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { AppIcon } from "@/components/ui/icons";
 import type { ReactNode } from "react";
 
 import { Card, CardContent } from "@/components/ui/Card";
@@ -40,7 +40,7 @@ export function MetricCard({
   className,
   detailClassName,
 }: {
-  icon: LucideIcon;
+  icon: AppIcon;
   value: ReactNode;
   label: string;
   detail?: ReactNode;

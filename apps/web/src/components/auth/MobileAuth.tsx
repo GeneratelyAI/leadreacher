@@ -13,7 +13,7 @@ import {
   Mail,
   User,
   Users,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { GoogleIcon, MicrosoftIcon } from "@/components/auth/OAuthIcons";
 import { AuthCaptcha } from "@/components/auth/AuthCaptcha";
 import { PasswordRequirements } from "@/components/auth/PasswordRequirements";

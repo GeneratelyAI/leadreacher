@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2 } from "@/components/ui/icons";
 import AuthLayout from "@/components/auth/AuthLayout";
 import { MfaSecurityPanel } from "@/components/auth/MfaSecurityPanel";
 import { Button } from "@/components/ui/Button";

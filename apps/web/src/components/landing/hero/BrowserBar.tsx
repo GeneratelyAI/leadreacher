@@ -8,7 +8,7 @@ import {
   type MouseEvent,
   type Ref,
 } from "react";
-import { ArrowRight, Link2, LoaderCircle } from "lucide-react";
+import { ArrowRight, Link2, LoaderCircle } from "@/components/ui/icons";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";

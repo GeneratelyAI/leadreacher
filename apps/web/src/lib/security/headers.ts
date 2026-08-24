@@ -1,9 +1,21 @@
-export function createContentSecurityPolicy(nonce: string, isDevelopment: boolean): string {
+function configuredApiOrigin(apiUrl = process.env.NEXT_PUBLIC_API_URL): string {
+  try {
+    return apiUrl ? new URL(apiUrl).origin : "https://api.leadreacher.ai";
+  } catch {
+    return "https://api.leadreacher.ai";
+  }
+}
+
+export function createContentSecurityPolicy(
+  nonce: string,
+  isDevelopment: boolean,
+  apiUrl = process.env.NEXT_PUBLIC_API_URL,
+): string {
   const scriptSources = ["'self'", `'nonce-${nonce}'`, "https://challenges.cloudflare.com"];
   const connectSources = [
     "'self'",
     "https://*.supabase.co",
-    "https://api.leadreacher.ai",
+    configuredApiOrigin(apiUrl),
     "https://*.unipile.com",
     "https://*.ingest.sentry.io",
     "https://challenges.cloudflare.com",

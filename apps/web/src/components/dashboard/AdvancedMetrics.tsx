@@ -2,7 +2,7 @@
 
 import { type ComponentType } from "react";
 import { Area, AreaChart, CartesianGrid, XAxis } from "recharts";
-import { ArrowDown, ArrowUp, CalendarDays, MessageSquare, Send, Users } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, MessageSquare, Send, Users } from "@/components/ui/icons";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";

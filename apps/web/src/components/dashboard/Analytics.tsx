@@ -14,7 +14,7 @@ import {
   Reply,
   Send,
   UserPlus,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";

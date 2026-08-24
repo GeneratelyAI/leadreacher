@@ -21,7 +21,7 @@ import {
   Users,
   X,
   Clock3,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/DashboardMenu";
@@ -725,7 +725,7 @@ export function Prospects() {
                       </button>
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 shrink-0" aria-label={`Actions for ${name}`} />}>
-                          <MoreHorizontal />
+                          <MoreHorizontal weight="regular" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>
@@ -816,7 +816,7 @@ export function Prospects() {
                         <TableCell onClick={(event) => event.stopPropagation()}>
                           <DropdownMenu>
                             <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${name}`} />}>
-                              <MoreHorizontal />
+                              <MoreHorizontal weight="regular" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => void openDetail(lead.id)}>View details</DropdownMenuItem>

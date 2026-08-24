@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Pause, Play, Volume1, Volume2, VolumeX } from "lucide-react";
+import { Pause, Play, Volume1, Volume2, VolumeX } from "@/components/ui/icons";
+import { useDeferredVideoSource } from "@/hooks/useDeferredVideoSource";
 import { cn } from "@/lib/utils";
 
 type VideoPlayerProps = {
@@ -15,6 +16,7 @@ type VideoPlayerProps = {
   muted?: boolean;
   loop?: boolean;
   interactive?: boolean;
+  deferSourceUntilVisible?: boolean;
 };
 
 const formatTime = (seconds: number) => {
@@ -24,9 +26,11 @@ const formatTime = (seconds: number) => {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 };
 
-export default function VideoPlayer({ src, ariaLabel, className, poster, autoPlay = false, startWhenVisible = false, muted = false, loop = false, interactive = true }: VideoPlayerProps) {
+export default function VideoPlayer({ src, ariaLabel, className, poster, autoPlay = false, startWhenVisible = false, muted = false, loop = false, interactive = true, deferSourceUntilVisible = false }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const { sourceEnabled, enableSource } = useDeferredVideoSource(videoRef, { defer: deferSourceUntilVisible });
   const userPausedRef = useRef(false);
+  const playWhenReadyRef = useRef(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(muted);
   const [volume, setVolume] = useState(1);
@@ -40,7 +44,12 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
     const video = videoRef.current;
     if (!video) return;
     if (video.paused) {
+      enableSource();
       userPausedRef.current = false;
+      if (!sourceEnabled) {
+        playWhenReadyRef.current = true;
+        return;
+      }
       try {
         await video.play();
       } catch {
@@ -51,6 +60,10 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
       video.pause();
     }
   };
+
+  useEffect(() => {
+    if (sourceEnabled) videoRef.current?.load();
+  }, [sourceEnabled]);
 
   const enableAudio = () => {
     const video = videoRef.current;
@@ -107,7 +120,7 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !sourceEnabled) return;
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) {
         video.pause();
@@ -117,7 +130,7 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
     }, { threshold: 0.2 });
     observer.observe(video);
     return () => observer.disconnect();
-  }, [autoPlay]);
+  }, [autoPlay, sourceEnabled]);
 
   return (
     <div
@@ -161,6 +174,12 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
         className="size-full cursor-pointer object-cover object-center"
         onClick={() => void togglePlay()}
         onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+        onCanPlay={(event) => {
+          if (playWhenReadyRef.current) {
+            playWhenReadyRef.current = false;
+            void event.currentTarget.play().catch(() => setIsPlaying(false));
+          }
+        }}
         onTimeUpdate={updateProgress}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -169,7 +188,7 @@ export default function VideoPlayer({ src, ariaLabel, className, poster, autoPla
           setIsMuted(event.currentTarget.muted);
         }}
       >
-        <source src={src} type="video/mp4" />
+        {sourceEnabled ? <source src={src} type="video/mp4" /> : null}
       </video>
 
       <AnimatePresence>

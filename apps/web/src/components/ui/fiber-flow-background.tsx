@@ -74,7 +74,15 @@ export function FiberFlowBackground({
     const context = canvas?.getContext("2d");
     if (!container || !canvas || !context) return;
 
-    const fiberCount = window.innerWidth < 640 ? Math.round(density * 1.45) : density;
+    const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    const constrainedDevice =
+      navigator.hardwareConcurrency <= 4 ||
+      (typeof deviceMemory === "number" && deviceMemory <= 4);
+    const workloadScale = constrainedDevice ? 0.72 : 1;
+    const fiberCount = Math.max(
+      32,
+      Math.round((window.innerWidth < 640 ? density * 1.45 : density) * workloadScale),
+    );
     const fibers: Fiber[] = Array.from({ length: fiberCount }, (_, index) => ({
       spread: seededValue(index, 1) * 2 - 1,
       phase: seededValue(index, 2) * Math.PI * 2,
@@ -86,7 +94,7 @@ export function FiberFlowBackground({
       frequency: 1.35 + seededValue(index, 13) * 2.1,
       amplitude: 0.0025 + seededValue(index, 14) * 0.0045,
     }));
-    const particles: Particle[] = Array.from({ length: particleCount }, (_, index) => ({
+    const particles: Particle[] = Array.from({ length: Math.max(24, Math.round(particleCount * workloadScale)) }, (_, index) => ({
       offset: seededValue(index, 7),
       speed: 0.018 + seededValue(index, 8) * 0.03,
       lane: seededValue(index, 9) * 2 - 1,
@@ -100,6 +108,9 @@ export function FiberFlowBackground({
     let height = 1;
     let animationFrame = 0;
     let startTime = performance.now();
+    let pausedAt: number | null = null;
+    let isPageVisible = document.visibilityState === "visible";
+    let isNearViewport = true;
     const focalPoint = { x: 0.51, y: 0.605 };
     const pointer = {
       x: 0.5,
@@ -260,6 +271,25 @@ export function FiberFlowBackground({
       context.stroke();
     };
 
+    const isAnimationActive = () => !reducedMotion && isPageVisible && isNearViewport;
+
+    const stopAnimation = () => {
+      if (animationFrame) window.cancelAnimationFrame(animationFrame);
+      animationFrame = 0;
+      if (pausedAt === null) pausedAt = performance.now();
+    };
+
+    const resumeAnimation = () => {
+      if (!isAnimationActive() || animationFrame) return;
+      const now = performance.now();
+      if (pausedAt !== null) startTime += now - pausedAt;
+      pausedAt = null;
+      updateScrollProgress();
+      scroll.lastY = window.scrollY;
+      scroll.lastTimestamp = now;
+      animationFrame = window.requestAnimationFrame(draw);
+    };
+
     const draw = (timestamp: number, scheduleNextFrame = true) => {
       const elapsed = reducedMotion ? 0 : ((timestamp - startTime) / 1000) * speed;
       pointer.x += (pointer.targetX - pointer.x) * 0.07;
@@ -341,7 +371,8 @@ export function FiberFlowBackground({
       });
       context.restore();
 
-      if (!reducedMotion && scheduleNextFrame) animationFrame = window.requestAnimationFrame(draw);
+      if (scheduleNextFrame && isAnimationActive()) animationFrame = window.requestAnimationFrame(draw);
+      else if (!isAnimationActive()) animationFrame = 0;
     };
 
     const resize = () => {
@@ -363,14 +394,14 @@ export function FiberFlowBackground({
       canvas.style.height = `${height}px`;
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
       updateFocalPoint();
-      draw(performance.now(), false);
+      if (reducedMotion || isAnimationActive()) draw(performance.now(), false);
     };
 
     resize();
     updateScrollProgress();
     scroll.progress = scroll.targetProgress;
     startTime = performance.now();
-    draw(startTime);
+    if (isAnimationActive()) draw(startTime);
     const focalPointFrame = window.requestAnimationFrame(updateFocalPoint);
     const focalTarget = document.querySelector<HTMLElement>(targetSelector);
     const focalTargetObserver = focalTarget
@@ -386,7 +417,28 @@ export function FiberFlowBackground({
     window.addEventListener("resize", scheduleResize, { passive: true });
     window.addEventListener("orientationchange", scheduleResize, { passive: true });
 
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        isNearViewport = Boolean(entry?.isIntersecting);
+        if (isAnimationActive()) resumeAnimation();
+        else stopAnimation();
+        container.dataset.animationActive = String(isAnimationActive());
+      },
+      { rootMargin: "240px 0px" },
+    );
+    visibilityObserver.observe(container);
+
+    const handleDocumentVisibility = () => {
+      isPageVisible = document.visibilityState === "visible";
+      if (isAnimationActive()) resumeAnimation();
+      else stopAnimation();
+      container.dataset.animationActive = String(isAnimationActive());
+    };
+    document.addEventListener("visibilitychange", handleDocumentVisibility);
+    container.dataset.animationActive = String(isAnimationActive());
+
     const handlePointerMove = (event: PointerEvent) => {
+      if (!isAnimationActive()) return;
       const bounds = container.getBoundingClientRect();
       const isInside =
         event.clientX >= bounds.left &&
@@ -413,6 +465,7 @@ export function FiberFlowBackground({
       pointer.targetStrength = 0;
     };
     const handleScroll = () => {
+      if (!isAnimationActive()) return;
       const timestamp = performance.now();
       const deltaTime = Math.max(16, timestamp - scroll.lastTimestamp);
       const deltaY = window.scrollY - scroll.lastY;
@@ -465,6 +518,8 @@ export function FiberFlowBackground({
       window.cancelAnimationFrame(animationFrame);
       window.cancelAnimationFrame(focalPointFrame);
       focalTargetObserver?.disconnect();
+      visibilityObserver.disconnect();
+      document.removeEventListener("visibilitychange", handleDocumentVisibility);
       window.removeEventListener("resize", scheduleResize);
       window.removeEventListener("orientationchange", scheduleResize);
       window.removeEventListener("pointermove", handlePointerMove);

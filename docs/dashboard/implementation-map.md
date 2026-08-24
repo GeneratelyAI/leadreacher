@@ -242,7 +242,7 @@ route:
   and onboarding neutral tokens, never a separate palette.
 - Use the existing `Button`, card styles, theme hook, and dashboard/onboarding
   token classes. Do not write one-off raw color systems for a new tab.
-- Use Lucide icons for product actions and the actual `ChannelLogo` marks for
+- Use the shared Phosphor icon module for product actions and the actual `ChannelLogo` marks for
   LinkedIn or WhatsApp. Do not replace social marks with generic platform icons.
 - Do not wrap decorative icons in outlined square containers unless that
   container carries an actual interaction or semantic state.

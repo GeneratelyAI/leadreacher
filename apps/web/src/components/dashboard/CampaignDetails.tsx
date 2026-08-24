@@ -13,7 +13,7 @@ import {
   UserCheck,
   UserPlus,
   Users,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";

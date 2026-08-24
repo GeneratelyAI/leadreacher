@@ -10,7 +10,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";

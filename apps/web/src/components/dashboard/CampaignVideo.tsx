@@ -13,7 +13,7 @@ import {
   Replace,
   TriangleAlert,
   Video,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -202,7 +202,7 @@ export function CampaignVideo({ campaignId, video, onVideoChange }: CampaignVide
               />
             }
           >
-            <MoreHorizontal className="size-5" aria-hidden />
+            <MoreHorizontal className="size-5" weight="regular" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             {isPreviewable(resolved) && canManage ? (

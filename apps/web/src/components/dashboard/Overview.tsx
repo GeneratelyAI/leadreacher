@@ -16,7 +16,7 @@ import {
   Send,
   ShieldCheck,
   Users,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";

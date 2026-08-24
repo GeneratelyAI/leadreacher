@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useReducedMotion } from "framer-motion";
 import Image from "next/image";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
 
 type TrustedBrand = {
@@ -85,8 +86,7 @@ function BrandLogo({ brand }: { brand: TrustedBrand }) {
         src={brand.src}
         alt=""
         fill
-        sizes="176px"
-        loading="eager"
+        sizes="(max-width: 640px) 144px, (max-width: 1024px) 160px, 176px"
         className="object-contain grayscale contrast-200"
       />
     </span>
@@ -105,7 +105,7 @@ function BrandGroup({ duplicate, groupRef }: { duplicate?: boolean; groupRef?: M
   );
 }
 
-function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObject<number>; reducedMotion: boolean }) {
+function BrandTrack({ velocityRef, reducedMotion, active }: { velocityRef: MutableRefObject<number>; reducedMotion: boolean; active: boolean }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const groupRef = useRef<HTMLDivElement>(null);
@@ -116,7 +116,7 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
   useEffect(() => {
     const viewport = viewportRef.current;
     const track = trackRef.current;
-    if (!viewport || !track || reducedMotion) return;
+    if (!viewport || !track || reducedMotion || !active) return;
 
     let frameId: number | undefined;
     let isVisible = false;
@@ -162,7 +162,7 @@ function BrandTrack({ velocityRef, reducedMotion }: { velocityRef: MutableRefObj
       observer.disconnect();
       stop();
     };
-  }, [reducedMotion, velocityRef]);
+  }, [active, reducedMotion, velocityRef]);
 
   const updateDragPosition = (clientX: number) => {
     const start = dragStartRef.current;
@@ -221,7 +221,9 @@ export default function BrandsMarquee() {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
   const reducedMotion = Boolean(useReducedMotion());
-  const velocityRef = useScrollVelocity(isNearViewport, reducedMotion);
+  const isPageVisible = usePageVisibility();
+  const isAnimationActive = isNearViewport && isPageVisible;
+  const velocityRef = useScrollVelocity(isAnimationActive, reducedMotion);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -247,7 +249,7 @@ export default function BrandsMarquee() {
         Trusted by these brands
       </h2>
       <div className="mt-7 sm:mt-9">
-        <BrandTrack velocityRef={velocityRef} reducedMotion={reducedMotion} />
+        <BrandTrack velocityRef={velocityRef} reducedMotion={reducedMotion} active={isAnimationActive} />
       </div>
     </div>
   );

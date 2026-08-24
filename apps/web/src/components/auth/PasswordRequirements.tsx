@@ -1,4 +1,4 @@
-import { Check, Circle } from "lucide-react";
+import { Check, Circle } from "@/components/ui/icons";
 import { passwordRequirements } from "@/lib/auth/password-policy";
 
 export function PasswordRequirements({ password }: { password: string }) {

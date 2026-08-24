@@ -10,11 +10,11 @@ function mobileView(page: Page): Locator {
 
 // SSR renders these "use client" forms fully interactive-looking before
 // React has hydrated and attached their handlers - clicking too early is a
-// silent no-op. `networkidle` is a reliable proxy for hydration having had
-// a chance to run against the Turbopack dev server.
+// silent no-op. Wait for DOM content first, then give hydration a bounded
+// network-idle window without requiring every third-party asset to finish.
 async function gotoReady(page: Page, path: string) {
-  await page.goto(path);
-  await page.waitForLoadState("networkidle");
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
 // This whole file exercises MobileAuth specifically, which is display:none

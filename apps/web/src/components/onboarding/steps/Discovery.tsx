@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "lucide-react";
+import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "@/components/ui/icons";
 import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CampaignSummary } from "@/components/onboarding/CampaignSummary";
 import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
@@ -325,6 +325,7 @@ export default function Discovery({
         </aside>
       ) : null}
 
+      <main>
       {isWebsiteGatePending ? (
         <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
@@ -435,6 +436,7 @@ export default function Discovery({
           </div>
         </section>
       )}
+      </main>
     </div>
   );
 }

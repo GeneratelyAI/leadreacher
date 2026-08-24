@@ -17,7 +17,7 @@ import {
   Shield,
   Users,
   Zap,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
@@ -329,7 +329,7 @@ function ChannelAccountRow({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label="Channel actions" />}>
-                <MoreVertical className="size-4" />
+                <MoreVertical className="size-4" weight="regular" />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onReconnect(reconnectProvider)}>

@@ -11,7 +11,9 @@ GitHub Actions owns validation; Railway's GitHub integration owns deployment.
 This avoids two systems issuing competing deployment commands.
 
 - Pull requests, `develop`, and `main` run `.github/workflows/ci.yml`.
-- Configure the Railway staging services to deploy commits pushed to `develop`.
+- `develop` is the staging branch. Configure the Railway staging services to
+  deploy commits pushed to `develop`, then open a reviewed pull request from
+  `develop` to `main` for production promotion.
 - Configure the Railway production services to deploy commits pushed to `main`.
 - After a successful CI run on either branch,
   `.github/workflows/deployment-smoke.yml` waits for the deployed API and web
@@ -39,6 +41,12 @@ To roll back, use Railway's deployment rollback for the affected service, then
 run **Deployment smoke** manually from GitHub Actions against the restored
 environment.
 
+The dedicated staging topology, its provider isolation requirements, and the
+worker-pause rehearsal are maintained in
+[`staging-environment.md`](staging-environment.md). Do not point a staging
+service at a production database, Redis instance, Unipile sender, R2 bucket, or
+Stripe credential to make a deployment start faster.
+
 ## Web service
 
 Configure `@leadreacher/web` with:
@@ -54,14 +62,19 @@ public frontend environment variables on this service only.
 
 Configure `@leadreacher/api` with:
 
-- Root directory: `/apps/api`
+- Root directory: repository root (leave unset)
 - Railway config file: `/apps/api/railway.toml`
-- Watch paths: `/apps/api/**` and `/package.json`
+- Watch paths: `/apps/api/**`, `/packages/shared/**`, `/package.json`,
+  `/pnpm-lock.yaml`, and `/pnpm-workspace.yaml`
 
-Because Railway isolates this root directory, the API config uses `npm` rather
-than root-workspace `pnpm --filter` commands. Configure the API environment
-variables from [`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts)
-on this service. Set `NODE_ENV=production`.
+The API and worker configuration files resolve either the repository-root
+monorepo layout or the legacy `/apps/api` service root. Keep an existing
+production service package-rooted until its next reviewed deployment if needed,
+but use the repository root for new and staging services so the workspace lock
+file and `@leadreacher/shared` are present during builds. Configure the API
+environment variables from
+[`apps/api/src/config/env.ts`](../../apps/api/src/config/env.ts) on this
+service. Set `NODE_ENV=production`.
 
 The pre-deploy command runs `prisma migrate deploy`. Every directory under
 `apps/api/prisma/migrations` must contain a committed `migration.sql`; an empty
@@ -80,6 +93,10 @@ Create a third Railway service from the API package for all background work:
 ```text
 node dist/worker.js
 ```
+
+Configure it with the repository root, `/apps/api/railway.worker.toml`, and
+the same API/shared workspace watch paths. The worker has no pre-deploy
+migration command; migrations remain on the API service only.
 
 Set these values on the worker service:
 
@@ -122,5 +139,7 @@ integration in a non-production environment first.
 5. Confirm API `GET /health` and `GET /ready` return `200`; readiness proves
    the worker leases are fresh.
 6. Check runtime logs and Sentry for startup or queue failures.
-7. Run the safe checks in
+7. Confirm staging deployment smoke, provider canary, functional E2E, and safe
+   journeys have passed for the release candidate, then run the protected and
+   human-approved checks in
    [`production-e2e-runbook.md`](production-e2e-runbook.md).

@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "@/components/ui/icons";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
@@ -70,6 +71,8 @@ export function CoverflowCarousel({
   const hoveredIndexRef = React.useRef<number | null>(null);
   const [selected, setSelected] = React.useState(0);
   const [isHovering, setIsHovering] = React.useState(false);
+  const [isNearViewport, setIsNearViewport] = React.useState(false);
+  const isPageVisible = usePageVisibility();
 
   const indexAt = React.useCallback((position: number) => ((Math.round(position) % count) + count) % count, [count]);
   const clamp = React.useCallback((position: number) => (loop ? position : Math.max(0, Math.min(count - 1, position))), [count, loop]);
@@ -141,13 +144,25 @@ export function CoverflowCarousel({
   }, [count, loop, settle]);
 
   React.useEffect(() => {
-    if (!autoPlay || reducedMotion || count < 2 || isHovering) return;
+    if (!autoPlay || reducedMotion || count < 2 || isHovering || !isNearViewport || !isPageVisible) return;
     const delay = autoPlayInterval + (selected === count - 1 ? finalSlideHold : 0);
     const timer = window.setTimeout(() => {
       if (dragRef.current === null) nudge(1);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, nudge, reducedMotion, selected]);
+  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, isNearViewport, isPageVisible, nudge, reducedMotion, selected]);
+
+  React.useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(Boolean(entry?.isIntersecting)),
+      { rootMargin: "240px 0px" },
+    );
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => () => {
     if (frameRefId.current !== null) cancelAnimationFrame(frameRefId.current);
@@ -221,7 +236,6 @@ export function CoverflowCarousel({
                 role="button"
                 tabIndex={0}
                 aria-roledescription="slide"
-                aria-label={`${index + 1} of ${count}${slide.title ? `, ${slide.title}` : ""}`}
                 aria-current={index === selected || undefined}
                 onClick={() => {
                   if (!didDragRef.current) goTo(index);
@@ -259,8 +273,8 @@ export function CoverflowCarousel({
         </> : null}
       </div>
 
-      {showPagination ? <div className="mt-1 flex items-center justify-center gap-2" aria-label="Carousel slides">
-        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] hover:bg-[#bdb5e5]")} />)}
+      {showPagination ? <div className="mt-1 flex items-center justify-center" aria-label="Carousel slides">
+        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className="group flex size-6 items-center justify-center rounded-full"><span aria-hidden className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] group-hover:bg-[#bdb5e5]")} /></button>)}
       </div> : null}
     </div>
   );

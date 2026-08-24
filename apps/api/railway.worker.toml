@@ -1,8 +1,11 @@
 [build]
-buildCommand = "npm run build"
+# This config is shared by production services rooted at apps/api and staging
+# services rooted at the monorepo. Resolve the package directory at runtime so
+# both layouts build the same worker artifact.
+buildCommand = "if [ -f apps/api/package.json ]; then cd apps/api; fi; npm run build"
 
 [deploy]
-startCommand = "node dist/worker.js"
+startCommand = "if [ -f apps/api/dist/worker.js ]; then node apps/api/dist/worker.js; else node dist/worker.js; fi"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 

@@ -10,6 +10,7 @@ import {
   CircleHelp,
   CreditCard,
   Clock3,
+  IconContext,
   LayoutDashboard,
   Link2,
   LogOut,
@@ -26,7 +27,7 @@ import {
   Video,
   X,
   BarChart3,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
@@ -222,7 +223,7 @@ function WorkspaceSidebar({
               aria-current={active ? "page" : undefined}
               aria-label={collapsed ? label : undefined}
             >
-              <Icon className="size-4 shrink-0" aria-hidden />
+              <Icon weight={label === "Channels" ? "bold" : "fill"} className="size-4 shrink-0" aria-hidden />
               {!collapsed ? <span className="truncate">{label}</span> : null}
             </Link>
           );
@@ -605,6 +606,7 @@ export function DashboardShell({
 
   return (
     <TooltipProvider>
+      <IconContext.Provider value={{ weight: "fill" }}>
       <div
         className="dashboard-shell h-dvh overflow-hidden bg-app-canvas text-app-fg"
         style={{
@@ -836,6 +838,7 @@ export function DashboardShell({
       </div>
       </DashboardShellContext.Provider>
       </div>
+      </IconContext.Provider>
     </TooltipProvider>
   );
 }

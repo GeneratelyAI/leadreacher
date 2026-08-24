@@ -15,4 +15,14 @@ describe("security headers", () => {
       ["X-Frame-Options", "DENY"],
     ]));
   });
+
+  it("permits the configured API origin for deployed staging", () => {
+    const policy = createContentSecurityPolicy(
+      "test-nonce",
+      false,
+      "https://staging-api.example.test/v1",
+    );
+
+    expect(policy).toContain("connect-src 'self' https://*.supabase.co https://staging-api.example.test");
+  });
 });

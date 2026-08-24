@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 const productionRun = process.env.PLAYWRIGHT_PRODUCTION === "true";
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 3002);
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${port}`;
+const deployedBaseURL = process.env.PLAYWRIGHT_BASE_URL;
+const baseURL = deployedBaseURL ?? `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -50,10 +51,14 @@ export default defineConfig({
       use: { ...devices["Desktop Edge"], channel: "msedge" },
     },
   ],
-  webServer: {
-    command: productionRun ? `npx next start -p ${port}` : `npx next dev -p ${port}`,
-    url: baseURL,
-    reuseExistingServer: true,
-    timeout: 120_000,
-  },
+  // A configured base URL is an already deployed target (for example staging),
+  // so do not start a second local Next.js server in that case.
+  webServer: deployedBaseURL
+    ? undefined
+    : {
+        command: productionRun ? `npx next start -p ${port}` : `npx next dev -p ${port}`,
+        url: baseURL,
+        reuseExistingServer: true,
+        timeout: 120_000,
+      },
 });

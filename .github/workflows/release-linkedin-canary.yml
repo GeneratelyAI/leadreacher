@@ -1,0 +1,98 @@
+name: Staging release LinkedIn canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact develop commit deployed to staging and approved for promotion
+        required: true
+        type: string
+      manual_delivery_attempt_id:
+        description: Durable ManualDeliveryAttempt ID created by the human-approved staging delivery
+        required: true
+        type: string
+      expected_campaign_status:
+        description: Campaign state expected while evidence is collected
+        required: true
+        default: active
+        type: choice
+        options: [active, paused]
+      require_inbound_reconciliation:
+        description: Require an inbound reply to have been durably reconciled before passing
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-release-linkedin-canary-${{ inputs.release_sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify-human-approved-delivery:
+    # Configure a release-owner reviewer when the repository plan supports
+    # protected private environments. This workflow remains read-only either way.
+    environment: staging-release-canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.STAGING_DIRECT_URL }}
+      RELEASE_CANARY_ATTEMPT_ID: ${{ inputs.manual_delivery_attempt_id }}
+      RELEASE_CANARY_EXPECTED_CAMPAIGN_STATUS: ${{ inputs.expected_campaign_status }}
+      RELEASE_CANARY_REQUIRE_INBOUND_RECONCILIATION: ${{ inputs.require_inbound_reconciliation }}
+      # pnpm runs package scripts from apps/api. Persist evidence at the
+      # workspace root so upload-artifact always finds the same file.
+      RELEASE_CANARY_REPORT_PATH: ${{ github.workspace }}/artifacts/release-linkedin-canary.json
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Never check out an arbitrary workflow input before validating it.
+          # The first checkout is the trusted staging branch used for that
+          # validation; the verified candidate is checked out below.
+          ref: develop
+          fetch-depth: 0
+      - name: Verify release candidate belongs to develop
+        id: candidate
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+        run: |
+          candidate="$(git rev-parse "${RELEASE_SHA}^{commit}")"
+          if ! git merge-base --is-ancestor "$candidate" origin/develop; then
+            echo "Release candidate must be a commit reachable from develop." >&2
+            exit 1
+          fi
+          echo "sha=$candidate" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.candidate.outputs.sha }}
+          fetch-depth: 1
+      - name: Verify protected staging database access is configured
+        shell: bash
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "STAGING_DIRECT_URL is required in the staging-release-canary environment." >&2
+            exit 1
+          fi
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --dir apps/api exec prisma generate
+      - name: Verify durable canary evidence
+        run: pnpm --filter @leadreacher/api verify:release-canary
+      - name: Archive release canary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-release-linkedin-canary-${{ github.run_id }}
+          path: artifacts/release-linkedin-canary.json
+          if-no-files-found: warn

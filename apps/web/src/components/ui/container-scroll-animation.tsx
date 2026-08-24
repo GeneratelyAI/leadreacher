@@ -18,6 +18,7 @@ type ContainerScrollProps = {
   contentClassName?: string;
   onProgress?: (progress: number) => void;
   reducedMotion?: boolean;
+  disableFrameTransform?: boolean;
   id?: string;
 };
 
@@ -29,6 +30,7 @@ export function ContainerScroll({
   contentClassName,
   onProgress,
   reducedMotion,
+  disableFrameTransform = false,
   id,
 }: ContainerScrollProps) {
   const targetRef = useRef<HTMLDivElement>(null);
@@ -120,7 +122,7 @@ export function ContainerScroll({
           <m.div
             data-testid="container-scroll-frame"
             style={
-              shouldReduceMotion
+              shouldReduceMotion || disableFrameTransform
                 ? { transform: "none" }
                 : {
                     rotateX,
