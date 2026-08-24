@@ -39,10 +39,12 @@ async function login(page: Page) {
   // WebKit can otherwise hydrate between the two fills and replace the
   // email input, leaving the visually completed form unable to submit.
   await page.goto("/login", { waitUntil: "networkidle" });
-  const authView = page.getByTestId("mobile-auth-view");
-  await authView.getByPlaceholder("Enter your work email").fill(email!);
-  await authView.getByPlaceholder("Enter your password").fill(password!);
-  await authView.getByRole("button", { name: "Log in" }).click();
+  const emailInput = page.locator('input[placeholder="Enter your work email"]:visible');
+  const authForm = emailInput.locator("xpath=ancestor::form");
+  await expect(authForm).toBeVisible();
+  await emailInput.fill(email!);
+  await authForm.getByPlaceholder("Enter your password").fill(password!);
+  await authForm.getByRole("button", { name: "Log in" }).click();
   await page.waitForURL(/\/(dashboard|onboarding)/);
 }
 
