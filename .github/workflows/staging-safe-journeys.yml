@@ -136,6 +136,9 @@ jobs:
       - name: Install workspace dependencies
         if: steps.configuration.outputs.configured == 'true'
         run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        if: steps.configuration.outputs.configured == 'true'
+        run: pnpm --dir apps/api exec prisma generate
       - name: Run synthetic Stripe, campaign review, and video retry-state journeys
         if: steps.configuration.outputs.configured == 'true'
         run: pnpm --filter @leadreacher/api test:staging-safe-journeys
