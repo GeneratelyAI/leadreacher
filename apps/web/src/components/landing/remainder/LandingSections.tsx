@@ -263,7 +263,7 @@ function PricingAndFaqSection() {
                 <p className="text-xs font-semibold uppercase text-[#9d86ff]">{activeCheckoutState.eyebrow}</p>
                 <div className="mt-5 flex items-center justify-between gap-3 border-y border-white/10 py-3">
                   <div className="flex items-center gap-3">
-                    <Image src="/landing/portraits/prospect-68.webp" alt="Sarah" width={36} height={36} className="size-9 rounded-full border border-white/20 object-cover" />
+                    <Image src="/landing/portraits/prospect-68.webp" alt="Sarah" width={36} height={36} sizes="36px" className="size-9 rounded-full border border-white/20 object-cover" />
                     <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/42">Prepared for</p><p className="mt-0.5 text-sm font-semibold text-white">Sarah · Common Thread</p></div>
                   </div>
                   <span className="shrink-0 rounded-full border border-[#8e79ff]/35 bg-[#6240f5]/15 px-2.5 py-1 text-[10px] font-semibold text-[#c0b5ff]">{activeCheckoutState.status}</span>

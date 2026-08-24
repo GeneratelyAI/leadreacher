@@ -1,8 +1,10 @@
+import dynamic from "next/dynamic";
 import Hero from "@/components/landing/hero/Hero";
-import ProductStory from "@/components/landing/product-story/ProductStory";
-import LandingSections from "@/components/landing/remainder/LandingSections";
 import { LandingMotion } from "@/components/landing/LandingMotion";
 import Navbar from "@/components/layout/Navbar";
+
+const ProductStory = dynamic(() => import("@/components/landing/product-story/ProductStory"));
+const LandingSections = dynamic(() => import("@/components/landing/remainder/LandingSections"));
 
 export default function Home() {
   return (

@@ -215,6 +215,7 @@ export function ScrollExpandMedia({
       startWhenVisible
       muted
       loop
+      deferSourceUntilVisible
     />
   ) : (
     <Image src={mediaSrc} alt={mediaAlt} fill sizes="(max-width: 768px) 100vw, 90vw" className="object-cover object-center" />

@@ -81,6 +81,7 @@ jobs:
       - run: pnpm --dir apps/web run test
       - run: pnpm --dir apps/web exec tsc --noEmit
       - run: pnpm --filter @leadreacher/web build
+      - run: pnpm --dir apps/web run test:performance
       - name: Check migration drift
         if: ${{ env.CI_DIRECT_URL != '' }}
         env:

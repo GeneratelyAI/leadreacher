@@ -41,6 +41,24 @@ test("renders the desktop reference composition without overflow", async ({ page
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("defers below-fold video bytes and pauses the hero canvas outside its viewport", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop lifecycle behavior only");
+  await page.setViewportSize({ width: 1536, height: 1024 });
+  await openLanding(page);
+
+  const fiberFlow = page.locator("#top [data-animation-active]");
+  await expect(fiberFlow).toHaveAttribute("data-animation-active", "true");
+
+  await expect(page.locator('[data-testid="scroll-expand-video-source"] video source')).toHaveCount(0);
+
+  await page.evaluate(() => window.scrollTo(0, window.innerHeight * 2));
+  await expect(fiberFlow).toHaveAttribute("data-animation-active", "false");
+
+  const videoFrame = page.getByTestId("scroll-expand-video-source");
+  await videoFrame.scrollIntoViewIfNeeded();
+  await expect(videoFrame.locator("video source")).toHaveCount(1);
+});
+
 test("opens and dismisses the resources navigation menu accessibly", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop navigation only");
   await page.setViewportSize({ width: 1536, height: 1024 });

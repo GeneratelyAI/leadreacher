@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:performance": "lhci autorun --config=lighthouserc.json",
     "discovery:clay": "bash scripts/discovery-clay.sh"
   },
   "dependencies": {

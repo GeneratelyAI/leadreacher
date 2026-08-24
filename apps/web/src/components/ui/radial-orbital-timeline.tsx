@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { ArrowUpRight, Check, Link2, Zap } from "@/components/ui/icons";
 import { SocialMediaIcon } from "@/components/ui/SocialMediaIcon";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
 
 export type OrbitalStatus = "completed" | "in-progress" | "pending";
@@ -58,6 +59,7 @@ export default function RadialOrbitalTimeline({
   const [supportsHover, setSupportsHover] = useState(false);
   const [orbitRadius, setOrbitRadius] = useState(200);
   const reducedMotion = Boolean(useReducedMotion());
+  const isPageVisible = usePageVisibility();
   const rootRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<number, HTMLButtonElement>());
@@ -98,7 +100,7 @@ export default function RadialOrbitalTimeline({
     return () => observer.disconnect();
   }, []);
 
-  const shouldAutoRotate = supportsHover && !reducedMotion && isVisible && !isInteracting && selectedId === null;
+  const shouldAutoRotate = supportsHover && !reducedMotion && isPageVisible && isVisible && !isInteracting && selectedId === null;
 
   useEffect(() => {
     if (!shouldAutoRotate) return;
@@ -182,8 +184,8 @@ export default function RadialOrbitalTimeline({
         style={{ perspective: "1000px" }}
       >
         <div aria-hidden className="absolute size-16 rounded-full bg-gradient-to-br from-[#8f73ff] via-[#5b36ed] to-[#35c7a1] shadow-[0_0_45px_rgba(104,66,245,.45)]">
-          <span className="absolute -inset-2 rounded-full border border-white/20 motion-safe:animate-ping" />
-          <span className="absolute -inset-4 rounded-full border border-white/10 motion-safe:animate-ping [animation-delay:.5s]" />
+          <span className="absolute -inset-2 rounded-full border border-white/20 motion-safe:animate-ping" style={{ animationPlayState: isPageVisible && isVisible ? "running" : "paused" }} />
+          <span className="absolute -inset-4 rounded-full border border-white/10 motion-safe:animate-ping [animation-delay:.5s]" style={{ animationPlayState: isPageVisible && isVisible ? "running" : "paused" }} />
           <span className="absolute inset-4 rounded-full bg-white/85 backdrop-blur-md" />
         </div>
         <div ref={orbitRef} aria-hidden className="absolute size-[min(78vw,400px)] rounded-full border border-white/10" />

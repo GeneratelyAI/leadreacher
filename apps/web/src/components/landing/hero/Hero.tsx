@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "reac
 import { useRouter } from "next/navigation";
 import { DollarSign, ShieldCheck, SquarePlay, UserRound, Zap } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
+import { useLandingPerformanceTelemetry } from "@/hooks/useLandingPerformanceTelemetry";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import ShimmerText from "@/components/ui/shimmer-text";
 import HeroBackground from "./HeroBackground";
@@ -23,11 +25,11 @@ const NAVIGATION_WAIT_MS = 5_000;
 const HERO_HEADLINE_WORDS = ["business", "store", "startup", "brokerage", "product", "agency"] as const;
 const delay = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
-function useRotatingHeroWord() {
+function useRotatingHeroWord(isPageVisible: boolean) {
   const [word, setWord] = useState<string>(HERO_HEADLINE_WORDS[0]);
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!isPageVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     let wordIndex = 0;
     let characterCount = HERO_HEADLINE_WORDS[wordIndex].length;
@@ -59,7 +61,7 @@ function useRotatingHeroWord() {
     return () => {
       if (timeout !== undefined) window.clearTimeout(timeout);
     };
-  }, []);
+  }, [isPageVisible]);
 
   return word;
 }
@@ -76,8 +78,11 @@ export default function Hero() {
   const [hydrated, setHydrated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [taglineWidth, setTaglineWidth] = useState<number | null>(null);
-  const rotatingHeroWord = useRotatingHeroWord();
+  const isPageVisible = usePageVisibility();
+  const rotatingHeroWord = useRotatingHeroWord(isPageVisible);
   const { start, waitForReadyToNavigate } = useWebsiteScrapeStatus({ autoStart: false, context: "anonymous" });
+
+  useLandingPerformanceTelemetry();
 
   useEffect(() => setHydrated(true), []);
 
@@ -109,7 +114,7 @@ export default function Hero() {
   useEffect(() => {
     const target = waveTargetRef.current;
     const invalid = Boolean(errorMessage && phase === "idle");
-    if (!target || invalid || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!target || invalid || !isPageVisible || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const animation = target.animate(
       [
         { backgroundPosition: "0 0, 0% 50%" },
@@ -120,7 +125,7 @@ export default function Hero() {
       { duration: 10_000, easing: "ease-in-out", iterations: Number.POSITIVE_INFINITY },
     );
     return () => animation.cancel();
-  }, [errorMessage, phase]);
+  }, [errorMessage, isPageVisible, phase]);
 
   async function runAnalysis(domain: string) {
     if (submissionPending.current) return;

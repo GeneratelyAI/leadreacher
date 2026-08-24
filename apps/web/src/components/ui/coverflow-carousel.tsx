@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "@/components/ui/icons";
+import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
@@ -70,6 +71,8 @@ export function CoverflowCarousel({
   const hoveredIndexRef = React.useRef<number | null>(null);
   const [selected, setSelected] = React.useState(0);
   const [isHovering, setIsHovering] = React.useState(false);
+  const [isNearViewport, setIsNearViewport] = React.useState(false);
+  const isPageVisible = usePageVisibility();
 
   const indexAt = React.useCallback((position: number) => ((Math.round(position) % count) + count) % count, [count]);
   const clamp = React.useCallback((position: number) => (loop ? position : Math.max(0, Math.min(count - 1, position))), [count, loop]);
@@ -141,13 +144,25 @@ export function CoverflowCarousel({
   }, [count, loop, settle]);
 
   React.useEffect(() => {
-    if (!autoPlay || reducedMotion || count < 2 || isHovering) return;
+    if (!autoPlay || reducedMotion || count < 2 || isHovering || !isNearViewport || !isPageVisible) return;
     const delay = autoPlayInterval + (selected === count - 1 ? finalSlideHold : 0);
     const timer = window.setTimeout(() => {
       if (dragRef.current === null) nudge(1);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, nudge, reducedMotion, selected]);
+  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, isNearViewport, isPageVisible, nudge, reducedMotion, selected]);
+
+  React.useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(Boolean(entry?.isIntersecting)),
+      { rootMargin: "240px 0px" },
+    );
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   React.useEffect(() => () => {
     if (frameRefId.current !== null) cancelAnimationFrame(frameRefId.current);

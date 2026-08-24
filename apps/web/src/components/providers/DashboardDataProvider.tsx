@@ -75,7 +75,6 @@ function DashboardLiveEvents({ children }: { children: ReactNode }) {
     let stopped = false;
     let reconnectTimer: number | undefined;
     let fallbackTimer: number | undefined;
-    let hasConnected = false;
     const invalidateActiveDashboardQueries = () => {
       void queryClient.invalidateQueries({
         predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "dashboard",
@@ -111,8 +110,10 @@ function DashboardLiveEvents({ children }: { children: ReactNode }) {
       try {
         const response = await apiStream("/dashboard/events", controller.signal);
         if (!response.body) throw new Error("Dashboard event stream unavailable");
-        if (hasConnected) invalidateActiveDashboardQueries();
-        hasConnected = true;
+        // A reconnect only restores the transport. Refreshing every active
+        // dashboard query here makes an intermittent network or browser
+        // lifecycle pause look like a full-page update. Persisted events below
+        // are the source of truth for targeted invalidation.
         stopFallbackRefetch();
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
