@@ -1,10 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
+import {
+  expect,
+  test as base,
+  type BrowserContext,
+  type Page,
+} from "@playwright/test";
 
 const email = process.env.E2E_EMAIL;
 const password = process.env.E2E_PASSWORD;
 const prospectQuery = process.env.E2E_PROSPECT_QUERY;
 const reviewCampaignId = process.env.E2E_REVIEW_CAMPAIGN_ID;
 const assertVisualBaselines = process.env.VISUAL_REGRESSION === "true";
+const configuredBaseURL = process.env.PLAYWRIGHT_BASE_URL
+  ?? `http://localhost:${process.env.PLAYWRIGHT_PORT ?? "3002"}`;
 const dashboardRoutes = [
   "/dashboard",
   "/dashboard/campaigns",
@@ -34,6 +41,10 @@ const onboardingViewports = [
 const onboardingThemes = ["light", "dark"] as const;
 
 type AuthDestination = "dashboard" | "onboarding";
+type AuthSession = {
+  destination: AuthDestination;
+  storageState: Awaited<ReturnType<BrowserContext["storageState"]>>;
+};
 
 async function login(page: Page): Promise<AuthDestination> {
   // The auth form is server-rendered before React attaches its handlers.
@@ -66,18 +77,60 @@ async function gotoAppRoute(page: Page, route: string) {
     await page.waitForLoadState("domcontentloaded");
   }
 
-  await expect(page.locator("main").first()).toBeVisible();
+  await expect(
+    page
+      .locator("main")
+      .first()
+      .or(page.getByRole("tablist", { name: "Onboarding progress" }))
+      .first(),
+  ).toBeVisible();
 }
+
+const test = base.extend<
+  { authenticatedPage: Page; authDestination: AuthDestination },
+  { authSession: AuthSession }
+>({
+  authSession: [
+    async ({ browser }, provide) => {
+      if (!email || !password) {
+        await provide({
+          destination: "onboarding",
+          storageState: { cookies: [], origins: [] },
+        });
+        return;
+      }
+
+      const context = await browser.newContext({ baseURL: configuredBaseURL });
+      const page = await context.newPage();
+      const destination = await login(page);
+      const storageState = await context.storageState();
+      await context.close();
+      await provide({ destination, storageState });
+    },
+    { scope: "worker" },
+  ],
+  authenticatedPage: async ({ browser, authSession }, provide) => {
+    const context = await browser.newContext({
+      baseURL: configuredBaseURL,
+      storageState: authSession.storageState,
+    });
+    const page = await context.newPage();
+    await provide(page);
+    await context.close();
+  },
+  authDestination: async ({ authSession }, provide) => {
+    await provide(authSession.destination);
+  },
+});
 
 test.describe("authenticated responsive staging", () => {
   test.beforeEach(() => {
     test.skip(!email || !password, "Set E2E_EMAIL and E2E_PASSWORD for the seeded staging organization");
   });
 
-  test("keeps every available dashboard route reachable on a phone", async ({ page }) => {
-    const destination = await login(page);
+  test("keeps every available dashboard route reachable on a phone", async ({ authenticatedPage: page, authDestination }) => {
     test.skip(
-      destination === "onboarding",
+      authDestination === "onboarding",
       "The seeded staging account must complete onboarding before dashboard routes are available",
     );
 
@@ -88,10 +141,9 @@ test.describe("authenticated responsive staging", () => {
     }
   });
 
-  test("keeps every onboarding step responsive in light and dark themes", async ({ page }) => {
-    const destination = await login(page);
+  test("keeps every onboarding step responsive in light and dark themes", async ({ authenticatedPage: page, authDestination }) => {
     test.skip(
-      destination === "dashboard",
+      authDestination === "dashboard",
       "The seeded staging account has already completed onboarding",
     );
 
@@ -121,10 +173,9 @@ test.describe("authenticated responsive staging", () => {
     }
   });
 
-  test("captures the dashboard overview baseline", async ({ page }) => {
-    const destination = await login(page);
+  test("captures the dashboard overview baseline", async ({ authenticatedPage: page, authDestination }) => {
     test.skip(
-      destination === "onboarding",
+      authDestination === "onboarding",
       "The seeded staging account must complete onboarding before dashboard screenshots are available",
     );
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -146,7 +197,7 @@ test.describe("authenticated responsive staging", () => {
     }
   });
 
-  test("exercises configured staging channel, prospect, and review paths without sending outreach", async ({ page }, testInfo) => {
+  test("exercises configured staging channel, prospect, and review paths without sending outreach", async ({ authenticatedPage: page, authDestination }, testInfo) => {
     // The route-reachability test above retains the eight-device matrix. This
     // controlled integration path runs once so it does not repeatedly call a
     // real staging sender or prospect provider from every browser project.
@@ -156,9 +207,8 @@ test.describe("authenticated responsive staging", () => {
       "Set E2E_PROSPECT_QUERY and E2E_REVIEW_CAMPAIGN_ID for the controlled staging tenant",
     );
 
-    const destination = await login(page);
     test.skip(
-      destination === "onboarding",
+      authDestination === "onboarding",
       "The seeded staging account must complete onboarding before provider paths are available",
     );
 
