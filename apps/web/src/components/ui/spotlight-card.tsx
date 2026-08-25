@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import { m, useMotionTemplate, useMotionValue } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -13,22 +13,41 @@ type SpotlightCardProps = {
 
 export function SpotlightCard({ children, className, spotlightColor = "rgba(111, 76, 255, 0.18)", spotlightClassName }: SpotlightCardProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const frameRef = useRef(0);
+  const boundsRef = useRef<DOMRect | null>(null);
+  const pointerRef = useRef({ x: -200, y: -200 });
   const x = useMotionValue(-200);
   const y = useMotionValue(-200);
   const background = useMotionTemplate`radial-gradient(280px circle at ${x}px ${y}px, ${spotlightColor}, transparent 68%)`;
 
+  useEffect(() => () => {
+    if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
+  }, []);
+
   function handlePointerMove(event: MouseEvent<HTMLDivElement>) {
-    const bounds = ref.current?.getBoundingClientRect();
+    const bounds = boundsRef.current;
     if (!bounds) return;
-    x.set(event.clientX - bounds.left);
-    y.set(event.clientY - bounds.top);
+    pointerRef.current = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    if (frameRef.current) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = 0;
+      x.set(pointerRef.current.x);
+      y.set(pointerRef.current.y);
+    });
   }
 
   return (
     <div
       ref={ref}
+      onMouseEnter={() => { boundsRef.current = ref.current?.getBoundingClientRect() ?? null; }}
       onMouseMove={handlePointerMove}
-      onMouseLeave={() => { x.set(-200); y.set(-200); }}
+      onMouseLeave={() => {
+        boundsRef.current = null;
+        if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
+        frameRef.current = 0;
+        x.set(-200);
+        y.set(-200);
+      }}
       className={cn("group relative overflow-hidden rounded-lg border border-[#dedbea] bg-white", className)}
     >
       <m.div aria-hidden className={cn("pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100", spotlightClassName)} style={{ background }} />

@@ -185,6 +185,9 @@ function DifferentiationSection() {
   const orbitItemRefs = useRef<Array<HTMLLIElement | null>>([]);
   const mapSpotlightRef = useRef<SVGCircleElement>(null);
   const mapShineRef = useRef<SVGPathElement>(null);
+  const mapFrameRef = useRef(0);
+  const mapBoundsRef = useRef<DOMRect | null>(null);
+  const mapPointerRef = useRef({ x: 600, y: 260 });
   const [orbitSize, setOrbitSize] = useState({ width: 0, height: 0 });
   const orbitChannels = [
     { label: "LinkedIn", mark: <ChannelLogo name="linkedin" className="size-8 sm:size-11" /> },
@@ -239,7 +242,22 @@ function DifferentiationSection() {
       })];
     });
 
+    let isOrbitVisible = false;
+    const setPlayback = () => {
+      const shouldPlay = isOrbitVisible && document.visibilityState === "visible";
+      animations.forEach((animation) => shouldPlay ? animation.play() : animation.pause());
+    };
+    const observer = new IntersectionObserver(([entry]) => {
+      isOrbitVisible = entry.isIntersecting;
+      setPlayback();
+    }, { rootMargin: "180px 0px" });
+    const orbit = orbitRef.current;
+    if (orbit) observer.observe(orbit);
+    document.addEventListener("visibilitychange", setPlayback);
+
     return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", setPlayback);
       animations.forEach((animation) => animation.cancel());
       orbitElements.forEach((element) => {
         if (element) element.style.willChange = "";
@@ -252,15 +270,31 @@ function DifferentiationSection() {
     const shine = mapShineRef.current;
     if (!spotlight || !shine) return;
 
-    const bounds = event.currentTarget.getBoundingClientRect();
-    spotlight.setAttribute("cx", String(((event.clientX - bounds.left) / bounds.width) * 1200));
-    spotlight.setAttribute("cy", String(((event.clientY - bounds.top) / bounds.height) * 500));
-    shine.style.opacity = "1";
+    const bounds = mapBoundsRef.current ?? event.currentTarget.getBoundingClientRect();
+    mapBoundsRef.current = bounds;
+    mapPointerRef.current = {
+      x: ((event.clientX - bounds.left) / bounds.width) * 1200,
+      y: ((event.clientY - bounds.top) / bounds.height) * 500,
+    };
+    if (mapFrameRef.current) return;
+    mapFrameRef.current = window.requestAnimationFrame(() => {
+      mapFrameRef.current = 0;
+      spotlight.setAttribute("cx", String(mapPointerRef.current.x));
+      spotlight.setAttribute("cy", String(mapPointerRef.current.y));
+      shine.style.opacity = "1";
+    });
   };
 
   const hideMapSpotlight = () => {
+    mapBoundsRef.current = null;
+    if (mapFrameRef.current) window.cancelAnimationFrame(mapFrameRef.current);
+    mapFrameRef.current = 0;
     if (mapShineRef.current) mapShineRef.current.style.opacity = "0";
   };
+
+  useEffect(() => () => {
+    if (mapFrameRef.current) window.cancelAnimationFrame(mapFrameRef.current);
+  }, []);
 
   return (
     <EdgeSurface data-navbar-theme="light" className="relative z-10 -mt-7 py-16 sm:-mt-9 sm:py-24 lg:py-28">
@@ -296,6 +330,7 @@ function DifferentiationSection() {
 
         <div
           className="relative mx-auto mt-4 h-[330px] max-w-[78rem] sm:mt-6 sm:h-[430px] lg:h-[500px]"
+          onMouseEnter={(event) => { mapBoundsRef.current = event.currentTarget.getBoundingClientRect(); }}
           onMouseMove={updateMapSpotlight}
           onMouseLeave={hideMapSpotlight}
         >
