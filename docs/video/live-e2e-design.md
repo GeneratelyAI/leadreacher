@@ -24,13 +24,13 @@ The literal task is "run the full flow end to end and find edge cases." That is 
 ## Architecture (existing system under test)
 
 - **API:** Fastify (`apps/api`), protected routes scoped by `orgId` (Supabase JWT).
-- **Worker:** BullMQ `campaign-sequence` worker, started **in-process** with the API (`server.ts:47`); Redis is Upstash. Retry policy: 3 attempts, exponential backoff from 5s.
+- **Worker:** BullMQ `campaign-sequence` worker, deployed as a dedicated Railway worker service and backed by Railway Redis. Retry policy: 3 attempts, exponential backoff from 5s.
 - **Adapters:** `ApifyAdapter` (LinkedIn profile search actor) and `UnipileAdapter` (profile lookup, invite, chat).
 - **Webhooks:** `POST /webhooks/unipile` handles `new_relation` (invite accepted → send step-1 DM) and `message_received` (reply → mark replied, cancel pending jobs). Auth via constant-time `Unipile-Auth` header check.
 
 ## Section 1 - Prerequisites (all green before any outreach)
 
-1. Postgres migrated; Upstash Redis reachable; API running (`pnpm dev:api`).
+1. Postgres migrated; Railway Redis reachable; API and worker running.
 2. `test-unipile.ts` passes T1–T3; record sender Unipile `account_id`.
 3. ngrok tunnel up; `recreate-unipile-webhooks.ts` run with the tunnel URL; both webhooks visible in the Unipile dashboard; `UNIPILE_WEBHOOK_SECRET` matches the registered header.
 4. Supabase test user exists; `get-test-token.ts` yields an access token. Its org scopes all test data.
