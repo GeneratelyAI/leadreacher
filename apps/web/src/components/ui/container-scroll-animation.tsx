@@ -41,6 +41,7 @@ export function ContainerScroll({
   const shouldReduceMotion = hasMounted && (reducedMotion ?? Boolean(systemReducedMotion));
   const scrollYProgress = useMotionValue(0);
   const lastReportedProgress = useRef<number | null>(null);
+  const metricsRef = useRef({ top: 0, distance: 1 });
 
   const rotateX = useTransform(scrollYProgress, [0, 0.15], [12, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.15], [0.84, 1]);
@@ -75,12 +76,20 @@ export function ContainerScroll({
     if (!isNearViewport || !isPageVisible) return;
 
     let animationFrame = 0;
+    const target = targetRef.current;
+    if (!target) return;
+
+    const measure = () => {
+      const bounds = target.getBoundingClientRect();
+      metricsRef.current = {
+        top: bounds.top + window.scrollY,
+        distance: Math.max(target.offsetHeight - window.innerHeight, 1),
+      };
+    };
     const updateProgress = () => {
       animationFrame = 0;
-      const target = targetRef.current;
-      if (!target) return;
-      const scrollableDistance = Math.max(target.offsetHeight - window.innerHeight, 1);
-      const progress = Math.min(Math.max(-target.getBoundingClientRect().top / scrollableDistance, 0), 1);
+      const { top, distance } = metricsRef.current;
+      const progress = Math.min(Math.max((window.scrollY - top) / distance, 0), 1);
       scrollYProgress.set(progress);
       if (onProgress && (lastReportedProgress.current === null || Math.abs(progress - lastReportedProgress.current) >= 0.01 || progress === 0 || progress === 1)) {
         lastReportedProgress.current = progress;
@@ -91,12 +100,20 @@ export function ContainerScroll({
       if (animationFrame) return;
       animationFrame = window.requestAnimationFrame(updateProgress);
     };
+    const handleResize = () => {
+      measure();
+      requestUpdate();
+    };
+    const resizeObserver = new ResizeObserver(handleResize);
+    resizeObserver.observe(target);
+    measure();
     updateProgress();
     window.addEventListener("scroll", requestUpdate, { passive: true });
-    window.addEventListener("resize", requestUpdate);
+    window.addEventListener("resize", handleResize, { passive: true });
     return () => {
       window.removeEventListener("scroll", requestUpdate);
-      window.removeEventListener("resize", requestUpdate);
+      window.removeEventListener("resize", handleResize);
+      resizeObserver.disconnect();
       if (animationFrame) window.cancelAnimationFrame(animationFrame);
     };
   }, [isNearViewport, isPageVisible, onProgress, scrollYProgress]);

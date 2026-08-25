@@ -75,6 +75,7 @@ export function FiberFlowBackground({
     if (!container || !canvas || !context) return;
 
     const deviceMemory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+    const isWindows = /Win/i.test(navigator.userAgent) || /Win/i.test(navigator.platform);
     const constrainedDevice =
       navigator.hardwareConcurrency <= 4 ||
       (typeof deviceMemory === "number" && deviceMemory <= 4);
@@ -109,6 +110,8 @@ export function FiberFlowBackground({
     let animationFrame = 0;
     let startTime = performance.now();
     let pausedAt: number | null = null;
+    let lastPaintTime = 0;
+    const minimumFrameInterval = constrainedDevice ? 1000 / 30 : isWindows ? 1000 / 45 : 0;
     let isPageVisible = document.visibilityState === "visible";
     let isNearViewport = true;
     const focalPoint = { x: 0.51, y: 0.605 };
@@ -291,6 +294,11 @@ export function FiberFlowBackground({
     };
 
     const draw = (timestamp: number, scheduleNextFrame = true) => {
+      if (scheduleNextFrame && minimumFrameInterval > 0 && timestamp - lastPaintTime < minimumFrameInterval) {
+        animationFrame = window.requestAnimationFrame(draw);
+        return;
+      }
+      lastPaintTime = timestamp;
       const elapsed = reducedMotion ? 0 : ((timestamp - startTime) / 1000) * speed;
       pointer.x += (pointer.targetX - pointer.x) * 0.07;
       pointer.y += (pointer.targetY - pointer.y) * 0.07;
@@ -377,7 +385,10 @@ export function FiberFlowBackground({
 
     const resize = () => {
       const bounds = container.getBoundingClientRect();
-      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      // Chromium on Windows can spend most of a frame rasterizing this full-screen
+      // canvas at 150–200% display scaling. A 1.5 DPR ceiling preserves the same
+      // composition while cutting its backing-store work substantially.
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, isWindows ? 1.5 : 2);
       const nextWidth = Math.max(1, bounds.width);
       const nextHeight = Math.max(1, bounds.height);
       const nextCanvasWidth = Math.round(nextWidth * pixelRatio);

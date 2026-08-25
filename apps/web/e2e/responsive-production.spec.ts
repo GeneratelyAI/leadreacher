@@ -174,7 +174,7 @@ test.describe("visual baselines", () => {
       ],
       [
         "differentiation.png",
-        page.locator("section").filter({ has: page.getByRole("heading", { name: "Why LeadReacher is different." }) }),
+        page.locator("section").filter({ has: page.getByRole("heading", { name: /Scale faster/ }) }),
       ],
       [
         "campaign-preview.png",
