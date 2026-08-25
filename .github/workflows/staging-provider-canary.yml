@@ -78,7 +78,11 @@ jobs:
         id: candidate
         shell: bash
         env:
-          CANDIDATE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.sha }}
+          # Scheduled workflows are dispatched from the repository default
+          # branch, but staging validation must always execute develop. Pushes
+          # remain pinned to their triggering SHA; manual runs use their
+          # explicitly requested (and subsequently verified) ref.
+          CANDIDATE_REF: ${{ github.event_name == 'push' && github.sha || inputs.ref || 'develop' }}
         run: |
           candidate="$(git rev-parse "${CANDIDATE_REF}^{commit}")"
           if ! git merge-base --is-ancestor "$candidate" origin/develop; then
