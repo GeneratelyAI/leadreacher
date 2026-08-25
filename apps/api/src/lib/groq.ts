@@ -6,7 +6,8 @@ const GROQ_TIMEOUT_MS = 30_000;
 const GROQ_MAX_ATTEMPTS = 3;
 
 // Default text model for structured onboarding and video prompt/critic calls.
-export const GROQ_TEXT_MODEL = "llama-3.1-8b-instant";
+// Keep this on a model that supports Groq's JSON object response mode.
+export const GROQ_TEXT_MODEL = "openai/gpt-oss-20b";
 
 // Vision model used by the video output critic to inspect representative frames.
 export const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
