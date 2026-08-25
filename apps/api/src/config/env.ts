@@ -350,8 +350,8 @@ export function getVeoParallelVariants(): number {
 
 /**
  * BullMQ long-polls Redis while a queue is empty. Keeping this high avoids
- * spending Upstash commands on idle workers; Redis wakes the worker
- * immediately when a job is added, so it does not add job-start latency.
+ * unnecessary commands on idle workers; Redis wakes the worker immediately
+ * when a job is added, so it does not add job-start latency.
  */
 export function getBullMqIdleDrainDelaySeconds(): number {
   return env.BULLMQ_IDLE_DRAIN_DELAY_SECONDS;
