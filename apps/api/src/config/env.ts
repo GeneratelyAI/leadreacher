@@ -176,16 +176,7 @@ const envSchema = z.object({
   }
 });
 
-// Read the neutral names everywhere in the application. The legacy aliases
-// keep existing deployed/local environments working for one migration cycle;
-// remove them after every environment has REDIS_URL configured.
-const rawEnv = {
-  ...process.env,
-  REDIS_URL: process.env.REDIS_URL ?? process.env.UPSTASH_REDIS_URL,
-  REDIS_PASSWORD: process.env.REDIS_PASSWORD ?? process.env.UPSTASH_REDIS_TOKEN,
-};
-
-const parsed = envSchema.safeParse(rawEnv);
+const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   throw new Error(
