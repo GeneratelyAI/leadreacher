@@ -5,9 +5,14 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_TIMEOUT_MS = 30_000;
 const GROQ_MAX_ATTEMPTS = 3;
 
-// Default text model for structured onboarding and video prompt/critic calls.
-// Keep this on a model that supports Groq's JSON object response mode.
-export const GROQ_TEXT_MODEL = "openai/gpt-oss-20b";
+// Structured onboarding and text-agent calls prefer the faster model, then
+// fail over to a separate model quota when Groq reports transient capacity or
+// rate-limit failures. Both models support Groq's JSON object response mode.
+export const GROQ_TEXT_MODELS = [
+  "openai/gpt-oss-20b",
+  "openai/gpt-oss-120b",
+] as const;
+export const GROQ_TEXT_MODEL = GROQ_TEXT_MODELS[0];
 
 // Vision model used by the video output critic to inspect representative frames.
 export const GROQ_VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
@@ -37,7 +42,11 @@ type CallGroqOptions = {
   jsonObject?: boolean;
 };
 
-function transientStatus(status: number): boolean {
+function retryableTransportStatus(status: number): boolean {
+  return status === 408 || status >= 500;
+}
+
+function fallbackEligibleStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
@@ -59,7 +68,10 @@ async function groqRequest(body: Record<string, unknown>): Promise<Response> {
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(GROQ_TIMEOUT_MS),
       });
-      if (!transientStatus(response.status) || attempt === GROQ_MAX_ATTEMPTS) return response;
+      // A 429 is commonly a model-specific daily quota. Retrying the same
+      // model cannot resolve that, so return it immediately and let the text
+      // model fallback select a different quota.
+      if (!retryableTransportStatus(response.status) || attempt === GROQ_MAX_ATTEMPTS) return response;
       await response.body?.cancel();
     } catch (error) {
       lastError = error;
@@ -76,30 +88,49 @@ export async function callGroq(
   maxTokens: number,
   options: CallGroqOptions = {},
 ): Promise<string> {
-  const response = await groqRequest({
-    model: GROQ_TEXT_MODEL,
-    max_tokens: maxTokens,
-    ...(options.jsonObject
-      ? { response_format: { type: "json_object" } }
-      : {}),
-    messages: [{ role: "system", content: system }, ...messages],
-  });
+  let lastError: ExternalServiceError | null = null;
 
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => response.statusText);
-    throw new ExternalServiceError("Groq", errorBody);
+  for (const [index, model] of GROQ_TEXT_MODELS.entries()) {
+    const response = await groqRequest({
+      model,
+      max_tokens: maxTokens,
+      ...(options.jsonObject
+        ? { response_format: { type: "json_object" } }
+        : {}),
+      messages: [{ role: "system", content: system }, ...messages],
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => response.statusText);
+      lastError = new ExternalServiceError("Groq", errorBody);
+      const hasFallback = index < GROQ_TEXT_MODELS.length - 1;
+      if (hasFallback && fallbackEligibleStatus(response.status)) {
+        console.warn("[groq] Text model unavailable; trying fallback", {
+          model,
+          status: response.status,
+          fallbackModel: GROQ_TEXT_MODELS[index + 1],
+        });
+        continue;
+      }
+      throw lastError;
+    }
+
+    const payload = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+
+    const text = payload.choices?.[0]?.message?.content;
+    if (text) {
+      return text.trim();
+    }
+
+    lastError = new ExternalServiceError("Groq", "Empty response from Groq");
+    if (index === GROQ_TEXT_MODELS.length - 1) {
+      throw lastError;
+    }
   }
 
-  const payload = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  const text = payload.choices?.[0]?.message?.content;
-  if (!text) {
-    throw new ExternalServiceError("Groq", "Empty response from Groq");
-  }
-
-  return text.trim();
+  throw lastError ?? new ExternalServiceError("Groq", "No text model was available");
 }
 
 function toGroqVisionMessage(message: VisionMessage): {

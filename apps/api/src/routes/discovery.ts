@@ -520,11 +520,15 @@ async function runDiscoveryScrape(
       },
     );
   } catch (error) {
+    console.error("[discovery] Website analysis failed", {
+      url,
+      error: error instanceof Error ? error.message : String(error),
+    });
     await persist(
       emptyScrapeStatus(
         "failed",
         url,
-        error instanceof Error ? error.message : String(error),
+        "Website analysis is temporarily busy. Please try again in a moment.",
       ),
     );
   }
@@ -777,7 +781,9 @@ export async function anonymousDiscoveryRoutes(
     {
       config: {
         rateLimit: {
-          max: 3,
+          // Keep public production traffic tightly bounded while allowing
+          // local E2E/manual verification to repeat without locking the form.
+          max: process.env.NODE_ENV === "production" ? 3 : 100,
           timeWindow: "10 minutes",
         },
       },
@@ -790,6 +796,14 @@ export async function anonymousDiscoveryRoutes(
       const { url: rawUrl, anonId } = request.body;
       const url = normalizeScrapeUrl(rawUrl);
       const statusKey = anonScrapeStatusKey(anonId);
+      const existingStatus = await getScrapeStatus(statusKey);
+      if (
+        existingStatus?.url === url &&
+        (existingStatus.status === "running" ||
+          existingStatus.status === "completed")
+      ) {
+        return reply.send(existingStatus);
+      }
       const runningStatus = emptyScrapeStatus("running", url);
 
       await setScrapeStatus(
