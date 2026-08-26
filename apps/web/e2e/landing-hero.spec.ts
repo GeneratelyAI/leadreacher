@@ -299,6 +299,31 @@ test("supports keyboard stage navigation and reduced motion", async ({ page }, t
   await expect(page.getByTestId("container-scroll-frame")).toHaveCSS("transform", "none");
 });
 
+test("keeps acquisition carousel navigation interruptible", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop carousel interaction only");
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await openLanding(page);
+
+  const carousel = page.getByRole("region", { name: "The LeadReacher customer acquisition workflow" });
+  await carousel.scrollIntoViewIfNeeded();
+  const slides = carousel.locator('[aria-roledescription="slide"]');
+  await expect(slides).toHaveCount(5);
+
+  await carousel.getByRole("button", { name: "Next slide" }).click();
+  await expect(slides.nth(1)).toHaveAttribute("aria-current", "true");
+
+  await carousel.getByRole("button", { name: "Next slide" }).click();
+  await carousel.getByRole("button", { name: "Previous slide" }).click();
+  await carousel.getByRole("button", { name: "Go to slide 5" }).click();
+  await expect(slides.nth(4)).toHaveAttribute("aria-current", "true");
+
+  const keyboardTarget = carousel.locator('[tabindex="0"]').first();
+  await keyboardTarget.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(slides.nth(0)).toHaveAttribute("aria-current", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
   test.skip(!phoneProjects.has(testInfo.project.name), "Phone workflow only");
   await page.setViewportSize({ width: 390, height: 844 });
@@ -347,40 +372,20 @@ test("keeps rounded section transitions above adjacent blocks and reveals the fo
   })).toBeLessThan(2);
 });
 
-test("pauses the channel orbit for reliable node selection", async ({ page }, testInfo) => {
+test("runs the channel orbit only while it is near the viewport", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop orbit timing only");
   await page.setViewportSize({ width: 1440, height: 900 });
   await openLanding(page);
 
-  const linkedInNode = page.locator('[data-orbital-node="1"]');
-  await linkedInNode.scrollIntoViewIfNeeded();
-  if (!phoneProjects.has(testInfo.project.name)) {
-    await linkedInNode.hover();
-    await page.waitForTimeout(1_050);
-  }
-  await linkedInNode.click();
-  await expect(linkedInNode).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator("#orbital-channel-1")).toContainText("Invites and follow-ups from your connected LinkedIn account.");
+  const orbit = page.getByRole("list", { name: "Supported outreach channels" });
+  await orbit.scrollIntoViewIfNeeded();
+  const firstMark = orbit.getByRole("listitem").first();
+  const visibleTransform = await firstMark.evaluate((element) => getComputedStyle(element).transform);
+  await expect.poll(() => firstMark.evaluate((element) => getComputedStyle(element).transform)).not.toBe(visibleTransform);
 
-  const orbit = linkedInNode.locator("xpath=ancestor::div[contains(@class, 'overflow-hidden')][1]");
-  const orbitBox = await orbit.boundingBox();
-  const selectedNodeBox = await linkedInNode.boundingBox();
-  expect(orbitBox).not.toBeNull();
-  expect(selectedNodeBox).not.toBeNull();
-  expect(selectedNodeBox!.y).toBeGreaterThanOrEqual(orbitBox!.y);
-  expect(selectedNodeBox!.y + selectedNodeBox!.height).toBeLessThanOrEqual(orbitBox!.y + orbitBox!.height);
-
-  const gmailNode = page.getByRole("button", { name: "View Gmail details" });
-  await expect(gmailNode).not.toHaveAttribute("aria-controls");
-
-  await page.getByRole("button", { name: /WhatsApp/ }).last().click();
-  const whatsappNode = page.locator('[data-orbital-node="2"]');
-  await expect(whatsappNode).toHaveAttribute("aria-expanded", "true");
-  await expect(whatsappNode).toHaveAttribute("aria-controls", "orbital-channel-2");
-  await expect(whatsappNode).toBeFocused();
-  await expect(page.locator("#orbital-channel-2")).toContainText("Direct conversations with campaign and reply context attached.");
-
-  await orbit.click({ position: { x: 16, y: 16 } });
-  await expect(whatsappNode).toHaveAttribute("aria-expanded", "false");
-  await expect(whatsappNode).not.toHaveAttribute("aria-controls");
-  await expect(page.locator("#orbital-channel-2")).toHaveCount(0);
+  await page.locator("#top").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  const pausedTransform = await firstMark.evaluate((element) => getComputedStyle(element).transform);
+  await page.waitForTimeout(250);
+  await expect(firstMark).toHaveCSS("transform", pausedTransform);
 });
