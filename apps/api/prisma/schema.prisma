@@ -6,6 +6,36 @@ datasource db {
   provider = "postgresql"
 }
 
+enum IncidentProvider {
+  sentry
+  better_stack
+}
+
+enum IncidentRepairStatus {
+  received
+  queued
+  enriching
+  dispatched
+  repairing
+  pull_request_open
+  needs_approval
+  merged
+  verifying
+  verified
+  blocked
+  failed
+  verification_failed
+  cancelled
+}
+
+enum IncidentRisk {
+  low
+  medium
+  high
+  prohibited
+  unknown
+}
+
 model Organization {
   id                   String                  @id @default(cuid())
   name                 String
@@ -496,4 +526,54 @@ model Waitlist {
   id        String   @id @default(cuid())
   email     String   @unique
   createdAt DateTime @default(now())
+}
+
+model IncidentRepair {
+  id                 String                @id @default(cuid())
+  provider           IncidentProvider
+  externalIssueId    String
+  fingerprint        String
+  environment        String
+  releaseSha         String
+  severity           String
+  title              String
+  providerUrl        String?
+  status             IncidentRepairStatus  @default(received)
+  risk               IncidentRisk          @default(unknown)
+  attemptCount       Int                   @default(0)
+  branchName         String?
+  commitSha          String?
+  pullRequestNumber  Int?
+  pullRequestUrl     String?
+  workflowRunId      String?
+  workflowRunUrl     String?
+  verificationResult Json?
+  sanitizedContext   Json?
+  contextDigest      String?
+  lastError          String?
+  briefedStatus      IncidentRepairStatus?
+  briefedAt          DateTime?
+  firstSeenAt        DateTime              @default(now())
+  lastSeenAt         DateTime              @default(now())
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  events             IncidentRepairEvent[]
+
+  @@unique([provider, externalIssueId, releaseSha])
+  @@index([status, updatedAt])
+  @@index([provider, fingerprint, environment])
+}
+
+model IncidentRepairEvent {
+  id         String               @id @default(cuid())
+  repairId   String
+  repair     IncidentRepair       @relation(fields: [repairId], references: [id], onDelete: Cascade)
+  status     IncidentRepairStatus
+  eventType  String
+  metadata   Json?
+  occurredAt DateTime             @default(now())
+  createdAt  DateTime             @default(now())
+
+  @@index([repairId, occurredAt])
+  @@index([status, occurredAt])
 }

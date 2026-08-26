@@ -84,6 +84,18 @@ const envSchema = z.object({
   BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL: optionalUrl,
   BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL: optionalUrl,
   BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL: optionalUrl,
+  INCIDENT_AUTOFIX_ENABLED: optionalBoolean,
+  INCIDENT_AUTOFIX_DRY_RUN: optionalBoolean,
+  INCIDENT_AUTOFIX_AUTO_MERGE: optionalBoolean,
+  ENABLE_INCIDENT_AUTOFIX_WORKER: optionalBoolean,
+  SENTRY_WEBHOOK_SECRET: z.string().optional().default(""),
+  SENTRY_API_TOKEN: z.string().optional().default(""),
+  SENTRY_ORG_SLUG: z.string().optional().default(""),
+  BETTERSTACK_WEBHOOK_SECRET: z.string().optional().default(""),
+  BETTERSTACK_API_TOKEN: z.string().optional().default(""),
+  GITHUB_AUTOFIX_TOKEN: z.string().optional().default(""),
+  GITHUB_AUTOFIX_REPOSITORY: z.string().default("nickcantanhede/leadreacher"),
+  INCIDENT_AUTOFIX_CALLBACK_SECRET: z.string().optional().default(""),
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
@@ -154,6 +166,22 @@ const envSchema = z.object({
   PRIVACY_VERSION: z.string().min(1).default("2026-08-04"),
   LEGAL_ACCEPTANCE_REQUIRED: booleanString,
 }).superRefine((value, ctx) => {
+  if (value.INCIDENT_AUTOFIX_ENABLED) {
+    for (const key of [
+      "SENTRY_WEBHOOK_SECRET",
+      "BETTERSTACK_WEBHOOK_SECRET",
+      "GITHUB_AUTOFIX_TOKEN",
+      "INCIDENT_AUTOFIX_CALLBACK_SECRET",
+    ] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required when INCIDENT_AUTOFIX_ENABLED=true`,
+        });
+      }
+    }
+  }
   if (value.STRIPE_MOCK_MODE) {
     return;
   }
@@ -261,6 +289,7 @@ const WORKER_FAMILY_NAMES = [
   "video",
   "analytics",
   "lifecycle",
+  "incident-autofix",
 ] as const;
 
 export type WorkerFamilyName = (typeof WORKER_FAMILY_NAMES)[number];
