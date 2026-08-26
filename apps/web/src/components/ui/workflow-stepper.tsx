@@ -52,7 +52,7 @@ export function WorkflowStepper({
       aria-label={ariaLabel}
       onKeyDown={handleKeyDown}
       className={cn(
-        "relative px-5 pb-5 pt-4 lg:px-8 lg:pb-6 lg:pt-6",
+        "workflow-stepper relative shrink-0 px-5 pb-5 pt-4 lg:px-8 lg:pb-6 lg:pt-6",
         isDark ? "text-white" : "text-[#111527] dark:text-white",
         className,
       )}

@@ -243,6 +243,49 @@ for (const viewport of [
   });
 }
 
+for (const viewport of [
+  { width: 1366, height: 650 },
+  { width: 1024, height: 600 },
+]) {
+  test(`keeps the product story readable on a short Windows desktop viewport at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story sizing only");
+    await page.setViewportSize(viewport);
+    await openLanding(page);
+    await page.locator("#product-story-scroll").scrollIntoViewIfNeeded();
+    await page
+      .getByRole("tablist", { name: "LeadReacher workflow stages" })
+      .getByRole("tab", { name: /Prospects/ })
+      .click();
+
+    const layout = await page.evaluate(() => {
+      const bounds = (selector: string) => {
+        const rect = document.querySelector<HTMLElement>(selector)?.getBoundingClientRect();
+        return rect ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height, right: rect.right, bottom: rect.bottom } : null;
+      };
+      return {
+        frame: bounds('[data-testid="container-scroll-frame"]'),
+        stepper: bounds(".workflow-stepper"),
+        workflow: bounds(".product-story-workflow"),
+        panel: bounds("#product-story-panel"),
+        copy: bounds(".product-story-side-copy"),
+        pageOverflows: document.documentElement.scrollWidth > window.innerWidth,
+      };
+    });
+
+    expect(layout.frame).not.toBeNull();
+    expect(layout.stepper).not.toBeNull();
+    expect(layout.workflow).not.toBeNull();
+    expect(layout.panel).not.toBeNull();
+    expect(layout.copy).not.toBeNull();
+    expect(layout.frame?.width ?? 0).toBeGreaterThanOrEqual(Math.min(viewport.width - 80, 1240));
+    expect(layout.panel?.width ?? 0).toBeGreaterThan((layout.frame?.width ?? 0) * 0.65);
+    expect(layout.workflow?.y ?? 0).toBeGreaterThanOrEqual(layout.stepper?.bottom ?? Number.POSITIVE_INFINITY);
+    expect(layout.copy?.y ?? -1).toBeGreaterThanOrEqual(layout.frame?.y ?? 0);
+    expect(layout.copy?.bottom ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(layout.frame?.bottom ?? 0);
+    expect(layout.pageOverflows).toBe(false);
+  });
+}
+
 test("supports keyboard stage navigation and reduced motion", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop tab interaction only");
   await page.emulateMedia({ reducedMotion: "reduce" });

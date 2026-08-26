@@ -1480,6 +1480,110 @@ html {
   }
 }
 
+/*
+ * A short desktop viewport is common on Windows once display scaling, Chrome's
+ * tab strip, and the taskbar are accounted for. The product story used to size
+ * its entire frame from `svh`, which made the canvas narrow and then clipped
+ * the vertically-centered side copy. Keep the same composition, but let short
+ * desktop canvases use the available width and compress their chrome instead.
+ */
+@media (min-width: 48rem) and (max-height: 42.5rem),
+  (min-width: 80rem) and (max-height: 48rem) {
+  .product-story-frame {
+    width: min(100%, 77.5rem);
+    height: calc(100svh - 1.5rem);
+    max-height: 41rem;
+    aspect-ratio: auto;
+  }
+
+  .product-story-heading {
+    padding-top: 0.65rem;
+  }
+
+  .product-story-heading > p:first-child {
+    font-size: 0.625rem;
+  }
+
+  .product-story-heading h2 {
+    max-width: 68rem;
+    margin-top: 0.35rem;
+    font-size: clamp(2rem, 3.5vw, 3rem);
+    line-height: 1.02;
+  }
+
+  .product-story-heading > p:last-child {
+    margin-top: 0.45rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .product-story-frame .workflow-stepper {
+    padding-top: 0.6rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .product-story-frame .workflow-stepper > div[aria-hidden] {
+    top: 2.05rem;
+  }
+
+  .product-story-frame .workflow-stepper > div[aria-hidden] + div {
+    top: 2rem;
+  }
+
+  .product-story-frame .workflow-stepper button > span:first-child {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .product-story-frame .workflow-stepper button > span:nth-child(2) {
+    margin-top: 0.35rem;
+    font-size: 0.625rem;
+  }
+
+  .product-story-frame .workflow-stepper button > span:nth-child(3) {
+    display: none;
+  }
+
+  .product-story-workflow {
+    grid-template-columns: minmax(11.75rem, 0.42fr) minmax(0, 1.58fr);
+    gap: 1rem;
+    padding-right: 1.25rem;
+    padding-bottom: 1rem;
+    padding-left: 1.25rem;
+  }
+
+  .product-story-copy-column {
+    justify-content: center;
+    overflow: visible;
+    padding-block: 0.25rem;
+  }
+
+  .product-story-side-copy h3 {
+    margin-top: 0.45rem;
+    font-size: clamp(1.25rem, 1.75vw, 1.6rem);
+    line-height: 1.12;
+  }
+
+  .product-story-side-copy > p:nth-of-type(2) {
+    margin-top: 0.6rem;
+    font-size: 0.75rem;
+    line-height: 1.15rem;
+  }
+
+  .product-story-side-copy > div[aria-hidden] {
+    margin-top: 0.7rem;
+  }
+
+  .product-story-side-copy > div:last-child {
+    margin-top: 0.55rem;
+    row-gap: 0.35rem;
+  }
+
+  .product-story-tablet-column {
+    padding-block: 0;
+  }
+}
+
 /* iOS Safari force-zooms the viewport whenever a focused form control renders
    below 16px, and never zooms back out. Guarantee the 16px floor below `lg`
    regardless of which utility classes a component applies; components remain

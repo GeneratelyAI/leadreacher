@@ -104,7 +104,7 @@ const SIDE_STORY_COPY: Record<ProductStoryStageId, SideStoryCopy> = {
 
 function StoryHeading({ className }: { className?: string }) {
   return (
-    <div className={cn("text-center", className)}>
+    <div className={cn("product-story-heading text-center", className)}>
       <p className="text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm large-desktop:text-[0.9375rem]">See LeadReacher in action</p>
       <h2 className="mx-auto mt-3 max-w-4xl text-balance text-4xl font-semibold text-white lg:text-5xl 2xl:text-6xl large-desktop:max-w-5xl large-desktop:text-[4.125rem]">Leadreacher.ai brings the <ShimmerText duration={3.6} style={PRODUCT_STORY_SHIMMER_STYLE}>leads to you.</ShimmerText></h2>
       <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-white/80 lg:text-base large-desktop:max-w-3xl large-desktop:text-lg large-desktop:leading-7">Simply reply and close deals.</p>
@@ -134,7 +134,7 @@ function StageSideCopy({ stageId }: { stageId: ProductStoryStageId }) {
   const copy = SIDE_STORY_COPY[stageId];
 
   return (
-    <div className="min-w-0">
+    <div className="product-story-side-copy min-w-0">
       <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-[#aa55ff] lg:text-xs xl:text-sm">{copy.eyebrow}</p>
       <h3 className="mt-2.5 text-[1.35rem] font-semibold leading-[1.18] tracking-[-0.025em] text-white lg:text-[1.55rem] xl:text-[1.75rem] 2xl:mt-4 2xl:text-[2rem]">
         {copy.titleLines.map((line) => <span key={line} className="block">{line}</span>)}
@@ -164,8 +164,8 @@ function StageSideCopy({ stageId }: { stageId: ProductStoryStageId }) {
 
 function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStoryStage; reducedMotion: boolean; onSelect: (index: number) => void }) {
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[0.4fr_1.6fr] grid-rows-[minmax(0,1fr)] items-center gap-5 px-5 pb-5 lg:gap-8 lg:px-8 lg:pb-8">
-      <div className="flex min-w-0 self-stretch flex-col justify-center overflow-hidden py-3 lg:py-4 2xl:py-6">
+    <div className="product-story-workflow grid min-h-0 flex-1 grid-cols-[minmax(0,0.4fr)_minmax(0,1.6fr)] grid-rows-[minmax(0,1fr)] items-center gap-5 px-5 pb-5 lg:gap-8 lg:px-8 lg:pb-8">
+      <div className="product-story-copy-column flex min-w-0 self-stretch flex-col justify-center overflow-hidden py-3 lg:py-4 2xl:py-6">
         <AnimatePresence mode="wait" initial={false}>
           <m.div
             key={stage.id}
@@ -179,7 +179,7 @@ function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStory
         </AnimatePresence>
       </div>
 
-      <div className="relative min-h-0 self-stretch py-1 lg:py-2">
+      <div className="product-story-tablet-column relative min-h-0 self-stretch py-1 lg:py-2">
         <m.div
           className="relative mx-auto flex h-full w-full max-w-[920px] shrink-0 overflow-hidden rounded-[26px] border border-white/20 bg-[#070812] p-2 shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_70px_rgba(102,72,233,.16)] [backface-visibility:hidden] [transform:translateZ(0)] lg:rounded-[34px] lg:p-3"
         >
@@ -279,7 +279,7 @@ function DesktopStory() {
 
   return (
     <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="hidden overflow-visible text-white md:block">
-      <ContainerScroll backgroundComponent={storyBackground} className="relative h-[460vh] min-h-[3000px]" contentClassName="aspect-[16/11] max-w-[1240px] rounded-[28px] border border-white/12 bg-[#111426]/94 shadow-[0_28px_72px_rgba(0,0,0,.34),0_0_56px_rgba(102,72,233,.1)] large-desktop:max-w-[1360px]" disableFrameTransform id="product-story-scroll" onProgress={handleProgress} reducedMotion={reducedMotion}>
+      <ContainerScroll backgroundComponent={storyBackground} className="relative h-[460vh] min-h-[3000px]" contentClassName="product-story-frame aspect-[16/11] max-w-[1240px] rounded-[28px] border border-white/12 bg-[#111426]/94 shadow-[0_28px_72px_rgba(0,0,0,.34),0_0_56px_rgba(102,72,233,.1)] large-desktop:max-w-[1360px]" disableFrameTransform id="product-story-scroll" onProgress={handleProgress} reducedMotion={reducedMotion}>
         {workflow}
       </ContainerScroll>
     </EdgeSurface>
