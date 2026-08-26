@@ -12,6 +12,7 @@ const heroHeadingName =
 const workflowHeadingName = "Fully automates new customer acquisition.";
 
 async function mockCompletedAnalysis(page: Page) {
+  let startCount = 0;
   await page.route("https://www.google.com/s2/favicons**", (route) =>
     route.fulfill({
       status: 200,
@@ -19,8 +20,23 @@ async function mockCompletedAnalysis(page: Page) {
       body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#58b947"/></svg>',
     }),
   );
-  await page.route("**/discovery/scrape/anonymous", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ...completedStatus, status: "running" }) }));
-  await page.route("**/discovery/scrape/anonymous-status**", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(completedStatus) }));
+  await page.route("**/discovery/scrape/anonymous", (route) => {
+    startCount += 1;
+    return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ...completedStatus, status: "running" }) });
+  });
+  await page.route("**/discovery/scrape/anonymous-status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        startCount > 0
+          ? completedStatus
+          : { ...completedStatus, status: "idle", url: null },
+      ),
+    }),
+  );
+
+  return { getStartCount: () => startCount };
 }
 
 async function openLanding(page: Page, path = "/") {
@@ -78,7 +94,7 @@ test("opens and dismisses the resources navigation menu accessibly", async ({ pa
 });
 
 test("validates the URL and starts a claimable anonymous analysis", async ({ page }) => {
-  await mockCompletedAnalysis(page);
+  const analysis = await mockCompletedAnalysis(page);
   await openLanding(page);
   await page.locator("#top").getByRole("button", { name: "Get Started", exact: true }).click();
   const heroWebsiteInput = page.locator("#top").getByLabel("Company website");
@@ -90,6 +106,34 @@ test("validates the URL and starts a claimable anonymous analysis", async ({ pag
   const stored = await page.evaluate(() => ({ url: localStorage.getItem("lr_website_url"), anonId: localStorage.getItem("lr_anon_scrape_id") }));
   expect(stored.url).toBe("generately.ai");
   expect(stored.anonId).toMatch(/^[0-9a-f-]{36}$/i);
+  expect(analysis.getStartCount()).toBe(1);
+});
+
+test("shows an actionable message when website analysis cannot start", async ({ page }) => {
+  await page.route("**/discovery/scrape/anonymous-status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ ...completedStatus, status: "idle", url: null }),
+    }),
+  );
+  await page.route("**/discovery/scrape/anonymous", (route) =>
+    route.fulfill({
+      status: 429,
+      contentType: "application/json",
+      body: JSON.stringify({ message: "Too many website analyses. Please try again shortly." }),
+    }),
+  );
+  await openLanding(page);
+
+  const heroWebsiteInput = page.locator("#top").getByLabel("Company website");
+  await heroWebsiteInput.fill("mrsub.ca");
+  await page.locator("#top").getByRole("button", { name: "Get Started", exact: true }).click();
+
+  await expect(page.locator("#landing-website-url-error")).toHaveText(
+    "Too many website analyses. Please try again shortly.",
+  );
+  await expect(heroWebsiteInput).toHaveAttribute("aria-invalid", "true");
 });
 
 test("shows the compact mobile navigation with the icon-only logo", async ({ page }, testInfo) => {

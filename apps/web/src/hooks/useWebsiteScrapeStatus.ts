@@ -74,6 +74,12 @@ export function shouldStartFreshScrape(
   );
 }
 
+export function isWebsiteScrapeTerminal(
+  status: WebsiteScrapeStatus,
+): boolean {
+  return status.status === "completed" || status.status === "failed";
+}
+
 function readStoredWebsiteUrl(context: ScrapeContext): string | null {
   if (typeof window === "undefined") {
     return null;
@@ -401,25 +407,27 @@ function createScrapeController(context: ScrapeContext) {
   function isReadyToLeave(storeSnapshot: WebsiteScrapeStore): boolean {
     return (
       !storeSnapshot.hasStoredUrl ||
-      storeSnapshot.status.status === "completed"
+      isWebsiteScrapeTerminal(storeSnapshot.status)
     );
   }
 
-  async function waitForReadyToNavigate(maxWaitMs = 5000): Promise<void> {
+  async function waitForReadyToNavigate(
+    maxWaitMs = 5000,
+  ): Promise<WebsiteScrapeStatus> {
     const websiteUrl = syncStoredWebsiteUrl();
     if (!websiteUrl) {
-      return;
+      return store.status;
     }
 
     await ensureWebsiteScrapeStarted({ force: true });
     if (isReadyToLeave(store)) {
-      return;
+      return store.status;
     }
 
-    await new Promise<void>((resolve) => {
+    return new Promise<WebsiteScrapeStatus>((resolve) => {
       const timeout = window.setTimeout(() => {
         unsubscribe();
-        resolve();
+        resolve(store.status);
       }, maxWaitMs);
 
       const unsubscribe = subscribe((nextStore) => {
@@ -429,7 +437,7 @@ function createScrapeController(context: ScrapeContext) {
 
         window.clearTimeout(timeout);
         unsubscribe();
-        resolve();
+        resolve(nextStore.status);
       });
     });
   }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isWebsiteScrapeTerminal,
   shouldStartFreshScrape,
   type WebsiteScrapeStatus,
 } from "../useWebsiteScrapeStatus";
@@ -48,5 +49,17 @@ describe("shouldStartFreshScrape", () => {
     expect(
       shouldStartFreshScrape(idleStatus, "instagram.com", "instagram.com"),
     ).toBe(false);
+  });
+});
+
+describe("isWebsiteScrapeTerminal", () => {
+  it("finishes navigation waits for completed and failed analyses", () => {
+    expect(isWebsiteScrapeTerminal(scrapeStatus("completed", "mrsub.ca"))).toBe(true);
+    expect(isWebsiteScrapeTerminal(scrapeStatus("failed", "mrsub.ca"))).toBe(true);
+  });
+
+  it("keeps waiting while an analysis is idle or running", () => {
+    expect(isWebsiteScrapeTerminal(scrapeStatus("idle", "mrsub.ca"))).toBe(false);
+    expect(isWebsiteScrapeTerminal(scrapeStatus("running", "mrsub.ca"))).toBe(false);
   });
 });

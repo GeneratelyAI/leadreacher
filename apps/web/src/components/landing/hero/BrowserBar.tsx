@@ -65,7 +65,7 @@ export function BrowserBar({
   }
 
   return (
-    <form ref={formRef} data-fiber-flow-target={formRef ? true : undefined} onSubmit={onSubmit} className={formClassName} style={formStyle} noValidate>
+    <form ref={formRef} data-fiber-flow-target={formRef ? true : undefined} onSubmit={onSubmit} className={cn("relative", formClassName)} style={formStyle} noValidate>
       <div
         ref={barRef}
         data-invalid={errorMessage ? "true" : undefined}
@@ -103,7 +103,7 @@ export function BrowserBar({
             ) : null}
           </span>
           <div className="relative min-w-0 flex-1">
-            <input ref={inputRef} id={id} type="url" inputMode="url" autoComplete="url" value={value} onChange={(event) => onValueChange(event.target.value)} disabled={disabled} placeholder="https://yourwebsite.com" aria-invalid={Boolean(errorMessage)} className={cn("relative z-0 h-14 min-w-0 w-full bg-transparent px-2 text-base font-medium outline-none placeholder:text-[#8b91a3] disabled:opacity-70 sm:px-4 sm:text-lg", disabled && "text-transparent caret-transparent")} />
+            <input ref={inputRef} id={id} type="url" inputMode="url" autoComplete="url" value={value} onChange={(event) => onValueChange(event.target.value)} disabled={disabled} placeholder="https://yourwebsite.com" aria-invalid={Boolean(errorMessage)} aria-describedby={errorMessage ? `${id}-error` : undefined} className={cn("relative z-0 h-14 min-w-0 w-full bg-transparent px-2 text-base font-medium outline-none placeholder:text-[#8b91a3] disabled:opacity-70 sm:px-4 sm:text-lg", disabled && "text-transparent caret-transparent")} />
           </div>
         </div>
         <button type="submit" disabled={disabled} className="relative z-10 inline-flex h-14 min-w-[6.75rem] shrink-0 items-center justify-center gap-1 border-l border-[#e6e4f1] px-0 text-sm font-semibold text-[#4e28df] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#8b7fd4]/45 active:translate-y-px disabled:pointer-events-none disabled:opacity-75 sm:min-w-[180px] sm:gap-3 sm:pl-6 sm:pr-1.5 sm:text-xl">
@@ -112,6 +112,15 @@ export function BrowserBar({
           {!disabled ? <ArrowRight className="size-5 sm:size-6" aria-hidden /> : null}
         </button>
       </div>
+      {errorMessage ? (
+        <p
+          id={`${id}-error`}
+          role="alert"
+          className="absolute left-1/2 top-full mt-2 w-full -translate-x-1/2 text-center text-sm font-medium text-[#dc2626]"
+        >
+          {errorMessage}
+        </p>
+      ) : null}
     </form>
   );
 }

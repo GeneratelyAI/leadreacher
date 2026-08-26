@@ -97,7 +97,7 @@ export default function Hero() {
   const [taglineWidth, setTaglineWidth] = useState<number | null>(null);
   const isPageVisible = usePageVisibility();
   const rotatingHeroWord = useRotatingHeroWord(isPageVisible);
-  const { start, waitForReadyToNavigate } = useWebsiteScrapeStatus({ autoStart: false, context: "anonymous" });
+  const { waitForReadyToNavigate } = useWebsiteScrapeStatus({ autoStart: false, context: "anonymous" });
 
   useLandingPerformanceTelemetry();
 
@@ -155,8 +155,10 @@ export default function Hero() {
     }
 
     try {
-      await Promise.all([waitForReadyToNavigate(NAVIGATION_WAIT_MS), delay(MINIMUM_PROGRESS_MS)]);
-      const finalStatus = await start();
+      const [finalStatus] = await Promise.all([
+        waitForReadyToNavigate(NAVIGATION_WAIT_MS),
+        delay(MINIMUM_PROGRESS_MS),
+      ]);
       if (finalStatus.status === "failed") {
         setPhase("failed");
         setErrorMessage(finalStatus.error ?? "We couldn't analyze that website yet.");
@@ -211,14 +213,20 @@ export default function Hero() {
           <BrowserBar
             id="landing-website-url"
             value={websiteUrl}
-            onValueChange={(value) => { setWebsiteUrl(value); if (errorMessage && phase === "idle") setErrorMessage(null); }}
+            onValueChange={(value) => {
+              setWebsiteUrl(value);
+              if (errorMessage) {
+                setErrorMessage(null);
+                setPhase("idle");
+              }
+            }}
             onSubmit={handleSubmit}
             formRef={fiberTargetRef}
             barRef={waveTargetRef}
             inputRef={inputRef}
             formClassName="hero-entrance hero-entrance--analyzer mt-7 w-full max-w-[820px] justify-self-center max-sm:!w-[calc(100vw-1.25rem)] max-sm:!max-w-none sm:mt-9 lg:row-start-2 lg:mt-0 h-compact:sm:mt-6 h-short:lg:mt-3"
             formStyle={taglineWidth ? { width: `${taglineWidth}px`, maxWidth: "100%" } : undefined}
-            errorMessage={errorMessage && phase === "idle" ? errorMessage : null}
+            errorMessage={errorMessage}
             disabled={phase === "running"}
             spotlight
           />
