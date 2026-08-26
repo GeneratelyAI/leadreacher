@@ -321,15 +321,12 @@ test("keeps acquisition carousel navigation interruptible", async ({ page }, tes
   await carousel.scrollIntoViewIfNeeded();
   const slides = carousel.locator('[aria-roledescription="slide"]');
   await expect(slides).toHaveCount(5);
-  const activeIndicator = carousel.getByTestId("coverflow-flip-indicator");
-  const initialIndicator = await activeIndicator.boundingBox();
 
-  await carousel.getByRole("button", { name: "Next slide" }).click();
+  await carousel.getByRole("button", { name: "Go to slide 2" }).click();
   await expect(slides.nth(1)).toHaveAttribute("aria-current", "true");
-  await expect.poll(async () => (await activeIndicator.boundingBox())?.x ?? 0).toBeGreaterThan((initialIndicator?.x ?? 0) + 8);
 
-  await carousel.getByRole("button", { name: "Next slide" }).click();
-  await carousel.getByRole("button", { name: "Previous slide" }).click();
+  await carousel.getByRole("button", { name: "Go to slide 3" }).click();
+  await carousel.getByRole("button", { name: "Go to slide 2" }).click();
   await carousel.getByRole("button", { name: "Go to slide 5" }).click();
   await expect(slides.nth(4)).toHaveAttribute("aria-current", "true");
 
@@ -396,17 +393,12 @@ test("runs the channel orbit only while it is near the viewport", async ({ page 
   const orbit = page.getByRole("list", { name: "Supported outreach channels" });
   await orbit.scrollIntoViewIfNeeded();
   const firstMark = orbit.getByRole("listitem").first();
-  const routeParticle = page.locator("[data-route-particle]").first();
   const visibleTransform = await firstMark.evaluate((element) => getComputedStyle(element).transform);
-  const visibleParticleTransform = await routeParticle.evaluate((element) => getComputedStyle(element).transform);
   await expect.poll(() => firstMark.evaluate((element) => getComputedStyle(element).transform)).not.toBe(visibleTransform);
-  await expect.poll(() => routeParticle.evaluate((element) => getComputedStyle(element).transform)).not.toBe(visibleParticleTransform);
 
   await page.locator("#top").scrollIntoViewIfNeeded();
   await page.waitForTimeout(300);
   const pausedTransform = await firstMark.evaluate((element) => getComputedStyle(element).transform);
-  const pausedParticleTransform = await routeParticle.evaluate((element) => getComputedStyle(element).transform);
   await page.waitForTimeout(250);
   await expect(firstMark).toHaveCSS("transform", pausedTransform);
-  await expect(routeParticle).toHaveCSS("transform", pausedParticleTransform);
 });

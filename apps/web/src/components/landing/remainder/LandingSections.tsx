@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 
 import {
@@ -46,8 +46,6 @@ import { cn } from "@/lib/utils";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/constants/brand";
 import { BrowserBar } from "@/components/landing/hero/BrowserBar";
 import HeroBreak from "@/components/landing/hero/HeroBreak";
-import { useLandingGsap, type LandingGsapSetupContext } from "@/hooks/useLandingGsap";
-import { gateLandingAnimation } from "@/lib/landing-gsap";
 import { ApprovalPreview } from "./ApprovalPreview";
 import { FeatureList } from "./FeatureList";
 import {
@@ -155,10 +153,10 @@ function DataPerformanceSection() {
         </div>
 
         <div>
-          <SpotlightCard data-gsap-reveal spotlightColor="rgba(134, 89, 255, 0.24)" spotlightClassName="mix-blend-screen motion-reduce:transition-none" className="rounded-[1.35rem] border-0 bg-[radial-gradient(circle_at_90%_0%,rgba(91,47,244,0.22),transparent_34%),linear-gradient(145deg,#070b16,#0c1220)] p-6 text-white shadow-[0_24px_70px_rgba(20,16,45,0.22)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_30px_85px_rgba(50,31,115,0.28)] motion-reduce:transform-none motion-reduce:transition-none sm:p-8 lg:p-7 xl:p-9">
+          <SpotlightCard spotlightColor="rgba(134, 89, 255, 0.24)" spotlightClassName="mix-blend-screen motion-reduce:transition-none" className="rounded-[1.35rem] border-0 bg-[radial-gradient(circle_at_90%_0%,rgba(91,47,244,0.22),transparent_34%),linear-gradient(145deg,#070b16,#0c1220)] p-6 text-white shadow-[0_24px_70px_rgba(20,16,45,0.22)] transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-[0_30px_85px_rgba(50,31,115,0.28)] motion-reduce:transform-none motion-reduce:transition-none sm:p-8 lg:p-7 xl:p-9">
             <p className="text-sm font-bold uppercase tracking-[0.06em] text-[#a16dff] sm:text-base">Current outreach performance</p>
             <div className="mt-6 grid grid-cols-[1fr_auto] gap-4 border-b border-white/15 pb-3 text-[0.7rem] font-medium uppercase tracking-[0.08em] text-white/62 sm:text-xs"><span>Channel / method</span><span>Outreach conversion</span></div>
-            <div data-gsap-reveal-group className="divide-y divide-white/14">{performanceRows.map(({ label, value, icon: Icon, featured }) => <div data-gsap-reveal-item key={label} className={cn("grid min-h-14 grid-cols-[1fr_auto] items-center gap-4 py-3", featured && "text-[#a766ff]")}><span className="flex items-center gap-3 text-base font-medium sm:text-lg"><Icon className="size-6 shrink-0 sm:size-7" weight="regular" />{label}</span><span className={cn("text-lg font-semibold tabular-nums sm:text-xl", featured ? "text-[#a766ff]" : "text-white")}>{value}</span></div>)}</div>
+            <div className="divide-y divide-white/14">{performanceRows.map(({ label, value, icon: Icon, featured }) => <div key={label} className={cn("grid min-h-14 grid-cols-[1fr_auto] items-center gap-4 py-3", featured && "text-[#a766ff]")}><span className="flex items-center gap-3 text-base font-medium sm:text-lg"><Icon className="size-6 shrink-0 sm:size-7" weight="regular" />{label}</span><span className={cn("text-lg font-semibold tabular-nums sm:text-xl", featured ? "text-[#a766ff]" : "text-white")}>{value}</span></div>)}</div>
           </SpotlightCard>
           <p className="mt-5 flex items-start gap-2 text-sm leading-6 text-[#666c7e]"><span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-current text-xs font-semibold">i</span>Conversion = positive sales conversation. Results vary by market.</p>
         </div>
@@ -166,11 +164,11 @@ function DataPerformanceSection() {
 
       <div className="mt-14 sm:mt-20">
         <div className="mb-5 flex items-center gap-4 text-[#4f2de0]"><span aria-hidden className="h-1 w-16 rounded-full bg-current" /><h3 className="text-xs font-bold uppercase tracking-[0.16em] sm:text-sm">Current outreach model comparison</h3></div>
-        <SpotlightCard data-gsap-reveal spotlightColor="rgba(91, 47, 244, 0.13)" spotlightClassName="z-[1] mix-blend-multiply motion-reduce:transition-none" className="rounded-2xl border border-[#dedcea] shadow-[0_18px_50px_rgba(36,25,80,0.08)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#c9c0f5] hover:shadow-[0_24px_65px_rgba(62,39,137,0.13)] motion-reduce:transform-none motion-reduce:transition-none">
+        <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.13)" spotlightClassName="z-[1] mix-blend-multiply motion-reduce:transition-none" className="rounded-2xl border border-[#dedcea] shadow-[0_18px_50px_rgba(36,25,80,0.08)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#c9c0f5] hover:shadow-[0_24px_65px_rgba(62,39,137,0.13)] motion-reduce:transform-none motion-reduce:transition-none">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] border-collapse text-left text-sm text-[#171a27] lg:text-base">
               <thead><tr className="border-b border-[#dfddea]"><th scope="col" className="w-[21%] px-5 py-5 sm:px-7"><span className="sr-only">Category</span></th><th scope="col" className="w-[25%] border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7"><span className="block text-lg font-semibold">DIY</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em] text-[#686d80]">Do it yourself</span></th><th scope="col" className="w-[25%] border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7"><span className="block text-lg font-semibold">Agency</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em] text-[#686d80]">Traditional agency</span></th><th scope="col" className="w-[29%] border-l border-[#dcd4ff] bg-[#f7f4ff] px-5 py-4 text-center text-[#4f2de0] sm:px-7"><span className="block text-lg font-bold">LeadReacher</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em]">Done-for-you</span></th></tr></thead>
-              <tbody data-gsap-reveal-group>{modelRows.map(({ label, icon: Icon, diy, agency, leadreacher }, index) => <tr data-gsap-reveal-item key={label} className={cn(index !== modelRows.length - 1 && "border-b border-[#e8e5ef]")}><th scope="row" className="px-5 py-4 font-medium sm:px-7"><span className="flex items-center gap-3"><Icon className="size-5 shrink-0 text-[#151824]" weight="regular" />{label}</span></th><td className="border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7">{diy}</td><td className="border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7">{agency}</td><td className="border-l border-[#dcd4ff] bg-[#f7f4ff] px-5 py-4 font-semibold text-[#4f2de0] sm:px-7"><span className="flex items-center gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#582df2] text-white"><Check className="size-3.5" weight="bold" /></span><span className={cn(index === modelRows.length - 1 && "text-xl font-bold sm:text-2xl")}>{leadreacher}</span></span></td></tr>)}</tbody>
+              <tbody>{modelRows.map(({ label, icon: Icon, diy, agency, leadreacher }, index) => <tr key={label} className={cn(index !== modelRows.length - 1 && "border-b border-[#e8e5ef]")}><th scope="row" className="px-5 py-4 font-medium sm:px-7"><span className="flex items-center gap-3"><Icon className="size-5 shrink-0 text-[#151824]" weight="regular" />{label}</span></th><td className="border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7">{diy}</td><td className="border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7">{agency}</td><td className="border-l border-[#dcd4ff] bg-[#f7f4ff] px-5 py-4 font-semibold text-[#4f2de0] sm:px-7"><span className="flex items-center gap-3"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#582df2] text-white"><Check className="size-3.5" weight="bold" /></span><span className={cn(index === modelRows.length - 1 && "text-xl font-bold sm:text-2xl")}>{leadreacher}</span></span></td></tr>)}</tbody>
             </table>
           </div>
         </SpotlightCard>
@@ -201,6 +199,7 @@ function DifferentiationSection() {
     { label: "X", ring: 1, phase: 0.7, mark: <SocialMediaIcon name="x" className="size-7 text-black sm:size-9" /> },
     { label: "TikTok", ring: 1, phase: 0.9, mark: <SocialMediaIcon name="tiktok" className="size-7 text-black sm:size-10" /> },
   ] as const, []);
+  const orbitChannelCount = orbitChannels.length;
 
   useEffect(() => {
     const orbit = orbitRef.current;
@@ -212,16 +211,15 @@ function DifferentiationSection() {
     return () => observer.disconnect();
   }, []);
 
-  const setupOrbit = useCallback(({ gsap }: LandingGsapSetupContext) => {
-    const orbit = orbitRef.current;
-    if (!orbit || !orbitSize.width || !orbitSize.height) return;
-    const map = orbit.parentElement;
+  useEffect(() => {
+    if (!orbitSize.width || !orbitSize.height) return;
+
     const rings = [
       { radiusX: 0.27, radiusY: 0.26, duration: 28_000, direction: 1 },
       { radiusX: 0.47, radiusY: 0.37, duration: 52_000, direction: -1 },
     ] as const;
     const orbitElements = orbitItemRefs.current.slice();
-    const logoAnimations = orbitElements.flatMap((element, index) => {
+    const animations = orbitElements.flatMap((element, index) => {
       if (!element) return [];
 
       const channel = orbitChannels[index];
@@ -241,60 +239,39 @@ function DifferentiationSection() {
         };
       });
 
-      gsap.set(element, { transform: frames[0].transform });
+      element.style.transform = frames[0].transform;
       if (reducedMotion) return [];
 
-      return [gsap.to(element, {
-        keyframes: frames,
-        duration: ring.duration / 1_000,
-        ease: "none",
-        repeat: -1,
-        paused: true,
-        force3D: true,
+      element.style.willChange = "transform";
+      return [element.animate(frames, {
+        duration: ring.duration,
+        easing: "linear",
+        iterations: Number.POSITIVE_INFINITY,
       })];
     });
 
-    const routePaths = map ? Array.from(map.querySelectorAll<SVGPathElement>("[data-orbit-route]")) : [];
-    const routeParticles = map ? Array.from(map.querySelectorAll<SVGCircleElement>("[data-route-particle]")) : [];
-    const routeAnimations = routeParticles.flatMap((particle, index) => {
-      const path = routePaths[Number(particle.dataset.routeRing ?? index)];
-      if (!path) return [];
-      if (reducedMotion) {
-        gsap.set(particle, { opacity: 0 });
-        return [];
-      }
-
-      const animation = gsap.to(particle, {
-        motionPath: { path },
-        duration: index === 0 ? 12 : 9,
-        ease: "none",
-        repeat: -1,
-        paused: true,
-      });
-      animation.progress(Number(particle.dataset.routePhase ?? 0));
-      return [animation];
-    });
-    const animations = [...logoAnimations, ...routeAnimations];
-
-    const playback = {
-      play: () => animations.forEach((animation) => animation.play()),
-      pause: () => animations.forEach((animation) => animation.pause()),
-      progress: (value = 0) => animations.forEach((animation) => animation.progress(value)),
+    let isOrbitVisible = false;
+    const setPlayback = () => {
+      const shouldPlay = isOrbitVisible && document.visibilityState === "visible";
+      animations.forEach((animation) => shouldPlay ? animation.play() : animation.pause());
     };
-    const stopGate = gateLandingAnimation({
-      animation: playback,
-      target: orbit,
-      reducedMotion: Boolean(reducedMotion),
-      rootMargin: "180px 0px",
-    });
+    const observer = new IntersectionObserver(([entry]) => {
+      isOrbitVisible = entry.isIntersecting;
+      setPlayback();
+    }, { rootMargin: "180px 0px" });
+    const orbit = orbitRef.current;
+    if (orbit) observer.observe(orbit);
+    document.addEventListener("visibilitychange", setPlayback);
 
     return () => {
-      stopGate();
-      animations.forEach((animation) => animation.kill());
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", setPlayback);
+      animations.forEach((animation) => animation.cancel());
+      orbitElements.forEach((element) => {
+        if (element) element.style.willChange = "";
+      });
     };
-  }, [orbitChannels, orbitSize.height, orbitSize.width, reducedMotion]);
-
-  useLandingGsap(orbitRef, setupOrbit, [setupOrbit]);
+  }, [orbitChannelCount, orbitChannels, orbitSize.height, orbitSize.width, reducedMotion]);
 
   const updateMapSpotlight = (event: MouseEvent<HTMLDivElement>) => {
     const spotlight = mapSpotlightRef.current;
@@ -403,8 +380,8 @@ function DifferentiationSection() {
               mask="url(#api-map-cursor-mask)"
               className="pointer-events-none opacity-0 transition-opacity duration-200 motion-reduce:transition-none"
             />
-            <path data-orbit-route d="M36 260 A564 185 0 1 0 1164 260 A564 185 0 1 0 36 260" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
-            <path data-orbit-route d="M276 260 A324 130 0 1 0 924 260 A324 130 0 1 0 276 260" fill="none" stroke="#6b51e7" strokeOpacity="0.2" strokeWidth="1.1" />
+            <ellipse cx="600" cy="260" rx="564" ry="185" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
+            <ellipse cx="600" cy="260" rx="324" ry="130" fill="none" stroke="#6b51e7" strokeOpacity="0.2" strokeWidth="1.1" />
             {[
               { radiusX: 555, radiusY: 175, angle: Math.PI },
               { radiusX: 555, radiusY: 175, angle: 2.22 },
@@ -423,8 +400,6 @@ function DifferentiationSection() {
                 data-orbit-marker={index}
               />
             ))}
-            <circle data-route-particle data-route-ring="0" data-route-phase="0.12" cx="0" cy="0" r="4.5" fill="#6847e8" filter="url(#api-dot-glow)" />
-            <circle data-route-particle data-route-ring="1" data-route-phase="0.58" cx="0" cy="0" r="3.8" fill="#5d9cff" filter="url(#api-dot-glow)" />
           </svg>
 
           <div className="absolute left-1/2 top-1/2 z-20 flex size-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white shadow-[0_12px_32px_rgba(68,43,175,0.22),0_0_0_13px_rgba(255,255,255,.78),0_0_0_23px_rgba(111,76,255,.07)] sm:size-40 lg:size-44">
@@ -493,7 +468,7 @@ function CampaignExpansionSection() {
       magicMoveTargetRef={videoTargetRef}
     >
       <div className="mx-auto max-w-7xl large-desktop:max-w-[88rem]">
-        <div id="approval-review" data-gsap-reveal className="scroll-mt-24 grid items-center gap-10 lg:grid-cols-[0.62fr_1.38fr] lg:gap-16">
+        <div id="approval-review" className="scroll-mt-24 grid items-center gap-10 lg:grid-cols-[0.62fr_1.38fr] lg:gap-16">
           <div>
             <p className="text-xs font-semibold uppercase text-[#ae9bff] large-desktop:text-sm">You are always in control</p>
             <h2 className="mt-4 text-balance text-4xl font-semibold leading-tight text-white large-desktop:text-[2.75rem]">
@@ -537,7 +512,7 @@ function LandingPricingCard() {
   ];
 
   return (
-    <aside data-gsap-reveal className="mx-auto w-full max-w-[34rem] py-0">
+    <aside className="mx-auto w-full max-w-[34rem] py-0">
       <h2 className="mx-auto max-w-2xl text-balance text-center text-4xl font-semibold leading-tight text-[#111527] sm:text-5xl">
         <span className="block">Simple pricing.</span>
         <span className="mt-1 block">
@@ -609,7 +584,7 @@ function PricingAndFaqSection() {
     <EdgeSurface as="section" id="pricing" data-navbar-theme="light" className="relative z-40 -mt-7 scroll-mt-20 rounded-[28px] py-16 sm:-mt-9 sm:rounded-[40px] sm:py-24 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
         <div className="mt-20 grid items-center gap-10 sm:mt-24 lg:grid-cols-[.9fr_1.1fr] lg:gap-14">
-          <div data-gsap-reveal className="relative min-h-[647px] rounded-lg bg-[#101322] p-7 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] sm:p-9 lg:order-2">
+          <div className="relative min-h-[647px] rounded-lg bg-[#101322] p-7 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] sm:p-9 lg:order-2">
             <AnimatePresence mode="wait" initial={false}>
               <m.div
                 key={activeReviewIndex}
@@ -702,7 +677,7 @@ export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
         transition={{ duration: reducedMotion ? 0.1 : 0.7, ease: [0.22, 1, 0.36, 1] }}
         className="relative z-10"
       >
-        <section data-gsap-reveal className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-[#111427] px-6 py-10 shadow-[0_30px_90px_rgba(0,0,0,.28)] sm:px-10 sm:py-12 lg:px-14 large-desktop:max-w-[88rem] large-desktop:px-16 large-desktop:py-14">
+        <section className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl border border-white/10 bg-[#111427] px-6 py-10 shadow-[0_30px_90px_rgba(0,0,0,.28)] sm:px-10 sm:py-12 lg:px-14 large-desktop:max-w-[88rem] large-desktop:px-16 large-desktop:py-14">
           <div className="relative grid items-center gap-9 lg:grid-cols-[1.2fr_.8fr] lg:gap-16">
             <div>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase text-[#aa96ff] 2xl:text-sm"><Sparkles className="size-4" /> Start with your website</div>
@@ -748,54 +723,5 @@ function FooterReveal() {
 }
 
 export default function LandingSections() {
-  const scopeRef = useRef<HTMLDivElement>(null);
-  const setupReveals = useCallback(({ gsap, ScrollTrigger, scope, media }: LandingGsapSetupContext) => {
-    const revealTargets = Array.from(scope.querySelectorAll<HTMLElement>("[data-gsap-reveal]"));
-    const groups = Array.from(scope.querySelectorAll<HTMLElement>("[data-gsap-reveal-group]"));
-
-    if (media.reducedMotion) {
-      gsap.set([
-        ...revealTargets,
-        ...groups.flatMap((group) => Array.from(group.querySelectorAll<HTMLElement>("[data-gsap-reveal-item]"))),
-      ], { clearProps: "opacity,transform,visibility" });
-      return;
-    }
-
-    revealTargets.forEach((target) => {
-      gsap.fromTo(target,
-        { autoAlpha: 0, y: 14 },
-        {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.38,
-          ease: "power3.out",
-          clearProps: "opacity,transform,visibility",
-          scrollTrigger: { trigger: target, start: "top 88%", once: true },
-        });
-    });
-
-    groups.forEach((group) => {
-      const items = Array.from(group.querySelectorAll<HTMLElement>("[data-gsap-reveal-item]"));
-      if (!items.length) return;
-      gsap.fromTo(items,
-        { autoAlpha: 0, y: 8 },
-        {
-          autoAlpha: 1,
-          y: 0,
-          duration: 0.3,
-          stagger: 0.035,
-          ease: "power2.out",
-          clearProps: "opacity,transform,visibility",
-          scrollTrigger: { trigger: group, start: "top 88%", once: true },
-        });
-    });
-
-    return () => ScrollTrigger.getAll()
-      .filter((trigger) => trigger.trigger instanceof Node && scope.contains(trigger.trigger))
-      .forEach((trigger) => trigger.kill());
-  }, []);
-
-  useLandingGsap(scopeRef, setupReveals, [setupReveals]);
-
-  return <div ref={scopeRef} className="contents"><DifferentiationSection /><CampaignExpansionSection /><FooterReveal /></div>;
+  return <><DifferentiationSection /><CampaignExpansionSection /><FooterReveal /></>;
 }

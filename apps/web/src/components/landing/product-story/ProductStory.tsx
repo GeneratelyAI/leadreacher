@@ -30,7 +30,6 @@ import {
   type ProductStoryStageId,
 } from "@/lib/product-story";
 import { cn } from "@/lib/utils";
-import { useLandingGsap, type LandingGsapSetupContext } from "@/hooks/useLandingGsap";
 import { PRODUCT_STORY_STAGES as STAGES, type ProductStoryStage } from "./content";
 
 type SideStoryItem = {
@@ -136,18 +135,18 @@ function StageSideCopy({ stageId }: { stageId: ProductStoryStageId }) {
 
   return (
     <div className="product-story-side-copy min-w-0">
-      <p data-story-copy-piece className="text-[11px] font-medium uppercase tracking-[0.04em] text-[#aa55ff] lg:text-xs xl:text-sm">{copy.eyebrow}</p>
-      <h3 data-story-copy-piece className="mt-2.5 text-[1.35rem] font-semibold leading-[1.18] tracking-[-0.025em] text-white lg:text-[1.55rem] xl:text-[1.75rem] 2xl:mt-4 2xl:text-[2rem]">
+      <p className="text-[11px] font-medium uppercase tracking-[0.04em] text-[#aa55ff] lg:text-xs xl:text-sm">{copy.eyebrow}</p>
+      <h3 className="mt-2.5 text-[1.35rem] font-semibold leading-[1.18] tracking-[-0.025em] text-white lg:text-[1.55rem] xl:text-[1.75rem] 2xl:mt-4 2xl:text-[2rem]">
         {copy.titleLines.map((line) => <span key={line} className="block">{line}</span>)}
         {copy.accentLine ? <span className="block"><ShimmerText duration={3.6} style={PRODUCT_STORY_SHIMMER_STYLE}>{copy.accentLine}</ShimmerText></span> : null}
       </h3>
-      <p data-story-copy-piece className="mt-3 max-w-[29ch] text-[12px] leading-5 text-white/68 lg:text-[13px] xl:text-sm xl:leading-6 2xl:mt-5 2xl:text-[15px] 2xl:leading-7">{copy.description}</p>
-      <div data-story-copy-rule aria-hidden className="mt-4 h-px w-full origin-left bg-gradient-to-r from-[#cb5aae]/70 via-[#9a589c]/40 to-white/8 2xl:mt-6" />
+      <p className="mt-3 max-w-[29ch] text-[12px] leading-5 text-white/68 lg:text-[13px] xl:text-sm xl:leading-6 2xl:mt-5 2xl:text-[15px] 2xl:leading-7">{copy.description}</p>
+      <div aria-hidden className="mt-4 h-px w-full bg-gradient-to-r from-[#cb5aae]/70 via-[#9a589c]/40 to-white/8 2xl:mt-6" />
       <div className="mt-3 space-y-2 xl:space-y-2.5 2xl:mt-5 2xl:space-y-3">
         {copy.items.map((item) => {
           const Icon = item.icon;
           return (
-            <div data-story-copy-item key={item.text} className={cn("flex items-center gap-3 text-[12px] leading-5 text-white/82 lg:text-[13px] xl:text-sm 2xl:gap-4 2xl:text-base", item.active && "font-semibold text-white")}>
+            <div key={item.text} className={cn("flex items-center gap-3 text-[12px] leading-5 text-white/82 lg:text-[13px] xl:text-sm 2xl:gap-4 2xl:text-base", item.active && "font-semibold text-white")}>
               <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full border border-[#d16ab7]/65 bg-[#3d174a]/16 text-[#f0a1dc] shadow-[inset_0_0_18px_rgba(164,65,228,.08)] lg:size-9 2xl:size-11", item.active && "border-[#9c70ff] bg-[#6237dc] text-white shadow-[0_0_0_5px_rgba(113,75,238,.13),0_0_24px_rgba(112,69,244,.6)]")}>
                 <Icon className="size-4 2xl:size-5" weight="regular" aria-hidden />
               </span>
@@ -167,19 +166,26 @@ function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStory
   return (
     <div className="product-story-workflow grid min-h-0 flex-1 grid-cols-[minmax(0,0.4fr)_minmax(0,1.6fr)] grid-rows-[minmax(0,1fr)] items-center gap-5 px-5 pb-5 lg:gap-8 lg:px-8 lg:pb-8">
       <div className="product-story-copy-column flex min-w-0 self-stretch flex-col justify-center overflow-hidden py-3 lg:py-4 2xl:py-6">
-        <div key={stage.id} data-story-copy>
-          <StageSideCopy stageId={stage.id} />
-        </div>
+        <AnimatePresence mode="wait" initial={false}>
+          <m.div
+            key={stage.id}
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
+            transition={{ duration: reducedMotion ? 0.1 : 0.34, ease: "easeOut" }}
+          >
+            <StageSideCopy stageId={stage.id} />
+          </m.div>
+        </AnimatePresence>
       </div>
 
       <div className="product-story-tablet-column relative min-h-0 self-stretch py-1 lg:py-2">
         <m.div
-          data-story-device
           className="relative mx-auto flex h-full w-full max-w-[920px] shrink-0 overflow-hidden rounded-[26px] border border-white/20 bg-[#070812] p-2 shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_70px_rgba(102,72,233,.16)] [backface-visibility:hidden] [transform:translateZ(0)] lg:rounded-[34px] lg:p-3"
         >
           <span aria-hidden className="absolute left-1/2 top-1.5 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-white/20 lg:top-2 lg:h-1.5 lg:w-14" />
           <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/10" />
-          <div data-story-panel id="product-story-panel" role="tabpanel" aria-labelledby={`product-story-tab-${stage.id}`} className="relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[19px] bg-[#f7f7fb] lg:rounded-[24px]">
+          <div id="product-story-panel" role="tabpanel" aria-labelledby={`product-story-tab-${stage.id}`} className="relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[19px] bg-[#f7f7fb] lg:rounded-[24px]">
             <m.div
               key={stage.id}
               className="absolute inset-0 size-full [backface-visibility:hidden] [transform:translateZ(0)]"
@@ -221,33 +227,10 @@ function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStory
 
 function DesktopStory() {
   const reducedMotion = Boolean(useReducedMotion());
-  const sceneRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
   const manualSelectionRef = useRef<number | null>(null);
   const activeStage = STAGES[activeIndex];
-  const setupStageTransition = useCallback(({ gsap, scope, media }: LandingGsapSetupContext) => {
-    scope.dataset.activeStoryIndex = String(activeIndex);
-    const pieces = gsap.utils.toArray<HTMLElement>("[data-story-copy-piece]", scope);
-    const items = gsap.utils.toArray<HTMLElement>("[data-story-copy-item]", scope);
-    const rule = scope.querySelector<HTMLElement>("[data-story-copy-rule]");
-    const device = scope.querySelector<HTMLElement>("[data-story-device]");
-    const panel = scope.querySelector<HTMLElement>("[data-story-panel]");
-
-    if (media.reducedMotion || reducedMotion) {
-      gsap.set([...pieces, ...items, rule, device, panel].filter(Boolean), { clearProps: "all" });
-      return;
-    }
-
-    const timeline = gsap.timeline({ defaults: { overwrite: "auto" } });
-    if (device) timeline.fromTo(device, { x: 12, scale: 0.992 }, { x: 0, scale: 1, duration: 0.28, ease: "power3.out" }, 0);
-    if (panel) timeline.fromTo(panel, { autoAlpha: 0.82 }, { autoAlpha: 1, duration: 0.2, ease: "power2.out" }, 0);
-    timeline.fromTo(pieces, { autoAlpha: 0, x: -14, y: 5 }, { autoAlpha: 1, x: 0, y: 0, duration: 0.24, stagger: 0.025, ease: "power3.out" }, 0.015);
-    if (rule) timeline.fromTo(rule, { scaleX: 0 }, { scaleX: 1, duration: 0.22, ease: "power2.out" }, 0.08);
-    timeline.fromTo(items, { autoAlpha: 0, x: -8 }, { autoAlpha: 1, x: 0, duration: 0.2, stagger: 0.025, ease: "power2.out" }, 0.1);
-    return () => timeline.kill();
-  }, [activeIndex, reducedMotion]);
-  useLandingGsap(sceneRef, setupStageTransition, [setupStageTransition]);
   const handleProgress = useCallback((progress: number) => {
     if (manualSelectionRef.current !== null) return;
     const nextIndex = stageIndexForProgress(progress);
@@ -282,7 +265,7 @@ function DesktopStory() {
     </div>
   );
   const workflow = (
-    <div ref={sceneRef} className="flex h-full flex-col">
+    <div className="flex h-full flex-col">
       <StoryHeading className="shrink-0 px-5 pt-4 lg:pt-5" />
       <WorkflowStepper
         items={STAGES}
