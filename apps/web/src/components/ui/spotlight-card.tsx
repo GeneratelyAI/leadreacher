@@ -1,17 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useRef, type ComponentPropsWithoutRef, type MouseEvent, type ReactNode } from "react";
 import { m, useMotionTemplate, useMotionValue } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-type SpotlightCardProps = {
+type SpotlightCardProps = Omit<ComponentPropsWithoutRef<"div">, "children"> & {
   children: ReactNode;
   className?: string;
   spotlightColor?: string;
   spotlightClassName?: string;
 };
 
-export function SpotlightCard({ children, className, spotlightColor = "rgba(111, 76, 255, 0.18)", spotlightClassName }: SpotlightCardProps) {
+export function SpotlightCard({ children, className, spotlightColor = "rgba(111, 76, 255, 0.18)", spotlightClassName, ...props }: SpotlightCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const frameRef = useRef(0);
   const boundsRef = useRef<DOMRect | null>(null);
@@ -39,6 +39,7 @@ export function SpotlightCard({ children, className, spotlightColor = "rgba(111,
   return (
     <div
       ref={ref}
+      {...props}
       onMouseEnter={() => { boundsRef.current = ref.current?.getBoundingClientRect() ?? null; }}
       onMouseMove={handlePointerMove}
       onMouseLeave={() => {
