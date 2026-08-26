@@ -6,6 +6,10 @@ import {
 } from "../incident-normalizer.js";
 import { sanitizeIncidentText, sanitizeProviderUrl } from "../incident-sanitizer.js";
 import { verifyIncidentWebhookSecret } from "../incident-webhook-auth.js";
+import {
+  canClaimSubscriptionRepair,
+  SUBSCRIPTION_CLAIM_STALE_MS,
+} from "../incident-subscription-runner.js";
 
 describe("incident webhook authentication", () => {
   it("accepts only an exact configured secret", () => {
@@ -112,5 +116,38 @@ describe("incident autofix policy", () => {
     });
     expect(decision.risk).toBe("high");
     expect(decision.reasons).toContain("No regression test was added or updated");
+  });
+});
+
+describe("subscription incident claims", () => {
+  const now = Date.UTC(2026, 7, 26, 18, 0, 0);
+
+  it("claims prepared incidents without requiring an API-backed GitHub runner", () => {
+    expect(canClaimSubscriptionRepair({
+      status: "dispatched",
+      attemptCount: 1,
+      updatedAt: new Date(now),
+    }, now)).toBe(true);
+  });
+
+  it("reclaims only stale interrupted Codex runs", () => {
+    expect(canClaimSubscriptionRepair({
+      status: "repairing",
+      attemptCount: 1,
+      updatedAt: new Date(now - SUBSCRIPTION_CLAIM_STALE_MS - 1),
+    }, now)).toBe(true);
+    expect(canClaimSubscriptionRepair({
+      status: "repairing",
+      attemptCount: 1,
+      updatedAt: new Date(now - 1_000),
+    }, now)).toBe(false);
+  });
+
+  it("respects the repair attempt limit", () => {
+    expect(canClaimSubscriptionRepair({
+      status: "dispatched",
+      attemptCount: 3,
+      updatedAt: new Date(now),
+    }, now)).toBe(false);
   });
 });
