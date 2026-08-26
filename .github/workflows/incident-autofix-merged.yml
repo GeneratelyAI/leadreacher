@@ -1,0 +1,41 @@
+name: Incident autofix merged
+
+on:
+  pull_request:
+    branches: [develop]
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: >-
+      github.event.pull_request.merged == true &&
+      contains(github.event.pull_request.labels.*.name, 'incident-autofix')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report merge to incident controller
+        env:
+          API_BASE_URL: ${{ secrets.INCIDENT_AUTOFIX_API_BASE_URL }}
+          CALLBACK_SECRET: ${{ secrets.INCIDENT_AUTOFIX_CALLBACK_SECRET }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        shell: bash
+        run: |
+          repair_id=$(sed -n 's/.*incident-repair-id: \(c[a-zA-Z0-9]*\).*/\1/p' <<<"$PR_BODY" | head -1)
+          if [[ ! "$repair_id" =~ ^c[a-zA-Z0-9]{8,40}$ ]]; then
+            echo "Pull request is missing a valid incident repair marker" >&2
+            exit 1
+          fi
+          jq -n --arg sha "$MERGE_SHA" --arg url "$PR_URL" \
+            '{status:"merged",eventType:"pull_request_merged",commitSha:$sha,pullRequestUrl:$url}' \
+            > callback.json
+          curl --fail --silent --show-error --max-time 15 \
+            -H "content-type: application/json" \
+            -H "x-leadreacher-autofix-secret: $CALLBACK_SECRET" \
+            --data-binary @callback.json \
+            "$API_BASE_URL/internal/incident-autofix/$repair_id/callback"
+

@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "properties": {
+    "rootCause": { "type": "string" },
+    "summary": { "type": "string" },
+    "tests": { "type": "array", "items": { "type": "string" } },
+    "residualRisk": { "type": "string" }
+  },
+  "required": ["rootCause", "summary", "tests", "residualRisk"],
+  "additionalProperties": false
+}
