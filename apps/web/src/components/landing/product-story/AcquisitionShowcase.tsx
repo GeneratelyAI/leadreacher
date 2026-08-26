@@ -80,6 +80,40 @@ function ChannelGlyph({ channel, className }: { channel: Channel; className?: st
   return <ChannelLogo name={channel.logo} className={className} />;
 }
 
+// Matches the cursor route: Instagram → LinkedIn → Outlook → WhatsApp.
+const CHANNEL_CLICK_DELAYS = [0.24, 1.14, 2.94, 2.04] as const;
+
+function ChannelSelectionCursor({ reducedMotion }: { reducedMotion: boolean }) {
+  if (reducedMotion) return null;
+
+  return (
+    <m.svg
+      viewBox="0 0 220 120"
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-20 size-full overflow-visible"
+    >
+      <m.g
+        className="drop-shadow-[0_4px_7px_rgba(18,12,45,.35)] [will-change:transform]"
+        style={{ transformBox: "fill-box", transformOrigin: "0 0" }}
+        initial={{ x: 110, y: 18, scale: 1 }}
+        animate={{
+          x: [110, 110, 198, 198, 110, 110, 15, 15, 110],
+          y: [18, 18, 60, 60, 102, 102, 60, 60, 18],
+          scale: [1, 0.8, 1, 0.8, 1, 0.8, 1, 0.8, 1],
+        }}
+        transition={{
+          duration: 3.6,
+          repeat: Infinity,
+          ease: [0.25, 1, 0.5, 1],
+          times: [0, 0.08, 0.25, 0.33, 0.5, 0.58, 0.75, 0.83, 1],
+        }}
+      >
+        <path d="M0 0 20.5 17.5h-9.2l-4.6 9.2L0 0Z" fill="#fff" stroke="#17132d" strokeWidth="2.1" strokeLinejoin="round" />
+      </m.g>
+    </m.svg>
+  );
+}
+
 function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelected: boolean }) {
   const reducedMotion = Boolean(useReducedMotion());
   const reveal = (delay: number) => ({
@@ -94,7 +128,7 @@ function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelecte
       <m.span
         className="relative h-full w-full drop-shadow-[0_14px_20px_rgba(92,61,196,.16)]"
         initial={reducedMotion ? false : { opacity: 0, scale: 0.86, y: 19 }}
-        animate={{ opacity: isSelected ? 1 : 0.88, scale: 1.5, y: 12 }}
+        animate={{ opacity: isSelected ? 1 : 0.88, scale: 1, y: 0 }}
         transition={reveal(0.18)}
       >
         <Image
@@ -131,11 +165,20 @@ function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelecte
   }
 
   if (index === 3) {
-    const positions = ["left-1/2 top-0 -translate-x-1/2", "right-[7%] top-1/2 -translate-y-1/2", "left-[8%] top-1/2 -translate-y-1/2", "left-1/2 bottom-0 -translate-x-1/2"];
+    const positions = ["left-1/2 top-[15%] -translate-x-1/2 -translate-y-1/2", "left-[86%] top-1/2 -translate-x-1/2 -translate-y-1/2", "left-[14%] top-1/2 -translate-x-1/2 -translate-y-1/2", "left-1/2 top-[85%] -translate-x-1/2 -translate-y-1/2"];
     return <div className="relative h-16 sm:h-28" aria-hidden>
-      <svg className="absolute inset-0 size-full" viewBox="0 0 220 120" fill="none">{[[110,60,110,15],[110,60,195,60],[110,60,25,60],[110,60,110,105]].map((line) => <line key={line.join("-")} x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke={isSelected ? "rgba(181,160,255,.5)" : "rgba(105,72,225,.28)"} strokeDasharray="3 5" />)}</svg>
-      <m.span className="absolute left-1/2 top-1/2 z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#6740e8] text-white shadow-[0_8px_20px_rgba(103,64,232,.32)]" initial={reducedMotion ? false : { opacity: 0, scale: 0.78 }} animate={visible} transition={reveal(0.22)}><Send className="size-6" /></m.span>
-      {CHANNELS.map((channel, channelIndex) => <m.span key={channel.label} className={cn("absolute flex size-9 items-center justify-center", positions[channelIndex])} initial={reducedMotion ? false : { opacity: 0, scale: 0.75 }} animate={visible} transition={reveal(0.3 + channelIndex * 0.07)}><ChannelGlyph channel={channel} className="size-8" /></m.span>)}
+      {CHANNELS.map((channel, channelIndex) => <m.span
+        key={channel.label}
+        className={cn("absolute flex size-9 items-center justify-center [will-change:transform,filter]", positions[channelIndex])}
+        initial={reducedMotion ? false : { opacity: 0, scale: 0.75 }}
+        animate={isSelected && !reducedMotion
+          ? { opacity: 1, scale: [1, 0.9, 1.14, 1], filter: ["drop-shadow(0 0 0 rgba(126,92,255,0))", "drop-shadow(0 0 0 rgba(126,92,255,0))", "drop-shadow(0 0 9px rgba(126,92,255,.72))", "drop-shadow(0 0 0 rgba(126,92,255,0))"] }
+          : visible}
+        transition={isSelected && !reducedMotion
+          ? { delay: CHANNEL_CLICK_DELAYS[channelIndex], duration: 0.26, repeat: Infinity, repeatDelay: 3.34, ease: [0.22, 1, 0.36, 1] }
+          : reveal(0.3 + channelIndex * 0.07)}
+      ><ChannelGlyph channel={channel} className="size-8" /></m.span>)}
+      {isSelected ? <ChannelSelectionCursor reducedMotion={reducedMotion} /> : null}
     </div>;
   }
 
