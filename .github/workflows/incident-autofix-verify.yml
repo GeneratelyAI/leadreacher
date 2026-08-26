@@ -1,0 +1,80 @@
+name: Incident autofix verification
+
+on:
+  workflow_run:
+    workflows: [Deployment smoke, Staging safe journeys]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    if: >-
+      github.event.workflow_run.head_branch == 'develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Find associated automated repair
+        id: repair
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          pr=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${SHA}/pulls" \
+            --jq '[.[] | select(any(.labels[]?; .name == "incident-autofix"))] | first // empty')
+          if [ -z "$pr" ]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          repair_id=$(jq -r '.body' <<<"$pr" | sed -n 's/.*incident-repair-id: \(c[a-zA-Z0-9]*\).*/\1/p' | head -1)
+          if [[ ! "$repair_id" =~ ^c[a-zA-Z0-9]{8,40}$ ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "repair_id=$repair_id" >> "$GITHUB_OUTPUT"
+
+      - name: Report independent verification signal
+        if: >-
+          steps.repair.outputs.found == 'true' &&
+          github.event.workflow_run.conclusion == 'success'
+        env:
+          API_BASE_URL: ${{ secrets.INCIDENT_AUTOFIX_API_BASE_URL }}
+          CALLBACK_SECRET: ${{ secrets.INCIDENT_AUTOFIX_CALLBACK_SECRET }}
+          REPAIR_ID: ${{ steps.repair.outputs.repair_id }}
+          SIGNAL: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          jq -n --arg signal "$SIGNAL" --arg url "$RUN_URL" \
+            '{status:"verified",eventType:"staging_verification_passed",workflowRunUrl:$url,verificationResult:{passed:true,signal:$signal}}' \
+            > callback.json
+          curl --fail --silent --show-error --max-time 15 \
+            -H "content-type: application/json" \
+            -H "x-leadreacher-autofix-secret: $CALLBACK_SECRET" \
+            --data-binary @callback.json \
+            "$API_BASE_URL/internal/incident-autofix/$REPAIR_ID/callback"
+
+      - name: Report verification failure
+        if: >-
+          steps.repair.outputs.found == 'true' &&
+          github.event.workflow_run.conclusion != 'success'
+        env:
+          API_BASE_URL: ${{ secrets.INCIDENT_AUTOFIX_API_BASE_URL }}
+          CALLBACK_SECRET: ${{ secrets.INCIDENT_AUTOFIX_CALLBACK_SECRET }}
+          REPAIR_ID: ${{ steps.repair.outputs.repair_id }}
+          SIGNAL: ${{ github.event.workflow_run.name }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        shell: bash
+        run: |
+          jq -n --arg signal "$SIGNAL" --arg url "$RUN_URL" \
+            '{status:"verification_failed",eventType:"staging_verification_failed",workflowRunUrl:$url,lastError:("Staging verification failed: " + $signal),verificationResult:{passed:false,signal:$signal}}' \
+            > callback.json
+          curl --fail --silent --show-error --max-time 15 \
+            -H "content-type: application/json" \
+            -H "x-leadreacher-autofix-secret: $CALLBACK_SECRET" \
+            --data-binary @callback.json \
+            "$API_BASE_URL/internal/incident-autofix/$REPAIR_ID/callback"

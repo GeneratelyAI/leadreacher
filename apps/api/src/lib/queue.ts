@@ -6,6 +6,7 @@ export const QUEUE_VIDEO_GENERATION = "video-generation";
 export const QUEUE_RECONCILE_MAINTENANCE = "reconcile-maintenance";
 export const QUEUE_ANALYTICS_INSIGHTS = "analytics-insights";
 export const QUEUE_ONBOARDING_PROSPECT_DISCOVERY = "onboarding-prospect-discovery";
+export const QUEUE_INCIDENT_AUTOFIX = "incident-autofix";
 
 // A single maintenance queue avoids four idle BullMQ workers continuously
 // long-polling Redis. Individual task cadences are handled by the worker.
@@ -68,6 +69,10 @@ export type OnboardingProspectDiscoveryJob = {
   campaignId: string;
 };
 
+export type IncidentAutofixJob = {
+  repairId: string;
+};
+
 export const campaignSequenceQueue = new Queue(QUEUE_CAMPAIGN_SEQUENCE, {
   connection: redis,
   defaultJobOptions: {
@@ -104,6 +109,19 @@ export const onboardingProspectDiscoveryQueue = new Queue<OnboardingProspectDisc
     connection: redis,
     defaultJobOptions: {
       attempts: 1,
+    },
+  },
+);
+
+export const incidentAutofixQueue = new Queue<IncidentAutofixJob>(
+  QUEUE_INCIDENT_AUTOFIX,
+  {
+    connection: redis,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 10_000 },
+      removeOnComplete: { age: 7 * 24 * 60 * 60, count: 1_000 },
+      removeOnFail: { age: 30 * 24 * 60 * 60, count: 2_000 },
     },
   },
 );
@@ -148,5 +166,6 @@ export async function closeQueues(): Promise<void> {
     reconcileMaintenanceQueue.close(),
     analyticsInsightsQueue.close(),
     onboardingProspectDiscoveryQueue.close(),
+    incidentAutofixQueue.close(),
   ]);
 }
