@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
 import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 
 import {
@@ -35,7 +35,6 @@ import { DisplayCards } from "@/components/ui/display-cards";
 import { EdgeSurface } from "@/components/ui/edge-surface";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
 import { Logo } from "@/components/ui/Logo";
-import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline";
 import { ScrollExpandMedia } from "@/components/ui/scroll-expansion-hero";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import AnimatedHighlightText, { Highlight, SparklesIcon } from "@/components/ui/animated-highlight-text";
@@ -52,7 +51,6 @@ import { FeatureList } from "./FeatureList";
 import {
   approvalBenefits,
   approvalTabs,
-  channelTimeline,
   checkoutStates,
   faqs,
   reviewCards,
@@ -189,18 +187,18 @@ function DifferentiationSection() {
   const mapBoundsRef = useRef<DOMRect | null>(null);
   const mapPointerRef = useRef({ x: 600, y: 260 });
   const [orbitSize, setOrbitSize] = useState({ width: 0, height: 0 });
-  const orbitChannels = [
-    { label: "LinkedIn", mark: <ChannelLogo name="linkedin" className="size-8 sm:size-11" /> },
-    { label: "Instagram", mark: <ChannelLogo name="instagram" className="size-8 sm:size-11" /> },
-    { label: "Facebook", mark: <ChannelLogo name="facebook" className="size-8 sm:size-11" /> },
-    { label: "WhatsApp", mark: <ChannelLogo name="whatsapp-mark" className="size-9 sm:size-12" /> },
-    { label: "Gmail", mark: <ChannelLogo name="gmail" className="size-8 sm:size-11" /> },
-    { label: "Outlook", mark: <ChannelLogo name="outlook" className="size-8 sm:size-11" /> },
-    { label: "X", mark: <SocialMediaIcon name="x" className="size-7 text-black sm:size-9" /> },
-    { label: "YouTube", mark: <SocialMediaIcon name="youtube" className="size-8 text-[#ff0000] sm:size-11" /> },
-    { label: "TikTok", mark: <SocialMediaIcon name="tiktok" className="size-7 text-black sm:size-10" /> },
-    { label: "Telegram", mark: <SocialMediaIcon name="telegram" className="size-8 text-[#229ed9] sm:size-11" /> },
-  ] as const;
+  const orbitChannels = useMemo(() => [
+    { label: "LinkedIn", ring: 0, phase: 0.04, mark: <ChannelLogo name="linkedin" className="size-8 sm:size-11" /> },
+    { label: "WhatsApp", ring: 0, phase: 0.24, mark: <ChannelLogo name="whatsapp-mark" className="size-9 sm:size-12" /> },
+    { label: "YouTube", ring: 0, phase: 0.44, mark: <SocialMediaIcon name="youtube" className="size-8 text-[#ff0000] sm:size-11" /> },
+    { label: "Instagram", ring: 0, phase: 0.64, mark: <ChannelLogo name="instagram" className="size-8 sm:size-11" /> },
+    { label: "Gmail", ring: 0, phase: 0.84, mark: <ChannelLogo name="gmail" className="size-8 sm:size-11" /> },
+    { label: "Telegram", ring: 1, phase: 0.1, mark: <SocialMediaIcon name="telegram" className="size-8 text-[#229ed9] sm:size-11" /> },
+    { label: "Facebook", ring: 1, phase: 0.3, mark: <ChannelLogo name="facebook" className="size-8 sm:size-11" /> },
+    { label: "Outlook", ring: 1, phase: 0.5, mark: <ChannelLogo name="outlook" className="size-8 sm:size-11" /> },
+    { label: "X", ring: 1, phase: 0.7, mark: <SocialMediaIcon name="x" className="size-7 text-black sm:size-9" /> },
+    { label: "TikTok", ring: 1, phase: 0.9, mark: <SocialMediaIcon name="tiktok" className="size-7 text-black sm:size-10" /> },
+  ] as const, []);
   const orbitChannelCount = orbitChannels.length;
 
   useEffect(() => {
@@ -216,19 +214,29 @@ function DifferentiationSection() {
   useEffect(() => {
     if (!orbitSize.width || !orbitSize.height) return;
 
-    const radiusX = orbitSize.width * 0.46;
-    const radiusY = orbitSize.height * 0.35;
+    const rings = [
+      { radiusX: 0.27, radiusY: 0.26, duration: 28_000, direction: 1 },
+      { radiusX: 0.47, radiusY: 0.37, duration: 52_000, direction: -1 },
+    ] as const;
     const orbitElements = orbitItemRefs.current.slice();
     const animations = orbitElements.flatMap((element, index) => {
       if (!element) return [];
 
-      const phase = (index / orbitChannelCount) * Math.PI * 2;
-      const frameCount = 48;
+      const channel = orbitChannels[index];
+      const ring = rings[channel.ring];
+      const radiusX = orbitSize.width * ring.radiusX;
+      const radiusY = orbitSize.height * ring.radiusY;
+      const phase = channel.phase * Math.PI * 2;
+      const frameCount = 64;
       const frames = Array.from({ length: frameCount + 1 }, (_, frameIndex) => {
-        const angle = phase + (frameIndex / frameCount) * Math.PI * 2;
+        const angle = phase + ring.direction * (frameIndex / frameCount) * Math.PI * 2;
         const x = Math.cos(angle) * radiusX;
         const y = Math.sin(angle) * radiusY;
-        return { transform: `translate3d(${x}px, ${y}px, 0)` };
+        const depth = (Math.sin(angle) + 1) / 2;
+        const scale = 0.78 + depth * 0.28;
+        return {
+          transform: `translate3d(${x}px, ${y}px, 0) scale(${scale})`,
+        };
       });
 
       element.style.transform = frames[0].transform;
@@ -236,7 +244,7 @@ function DifferentiationSection() {
 
       element.style.willChange = "transform";
       return [element.animate(frames, {
-        duration: 42_000,
+        duration: ring.duration,
         easing: "linear",
         iterations: Number.POSITIVE_INFINITY,
       })];
@@ -263,7 +271,7 @@ function DifferentiationSection() {
         if (element) element.style.willChange = "";
       });
     };
-  }, [orbitChannelCount, orbitSize.height, orbitSize.width, reducedMotion]);
+  }, [orbitChannelCount, orbitChannels, orbitSize.height, orbitSize.width, reducedMotion]);
 
   const updateMapSpotlight = (event: MouseEvent<HTMLDivElement>) => {
     const spotlight = mapSpotlightRef.current;
@@ -372,14 +380,13 @@ function DifferentiationSection() {
               mask="url(#api-map-cursor-mask)"
               className="pointer-events-none opacity-0 transition-opacity duration-200 motion-reduce:transition-none"
             />
-            <ellipse cx="600" cy="260" rx="555" ry="175" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
-            <ellipse cx="600" cy="260" rx="370" ry="120" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.2" />
-            <ellipse cx="600" cy="260" rx="205" ry="83" fill="none" stroke="#6b51e7" strokeOpacity="0.17" strokeWidth="1" />
+            <ellipse cx="600" cy="260" rx="564" ry="185" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
+            <ellipse cx="600" cy="260" rx="324" ry="130" fill="none" stroke="#6b51e7" strokeOpacity="0.2" strokeWidth="1.1" />
             {[
               { radiusX: 555, radiusY: 175, angle: Math.PI },
               { radiusX: 555, radiusY: 175, angle: 2.22 },
-              { radiusX: 370, radiusY: 120, angle: 4.25 },
-              { radiusX: 370, radiusY: 120, angle: 1.07 },
+              { radiusX: 324, radiusY: 130, angle: 4.25 },
+              { radiusX: 324, radiusY: 130, angle: 1.07 },
               { radiusX: 555, radiusY: 175, angle: 5.62 },
               { radiusX: 555, radiusY: 175, angle: 0.3 },
             ].map(({ radiusX, radiusY, angle }, index) => (
@@ -400,16 +407,16 @@ function DifferentiationSection() {
             <span className="mt-1 text-sm font-semibold tracking-[-0.03em] text-[#111527] sm:text-lg">leadreacher</span>
           </div>
 
-          <ul ref={orbitRef} aria-label="Supported outreach channels" className="pointer-events-none absolute inset-0 z-10">
-            {orbitChannels.map(({ label, mark }, index) => {
+          <ul ref={orbitRef} aria-label="Supported outreach channels" className="pointer-events-none absolute inset-0 z-30">
+            {orbitChannels.map(({ label, mark, ring }, index) => {
               return (
                 <li
                   key={label}
                   ref={(element) => { orbitItemRefs.current[index] = element; }}
-                  title={label}
+                  data-ring={ring}
                   className="absolute left-1/2 top-1/2 -ml-6 -mt-6 sm:-ml-9 sm:-mt-9"
                 >
-                  <span className="pointer-events-auto flex size-12 items-center justify-center transition-[transform,filter] duration-300 hover:scale-[1.15] hover:drop-shadow-[0_8px_12px_rgba(77,51,179,0.32)] motion-reduce:transition-none sm:size-[4.5rem]">
+                  <span className="pointer-events-auto relative flex size-12 items-center justify-center transition-[transform,filter] duration-300 hover:scale-[1.15] hover:drop-shadow-[0_8px_12px_rgba(77,51,179,0.32)] motion-reduce:transition-none sm:size-[4.5rem]">
                     {mark}<span className="sr-only">{label}</span>
                   </span>
                 </li>
@@ -436,15 +443,6 @@ function DifferentiationSection() {
           ))}
         </div>
 
-        <div className="mt-16 grid overflow-hidden rounded-2xl bg-[#080a12] sm:mt-24 lg:grid-cols-[0.72fr_1.28fr]">
-          <div className="flex flex-col justify-center p-8 text-white sm:p-12 lg:p-14">
-            <p className="text-xs font-semibold uppercase text-[#a995ff]">Meet customers where they already are</p>
-            <h2 className="mt-4 max-w-md text-balance text-3xl font-semibold leading-tight text-white sm:text-4xl">One workspace. Every supported conversation.</h2>
-            <p className="mt-5 max-w-lg text-base leading-7 text-white/62">Connect the accounts your audience uses, then keep campaign and reply context together.</p>
-            <p className="mt-7 text-xs font-medium text-[#a995ff]">Select a channel to inspect how it fits the workflow.</p>
-          </div>
-          <RadialOrbitalTimeline timelineData={channelTimeline} className="rounded-none" />
-        </div>
       </div>
     </EdgeSurface>
   );

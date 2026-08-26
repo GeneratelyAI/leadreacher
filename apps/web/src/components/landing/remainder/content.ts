@@ -1,5 +1,4 @@
 import { MessagesSquare, ShieldCheck, UsersRound } from "@/components/ui/icons";
-import type { OrbitalTimelineItem } from "@/components/ui/radial-orbital-timeline";
 
 export const comparisonRows = [
   ["Learn complex software", "LeadReacher learns your business"],
@@ -8,14 +7,6 @@ export const comparisonRows = [
   ["Send follow-ups manually", "Approved follow-ups run automatically"],
   ["Chase replies across inboxes", "Interested replies arrive in Chat"],
 ] as const;
-
-export const channelTimeline: OrbitalTimelineItem[] = [
-  { id: 1, title: "LinkedIn", date: "Social", content: "Invites and follow-ups from your connected LinkedIn account.", category: "Social", relatedIds: [2, 3], status: "completed", energy: 100, image: "/landing/linkedin-logo.webp" },
-  { id: 2, title: "WhatsApp", date: "Messaging", content: "Direct conversations with campaign and reply context attached.", category: "Messaging", relatedIds: [1, 3], status: "completed", energy: 100, whatsapp: true },
-  { id: 3, title: "Instagram", date: "Social", content: "Professional outreach through a connected Instagram inbox.", category: "Social", relatedIds: [1, 2, 4], status: "completed", energy: 100, image: "/landing/instagram-logo.webp" },
-  { id: 4, title: "Gmail", date: "Email", content: "Approved email sequences sent from your connected Google inbox.", category: "Email", relatedIds: [3, 5], status: "completed", energy: 100, image: "/landing/gmail-logo.webp" },
-  { id: 5, title: "Outlook", date: "Email", content: "Approved email sequences sent from your connected Microsoft inbox.", category: "Email", relatedIds: [4], status: "completed", energy: 100, image: "/landing/outlook-logo.webp" },
-];
 
 export const approvalTabs = ["Email", "LinkedIn", "WhatsApp", "Video"] as const;
 export type ApprovalTab = (typeof approvalTabs)[number];
