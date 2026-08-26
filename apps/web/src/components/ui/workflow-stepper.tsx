@@ -52,7 +52,7 @@ export function WorkflowStepper({
       aria-label={ariaLabel}
       onKeyDown={handleKeyDown}
       className={cn(
-        "workflow-stepper relative shrink-0 px-5 pb-5 pt-4 lg:px-8 lg:pb-6 lg:pt-6",
+        "workflow-stepper relative shrink-0 px-5 pb-5 pt-4 [--workflow-step-size:2.25rem] [--workflow-stepper-pt:1rem] lg:px-8 lg:pb-6 lg:pt-6 lg:[--workflow-step-size:2.75rem] lg:[--workflow-stepper-pt:1.5rem]",
         isDark ? "text-white" : "text-[#111527] dark:text-white",
         className,
       )}
@@ -60,13 +60,15 @@ export function WorkflowStepper({
       <div
         aria-hidden
         className={cn(
-          "absolute left-[10%] right-[10%] top-[39px] h-px lg:top-[49px]",
+          "absolute left-[10%] right-[10%] h-px",
           isDark ? "bg-white/12" : "bg-[#e3e5eb] dark:bg-white/12",
         )}
+        style={{ top: "calc(var(--workflow-stepper-pt) + var(--workflow-step-size) / 2)" }}
       />
       <m.div
         aria-hidden
-        className="absolute left-[10%] top-[38px] h-0.5 rounded-full bg-[#5429df] lg:top-[48px]"
+        className="absolute left-[10%] h-0.5 rounded-full bg-[#5429df]"
+        style={{ top: "calc(var(--workflow-stepper-pt) + var(--workflow-step-size) / 2 - 0.5px)" }}
         animate={{ width: progressWidth }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       />
@@ -110,7 +112,7 @@ export function WorkflowStepper({
               </m.span>
               <span
                 className={cn(
-                  "mt-2.5 truncate text-[10px] font-semibold transition-colors lg:text-xs",
+                  "mt-2.5 truncate text-[10px] font-semibold uppercase tracking-[0.04em] transition-colors lg:text-xs",
                   isActive || isComplete
                     ? isDark ? "text-white" : "text-[#4221a6] dark:text-white"
                     : isDark ? "text-white/48" : "text-[#687386] dark:text-white/48",

@@ -1487,10 +1487,12 @@ html {
  * the vertically-centered side copy. Keep the same composition, but let short
  * desktop canvases use the available width and compress their chrome instead.
  */
-@media (min-width: 48rem) and (max-height: 42.5rem),
-  (min-width: 80rem) and (max-height: 48rem) {
+/* Browser zoom changes the CSS viewport dimensions. Key this composition to
+   available height across every desktop width so Safari cannot jump between
+   the full and compact layouts while zooming. */
+@media (min-width: 48rem) and (max-height: 52rem) {
   .product-story-frame {
-    width: min(100%, 77.5rem);
+    width: min(calc(100vw - 2rem), 77.5rem);
     height: calc(100svh - 1.5rem);
     max-height: 41rem;
     aspect-ratio: auto;
@@ -1518,16 +1520,12 @@ html {
   }
 
   .product-story-frame .workflow-stepper {
+    position: relative;
+    z-index: 20;
+    --workflow-step-size: 2.25rem;
+    --workflow-stepper-pt: 0.6rem;
     padding-top: 0.6rem;
     padding-bottom: 0.75rem;
-  }
-
-  .product-story-frame .workflow-stepper > div[aria-hidden] {
-    top: 2.05rem;
-  }
-
-  .product-story-frame .workflow-stepper > div[aria-hidden] + div {
-    top: 2rem;
   }
 
   .product-story-frame .workflow-stepper button > span:first-child {
@@ -1545,8 +1543,13 @@ html {
   }
 
   .product-story-workflow {
+    position: relative;
+    z-index: 10;
     grid-template-columns: minmax(11.75rem, 0.42fr) minmax(0, 1.58fr);
     gap: 1rem;
+    /* The stage labels can gain a few CSS pixels at non-100% Safari zoom.
+       Reserve real flow space instead of allowing the tablet to cover them. */
+    padding-top: 2rem;
     padding-right: 1.25rem;
     padding-bottom: 1rem;
     padding-left: 1.25rem;

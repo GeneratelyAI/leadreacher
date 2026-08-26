@@ -246,6 +246,8 @@ for (const viewport of [
 for (const viewport of [
   { width: 1366, height: 650 },
   { width: 1024, height: 600 },
+  { width: 1224, height: 660 },
+  { width: 1530, height: 825 },
 ]) {
   test(`keeps the product story readable on a short Windows desktop viewport at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story sizing only");
@@ -265,7 +267,10 @@ for (const viewport of [
       return {
         frame: bounds('[data-testid="container-scroll-frame"]'),
         stepper: bounds(".workflow-stepper"),
+        stepLine: bounds(".workflow-stepper > div[aria-hidden]"),
+        firstStepCircle: bounds(".workflow-stepper button > span:first-child"),
         workflow: bounds(".product-story-workflow"),
+        device: bounds(".product-story-tablet-column > div"),
         panel: bounds("#product-story-panel"),
         copy: bounds(".product-story-side-copy"),
         pageOverflows: document.documentElement.scrollWidth > window.innerWidth,
@@ -274,12 +279,20 @@ for (const viewport of [
 
     expect(layout.frame).not.toBeNull();
     expect(layout.stepper).not.toBeNull();
+    expect(layout.stepLine).not.toBeNull();
+    expect(layout.firstStepCircle).not.toBeNull();
     expect(layout.workflow).not.toBeNull();
+    expect(layout.device).not.toBeNull();
     expect(layout.panel).not.toBeNull();
     expect(layout.copy).not.toBeNull();
     expect(layout.frame?.width ?? 0).toBeGreaterThanOrEqual(Math.min(viewport.width - 80, 1240));
     expect(layout.panel?.width ?? 0).toBeGreaterThan((layout.frame?.width ?? 0) * 0.65);
+    expect(Math.abs(
+      ((layout.stepLine?.y ?? 0) + (layout.stepLine?.height ?? 0) / 2)
+      - ((layout.firstStepCircle?.y ?? 0) + (layout.firstStepCircle?.height ?? 0) / 2),
+    )).toBeLessThanOrEqual(1.5);
     expect(layout.workflow?.y ?? 0).toBeGreaterThanOrEqual(layout.stepper?.bottom ?? Number.POSITIVE_INFINITY);
+    expect((layout.device?.y ?? 0) - (layout.stepper?.bottom ?? 0)).toBeGreaterThanOrEqual(8);
     expect(layout.copy?.y ?? -1).toBeGreaterThanOrEqual(layout.frame?.y ?? 0);
     expect(layout.copy?.bottom ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(layout.frame?.bottom ?? 0);
     expect(layout.pageOverflows).toBe(false);
@@ -292,10 +305,10 @@ test("supports keyboard stage navigation and reduced motion", async ({ page }, t
   await page.setViewportSize({ width: 1536, height: 1024 });
   await openLanding(page, "/#how-it-works");
 
-  const websiteTab = page.getByRole("tab", { name: /Website/ });
-  await websiteTab.focus();
+  const strategyTab = page.getByRole("tab", { name: /Strategy/ });
+  await strategyTab.focus();
   await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("tab", { name: /Strategy/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: /Prospects/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByTestId("container-scroll-frame")).toHaveCSS("transform", "none");
 });
 
@@ -333,8 +346,8 @@ test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
   await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   const progress = page.getByRole("navigation", { name: "Workflow progress" });
-  await progress.getByRole("link", { name: "2, Strategy" }).click();
-  await expect(progress.getByRole("link", { name: "2, Strategy" })).toHaveAttribute("aria-current", "step");
+  await progress.getByRole("link", { name: "2, Prospects" }).click();
+  await expect(progress.getByRole("link", { name: "2, Prospects" })).toHaveAttribute("aria-current", "step");
   await expect(page.locator("#mobile-story-strategy")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
