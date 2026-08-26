@@ -8,6 +8,10 @@ import { incidentAutofixQueue, QUEUE_INCIDENT_AUTOFIX } from "../lib/queue.js";
 import { prisma } from "../lib/prisma.js";
 import { verifyIncidentWebhookSecret } from "../services/incident-webhook-auth.js";
 import { sanitizeIncidentText } from "../services/incident-sanitizer.js";
+import {
+  canClaimSubscriptionRepair,
+  SUBSCRIPTION_CLAIM_STALE_MS,
+} from "../services/incident-subscription-runner.js";
 
 const INTERNAL_SECRET_HEADER = "x-leadreacher-autofix-secret";
 const BRIEFABLE_STATUSES: IncidentRepairStatus[] = [
@@ -67,6 +71,62 @@ function digestMatches(actual: string, expected: string): boolean {
 }
 
 export async function incidentAutofixInternalRoutes(app: FastifyInstance): Promise<void> {
+  app.get("/internal/incident-autofix/pending", async (request) => {
+    requireInternalSecret(request);
+    const staleBefore = new Date(Date.now() - SUBSCRIPTION_CLAIM_STALE_MS);
+    const repairs = await prisma.incidentRepair.findMany({
+      where: {
+        attemptCount: { lt: 3 },
+        OR: [
+          { status: "dispatched" },
+          { status: "repairing", updatedAt: { lt: staleBefore } },
+        ],
+      },
+      orderBy: [{ severity: "desc" }, { firstSeenAt: "asc" }],
+      take: 5,
+    });
+    return {
+      repairs: repairs.map((repair) => ({
+        id: repair.id,
+        provider: repair.provider,
+        title: repair.title,
+        severity: repair.severity,
+        releaseSha: repair.releaseSha,
+        status: repair.status,
+        staleClaim: repair.status === "repairing",
+        updatedAt: repair.updatedAt,
+      })),
+    };
+  });
+
+  app.post<{ Params: { id: string } }>(
+    "/internal/incident-autofix/:id/claim",
+    async (request) => {
+      requireInternalSecret(request);
+      return prisma.$transaction(async (tx) => {
+        const repair = await tx.incidentRepair.findUnique({ where: { id: request.params.id } });
+        if (!repair) throw new NotFoundError("Incident repair");
+        const eligible = canClaimSubscriptionRepair(repair);
+        if (!eligible || !repair.contextDigest) return { claimed: false };
+        const claimed = await tx.incidentRepair.updateMany({
+          where: { id: repair.id, status: repair.status, updatedAt: repair.updatedAt },
+          data: { status: "repairing", lastError: null },
+        });
+        if (claimed.count !== 1) return { claimed: false };
+        await tx.incidentRepairEvent.create({
+          data: {
+            repairId: repair.id,
+            status: "repairing",
+            eventType: repair.status === "repairing"
+              ? "codex_subscription_reclaimed"
+              : "codex_subscription_claimed",
+          },
+        });
+        return { claimed: true, contextDigest: repair.contextDigest };
+      });
+    },
+  );
+
   app.get("/internal/incident-autofix/unbriefed", async (request) => {
     requireInternalSecret(request);
     const repairs = await prisma.incidentRepair.findMany({

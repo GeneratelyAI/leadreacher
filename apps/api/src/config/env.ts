@@ -93,8 +93,6 @@ const envSchema = z.object({
   SENTRY_ORG_SLUG: z.string().optional().default(""),
   BETTERSTACK_WEBHOOK_SECRET: z.string().optional().default(""),
   BETTERSTACK_API_TOKEN: z.string().optional().default(""),
-  GITHUB_AUTOFIX_TOKEN: z.string().optional().default(""),
-  GITHUB_AUTOFIX_REPOSITORY: z.string().default("nickcantanhede/leadreacher"),
   INCIDENT_AUTOFIX_CALLBACK_SECRET: z.string().optional().default(""),
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
@@ -167,12 +165,7 @@ const envSchema = z.object({
   LEGAL_ACCEPTANCE_REQUIRED: booleanString,
 }).superRefine((value, ctx) => {
   if (value.INCIDENT_AUTOFIX_ENABLED) {
-    for (const key of [
-      "SENTRY_WEBHOOK_SECRET",
-      "BETTERSTACK_WEBHOOK_SECRET",
-      "GITHUB_AUTOFIX_TOKEN",
-      "INCIDENT_AUTOFIX_CALLBACK_SECRET",
-    ] as const) {
+    for (const key of ["INCIDENT_AUTOFIX_CALLBACK_SECRET"] as const) {
       if (!value[key]) {
         ctx.addIssue({
           code: "custom",

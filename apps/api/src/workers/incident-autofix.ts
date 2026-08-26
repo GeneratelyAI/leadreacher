@@ -3,17 +3,13 @@ import { Job, Worker } from "bullmq";
 import type { Prisma } from "@prisma/client";
 import { env, getBullMqIdleDrainDelaySeconds } from "../config/env.js";
 import { QUEUE_INCIDENT_AUTOFIX, type IncidentAutofixJob } from "../lib/queue.js";
-import { redis, redisSubscriber } from "../lib/redis.js";
+import { redisSubscriber } from "../lib/redis.js";
 import { prisma } from "../lib/prisma.js";
 import {
   fetchBetterStackIncidentContext,
   fetchSentryIncidentContext,
 } from "../adapters/incident-providers.js";
-import { dispatchIncidentAutofix } from "../adapters/github-autofix.js";
 import { sanitizeIncidentText } from "../services/incident-sanitizer.js";
-
-const FAILURE_WINDOW_SECONDS = 30 * 60;
-const FAILURE_LIMIT = 5;
 
 function contextDigest(repairId: string): string {
   return createHmac("sha256", env.INCIDENT_AUTOFIX_CALLBACK_SECRET)
@@ -38,9 +34,6 @@ export async function runIncidentAutofix(job: IncidentAutofixJob): Promise<void>
   if (!env.INCIDENT_AUTOFIX_CALLBACK_SECRET) {
     throw new Error("INCIDENT_AUTOFIX_CALLBACK_SECRET is not configured");
   }
-  const failures = Number(await redis.get("incident-autofix:dispatch-failures") ?? 0);
-  if (failures >= FAILURE_LIMIT) throw new Error("Incident autofix circuit breaker is open");
-
   const repair = await prisma.incidentRepair.findUnique({ where: { id: job.repairId } });
   if (!repair || repair.status === "cancelled" || repair.status === "verified") return;
   if (repair.attemptCount >= 3) {
@@ -74,19 +67,8 @@ export async function runIncidentAutofix(job: IncidentAutofixJob): Promise<void>
       where: { id: repair.id },
       data: { sanitizedContext: sanitizedContext as Prisma.InputJsonValue, contextDigest: digest },
     });
-    await dispatchIncidentAutofix({
-      repairId: repair.id,
-      provider: repair.provider,
-      externalIssueId: repair.externalIssueId,
-      releaseSha: repair.releaseSha,
-      severity: repair.severity,
-      contextDigest: digest,
-    });
-    await redis.del("incident-autofix:dispatch-failures");
-    await transition(repair.id, "dispatched", "github_dispatched");
+    await transition(repair.id, "dispatched", "codex_subscription_ready");
   } catch (error) {
-    const count = await redis.incr("incident-autofix:dispatch-failures");
-    if (count === 1) await redis.expire("incident-autofix:dispatch-failures", FAILURE_WINDOW_SECONDS);
     const message = error instanceof Error ? error.message : String(error);
     await transition(repair.id, "failed", "worker_failed", { lastError: message.slice(0, 500) });
     throw error;
