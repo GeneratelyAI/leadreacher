@@ -2,12 +2,13 @@
 
 import Image from "next/image";
 import { useState, type FormEvent } from "react";
-import { m, useReducedMotion } from "framer-motion";
+import { AnimatePresence, m, useReducedMotion } from "framer-motion";
 import {
   Activity,
   ArrowRight,
   BriefcaseBusiness,
   ChartNoAxesCombined,
+  Play,
   Send,
   Target,
   UserRound,
@@ -49,28 +50,28 @@ const AVATARS = [
 
 const ACQUISITION_FLOW_STEPS: readonly AcquisitionFlowStep[] = [
   {
-    title: "Build the game plan.",
-    description: "We turn your business, market and ideal customer into a focused acquisition strategy.",
+    title: "LeadReacher builds your custom strategy.",
+    description: "Built around your business, market and ideal customer.",
     icon: Target,
   },
   {
-    title: "Find your best prospects.",
-    description: "We surface the people and companies that fit your offer before outreach begins.",
+    title: "Finds your ideal prospects.",
+    description: "Surfaces high-value prospects specific to your business.",
     icon: UsersRound,
   },
   {
-    title: "Create content that converts.",
-    description: "Personalized messages and video are built around the reason each prospect should care.",
+    title: "Creates sales-focused content that converts.",
+    description: "Personalized messaging and video built to convert.",
     icon: WandSparkles,
   },
   {
-    title: "Reach them where they are.",
-    description: "The right message is routed through the channels your audience already uses.",
+    title: "Finds the right channel. Automates the outreach.",
+    description: "Routes approved outreach through the channels your prospects already use.",
     icon: Send,
   },
   {
-    title: "Show what matters.",
-    description: "Replies, conversations and qualified meetings stay visible in one workspace.",
+    title: "LeadReacher reports. You approve, track and close.",
+    description: "See replies, meetings and progress in real time so you can close more deals.",
     icon: Activity,
   },
 ] as const;
@@ -86,37 +87,63 @@ function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelecte
     delay: reducedMotion ? 0 : delay,
     ease: [0.22, 1, 0.36, 1] as const,
   });
-  const visible = isSelected ? { opacity: 1, y: 0 } : { opacity: 0.55, y: 0 };
+  const visible = isSelected ? { opacity: 1, y: 0 } : { opacity: 0.76, y: 0 };
 
   if (index === 0) {
-    return <div className="grid grid-cols-3 gap-1.5 pt-1" aria-hidden>
-      {["w-3/5", "w-4/5", "w-2/5"].map((width, lineIndex) => <m.span key={width} className={cn("h-1.5 rounded-full bg-[#8f76ff]", width)} initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={isSelected ? { opacity: 1, scaleX: 1 } : { opacity: 0.45, scaleX: 1 }} transition={reveal(0.34 + lineIndex * 0.07)} />)}
+    return <div className="relative flex h-20 items-center justify-center overflow-hidden rounded-xl sm:h-36" aria-hidden>
+      <m.span
+        className="relative h-full w-full drop-shadow-[0_14px_20px_rgba(92,61,196,.16)]"
+        initial={reducedMotion ? false : { opacity: 0, scale: 0.86, y: 19 }}
+        animate={{ opacity: isSelected ? 1 : 0.88, scale: 1.5, y: 12 }}
+        transition={reveal(0.18)}
+      >
+        <Image
+          src="/landing/product-story/strategy-brain.webp"
+          alt=""
+          fill
+          sizes="(min-width: 640px) 220px, 160px"
+          className="object-contain"
+        />
+      </m.span>
     </div>;
   }
 
   if (index === 1) {
-    return <div className="flex items-center gap-2 pt-1" aria-hidden>
-      {["/landing/portraits/prospect-32.webp", "/landing/portraits/prospect-44.webp", "/landing/portraits/prospect-46.webp"].map((src, avatarIndex) => <m.span key={src} className="relative size-10 overflow-hidden rounded-full border-2 border-white/80" initial={reducedMotion ? false : { opacity: 0, scale: 0.72, y: 6 }} animate={visible} transition={reveal(0.34 + avatarIndex * 0.07)}><Image src={src} alt="" fill sizes="40px" className="object-cover" /></m.span>)}
-      <m.span className="ml-1 rounded-full border border-current/20 px-3 py-1.5 text-xs font-semibold" initial={reducedMotion ? false : { opacity: 0, y: 6 }} animate={visible} transition={reveal(0.58)}>+247</m.span>
-    </div>;
+    const prospects = [
+      { name: "Sarah Chen", role: "VP Marketing", score: "96%", src: "/landing/portraits/prospect-32.webp" },
+      { name: "James Wilson", role: "Founder", score: "93%", src: "/landing/portraits/prospect-36.webp" },
+      { name: "Michelle Park", role: "Head of Growth", score: "89%", src: "/landing/portraits/prospect-46.webp" },
+    ];
+    return <div className="flex h-16 flex-col justify-center gap-0.5 sm:h-28 sm:gap-1.5" aria-hidden>{prospects.map((prospect, prospectIndex) => <m.div key={prospect.name} className={cn("flex min-h-5 items-center gap-1 rounded-md border px-1 py-px shadow-[0_5px_12px_rgba(43,33,104,.06)] sm:min-h-8 sm:gap-2.5 sm:rounded-lg sm:px-2.5 sm:py-1", isSelected ? "border-white/10 bg-white/[.07]" : "border-[#e9e5f3] bg-white")} initial={reducedMotion ? false : { opacity: 0, x: -8 }} animate={visible} transition={reveal(0.24 + prospectIndex * 0.08)}>
+      <span className="relative size-6 shrink-0 overflow-hidden rounded-full sm:size-8"><Image src={prospect.src} alt="" fill sizes="32px" className="object-cover object-top" /></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-[9px] font-semibold leading-3 sm:text-[11px] sm:leading-4">{prospect.name}</span><span className={cn("block truncate text-[7px] leading-3 sm:text-[9px]", isSelected ? "text-white/55" : "text-[#767b8d]")}>{prospect.role}</span></span>
+      <span className={cn("text-[10px] font-bold sm:text-sm", isSelected ? "text-[#b8a5ff]" : "text-[#6642de]")}>{prospect.score}</span>
+    </m.div>)}</div>;
   }
 
   if (index === 2) {
-    return <div className="space-y-1.5 pt-1" aria-hidden>
-      {["w-4/5", "w-full", "w-3/5"].map((width, lineIndex) => <m.span key={width} className={cn("block h-1.5 rounded-full bg-current/20", width)} initial={reducedMotion ? false : { opacity: 0, x: -8 }} animate={visible} transition={reveal(0.34 + lineIndex * 0.08)} />)}
-    </div>;
+    return <m.div className="relative h-16 overflow-hidden rounded-lg border border-white/10 bg-[#090a12] shadow-[0_12px_25px_rgba(0,0,0,.22)] sm:h-28 sm:rounded-xl" aria-hidden initial={reducedMotion ? false : { opacity: 0, scale: 0.95 }} animate={visible} transition={reveal(0.22)}>
+      <Image src="/landing/product-story/content-aggressive.webp" alt="" fill sizes="288px" className="object-cover object-[50%_30%]" />
+      <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+      <m.span className="absolute left-1/2 top-1/2 flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/70 bg-black/45 text-white" initial={reducedMotion ? false : { opacity: 0, scale: 0.65 }} animate={{ opacity: 1, scale: 1 }} transition={reveal(0.34)}><Play className="ml-0.5 size-4" weight="fill" /></m.span>
+      <span className="absolute bottom-2 left-2 right-2 truncate rounded bg-black/55 px-2 py-1 text-center text-[9px] font-medium text-white">For Sarah at Acme Inc.</span>
+    </m.div>;
   }
 
   if (index === 3) {
-    return <div className="flex items-center gap-3 pt-1" aria-hidden>
-      {CHANNELS.slice(0, 3).map((channel, channelIndex) => <m.span key={channel.label} className="flex size-9 items-center justify-center" initial={reducedMotion ? false : { opacity: 0, scale: 0.76, y: 6 }} animate={visible} transition={reveal(0.34 + channelIndex * 0.1)}><ChannelGlyph channel={channel} className="size-9" /></m.span>)}
+    const positions = ["left-1/2 top-0 -translate-x-1/2", "right-[7%] top-1/2 -translate-y-1/2", "left-[8%] top-1/2 -translate-y-1/2", "left-1/2 bottom-0 -translate-x-1/2"];
+    return <div className="relative h-16 sm:h-28" aria-hidden>
+      <svg className="absolute inset-0 size-full" viewBox="0 0 220 120" fill="none">{[[110,60,110,15],[110,60,195,60],[110,60,25,60],[110,60,110,105]].map((line) => <line key={line.join("-")} x1={line[0]} y1={line[1]} x2={line[2]} y2={line[3]} stroke={isSelected ? "rgba(181,160,255,.5)" : "rgba(105,72,225,.28)"} strokeDasharray="3 5" />)}</svg>
+      <m.span className="absolute left-1/2 top-1/2 z-10 flex size-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-[#6740e8] text-white shadow-[0_8px_20px_rgba(103,64,232,.32)]" initial={reducedMotion ? false : { opacity: 0, scale: 0.78 }} animate={visible} transition={reveal(0.22)}><Send className="size-6" /></m.span>
+      {CHANNELS.map((channel, channelIndex) => <m.span key={channel.label} className={cn("absolute flex size-9 items-center justify-center", positions[channelIndex])} initial={reducedMotion ? false : { opacity: 0, scale: 0.75 }} animate={visible} transition={reveal(0.3 + channelIndex * 0.07)}><ChannelGlyph channel={channel} className="size-8" /></m.span>)}
     </div>;
   }
 
-  return <div className="flex h-10 items-end gap-1.5 pt-1" aria-hidden>
-    {["h-3", "h-5", "h-4", "h-7", "h-9"].map((height, barIndex) => <m.span key={height} className={cn("w-2 rounded-t-full bg-[#8f76ff]", height)} initial={reducedMotion ? false : { opacity: 0, scaleY: 0, originY: 1 }} animate={isSelected ? { opacity: 1, scaleY: 1 } : { opacity: 0.45, scaleY: 1 }} transition={reveal(0.32 + barIndex * 0.07)} />)}
-    <m.span className="ml-2 text-xs font-semibold text-[#8f76ff]" initial={reducedMotion ? false : { opacity: 0, y: 5 }} animate={visible} transition={reveal(0.68)}>+31%</m.span>
-  </div>;
+  return <m.div className={cn("flex h-16 flex-col rounded-lg border p-1 shadow-[0_9px_20px_rgba(43,33,104,.08)] sm:h-28 sm:rounded-xl sm:p-2.5", isSelected ? "border-white/10 bg-white/[.07]" : "border-[#e9e5f3] bg-white")} aria-hidden initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={visible} transition={reveal(0.22)}>
+    <div className="flex items-center justify-between text-[9px] font-semibold"><span>Campaign performance</span><span className="flex items-center gap-1 text-[#2bac6a]"><span className="size-1.5 rounded-full bg-[#2bac6a]" />Live</span></div>
+    <svg className="my-1 h-12 w-full" viewBox="0 0 200 50" fill="none" preserveAspectRatio="none"><m.path d="M2 43 L22 34 L40 37 L60 23 L80 29 L100 18 L120 22 L140 10 L160 15 L181 4 L198 7" stroke={isSelected ? "#ad99ff" : "#6843e7"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.52, delay: reducedMotion ? 0 : 0.28, ease: "easeOut" }} /><m.path d="M2 43 L22 34 L40 37 L60 23 L80 29 L100 18 L120 22 L140 10 L160 15 L181 4 L198 7 L198 50 L2 50 Z" fill={isSelected ? "rgba(173,153,255,.08)" : "rgba(104,67,231,.07)"} initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.36, delay: reducedMotion ? 0 : 0.46 }} /></svg>
+    <div className="grid grid-cols-3 gap-1 border-t border-current/10 pt-1.5">{[{label:"Replies",value:"268"},{label:"Booked",value:"64"},{label:"Conversion",value:"3.8%"}].map((metric, metricIndex) => <m.span key={metric.label} initial={reducedMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={reveal(0.48 + metricIndex * 0.06)}><span className={cn("block text-[7px]", isSelected ? "text-white/50" : "text-[#7a7f90]")}>{metric.label}</span><span className="block text-xs font-bold">{metric.value}</span></m.span>)}</div>
+  </m.div>;
 }
 
 function AcquisitionUrlPrompt() {
@@ -331,13 +358,13 @@ function AcquisitionFlow() {
       <CoverflowCarousel
         slides={ACQUISITION_FLOW_STEPS}
         label="The LeadReacher customer acquisition workflow"
-        cardWidth="clamp(12rem, 18vw, 18rem)"
-        cardAspectRatio={4 / 5}
+        cardWidth="clamp(13rem, 20vw, 20rem)"
+        cardAspectRatio={11 / 16}
         autoPlay
         autoPlayInterval={3800}
         finalSlideHold={2000}
         className="mx-auto mt-3 max-w-[100rem]"
-        cardClassName="border border-[#e2deef]"
+        cardClassName="aspect-[11/16] border border-[#e2deef]"
         renderSlide={(slide, index, isSelected) => {
           const step = slide as AcquisitionFlowStep;
           const Icon = step.icon;
@@ -349,27 +376,34 @@ function AcquisitionFlow() {
               )}
               spotlightColor={isSelected ? "rgba(155, 123, 255, 0.3)" : "rgba(111, 76, 255, 0.18)"}
             >
-              <m.div
-                key={`${index}-${isSelected ? "active" : "inactive"}`}
-                initial={reducedMotion ? false : { opacity: 0, rotateY: isSelected ? -6 : 0, scale: isSelected ? 0.96 : 1 }}
-                animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-                transition={{ duration: reducedMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
-                className={cn("flex size-full flex-col p-6 text-left transition-colors duration-500 sm:p-7", isSelected ? "bg-[#151625]/90 text-white" : "bg-white/90 text-[#171729]")}
-              >
+              <div className={cn("relative size-full overflow-hidden", isSelected ? "bg-[#151625] text-white" : "bg-white text-[#171729]")}>
+                <AnimatePresence initial={false}>
+                  <m.div
+                    key={`${index}-${isSelected ? "active" : "inactive"}`}
+                    initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+                    transition={{ duration: reducedMotion ? 0 : 0.13, ease: "easeOut" }}
+                    className="absolute inset-0 flex size-full flex-col p-4 text-left sm:p-5"
+                  >
                 <m.div initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
-                  <span className={cn("text-xl font-semibold tracking-[-0.03em]", isSelected ? "text-[#a792ff]" : "text-[#6948e4]")}>0{index + 1}</span>
-                  <Icon className={cn("size-8", isSelected ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
+                  <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isSelected ? "text-[#a792ff]" : "text-[#6948e4]")}>0{index + 1}</span>
+                  <Icon className={cn("size-7 sm:size-9", isSelected ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
                 </m.div>
-                <m.h3 initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="mt-8 text-balance text-2xl font-semibold leading-tight tracking-[-0.025em] sm:text-[1.75rem]">
-                  {step.title}
-                </m.h3>
-                <m.p initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.72, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-4 text-sm leading-6 sm:text-base sm:leading-7", isSelected ? "text-white/72" : "text-[#62697e]")}>
-                  {step.description}
-                </m.p>
-                <m.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.68, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }} className="mt-4">
+                <m.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.78, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="mt-2.5 sm:mt-4">
                   <AcquisitionStepVisual index={index} isSelected={isSelected} />
                 </m.div>
-              </m.div>
+                <m.span initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-2.5 block h-0.5 w-7 rounded-full sm:mt-4 sm:w-8", isSelected ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
+                <m.h3 initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }} className="mt-3 text-balance text-[17px] font-semibold leading-[1.18] tracking-[-0.025em] sm:mt-4 sm:text-[1.4rem] sm:leading-[1.18]">
+                  {step.title}
+                </m.h3>
+                <m.span initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={{ opacity: isSelected ? 0.9 : 0.7, scaleX: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 block h-px w-8 rounded-full sm:mt-3.5", isSelected ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
+                <m.p initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.72, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 text-xs leading-[1.5] sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.5]", isSelected ? "text-white/72" : "text-[#62697e]")}>
+                  {step.description}
+                </m.p>
+                  </m.div>
+                </AnimatePresence>
+              </div>
             </SpotlightCard>
           );
         }}
