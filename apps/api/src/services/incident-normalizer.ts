@@ -33,6 +33,36 @@ function first(...values: unknown[]): unknown {
   return values.find((value) => typeof value === "string" && value.trim().length > 0);
 }
 
+function hasIdentifier(...values: unknown[]): boolean {
+  return values.some((value) => (
+    typeof value === "number" && Number.isFinite(value)
+  ) || (
+    typeof value === "string" && value.trim().length > 0
+  ));
+}
+
+export function isSentryIncidentPayload(payload: unknown): boolean {
+  const root = record(payload);
+  const data = record(root.data);
+  const issue = record(firstObject(root.issue, data.issue, root.group, data.group));
+  const event = record(firstObject(root.event, data.event));
+  return hasIdentifier(
+    issue.id,
+    issue.shortId,
+    event.groupID,
+    event.issueId,
+    event.eventID,
+  );
+}
+
+export function isBetterStackIncidentPayload(payload: unknown): boolean {
+  const root = record(payload);
+  const data = record(root.data);
+  const attributes = record(data.attributes);
+  const error = record(root.error);
+  return hasIdentifier(data.id, error.id, attributes.id, root.id);
+}
+
 function occurrenceDate(...values: unknown[]): Date {
   const raw = first(...values);
   if (typeof raw === "string") {
