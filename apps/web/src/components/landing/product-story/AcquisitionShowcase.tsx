@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type FormEvent } from "react";
-import { AnimatePresence, m, useReducedMotion } from "framer-motion";
+import { useCallback, useRef, useState, type FormEvent } from "react";
+import { m, useReducedMotion } from "framer-motion";
 import {
   Activity,
   ArrowRight,
@@ -21,6 +21,7 @@ import { MarkerHighlight } from "@/components/ui/marker-highlight";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { cn } from "@/lib/utils";
+import { useLandingGsap, type LandingGsapSetupContext } from "@/hooks/useLandingGsap";
 
 type AcquisitionFlowStep = CoverflowSlide & {
   description: string;
@@ -187,6 +188,67 @@ function AcquisitionStepVisual({ index, isSelected }: { index: number; isSelecte
     <svg className="my-1 h-12 w-full" viewBox="0 0 200 50" fill="none" preserveAspectRatio="none"><m.path d="M2 43 L22 34 L40 37 L60 23 L80 29 L100 18 L120 22 L140 10 L160 15 L181 4 L198 7" stroke={isSelected ? "#ad99ff" : "#6843e7"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }} animate={{ pathLength: 1, opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.52, delay: reducedMotion ? 0 : 0.28, ease: "easeOut" }} /><m.path d="M2 43 L22 34 L40 37 L60 23 L80 29 L100 18 L120 22 L140 10 L160 15 L181 4 L198 7 L198 50 L2 50 Z" fill={isSelected ? "rgba(173,153,255,.08)" : "rgba(104,67,231,.07)"} initial={reducedMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reducedMotion ? 0 : 0.36, delay: reducedMotion ? 0 : 0.46 }} /></svg>
     <div className="grid grid-cols-3 gap-1 border-t border-current/10 pt-1.5">{[{label:"Replies",value:"268"},{label:"Booked",value:"64"},{label:"Conversion",value:"3.8%"}].map((metric, metricIndex) => <m.span key={metric.label} initial={reducedMotion ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={reveal(0.48 + metricIndex * 0.06)}><span className={cn("block text-[7px]", isSelected ? "text-white/50" : "text-[#7a7f90]")}>{metric.label}</span><span className="block text-xs font-bold">{metric.value}</span></m.span>)}</div>
   </m.div>;
+}
+
+function AcquisitionCardContent({
+  step,
+  index,
+  isSelected,
+}: {
+  step: AcquisitionFlowStep;
+  index: number;
+  isSelected: boolean;
+}) {
+  const reducedMotion = Boolean(useReducedMotion());
+  const cardRef = useRef<HTMLDivElement>(null);
+  const setupCardTimeline = useCallback(({ gsap }: LandingGsapSetupContext) => {
+    const card = cardRef.current;
+    if (!card) return;
+    const targets = {
+      header: Array.from(card.querySelectorAll("[data-card-header]")),
+      visual: Array.from(card.querySelectorAll("[data-card-visual]")),
+      copy: Array.from(card.querySelectorAll("[data-card-copy]")),
+      details: Array.from(card.querySelectorAll("[data-card-detail]")),
+    };
+    const allTargets = [...targets.header, ...targets.visual, ...targets.copy, ...targets.details];
+    if (reducedMotion || !isSelected) {
+      gsap.set(allTargets, { clearProps: "opacity,transform,visibility" });
+      return;
+    }
+
+    const timeline = gsap.timeline({ defaults: { ease: "power3.out", overwrite: true } });
+    timeline
+      .fromTo(targets.visual, { autoAlpha: 0.72, y: 7 }, { autoAlpha: 1, y: 0, duration: 0.18 })
+      .fromTo(targets.header, { autoAlpha: 0, y: 5 }, { autoAlpha: 1, y: 0, duration: 0.16 }, 0.02)
+      .fromTo(targets.details, { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: 0.2, stagger: 0.03 }, 0.1)
+      .fromTo(targets.copy, { autoAlpha: 0, y: 6 }, { autoAlpha: 1, y: 0, duration: 0.2 }, 0.2);
+
+    return () => timeline.kill();
+  }, [isSelected, reducedMotion]);
+  useLandingGsap(cardRef, setupCardTimeline, [setupCardTimeline]);
+
+  const Icon = step.icon;
+  return (
+    <div ref={cardRef} className={cn("relative size-full overflow-hidden", isSelected ? "bg-[#151625] text-white" : "bg-white text-[#171729]")}>
+      <div className="absolute inset-0 flex size-full flex-col p-4 text-left sm:p-5">
+        <div data-card-header className="flex items-center justify-between">
+          <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isSelected ? "text-[#a792ff]" : "text-[#6948e4]")}>0{index + 1}</span>
+          <Icon className={cn("size-7 sm:size-9", isSelected ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
+        </div>
+        <div data-card-visual className={cn("mt-2.5 sm:mt-4", !isSelected && "opacity-[0.78]")}>
+          <AcquisitionStepVisual index={index} isSelected={isSelected} />
+        </div>
+        <span data-card-detail className={cn("mt-2.5 block h-0.5 w-7 origin-left rounded-full sm:mt-4 sm:w-8", isSelected ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
+        <h3 data-card-detail className="mt-3 text-balance text-[17px] font-semibold leading-[1.18] tracking-[-0.025em] sm:mt-4 sm:text-[1.4rem] sm:leading-[1.18]">
+          {step.title}
+        </h3>
+        <span data-card-detail className={cn("mt-3 block h-px w-8 origin-left rounded-full sm:mt-3.5", isSelected ? "bg-[#9c83ff] opacity-90" : "bg-[#6d49e4] opacity-70")} aria-hidden />
+        <p data-card-copy className={cn("mt-3 text-xs leading-[1.5] sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.5]", isSelected ? "text-white/72" : "text-[#62697e] opacity-70")}>
+          {step.description}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function AcquisitionUrlPrompt() {
@@ -377,8 +439,6 @@ export function ChannelFlow() {
 }
 
 function AcquisitionFlow() {
-  const reducedMotion = Boolean(useReducedMotion());
-
   return (
     <div className="bg-white py-16 sm:py-20 lg:py-24">
       <div className="mx-auto max-w-7xl px-5 text-center sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
@@ -404,13 +464,13 @@ function AcquisitionFlow() {
         cardWidth="clamp(13rem, 20vw, 20rem)"
         cardAspectRatio={11 / 16}
         autoPlay
+        showNavigation
         autoPlayInterval={3800}
         finalSlideHold={2000}
         className="mx-auto mt-3 max-w-[100rem]"
         cardClassName="aspect-[11/16] border border-[#e2deef]"
         renderSlide={(slide, index, isSelected) => {
           const step = slide as AcquisitionFlowStep;
-          const Icon = step.icon;
           return (
             <SpotlightCard
               className={cn(
@@ -419,34 +479,7 @@ function AcquisitionFlow() {
               )}
               spotlightColor={isSelected ? "rgba(155, 123, 255, 0.3)" : "rgba(111, 76, 255, 0.18)"}
             >
-              <div className={cn("relative size-full overflow-hidden", isSelected ? "bg-[#151625] text-white" : "bg-white text-[#171729]")}>
-                <AnimatePresence initial={false}>
-                  <m.div
-                    key={`${index}-${isSelected ? "active" : "inactive"}`}
-                    initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                    transition={{ duration: reducedMotion ? 0 : 0.13, ease: "easeOut" }}
-                    className="absolute inset-0 flex size-full flex-col p-4 text-left sm:p-5"
-                  >
-                <m.div initial={reducedMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.28, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
-                  <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isSelected ? "text-[#a792ff]" : "text-[#6948e4]")}>0{index + 1}</span>
-                  <Icon className={cn("size-7 sm:size-9", isSelected ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
-                </m.div>
-                <m.div initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.78, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="mt-2.5 sm:mt-4">
-                  <AcquisitionStepVisual index={index} isSelected={isSelected} />
-                </m.div>
-                <m.span initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.14, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-2.5 block h-0.5 w-7 rounded-full sm:mt-4 sm:w-8", isSelected ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
-                <m.h3 initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }} className="mt-3 text-balance text-[17px] font-semibold leading-[1.18] tracking-[-0.025em] sm:mt-4 sm:text-[1.4rem] sm:leading-[1.18]">
-                  {step.title}
-                </m.h3>
-                <m.span initial={reducedMotion ? false : { opacity: 0, scaleX: 0, originX: 0 }} animate={{ opacity: isSelected ? 0.9 : 0.7, scaleX: 1 }} transition={{ duration: reducedMotion ? 0 : 0.3, delay: reducedMotion ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 block h-px w-8 rounded-full sm:mt-3.5", isSelected ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
-                <m.p initial={reducedMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: isSelected ? 1 : 0.72, y: 0 }} transition={{ duration: reducedMotion ? 0 : 0.32, delay: reducedMotion ? 0 : 0.24, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 text-xs leading-[1.5] sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.5]", isSelected ? "text-white/72" : "text-[#62697e]")}>
-                  {step.description}
-                </m.p>
-                  </m.div>
-                </AnimatePresence>
-              </div>
+              <AcquisitionCardContent step={step} index={index} isSelected={isSelected} />
             </SpotlightCard>
           );
         }}
