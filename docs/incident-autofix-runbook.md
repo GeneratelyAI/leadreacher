@@ -6,7 +6,7 @@ The incident autofix pipeline accepts authenticated Sentry and Better Stack webh
 
 1. Apply the Prisma migration.
 2. Configure API and worker variables with `INCIDENT_AUTOFIX_ENABLED=false`, `INCIDENT_AUTOFIX_DRY_RUN=true`, `INCIDENT_AUTOFIX_AUTO_MERGE=false`, and `ENABLE_INCIDENT_AUTOFIX_WORKER=false`.
-3. Add long random values for `SENTRY_WEBHOOK_SECRET`, `BETTERSTACK_WEBHOOK_SECRET`, and `INCIDENT_AUTOFIX_CALLBACK_SECRET`. Configure the providers to send `X-LeadReacher-Webhook-Secret` with their corresponding value.
+3. Set `SENTRY_WEBHOOK_SECRET` to the Client Secret from the Sentry internal integration. Sentry signs each JSON payload in `Sentry-Hook-Signature` with HMAC-SHA256; the API verifies that signature before ingestion. Add long random values for `BETTERSTACK_WEBHOOK_SECRET` and `INCIDENT_AUTOFIX_CALLBACK_SECRET`, and configure Better Stack to send its value in `X-LeadReacher-Webhook-Secret`.
 4. Keep the Codex desktop host signed in to ChatGPT and GitHub, with Railway CLI access to the LeadReacher project. The scheduled project task uses those user sessions and runs in a fresh Codex worktree.
 5. Add GitHub secrets `INCIDENT_AUTOFIX_API_BASE_URL` and `INCIDENT_AUTOFIX_CALLBACK_SECRET` for the post-merge verification workflows. Do not add `OPENAI_API_KEY`; the repair task consumes the owner's Codex subscription.
 6. Enable the API flag, then the worker flag. Keep auto-merge disabled until webhook ingestion, deduplication, pull-request creation, CI, and ChatGPT briefs have been observed safely.

@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { evaluateAutofixDiff } from "../incident-autofix-policy.js";
 import {
@@ -7,7 +8,10 @@ import {
   normalizeSentryIncident,
 } from "../incident-normalizer.js";
 import { sanitizeIncidentText, sanitizeProviderUrl } from "../incident-sanitizer.js";
-import { verifyIncidentWebhookSecret } from "../incident-webhook-auth.js";
+import {
+  verifyIncidentWebhookSecret,
+  verifySentryWebhookSignature,
+} from "../incident-webhook-auth.js";
 import {
   canClaimSubscriptionRepair,
   SUBSCRIPTION_CLAIM_STALE_MS,
@@ -19,6 +23,22 @@ describe("incident webhook authentication", () => {
     expect(verifyIncidentWebhookSecret("incorrect", "correct-secret")).toBe(false);
     expect(verifyIncidentWebhookSecret(undefined, "correct-secret")).toBe(false);
     expect(verifyIncidentWebhookSecret("", "")).toBe(false);
+  });
+
+  it("accepts Sentry's native HMAC signature for the exact payload", () => {
+    const payload = { action: "created", data: { issue: { id: "123" } } };
+    const secret = "sentry-client-secret";
+    const signature = createHmac("sha256", secret)
+      .update(JSON.stringify(payload), "utf8")
+      .digest("hex");
+
+    expect(verifySentryWebhookSignature(payload, signature, secret)).toBe(true);
+    expect(verifySentryWebhookSignature({ ...payload, action: "resolved" }, signature, secret))
+      .toBe(false);
+    expect(verifySentryWebhookSignature(payload, `${signature}0`, secret)).toBe(false);
+    expect(verifySentryWebhookSignature(payload, [signature], secret)).toBe(false);
+    expect(verifySentryWebhookSignature(payload, undefined, secret)).toBe(false);
+    expect(verifySentryWebhookSignature(payload, signature, "")).toBe(false);
   });
 });
 
