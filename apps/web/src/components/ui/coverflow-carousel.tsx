@@ -5,7 +5,11 @@ import { useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "@/components/ui/icons";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
-import { loadLandingGsap } from "@/lib/landing-gsap";
+import {
+  loadLandingGsap,
+  type LandingFlipState,
+  type LandingGsapRuntime,
+} from "@/lib/landing-gsap";
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? React.useLayoutEffect : React.useEffect;
 
@@ -72,11 +76,27 @@ export function CoverflowCarousel({
   const didDragRef = React.useRef(false);
   const hoveredIndexRef = React.useRef<number | null>(null);
   const manualPauseTimerRef = React.useRef<number | null>(null);
+  const paginationIndicatorRef = React.useRef<HTMLSpanElement>(null);
+  const gsapRuntimeRef = React.useRef<LandingGsapRuntime | null>(null);
+  const pendingFlipStateRef = React.useRef<LandingFlipState | null>(null);
+  const flipTweenRef = React.useRef<{ kill: () => void } | null>(null);
+  const selectedRef = React.useRef(0);
   const [selected, setSelected] = React.useState(0);
   const [isHovering, setIsHovering] = React.useState(false);
   const [isManuallyPaused, setIsManuallyPaused] = React.useState(false);
   const [isNearViewport, setIsNearViewport] = React.useState(false);
   const isPageVisible = usePageVisibility();
+
+  const updateSelected = React.useCallback((index: number) => {
+    if (selectedRef.current === index) return;
+    const runtime = gsapRuntimeRef.current;
+    const indicator = paginationIndicatorRef.current;
+    if (!reducedMotion && runtime && indicator) {
+      pendingFlipStateRef.current = runtime.Flip.getState(indicator);
+    }
+    selectedRef.current = index;
+    setSelected(index);
+  }, [reducedMotion]);
 
   const pauseAfterManualInteraction = React.useCallback(() => {
     setIsManuallyPaused(true);
@@ -122,7 +142,7 @@ export function CoverflowCarousel({
     settleTweenRef.current = null;
     const settleVersion = ++settleVersionRef.current;
     targetRef.current = target;
-    setSelected(indexAt(target));
+    updateSelected(indexAt(target));
 
     if (reducedMotion) {
       positionRef.current = target;
@@ -149,7 +169,7 @@ export function CoverflowCarousel({
         },
       });
     });
-  }, [indexAt, paint, reducedMotion]);
+  }, [indexAt, paint, reducedMotion, updateSelected]);
 
   const nudge = React.useCallback((by: number) => settle(clamp(Math.round(targetRef.current) + by)), [clamp, settle]);
   const goTo = React.useCallback((index: number) => {
@@ -183,11 +203,38 @@ export function CoverflowCarousel({
     return () => observer.disconnect();
   }, []);
 
+  React.useEffect(() => {
+    let disposed = false;
+    void loadLandingGsap().then((runtime) => {
+      if (!disposed) gsapRuntimeRef.current = runtime;
+    });
+    return () => { disposed = true; };
+  }, []);
+
   React.useEffect(() => () => {
     settleVersionRef.current += 1;
     settleTweenRef.current?.kill();
+    flipTweenRef.current?.kill();
     if (manualPauseTimerRef.current !== null) window.clearTimeout(manualPauseTimerRef.current);
   }, []);
+
+  useIsoLayoutEffect(() => {
+    const state = pendingFlipStateRef.current;
+    const indicator = paginationIndicatorRef.current;
+    const runtime = gsapRuntimeRef.current;
+    if (!state || !indicator || !runtime || reducedMotion) return;
+    pendingFlipStateRef.current = null;
+    flipTweenRef.current?.kill();
+    flipTweenRef.current = runtime.Flip.from(state, {
+      targets: indicator,
+      duration: 0.32,
+      ease: "power3.inOut",
+      absolute: true,
+      scale: true,
+      overwrite: true,
+      onComplete: () => { flipTweenRef.current = null; },
+    });
+  }, [reducedMotion, selected]);
 
   useIsoLayoutEffect(() => {
     const frame = frameRef.current;
@@ -233,7 +280,7 @@ export function CoverflowCarousel({
             drag.velocity = ((positionRef.current - previous) / Math.max(now - drag.time, 1)) * 1000;
             drag.time = now;
             const index = indexAt(positionRef.current);
-            if (index !== selected) setSelected(index);
+            if (index !== selectedRef.current) updateSelected(index);
             paint();
           }}
           onPointerUp={(event) => {
@@ -302,7 +349,7 @@ export function CoverflowCarousel({
       </div>
 
       {showPagination ? <div className="mt-1 flex items-center justify-center" aria-label="Carousel slides">
-        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => { pauseAfterManualInteraction(); goTo(index); }} className="group flex size-6 items-center justify-center rounded-full"><span aria-hidden className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] group-hover:bg-[#bdb5e5]")} /></button>)}
+        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => { pauseAfterManualInteraction(); goTo(index); }} className="group relative flex size-6 items-center justify-center rounded-full"><span aria-hidden className="size-2 rounded-full bg-[#dcd8ec] transition-colors group-hover:bg-[#bdb5e5]" />{index === selected ? <span ref={paginationIndicatorRef} data-flip-id="coverflow-active-dot" data-testid="coverflow-flip-indicator" aria-hidden className="absolute size-3 rounded-full bg-[#6544e7] shadow-[0_0_0_4px_rgba(101,68,231,.1)]" /> : null}</button>)}
       </div> : null}
     </div>
   );

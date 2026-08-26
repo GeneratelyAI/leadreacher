@@ -1,9 +1,14 @@
 export type LandingGsap = typeof import("gsap").gsap;
 export type LandingScrollTrigger = typeof import("gsap/ScrollTrigger").ScrollTrigger;
+export type LandingFlip = typeof import("gsap/Flip").Flip;
+export type LandingMotionPathPlugin = typeof import("gsap/MotionPathPlugin").MotionPathPlugin;
+export type LandingFlipState = ReturnType<LandingFlip["getState"]>;
 
 export type LandingGsapRuntime = {
   gsap: LandingGsap;
   ScrollTrigger: LandingScrollTrigger;
+  Flip: LandingFlip;
+  MotionPathPlugin: LandingMotionPathPlugin;
 };
 
 let runtimePromise: Promise<LandingGsapRuntime> | null = null;
@@ -13,11 +18,15 @@ export function loadLandingGsap(): Promise<LandingGsapRuntime> {
   runtimePromise ??= Promise.all([
     import("gsap"),
     import("gsap/ScrollTrigger"),
-  ]).then(([gsapModule, scrollTriggerModule]) => {
+    import("gsap/Flip"),
+    import("gsap/MotionPathPlugin"),
+  ]).then(([gsapModule, scrollTriggerModule, flipModule, motionPathModule]) => {
     const gsap = gsapModule.gsap;
     const ScrollTrigger = scrollTriggerModule.ScrollTrigger;
-    gsap.registerPlugin(ScrollTrigger);
-    return { gsap, ScrollTrigger };
+    const Flip = flipModule.Flip;
+    const MotionPathPlugin = motionPathModule.MotionPathPlugin;
+    gsap.registerPlugin(ScrollTrigger, Flip, MotionPathPlugin);
+    return { gsap, ScrollTrigger, Flip, MotionPathPlugin };
   });
 
   return runtimePromise;

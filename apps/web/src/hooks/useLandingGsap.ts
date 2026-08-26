@@ -33,7 +33,7 @@ export function useLandingGsap(
     let revertContext: (() => void) | undefined;
     let revertMedia: (() => void) | undefined;
 
-    void loadLandingGsap().then(({ gsap, ScrollTrigger }) => {
+    void loadLandingGsap().then(({ gsap, ScrollTrigger, Flip, MotionPathPlugin }) => {
       const scope = scopeRef.current;
       if (disposed || !scope) return;
 
@@ -47,6 +47,8 @@ export function useLandingGsap(
         }, (mediaContext) => setup({
           gsap,
           ScrollTrigger,
+          Flip,
+          MotionPathPlugin,
           scope,
           media: mediaContext.conditions as LandingGsapMedia,
         }));

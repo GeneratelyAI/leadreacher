@@ -215,12 +215,13 @@ function DifferentiationSection() {
   const setupOrbit = useCallback(({ gsap }: LandingGsapSetupContext) => {
     const orbit = orbitRef.current;
     if (!orbit || !orbitSize.width || !orbitSize.height) return;
+    const map = orbit.parentElement;
     const rings = [
       { radiusX: 0.27, radiusY: 0.26, duration: 28_000, direction: 1 },
       { radiusX: 0.47, radiusY: 0.37, duration: 52_000, direction: -1 },
     ] as const;
     const orbitElements = orbitItemRefs.current.slice();
-    const animations = orbitElements.flatMap((element, index) => {
+    const logoAnimations = orbitElements.flatMap((element, index) => {
       if (!element) return [];
 
       const channel = orbitChannels[index];
@@ -252,6 +253,28 @@ function DifferentiationSection() {
         force3D: true,
       })];
     });
+
+    const routePaths = map ? Array.from(map.querySelectorAll<SVGPathElement>("[data-orbit-route]")) : [];
+    const routeParticles = map ? Array.from(map.querySelectorAll<SVGCircleElement>("[data-route-particle]")) : [];
+    const routeAnimations = routeParticles.flatMap((particle, index) => {
+      const path = routePaths[Number(particle.dataset.routeRing ?? index)];
+      if (!path) return [];
+      if (reducedMotion) {
+        gsap.set(particle, { opacity: 0 });
+        return [];
+      }
+
+      const animation = gsap.to(particle, {
+        motionPath: { path },
+        duration: index === 0 ? 12 : 9,
+        ease: "none",
+        repeat: -1,
+        paused: true,
+      });
+      animation.progress(Number(particle.dataset.routePhase ?? 0));
+      return [animation];
+    });
+    const animations = [...logoAnimations, ...routeAnimations];
 
     const playback = {
       play: () => animations.forEach((animation) => animation.play()),
@@ -380,8 +403,8 @@ function DifferentiationSection() {
               mask="url(#api-map-cursor-mask)"
               className="pointer-events-none opacity-0 transition-opacity duration-200 motion-reduce:transition-none"
             />
-            <ellipse cx="600" cy="260" rx="564" ry="185" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
-            <ellipse cx="600" cy="260" rx="324" ry="130" fill="none" stroke="#6b51e7" strokeOpacity="0.2" strokeWidth="1.1" />
+            <path data-orbit-route d="M36 260 A564 185 0 1 0 1164 260 A564 185 0 1 0 36 260" fill="none" stroke="url(#api-orbit-gradient)" strokeWidth="1.5" />
+            <path data-orbit-route d="M276 260 A324 130 0 1 0 924 260 A324 130 0 1 0 276 260" fill="none" stroke="#6b51e7" strokeOpacity="0.2" strokeWidth="1.1" />
             {[
               { radiusX: 555, radiusY: 175, angle: Math.PI },
               { radiusX: 555, radiusY: 175, angle: 2.22 },
@@ -400,6 +423,8 @@ function DifferentiationSection() {
                 data-orbit-marker={index}
               />
             ))}
+            <circle data-route-particle data-route-ring="0" data-route-phase="0.12" cx="0" cy="0" r="4.5" fill="#6847e8" filter="url(#api-dot-glow)" />
+            <circle data-route-particle data-route-ring="1" data-route-phase="0.58" cx="0" cy="0" r="3.8" fill="#5d9cff" filter="url(#api-dot-glow)" />
           </svg>
 
           <div className="absolute left-1/2 top-1/2 z-20 flex size-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white shadow-[0_12px_32px_rgba(68,43,175,0.22),0_0_0_13px_rgba(255,255,255,.78),0_0_0_23px_rgba(111,76,255,.07)] sm:size-40 lg:size-44">
