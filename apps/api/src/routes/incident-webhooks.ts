@@ -3,6 +3,8 @@ import { env } from "../config/env.js";
 import { AuthError, ValidationError } from "../lib/errors.js";
 import { ingestIncidentEvent } from "../services/incident-ingestion.js";
 import {
+  isBetterStackIncidentPayload,
+  isSentryIncidentPayload,
   normalizeBetterStackIncident,
   normalizeSentryIncident,
 } from "../services/incident-normalizer.js";
@@ -29,6 +31,9 @@ export async function incidentWebhookRoutes(app: FastifyInstance): Promise<void>
       env.SENTRY_WEBHOOK_SECRET,
     )) throw new AuthError();
     if (payloadSize(request.body) > MAX_WEBHOOK_BYTES) throw new ValidationError("Payload too large");
+    if (!isSentryIncidentPayload(request.body)) {
+      throw new ValidationError("Invalid Sentry incident payload");
+    }
     const result = await ingestIncidentEvent(normalizeSentryIncident(request.body));
     return reply.code(202).send({ received: true, ...result });
   });
@@ -40,6 +45,9 @@ export async function incidentWebhookRoutes(app: FastifyInstance): Promise<void>
       env.BETTERSTACK_WEBHOOK_SECRET,
     )) throw new AuthError();
     if (payloadSize(request.body) > MAX_WEBHOOK_BYTES) throw new ValidationError("Payload too large");
+    if (!isBetterStackIncidentPayload(request.body)) {
+      throw new ValidationError("Invalid Better Stack incident payload");
+    }
     const result = await ingestIncidentEvent(normalizeBetterStackIncident(request.body));
     return reply.code(202).send({ received: true, ...result });
   });

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { evaluateAutofixDiff } from "../incident-autofix-policy.js";
 import {
+  isBetterStackIncidentPayload,
+  isSentryIncidentPayload,
   normalizeBetterStackIncident,
   normalizeSentryIncident,
 } from "../incident-normalizer.js";
@@ -39,6 +41,13 @@ describe("incident sanitization", () => {
 });
 
 describe("incident normalization", () => {
+  it("rejects provider payloads without a stable incident identity", () => {
+    expect(isSentryIncidentPayload({})).toBe(false);
+    expect(isBetterStackIncidentPayload({ data: { attributes: { name: "Missing id" } } })).toBe(false);
+    expect(isSentryIncidentPayload({ data: { issue: { id: "123" } } })).toBe(true);
+    expect(isBetterStackIncidentPayload({ data: { id: "456" } })).toBe(true);
+  });
+
   it("normalizes a Sentry issue event without trusting arbitrary fields", () => {
     const event = normalizeSentryIncident({
       action: "created",
