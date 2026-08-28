@@ -179,6 +179,30 @@ describe("billing routes", () => {
     });
   });
 
+  it("creates an embedded Stripe Checkout session for the onboarding payment card", async () => {
+    createSubscriptionCheckoutSession.mockResolvedValueOnce({
+      id: "cs_embedded",
+      url: null,
+      clientSecret: "cs_embedded_secret_test",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/billing/checkout-session",
+      payload: { embedded: true },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      url: null,
+      clientSecret: "cs_embedded_secret_test",
+      mockMode: false,
+    });
+    expect(createSubscriptionCheckoutSession).toHaveBeenCalledWith(
+      expect.objectContaining({ embedded: true }),
+    );
+  });
+
   it("requires a second factor before creating a checkout session", async () => {
     const response = await app.inject({
       method: "POST",

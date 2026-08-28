@@ -29,6 +29,10 @@ import { reconcileCompletedStripeCheckout } from "../services/stripe-subscriptio
 
 type BillingLineItem = CatalogLineItem & StripePriceDisplay;
 
+const CheckoutSessionBodySchema = z.object({
+  embedded: z.boolean().optional().default(false),
+});
+
 function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "videoConfig">): {
   campaignType: CampaignType;
   videoConfig: ReturnType<typeof parseVideoConfig>;
@@ -108,6 +112,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Create Stripe checkout session"),
+        body: CheckoutSessionBodySchema,
       },
     },
     async (request, reply) => {
@@ -129,9 +134,16 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         videoEnabled,
         priceIds: lineItems.map((lineItem) => lineItem.priceId),
         customerId: organization.stripeCustomerId,
+        ...(request.body.embedded ? { embedded: true } : {}),
       });
 
-      return reply.send({ url: session.url });
+      return request.body.embedded
+        ? reply.send({
+            url: session.url,
+            clientSecret: session.clientSecret,
+            mockMode: session.mockMode ?? false,
+          })
+        : reply.send({ url: session.url });
     },
   );
 

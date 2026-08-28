@@ -8,17 +8,13 @@ import {
   Loader2,
   Lock,
   ShieldCheck,
-  Sparkles,
 } from "@/components/ui/icons";
-import { useEffect, useLayoutEffect, useState } from "react";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
-import { Review } from "@/components/onboarding/Review";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatusBadge } from "@/components/ui/StatusBadge";
+import { EmbeddedCheckoutCard, PaymentTrustBar } from "@/components/onboarding/EmbeddedCheckoutCard";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
@@ -110,6 +106,7 @@ export default function Checkout() {
   const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
   const [verificationAttempt, setVerificationAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [embeddedCheckout, setEmbeddedCheckout] = useState<{ clientSecret: string; mockMode: boolean } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const returnedFromCheckout = searchParams.get("status") === "success";
   const checkoutSessionId = searchParams.get("session_id");
@@ -203,34 +200,51 @@ export default function Checkout() {
     };
   }, [checkoutSessionId, checkoutSucceeded, returnedFromCheckout, verificationAttempt]);
 
-  async function handleCheckout() {
+  const handleCheckout = useCallback(async () => {
     if (isRedirecting) return;
 
     setIsRedirecting(true);
     setError(null);
     try {
-      const session = await apiFetch<{ url: string }>("/billing/checkout-session", {
+      const session = await apiFetch<{ url: string | null; clientSecret: string | null; mockMode: boolean }>("/billing/checkout-session", {
         method: "POST",
+        body: JSON.stringify({ embedded: true }),
       });
-      window.location.assign(session.url);
+      if (!session.clientSecret) throw new Error("Stripe did not return an embedded checkout session.");
+      setEmbeddedCheckout({ clientSecret: session.clientSecret, mockMode: session.mockMode });
+      setIsRedirecting(false);
     } catch (checkoutError) {
       setError(errorMessage(checkoutError, "Unable to open secure checkout."));
       setIsRedirecting(false);
     }
-  }
+  }, [isRedirecting]);
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      returnedFromCheckout ||
+      checkoutSucceeded ||
+      embeddedCheckout ||
+      isRedirecting ||
+      error ||
+      lineItems.length === 0
+    ) return;
+
+    void handleCheckout();
+  }, [
+    checkoutSucceeded,
+    embeddedCheckout,
+    error,
+    handleCheckout,
+    isLoading,
+    isRedirecting,
+    lineItems.length,
+    returnedFromCheckout,
+  ]);
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <OnboardingChrome activeStep="checkout" />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
-        <PageHeader
-          className="mx-auto"
-          icon={<CreditCard className="size-7" aria-hidden />}
-          eyebrow="Launch review"
-          title="Review your plan"
-          description="Your campaign setup is ready. Payment is handled on a secure hosted page."
-        />
-
+      <main className="checkout-page mx-auto flex w-full max-w-[76rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-28 lg:pb-28 h-short:lg:pt-24 h-short:lg:pb-24">
         {error ? (
           <Alert
             tone="error"
@@ -249,65 +263,103 @@ export default function Checkout() {
           </Alert>
         ) : null}
 
-        <div className="mx-auto mt-8 grid w-full max-w-5xl gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(16rem,2fr)]">
-          <Review icon={<Sparkles className="size-5" aria-hidden />} title="Your subscription" description="Plans adjust to the choices you made in onboarding.">
-
-            {isLoading ? (
-              <EmptyState className="min-h-36 py-6" icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading pricing" role="status" aria-live="polite" />
-            ) : (
-              <div className="mt-6 divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
-                {lineItems.map((item) => (
-                  <div key={item.priceId} className="flex items-center justify-between gap-4 py-4 first:pt-0">
-                    <div>
-                      <p className="text-sm font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                        {item.label}
-                      </p>
-                      <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-                        {item.interval ? `Billed ${item.interval}ly` : "Pricing managed externally"}
-                      </p>
-                    </div>
-                    <StatusBadge tone="brand">
-                      {formatPrice(item)}
-                    </StatusBadge>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="mt-5 flex items-center gap-3 border-t border-onboarding-neutral-150 pt-5 text-sm text-onboarding-neutral-600 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-400">
-              <ShieldCheck className="size-5 shrink-0 text-onboarding-success-500" aria-hidden />
-              Payment details are entered only on a secure checkout page.
+        <div className="relative grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.95fr)] lg:gap-0">
+          <section className="min-w-0 lg:pr-10 xl:pr-14" aria-labelledby="payment-heading">
+            <div className="mb-7 h-short:mb-5">
+              <h1 id="payment-heading" className="text-3xl font-semibold tracking-[-0.035em] text-onboarding-ink dark:text-white sm:text-4xl">Complete your subscription</h1>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Pay securely to continue. Your campaign stays in draft until you review and approve it.</p>
             </div>
-          </Review>
 
-          <Review muted title="Campaign summary">
-            <dl className="mt-5 space-y-4 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
-                <dd className="max-w-48 text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                  {isLoading ? "Loading..." : strategy ? idealCustomerLabel(strategy.icpDefinition) : "Unavailable"}
-                </dd>
+            <PaymentTrustBar />
+
+            {isRedirecting && !embeddedCheckout ? (
+              <EmptyState
+                className="min-h-64 w-full rounded-2xl border border-onboarding-neutral-150 bg-white dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
+                icon={<Loader2 className="size-5 animate-spin" aria-hidden />}
+                title="Loading secure checkout"
+                description="Stripe is preparing your encrypted payment form."
+                role="status"
+                aria-live="polite"
+              />
+            ) : null}
+
+            {embeddedCheckout ? (
+              <EmbeddedCheckoutCard {...embeddedCheckout} />
+            ) : null}
+
+            <div className="mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3">
+              <ShieldCheck className="size-4 text-onboarding-success-500" aria-hidden />
+              Payment details never touch LeadReacher servers
+            </div>
+          </section>
+
+          <aside className="min-w-0 border-onboarding-neutral-150 lg:border-l lg:pl-10 xl:pl-14 dark:border-onboarding-neutral-750" aria-labelledby="summary-heading">
+            <div className="lg:sticky lg:top-32">
+              <h2 id="summary-heading" className="text-2xl font-semibold tracking-[-0.025em] text-onboarding-ink dark:text-white sm:text-3xl">Order summary</h2>
+
+              <div className="checkout-accent-card mt-6 overflow-hidden rounded-2xl h-short:mt-5">
+                <div className="border-b border-onboarding-neutral-150 p-5 dark:border-onboarding-neutral-750">
+                  {isLoading ? (
+                    <div className="flex items-center gap-3 text-sm text-onboarding-neutral-500"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading plan</div>
+                  ) : lineItems.map((item) => (
+                    <div key={item.priceId} className="flex items-center justify-between gap-5">
+                      <div className="flex min-w-0 items-center gap-3.5">
+                        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-onboarding-purple-600 text-white shadow-onboarding-button">
+                          <CreditCard className="size-5" aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-base font-semibold text-onboarding-ink dark:text-white">{item.label}</p>
+                          <p className="mt-0.5 text-xs text-onboarding-neutral-500">{item.interval ? `Billed ${item.interval}ly` : "Subscription"}</p>
+                        </div>
+                      </div>
+                      <p className="shrink-0 text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{formatPrice(item)}<span className="ml-1 text-xs font-normal text-onboarding-neutral-500">{item.interval ? `/${item.interval}` : ""}</span></p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-5">
+                  <p className="text-xs font-semibold tracking-[0.12em] text-onboarding-neutral-500 uppercase">Campaign setup</p>
+                  <dl className="mt-3 grid gap-1.5 text-sm">
+                    <div className="checkout-summary-row">
+                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
+                      <dd className="max-w-48 text-right font-medium leading-5 text-onboarding-ink dark:text-onboarding-neutral-0">
+                        {isLoading ? "Loading..." : strategy ? idealCustomerLabel(strategy.icpDefinition) : "Unavailable"}
+                      </dd>
+                    </div>
+                    <div className="checkout-summary-row">
+                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Campaign</dt>
+                      <dd className="text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
+                        {isLoading ? "Loading..." : campaignTypeLabel(strategy?.campaignType ?? null)}
+                      </dd>
+                    </div>
+                    <div className="checkout-summary-row">
+                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Video</dt>
+                      <dd className="text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
+                        {isLoading ? "Loading..." : videoLabel(strategy?.videoConfig ?? null)}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="my-5 border-t border-onboarding-neutral-150 dark:border-onboarding-neutral-750" />
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-base font-semibold text-onboarding-ink dark:text-white">Total due today</span>
+                    <span className="text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{isLoading ? "—" : lineItems.map(formatPrice).join(" + ")}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Campaign</dt>
-                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                  {isLoading ? "Loading..." : campaignTypeLabel(strategy?.campaignType ?? null)}
-                </dd>
+
+              <div className="mt-5 flex items-start gap-3 rounded-xl border border-onboarding-purple-100/80 bg-onboarding-purple-50/50 p-4 text-xs leading-5 text-onboarding-neutral-600 dark:border-onboarding-purple-800/40 dark:bg-onboarding-purple-950/20 dark:text-onboarding-neutral-400 h-short:mt-3">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-onboarding-success-500" aria-hidden />
+                Your payment is handled by Stripe. Your campaign will not send anything until you approve it.
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Video</dt>
-                <dd className="font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                  {isLoading ? "Loading..." : videoLabel(strategy?.videoConfig ?? null)}
-                </dd>
-              </div>
-            </dl>
-          </Review>
+            </div>
+          </aside>
         </div>
       </main>
 
       <ActionBar
         leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("video-decision"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
-        trailing={
+        trailing={checkoutSucceeded || returnedFromCheckout ? (
           <Button
             type="button"
             variant="primary"
@@ -321,14 +373,13 @@ export default function Checkout() {
                 setVerificationAttempt((attempt) => attempt + 1);
                 return;
               }
-              void handleCheckout();
             }}
             className="h-13 px-8 text-base sm:px-10"
           >
-            {checkoutSucceeded ? "Continue to channels" : isVerifyingPayment ? "Confirming payment..." : isRedirecting ? "Opening checkout..." : returnedFromCheckout ? "Check payment status" : "Continue to secure checkout"}
+            {checkoutSucceeded ? "Continue to channels" : isVerifyingPayment ? "Confirming payment..." : "Check payment status"}
             {checkoutSucceeded ? <ArrowRight className="size-5" aria-hidden /> : <Lock className="size-4" aria-hidden />}
           </Button>
-        }
+        ) : null}
       />
     </div>
   );

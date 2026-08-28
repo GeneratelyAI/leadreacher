@@ -11,7 +11,7 @@ export function createContentSecurityPolicy(
   isDevelopment: boolean,
   apiUrl = process.env.NEXT_PUBLIC_API_URL,
 ): string {
-  const scriptSources = ["'self'", `'nonce-${nonce}'`, "https://challenges.cloudflare.com"];
+  const scriptSources = ["'self'", `'nonce-${nonce}'`, "https://challenges.cloudflare.com", "https://js.stripe.com"];
   const connectSources = [
     "'self'",
     "https://*.supabase.co",
@@ -19,6 +19,8 @@ export function createContentSecurityPolicy(
     "https://*.unipile.com",
     "https://*.ingest.sentry.io",
     "https://challenges.cloudflare.com",
+    "https://api.stripe.com",
+    "https://checkout.stripe.com",
   ];
 
   if (isDevelopment) {
@@ -38,7 +40,7 @@ export function createContentSecurityPolicy(
     "font-src 'self' data:",
     "media-src 'self' blob: https:",
     `connect-src ${connectSources.join(" ")}`,
-    "frame-src 'self' https://challenges.cloudflare.com",
+    "frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com",
     "worker-src 'self' blob:",
   ].join("; ");
 }

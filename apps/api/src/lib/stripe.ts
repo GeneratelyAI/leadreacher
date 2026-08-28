@@ -18,11 +18,14 @@ export type SubscriptionCheckoutInput = {
   videoEnabled: boolean;
   priceIds: string[];
   customerId: string | null;
+  embedded?: boolean;
 };
 
 export type SubscriptionCheckoutSession = {
   id: string;
-  url: string;
+  url: string | null;
+  clientSecret: string | null;
+  mockMode?: boolean;
 };
 
 export type BillingPortalSession = {
@@ -73,7 +76,11 @@ export async function createSubscriptionCheckoutSession(
     const id = `mock_checkout_${input.orgId}`;
     return {
       id,
-      url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id=${encodeURIComponent(id)}`,
+      url: input.embedded
+        ? null
+        : `${env.APP_URL}/onboarding?step=checkout&status=success&session_id=${encodeURIComponent(id)}`,
+      clientSecret: input.embedded ? `mock_client_secret_${input.orgId}` : null,
+      mockMode: true,
     };
   }
 
@@ -90,15 +97,25 @@ export async function createSubscriptionCheckoutSession(
     client_reference_id: input.orgId,
     metadata,
     subscription_data: { metadata },
-    success_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${env.APP_URL}/onboarding?step=checkout&status=cancelled`,
+    ...(input.embedded
+      ? {
+          ui_mode: "embedded_page" as const,
+          return_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
+        }
+      : {
+          success_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${env.APP_URL}/onboarding?step=checkout&status=cancelled`,
+        }),
   });
 
-  if (!session.url) {
+  if (input.embedded && !session.client_secret) {
+    throw new Error("Stripe did not return an embedded Checkout client secret");
+  }
+  if (!input.embedded && !session.url) {
     throw new Error("Stripe did not return a Checkout URL");
   }
 
-  return { id: session.id, url: session.url };
+  return { id: session.id, url: session.url, clientSecret: session.client_secret };
 }
 
 export async function retrieveSubscriptionCheckoutSession(
