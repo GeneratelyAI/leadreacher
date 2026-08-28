@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
+import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
 import CampaignGoal from "@/components/onboarding/steps/CampaignGoal";
 import Channels from "@/components/onboarding/steps/Channels";
@@ -24,11 +25,7 @@ import {
 } from "@/lib/discovery-scrape-cache";
 import { getBrowserSession } from "@/lib/supabase/client";
 
-function DiscoveryBootstrapBridge({
-  activeStep,
-}: {
-  activeStep: OnboardingStepParam;
-}) {
+function DiscoveryBootstrapBridge() {
   const [ready, setReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
@@ -107,15 +104,17 @@ function DiscoveryBootstrapBridge({
     );
   }
 
-  return <Discovery activeStep={activeStep} />;
+  return <Discovery />;
 }
 
 export default function OnboardingFlow({
   initialStep,
   initialStrategySubstep = "how-it-works",
+  preview = false,
 }: {
   initialStep: OnboardingStepParam;
   initialStrategySubstep?: StrategySubstepParam;
+  preview?: boolean;
 }) {
   const searchParams = useSearchParams();
   const queryStep = searchParams.get("step");
@@ -127,13 +126,12 @@ export default function OnboardingFlow({
 
   let activeStepContent: ReactNode;
   if (activeStep === "discovery") {
-    activeStepContent = (
-      <DiscoveryBootstrapBridge activeStep={activeStep} />
-    );
+    activeStepContent = preview
+      ? <Discovery />
+      : <DiscoveryBootstrapBridge />;
   } else if (activeStep === "strategy") {
     activeStepContent = (
       <Strategy
-        activeStep={activeStep}
         substep={activeStrategySubstep}
       />
     );
@@ -148,8 +146,14 @@ export default function OnboardingFlow({
   }
 
   return (
-    <StepMotion transitionKey={activeStep} className="min-h-dvh">
-      {activeStepContent}
-    </StepMotion>
+    <>
+      <OnboardingChrome activeStep={activeStep} />
+      <StepMotion
+        transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
+        className="min-h-dvh"
+      >
+        {activeStepContent}
+      </StepMotion>
+    </>
   );
 }

@@ -1,5 +1,10 @@
 import { getBrowserSession } from "@/lib/supabase/client";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
+import {
+  isOnboardingPreview,
+  previewApiFetch,
+  previewOrganization,
+} from "@/lib/onboarding/preview-api";
 
 const TOKEN_CACHE_TTL_MS = 45_000;
 
@@ -85,6 +90,10 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  if (isOnboardingPreview()) {
+    return previewApiFetch<T>(path, options);
+  }
+
   const token = await getAccessToken();
   if (!token) {
     throw new ApiError("Not authenticated", 401, "UNAUTHORIZED");
@@ -179,6 +188,7 @@ export async function bootstrapCurrentOrganization(
   anonScrapeId?: string,
   accountType?: "individual" | "company",
 ) {
+  if (isOnboardingPreview()) return previewOrganization();
   const session = await getBrowserSession();
   return bootstrapOrganization(
     defaultOrgNameFromEmail(session?.user?.email ?? ""),
