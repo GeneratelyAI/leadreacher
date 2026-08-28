@@ -21,6 +21,7 @@ import { prisma } from "../lib/prisma.js";
 import { redis } from "../lib/redis.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { VideoConfigSchema } from "../lib/billing/pricing.js";
+import { OUTREACH_CHANNELS } from "../lib/channels.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
 import {
   asRecord,
@@ -54,6 +55,9 @@ type CampaignType = (typeof CAMPAIGN_TYPES)[number];
 
 const CampaignTypeBodySchema = z.object({
   campaignType: z.string(),
+});
+const ChannelSelectionBodySchema = z.object({
+  channels: z.array(z.enum(OUTREACH_CHANNELS)).min(1),
 });
 export const StrategyGenerationBodySchema = z.object({
   force: z.boolean().optional().default(false),
@@ -242,6 +246,36 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     const updated = await prisma.strategy.update({
       where: { id: strategy.id },
       data: { campaignType: validatedCampaignType },
+    });
+
+    return reply.send(updated);
+  });
+
+  r.patch("/strategy/:orgId/channels", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Set selected outreach channels"),
+      params: StrategyParamsSchema,
+      body: ChannelSelectionBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { orgId: requestedOrgId } = request.params;
+    if (requestedOrgId !== orgId) throw new ForbiddenError();
+
+    const strategy = await prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!strategy) throw new NotFoundError("Strategy");
+
+    const updated = await prisma.strategy.update({
+      where: { id: strategy.id },
+      data: {
+        channels: toJson({
+          ...asRecord(strategy.channels),
+          selected: request.body.channels,
+        }),
+      },
     });
 
     return reply.send(updated);

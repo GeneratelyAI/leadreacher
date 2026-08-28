@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Link2,
   Loader2,
   RefreshCw,
   ShieldCheck,
@@ -14,7 +13,6 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -23,7 +21,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
-import { openChannelConnection, waitForChannelConnection } from "@/lib/channel-connection";
+import { isOnboardingPreview } from "@/lib/onboarding/preview-api";
 import {
   getChannelRecommendations,
   type ChannelRecommendationKey,
@@ -161,7 +159,6 @@ export default function Channels() {
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isWaitingForConnection, setIsWaitingForConnection] = useState(false);
   const [activationPendingChannelKey, setActivationPendingChannelKey] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -320,7 +317,22 @@ export default function Channels() {
         const strategy = await apiFetch<{ channels: JsonValue }>(`/strategy/${orgId}`);
         if (cancelled) return;
         const recommendations = getChannelRecommendations(strategy.channels);
-        setRecommendedChannels(new Set(recommendations.map((item) => item.channel)));
+        const selected = strategy.channels &&
+          typeof strategy.channels === "object" &&
+          !Array.isArray(strategy.channels) &&
+          Array.isArray(strategy.channels.selected)
+          ? strategy.channels.selected.filter(
+              (value): value is ChannelRecommendationKey =>
+                value === "linkedin" ||
+                value === "email" ||
+                value === "whatsapp" ||
+                value === "instagram" ||
+                value === "facebook",
+            )
+          : [];
+        setRecommendedChannels(new Set(
+          selected.length > 0 ? selected : recommendations.map((item) => item.channel),
+        ));
       } catch (loadError) {
         // "Recommended" tags are a decorative enhancement layered on top of
         // the strategy generated earlier in onboarding - a missing or failed
@@ -351,44 +363,13 @@ export default function Channels() {
       window.localStorage.setItem("lr_pending_channel_key", channelKey);
       window.localStorage.setItem("lr_pending_connection_token", result.connectionToken);
       setActivationPendingChannelKey(channelKey);
-      const initialMatchingAccountCount = accounts.filter((account) => {
-        const channel = CHANNELS.find((item) => item.key === channelKey);
-        return channel ? accountMatchesChannel(account, channel) : false;
-      }).length;
-      const connectionWindow = openChannelConnection(result.url);
-      if (!connectionWindow) {
-        window.location.assign(result.url);
-        return;
-      }
-
-      setIsWaitingForConnection(true);
-      const connected = await waitForChannelConnection(
-        async () => {
-          const nextAccounts = await loadAccounts(false, false);
-          if (!nextAccounts) return false;
-          const channel = CHANNELS.find((item) => item.key === channelKey);
-          if (!channel) return false;
-          const matchingAccountCount = nextAccounts.filter((account) => accountMatchesChannel(account, channel)).length;
-          return matchingAccountCount > initialMatchingAccountCount
-            && returnedConnectionIsActive(nextAccounts, channelKey);
-        },
-        () => connectionWindow.close(),
-      );
-
-      if (connected) {
-        window.localStorage.removeItem("lr_pending_channel_key");
-        window.localStorage.removeItem("lr_pending_connection_token");
-        setActivationPendingChannelKey(null);
-      } else {
-        setActivationPendingChannelKey(channelKey);
-      }
+      window.location.assign(result.url);
     } catch (connectError) {
       setError(
         connectError instanceof Error ? connectError.message : "Unable to start channel connection.",
       );
     } finally {
       setIsConnecting(false);
-      setIsWaitingForConnection(false);
     }
   }
 
@@ -416,6 +397,10 @@ export default function Channels() {
       const params = new URLSearchParams({
         reviewCampaignId: result.campaignId,
       });
+      if (isOnboardingPreview()) {
+        navigateOnboarding(onboardingHref("channels"), true);
+        return;
+      }
       router.push(`/dashboard/campaigns?${params.toString()}`);
     } catch (completeError) {
       setError(
@@ -434,12 +419,9 @@ export default function Channels() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <OnboardingChrome activeStep="channels" />
-      <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <main className="onboarding-connect-screen mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
-          icon={<Link2 className="size-7 text-onboarding-success-500" aria-hidden />}
-          eyebrow="Channel readiness"
           title="Connect your channels"
           description="Connect LinkedIn for your first campaign. Other connected channels will be available when you build additional campaign sequences."
         />
@@ -450,12 +432,7 @@ export default function Channels() {
         {connectionReturned ? (
           <Alert tone="success" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">Connection request received. We&apos;re checking for the activated account now.</Alert>
         ) : null}
-        {isWaitingForConnection ? (
-          <Alert tone="info" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">
-            Finish the provider sign-in in the small window. This page will update automatically.
-          </Alert>
-        ) : null}
-        {activationPendingChannelKey && !isWaitingForConnection ? (
+        {activationPendingChannelKey ? (
           <Alert
             tone="info"
             className="mx-auto mt-6 w-full max-w-3xl"
@@ -479,7 +456,7 @@ export default function Channels() {
           <Alert tone="error" className="mx-auto mt-6 w-full max-w-3xl">{error}</Alert>
         ) : null}
 
-        <OnboardingCard className="mx-auto mt-8 w-full max-w-3xl overflow-hidden">
+        <OnboardingCard className="onboarding-connect-card mx-auto mt-8 w-full max-w-3xl overflow-hidden">
           {isLoading ? (
             <EmptyState icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading channels" role="status" aria-live="polite" />
           ) : (
@@ -493,7 +470,7 @@ export default function Channels() {
                   channel.recommendationKey !== null &&
                   recommendedChannels.has(channel.recommendationKey);
                 return (
-                  <article key={channel.key} className="flex items-center gap-4 px-5 py-5 sm:px-6">
+                  <article key={channel.key} className="onboarding-connect-row flex items-center gap-4 px-5 py-5 sm:px-6">
                     <span className={`inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding ${channel.iconClassName}`}>
                       {channel.icon}
                     </span>
@@ -505,7 +482,7 @@ export default function Channels() {
                         {isRecommended ? (
                           <StatusBadge tone="brand" className="gap-1">
                             <Sparkles className="size-3" aria-hidden />
-                            Recommended
+                            Selected
                           </StatusBadge>
                         ) : null}
                       </div>
@@ -548,7 +525,7 @@ export default function Channels() {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-onboarding-neutral-150 px-5 py-4 dark:border-onboarding-neutral-750 sm:px-6">
+          <div className="onboarding-connect-footer flex flex-wrap items-center justify-between gap-3 border-t border-onboarding-neutral-150 px-5 py-4 dark:border-onboarding-neutral-750 sm:px-6">
             <p className="flex items-center gap-2 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
               <ShieldCheck className="size-4 text-onboarding-success-500" aria-hidden />
               {linkedInConnected ? "1 required channel connected" : "1 required channel to connect"}
@@ -580,7 +557,7 @@ export default function Channels() {
           </label>
         ) : null}
 
-        <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+        <p className="onboarding-connect-note mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
           Finishing setup creates a campaign draft. You will review the prospects and messages before anything is sent.
         </p>
 

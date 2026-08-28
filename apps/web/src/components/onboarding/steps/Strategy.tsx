@@ -3,30 +3,20 @@
 import {
   ArrowLeft,
   ArrowRight,
-  BarChart3,
   Building2,
   Check,
-  FileText,
   Info,
   Loader2,
-  Mail,
-  Megaphone,
-  Pencil,
-  Play,
-  Plus,
   RefreshCw,
-  Send,
-  Sparkles,
   TrendingUp,
   UserRound,
-  Users,
 } from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
+import { LandingMotion } from "@/components/landing/LandingMotion";
+import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/AcquisitionShowcase";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
@@ -40,7 +30,6 @@ import {
   onboardingHref,
   navigateOnboarding,
   strategyHref,
-  type OnboardingStepParam,
   type StrategySubstepParam,
 } from "./steps";
 
@@ -58,6 +47,15 @@ type StrategyResponse = {
   channels: JsonValue;
   updatedAt: string;
 };
+
+function selectedChannelsFromStrategy(strategy: StrategyResponse | null): ChannelKey[] {
+  if (!strategy?.channels || typeof strategy.channels !== "object" || Array.isArray(strategy.channels)) return [];
+  const selected = strategy.channels.selected;
+  if (!Array.isArray(selected)) return [];
+  return selected.filter((value): value is ChannelKey =>
+    value === "linkedin" || value === "email" || value === "whatsapp" || value === "instagram" || value === "facebook"
+  );
+}
 
 type AudienceAnalysis = {
   status: "running" | "completed" | "failed";
@@ -272,14 +270,17 @@ function ShellActions({
   continueLabel = "Continue to next step",
   onBack,
   onContinue,
+  className,
 }: {
   canContinue: boolean;
   continueLabel?: string;
   onBack: () => void;
   onContinue: () => void;
+  className?: string;
 }) {
   return (
     <ActionBar
+      className={className}
       leading={
         <Button type="button" variant="secondary" onClick={onBack} className="h-13 px-7 text-base">
           <ArrowLeft className="size-5" aria-hidden />
@@ -303,195 +304,46 @@ function ShellActions({
 }
 
 function ScreenHeader({
-  icon,
   title,
   subtitle,
+  compact = false,
 }: {
-  icon: React.ReactNode;
   title: string;
   subtitle: string;
+  compact?: boolean;
 }) {
   return (
-    <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-      <OnboardingBadge icon={icon} />
-      <h1 className="mt-5 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
+    <div className="onboarding-screen-header mx-auto flex max-w-2xl flex-col items-center text-center">
+      <h1 className={cn(
+        "font-bold tracking-tight text-onboarding-ink dark:text-onboarding-neutral-0",
+        compact ? "text-3xl" : "text-3xl sm:text-4xl",
+      )}>
         {title}
       </h1>
-      <p className="mt-4 max-w-lg text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+      <p className={cn(
+        "max-w-lg text-onboarding-neutral-600 dark:text-onboarding-neutral-400",
+        compact ? "mt-3 text-sm leading-6" : "mt-4 text-base leading-7",
+      )}>
         {subtitle}
       </p>
     </div>
   );
 }
 
-const WORK_CARDS = [
-  {
-    title: "Create Content",
-    body: "We craft personalized messages and videos that resonate.",
-    icon: FileText,
-  },
-  {
-    title: "Find Buyers",
-    body: "We identify high-fit companies, roles, and decision makers most likely to engage.",
-    icon: Users,
-  },
-  {
-    title: "Choose Channels",
-    body: "We score every channel to find where your buyers are most active.",
-    icon: BarChart3,
-  },
-  {
-    title: "Launch Outreach",
-    body: "We launch the multi-channel sequence and route replies back to you.",
-    icon: Send,
-  },
-] as const;
-
-function PreviewAvatar({
-  src,
-  className,
-  showStatus = false,
-}: {
-  src: string;
-  className?: string;
-  showStatus?: boolean;
-}) {
-  return (
-    <span className={cn("relative inline-flex shrink-0 rounded-full ring-2 ring-white", className)}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        className="size-full rounded-full object-cover"
-        aria-hidden
-      />
-      {showStatus ? (
-        <span className="absolute right-0 bottom-0 size-2.5 rounded-full border-2 border-white bg-emerald-400" aria-hidden />
-      ) : null}
-    </span>
-  );
-}
-
-function WorkCardPreview({ index }: { index: number }) {
-  if (index === 0) {
-    return (
-      <div className="strategy-preview strategy-preview--content">
-        <div className="strategy-preview__surface">
-          <span className="strategy-preview__line strategy-preview__line--long" aria-hidden />
-          <span className="strategy-preview__line strategy-preview__line--short" aria-hidden />
-        </div>
-        <span className="strategy-preview__chip strategy-preview__chip--play">
-          <Play className="size-4 fill-current" aria-hidden />
-        </span>
-        <span className="strategy-preview__chip strategy-preview__chip--pencil">
-          <Pencil className="size-3.5" aria-hidden />
-        </span>
-      </div>
-    );
-  }
-
-  if (index === 1) {
-    return (
-      <div className="strategy-preview strategy-preview--buyers">
-        <div className="strategy-preview__avatars">
-          <PreviewAvatar src="/landing/portraits/prospect-44.webp" className="size-8" showStatus />
-          <PreviewAvatar src="/landing/portraits/prospect-32.webp" className="strategy-preview__avatar--overlap size-8" />
-          <PreviewAvatar src="/landing/portraits/prospect-68.webp" className="strategy-preview__avatar--overlap size-8" />
-          <span className="strategy-preview__plus-avatar">
-            <Plus className="size-4" aria-hidden />
-          </span>
-        </div>
-        <div className="strategy-preview__profile">
-          <span className="strategy-preview__person-chip">
-            <UserRound className="size-4" aria-hidden />
-          </span>
-          <span className="strategy-preview__profile-line" aria-hidden />
-          <span className="strategy-preview__check-chip">
-            <Check className="size-4" aria-hidden />
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  if (index === 2) {
-    return (
-      <div className="strategy-preview strategy-preview--channels">
-        <span className="strategy-preview__social-chip strategy-preview__social-chip--linkedin">
-          <ChannelLogo name="linkedin" className="size-10" />
-        </span>
-        <span className="strategy-preview__social-chip strategy-preview__social-chip--whatsapp">
-          <ChannelLogo name="whatsapp" className="size-6" />
-        </span>
-        <span className="strategy-preview__social-chip strategy-preview__social-chip--email">
-          <Mail className="size-5" aria-hidden />
-        </span>
-        <span className="strategy-preview__social-chip strategy-preview__social-chip--plus">
-          <Plus className="size-5" aria-hidden />
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="strategy-preview strategy-preview--launch">
-      <div className="strategy-preview__surface">
-        <PreviewAvatar src="/landing/portraits/prospect-46.webp" className="size-8" showStatus />
-        <div className="strategy-preview__launch-lines">
-          <span className="strategy-preview__launch-line" aria-hidden />
-          <span className="strategy-preview__launch-line strategy-preview__launch-line--short" aria-hidden />
-        </div>
-      </div>
-      <span className="strategy-preview__chip strategy-preview__chip--send">
-        <Send className="size-5 fill-current" aria-hidden />
-      </span>
-    </div>
-  );
-}
-
 function HowItWorksScreen() {
   return (
-    <section className="mx-auto flex w-full max-w-7xl flex-1 flex-col items-center justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+    <section className="strategy-how-screen relative mx-auto flex w-full max-w-[92rem] flex-1 flex-col items-center justify-center overflow-hidden px-5 pt-36 pb-44 h-compact:justify-start h-compact:pt-32 lg:pt-32 lg:pb-28">
+      <div
+        className="pointer-events-none absolute top-[43%] left-1/2 -z-10 h-80 w-[min(72rem,90vw)] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(111,76,255,.075),transparent_68%)] dark:bg-[radial-gradient(ellipse,rgba(124,92,255,.13),transparent_68%)]"
+        aria-hidden
+      />
       <ScreenHeader
-        icon={<Sparkles className="size-8" aria-hidden />}
         title="How LeadReacher works"
         subtitle="We turn your insights into conversations and qualified opportunities."
       />
-
-      <div className="mt-10 grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {WORK_CARDS.map((card, index) => {
-          const Icon = card.icon;
-          return (
-            <OnboardingCard
-              key={card.title}
-              className="app-card--interactive onboarding-work-card relative min-h-80 overflow-visible px-6 py-7 text-center"
-            >
-              {index < WORK_CARDS.length - 1 ? (
-                <span className="onboarding-work-connector" aria-hidden>
-                  <span className="onboarding-work-connector__line" />
-                  <span className="onboarding-work-connector__dot" />
-                  <span className="onboarding-work-connector__line" />
-                </span>
-              ) : null}
-              <span className="onboarding-work-card__number">
-                {index + 1}
-              </span>
-              <div className="onboarding-work-card__icon-orbit mx-auto mt-4">
-                <span className="onboarding-work-card__icon-surface">
-                  <Icon className="size-10" aria-hidden />
-                </span>
-              </div>
-              <h2 className="mt-7 text-xl font-bold tracking-tight text-onboarding-ink dark:text-onboarding-neutral-0">
-                {card.title}
-              </h2>
-              <p className="mt-3 text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                {card.body}
-              </p>
-              <WorkCardPreview index={index} />
-            </OnboardingCard>
-          );
-        })}
-      </div>
+      <LandingMotion>
+        <AcquisitionWorkflowCarousel compact className="mt-3 w-full" />
+      </LandingMotion>
     </section>
   );
 }
@@ -504,10 +356,10 @@ function StrategyBriefContent({
   audiencePending?: boolean;
 }) {
   return (
-    <div className="text-left">
+    <div className="strategy-brief-content text-left">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-bold tracking-[0.12em] text-brand-purple uppercase">
+          <p className="text-xs font-bold tracking-[0.12em] text-brand-purple uppercase dark:text-brand-300">
             Your outreach strategy
           </p>
           <h2 className="mt-2 text-xl font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
@@ -559,7 +411,7 @@ function StrategyBriefContent({
       <ol className="mt-6 grid gap-3 border-t border-neutral-200 pt-5 sm:grid-cols-3 dark:border-neutral-700">
         {brief.executionPlan.map((item) => (
           <li key={item.step} className="min-w-0">
-            <span className="text-xs font-bold text-brand-purple">{String(item.step).padStart(2, "0")}</span>
+            <span className="text-xs font-bold text-brand-purple dark:text-brand-300">{String(item.step).padStart(2, "0")}</span>
             <p className="mt-1 text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{item.title}</p>
             <p className="mt-1 text-xs leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.description}</p>
           </li>
@@ -667,9 +519,8 @@ function TargetingScreen({
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <section className="strategy-targeting-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
-          icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
           subtitle="Here's the audience we identified as the best fit for your business."
         />
@@ -680,9 +531,8 @@ function TargetingScreen({
 
   if (error || !analysis || analysis.status !== "completed") {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <section className="strategy-targeting-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
-          icon={<Users className="size-8" aria-hidden />}
           title="Who we're targeting"
           subtitle="Here's the audience we identified as the best fit for your business."
         />
@@ -703,15 +553,14 @@ function TargetingScreen({
   if (analysis.source === "connected_linkedin") {
     const roles = strategyBrief?.decisionMakerRoles ?? [];
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <section className="strategy-targeting-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
-          icon={<Users className="size-8" aria-hidden />}
           title="Your target audience"
           subtitle="The strategy is ready. Prospect results will come from your connected LinkedIn account."
         />
         <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-7 sm:px-8">
           {strategyBrief ? <StrategyBriefContent brief={strategyBrief} audiencePending /> : null}
-          <div className="mt-7 grid gap-4 border-t border-neutral-200 pt-7 dark:border-neutral-700 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="strategy-connection-plan mt-7 grid gap-4 border-t border-neutral-200 pt-7 dark:border-neutral-700 md:grid-cols-[minmax(0,1fr)_minmax(18rem,26rem)] md:items-center">
             <div>
               <p className="text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
                 Decision makers to find after connection
@@ -737,9 +586,8 @@ function TargetingScreen({
   const companiesUnavailable = analysis.companies.status === "unavailable";
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+    <section className="strategy-targeting-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
       <ScreenHeader
-        icon={<Users className="size-8" aria-hidden />}
         title="Who we're targeting"
         subtitle="Here's the audience we identified as the best fit for your business."
       />
@@ -887,109 +735,143 @@ function percentageWidth(value: number, max: number): number {
 
 function channelIcon(channel: ChannelKey): React.ReactNode {
   if (channel === "linkedin") {
-    return <ChannelLogo name="linkedin" className="size-14" />;
+    return <ChannelLogo name="linkedin" className="size-18" />;
   }
   if (channel === "whatsapp") {
-    return <ChannelLogo name="whatsapp-mark" className="size-14" />;
+    return <ChannelLogo name="whatsapp-mark" className="size-18" />;
   }
   if (channel === "instagram") {
-    return <ChannelLogo name="instagram" className="size-12" />;
+    return <ChannelLogo name="instagram" className="size-16" />;
   }
   if (channel === "facebook") {
-    return <ChannelLogo name="facebook" className="size-12" />;
+    return <ChannelLogo name="facebook" className="size-16" />;
   }
   return (
-    <span className="inline-flex items-center gap-1.5" aria-label="Gmail and Outlook">
-      <ChannelLogo name="gmail" className="size-9" />
-      <ChannelLogo name="outlook" className="size-9" />
+    <span className="inline-flex items-center gap-1" aria-label="Gmail and Outlook">
+      <ChannelLogo name="gmail" className="size-7.5" />
+      <ChannelLogo name="outlook" className="size-7.5" />
     </span>
   );
 }
 
 function ChannelsScreen({
   recommendations,
+  selectedChannels,
+  onToggle,
   isLoading,
   error,
 }: {
   recommendations: ChannelRecommendation[];
+  selectedChannels: ChannelKey[];
+  onToggle: (channel: ChannelKey) => void;
   isLoading: boolean;
   error: string | null;
 }) {
   if (isLoading) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
-          icon={<Megaphone className="size-8" aria-hidden />}
-          title="Recommended channels"
-          subtitle="Loading your channel recommendations."
+          title="Choose your channels"
+          subtitle="Loading the channels available for your campaign."
         />
       </section>
     );
   }
 
-  if (error || recommendations.length === 0) {
+  if (error) {
     return (
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <ScreenHeader
-          icon={<Megaphone className="size-8" aria-hidden />}
-          title="Recommended channels"
-          subtitle={error ?? "Channel recommendations are not available yet."}
+          title="Choose your channels"
+          subtitle={error}
         />
       </section>
     );
   }
+
+  const recommended = new Set(recommendations.slice(0, 2).map((item) => item.channel));
+  const channels: Array<{ channel: ChannelKey; label: string; description: string }> = [
+    { channel: "linkedin", label: "LinkedIn", description: "Reach professional decision-makers through your connected LinkedIn account." },
+    { channel: "email", label: "Email", description: "Send approved email sequences through Gmail, Outlook, or another mailbox." },
+    { channel: "whatsapp", label: "WhatsApp", description: "Start direct conversations with prospects who can be contacted on WhatsApp." },
+    { channel: "instagram", label: "Instagram", description: "Reach prospects through approved Instagram direct messages." },
+    { channel: "facebook", label: "Facebook Messenger", description: "Continue outreach through connected Messenger conversations." },
+  ];
+  const featured = channels.filter((item) => recommended.has(item.channel));
+  const other = channels.filter((item) => !recommended.has(item.channel));
+
+  const ChannelCard = ({ item, featuredCard = false }: { item: (typeof channels)[number]; featuredCard?: boolean }) => {
+    const selected = selectedChannels.includes(item.channel);
+    return (
+      <button
+        type="button"
+        aria-pressed={selected}
+        disabled={item.channel === "linkedin"}
+        onClick={() => onToggle(item.channel)}
+        className={cn(
+          "strategy-channel-card group relative flex min-h-36 w-full items-start gap-4 rounded-3xl border bg-white p-5 text-left transition-[border-color,box-shadow,transform] duration-150 dark:bg-onboarding-neutral-900",
+          selected
+            ? "border-onboarding-purple-500 shadow-[0_14px_34px_rgba(91,43,224,0.12)] dark:border-onboarding-purple-300"
+            : "border-onboarding-neutral-150 hover:border-onboarding-purple-200 hover:shadow-onboarding-small dark:border-onboarding-neutral-750",
+          item.channel === "linkedin" ? "cursor-default" : "hover:-translate-y-0.5",
+          featuredCard ? "strategy-channel-card--featured sm:min-h-40" : "",
+        )}
+      >
+        <span className="inline-flex size-14 shrink-0 items-center justify-center [&>*]:max-h-full [&>*]:max-w-full" aria-hidden>{channelIcon(item.channel)}</span>
+        <span className="min-w-0 pt-0.5 pr-7">
+          <span className="flex flex-wrap items-center gap-2.5">
+            <span className="text-lg font-bold tracking-tight text-onboarding-ink dark:text-white sm:text-xl">{item.label}</span>
+            {item.channel === "linkedin" ? (
+              <span className="rounded-full bg-onboarding-purple-50 px-2.5 py-1 text-[0.65rem] font-bold tracking-wide text-onboarding-purple-700 uppercase dark:bg-onboarding-purple-900/50 dark:text-onboarding-purple-100">Required</span>
+            ) : recommended.has(item.channel) ? (
+              <span className="rounded-full bg-onboarding-purple-50 px-2.5 py-1 text-[0.65rem] font-bold tracking-wide text-onboarding-purple-700 uppercase dark:bg-onboarding-purple-900/50 dark:text-onboarding-purple-100">Recommended</span>
+            ) : null}
+          </span>
+          <span className="mt-2 block max-w-md text-sm leading-5 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">{item.description}</span>
+        </span>
+        <span className={cn(
+          "absolute top-5 right-5 grid size-7 place-items-center rounded-lg border transition-colors",
+          selected ? "border-onboarding-purple-600 bg-onboarding-purple-600 text-white" : "border-onboarding-neutral-250 text-transparent dark:border-onboarding-neutral-650",
+        )} aria-hidden>
+          <Check className="size-4.5" />
+        </span>
+      </button>
+    );
+  };
 
   return (
-    <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+    <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-start px-5 pt-28 pb-32 sm:pt-30 lg:pt-28">
       <ScreenHeader
-        icon={<Megaphone className="size-8" aria-hidden />}
-        title="Recommended channels"
-        subtitle="These channels are proven to work best for reaching your audience based on our analysis."
+        title="Choose your channels"
+        subtitle="Select where LeadReacher can reach prospects. We’ll prioritize the channels that best fit your campaign."
+        compact
       />
 
-      <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-8 sm:px-8">
-        <div className="divide-y divide-neutral-100 dark:divide-white/18">
-          {recommendations.map((item, index) => (
-            <article key={item.channel} className="grid grid-cols-[2.5rem_4.5rem_minmax(0,1fr)] gap-5 py-6 first:pt-2 last:pb-2 md:grid-cols-[2.5rem_5rem_minmax(0,1fr)_11rem]">
-              <span className="mt-3 inline-flex size-9 items-center justify-center rounded-full bg-brand-purple text-sm font-bold text-white">
-                {index + 1}
-              </span>
-              <span className="inline-flex size-16 items-center justify-center">
-                {channelIcon(item.channel)}
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-xl font-bold text-neutral-950 dark:text-onboarding-neutral-0">{item.label}</h2>
-                <p className="mt-1 max-w-md text-sm leading-6 text-neutral-600 dark:text-onboarding-neutral-300">
-                  {item.description}
-                </p>
-              </div>
-              <div className="col-span-3 flex flex-col items-start gap-3 md:col-span-1 md:items-end">
-                <span className="rounded-full bg-emerald-50 px-4 py-1.5 text-sm font-bold text-emerald-600 dark:bg-emerald-100 dark:text-emerald-800">
-                  {item.confidence}% Confidence
-                </span>
-                <span className="flex items-center gap-2 text-sm text-neutral-600 dark:text-onboarding-neutral-300">
-                  <Check className="size-4 text-brand-purple dark:text-onboarding-purple-300" aria-hidden />
-                  {item.tag}
-                </span>
-              </div>
-            </article>
-          ))}
+      <div className="mx-auto mt-6 w-full max-w-6xl">
+        {featured.length > 0 ? (
+          <div>
+            <h2 className="text-base font-bold text-onboarding-ink dark:text-white">Recommended for this campaign</h2>
+            <div className="strategy-channel-grid mt-3 grid gap-4 md:grid-cols-2">{featured.map((item) => <ChannelCard key={item.channel} item={item} featuredCard />)}</div>
+          </div>
+        ) : null}
+        <div className={featured.length > 0 ? "mt-6" : ""}>
+          <h2 className="text-base font-bold text-onboarding-ink dark:text-white">Other available channels</h2>
+          <div className="strategy-channel-grid mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{other.map((item) => <ChannelCard key={item.channel} item={item} />)}</div>
         </div>
-      </OnboardingCard>
-
-      <p className="mt-5 flex items-center justify-center gap-2 text-sm text-neutral-500 dark:text-onboarding-neutral-300">
-        <Info className="size-4" aria-hidden />
-        Confidence scores reflect channel fit before prospect enrichment.
-      </p>
+        <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-onboarding-neutral-600 dark:text-onboarding-neutral-300">
+          <span className="grid size-6 place-items-center rounded-full bg-onboarding-purple-50 text-onboarding-purple-700 dark:bg-onboarding-purple-900/50 dark:text-onboarding-purple-100" aria-hidden>
+            <Check className="size-3.5" />
+          </span>
+          <p>{selectedChannels.length} {selectedChannels.length === 1 ? "channel" : "channels"} selected</p>
+        </div>
+      </div>
     </section>
   );
 }
 
 export default function Strategy({
-  activeStep = "strategy",
   substep = "how-it-works",
 }: {
-  activeStep?: OnboardingStepParam;
   substep?: StrategySubstepParam;
 }) {
   useLayoutEffect(() => {
@@ -1002,12 +884,26 @@ export default function Strategy({
   );
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const [strategyErrorInProgress, setStrategyErrorInProgress] = useState(false);
+  const [selectedChannels, setSelectedChannels] = useState<ChannelKey[]>([]);
+  const [isSavingChannels, setIsSavingChannels] = useState(false);
+  const [channelSaveError, setChannelSaveError] = useState<string | null>(null);
+  const channelsInitializedRef = useRef(false);
   const strategyRunRef = useRef<AbortController | null>(null);
   const strategyWarmupRef = useRef<AbortController | null>(null);
 
   const analysis = useMemo(() => getAudienceAnalysis(strategy), [strategy]);
   const strategyBrief = useMemo(() => getStrategyBrief(strategy), [strategy]);
   const recommendations = useMemo(() => getChannelRecommendations(strategy?.channels), [strategy]);
+
+  useEffect(() => {
+    if (substep !== "channels" || channelsInitializedRef.current || !strategy) return;
+    const persisted = selectedChannelsFromStrategy(strategy);
+    const defaults = persisted.length > 0
+      ? persisted
+      : recommendations.slice(0, 2).map((item) => item.channel);
+    setSelectedChannels([...new Set<ChannelKey>(["linkedin", ...defaults])]);
+    channelsInitializedRef.current = true;
+  }, [recommendations, strategy, substep]);
 
   const pollForStrategy = useCallback(async (orgId: string, signal: AbortSignal) => {
     for (let attempt = 0; attempt < 180; attempt += 1) {
@@ -1197,7 +1093,7 @@ export default function Strategy({
     navigateOnboarding(strategyHref("targeting"));
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (substep === "how-it-works") {
       navigateOnboarding(strategyHref("targeting"));
       return;
@@ -1206,7 +1102,21 @@ export default function Strategy({
       navigateOnboarding(strategyHref("channels"));
       return;
     }
-    navigateOnboarding(onboardingHref("campaign-type"));
+    if (!strategy || selectedChannels.length === 0 || isSavingChannels) return;
+    setIsSavingChannels(true);
+    setChannelSaveError(null);
+    try {
+      const updated = await apiFetch<StrategyResponse>(`/strategy/${strategy.orgId}/channels`, {
+        method: "PATCH",
+        body: JSON.stringify({ channels: selectedChannels }),
+      });
+      setStrategy(updated);
+      navigateOnboarding(onboardingHref("campaign-type"));
+    } catch (saveError) {
+      setChannelSaveError(strategyErrorMessage(saveError));
+    } finally {
+      setIsSavingChannels(false);
+    }
   }
 
   function handleRetry() {
@@ -1215,7 +1125,7 @@ export default function Strategy({
 
   const canContinue =
     substep === "how-it-works" ||
-    (substep === "channels" && recommendations.length > 0 && !strategyError) ||
+    (substep === "channels" && selectedChannels.length > 0 && !strategyError && !isSavingChannels) ||
     Boolean(analysis?.status === "completed" && recommendations.length > 0);
 
   let activeSubstepContent: React.ReactNode;
@@ -1236,24 +1146,30 @@ export default function Strategy({
     activeSubstepContent = (
       <ChannelsScreen
         recommendations={recommendations}
+        selectedChannels={selectedChannels}
+        onToggle={(channel) => {
+          if (channel === "linkedin") return;
+          setSelectedChannels((current) => current.includes(channel) ? current.filter((item) => item !== channel) : [...current, channel]);
+        }}
         isLoading={isLoadingStrategy}
-        error={strategyError}
+        error={strategyError ?? channelSaveError}
       />
     );
   }
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <OnboardingChrome activeStep={activeStep} />
 
       <StepMotion transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
         {activeSubstepContent}
       </StepMotion>
 
       <ShellActions
+        className={substep === "channels" ? "strategy-channels-actions" : undefined}
         canContinue={canContinue}
+        continueLabel={substep === "channels" ? (isSavingChannels ? "Saving channels..." : `Continue with ${selectedChannels.length} ${selectedChannels.length === 1 ? "channel" : "channels"}`) : "Continue to next step"}
         onBack={handleBack}
-        onContinue={handleContinue}
+        onContinue={() => void handleContinue()}
       />
     </div>
   );
