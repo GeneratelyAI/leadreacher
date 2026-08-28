@@ -317,7 +317,7 @@ html {
 }
 
 .onboarding-step-presence {
-  --onboarding-slide-distance: 1.5rem;
+  --onboarding-slide-distance: 100%;
   position: relative;
   isolation: isolate;
   width: 100%;
@@ -340,11 +340,11 @@ html {
 .onboarding-step-presence__pane--incoming {
   position: absolute;
   inset: 0;
-  opacity: 0;
 }
 
 .onboarding-step-presence--transitioning .onboarding-step-presence__pane {
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 .onboarding-step-presence--forward .onboarding-step-presence__pane--incoming {
@@ -356,14 +356,11 @@ html {
 }
 
 .onboarding-step-presence--active .onboarding-step-presence__pane {
-  transition:
-    transform 160ms var(--onboarding-ease-standard),
-    opacity 120ms ease-out;
+  transition: transform 520ms cubic-bezier(0.76, 0, 0.24, 1);
 }
 
 .onboarding-step-presence--active .onboarding-step-presence__pane--incoming {
   transform: translate3d(0, 0, 0);
-  opacity: 1;
 }
 
 .onboarding-step-presence--active.onboarding-step-presence--forward .onboarding-step-presence__pane--outgoing {
@@ -374,19 +371,23 @@ html {
   transform: translate3d(var(--onboarding-slide-distance), 0, 0);
 }
 
-.onboarding-step-presence--active .onboarding-step-presence__pane--outgoing {
-  opacity: 0;
-}
-
 @media (max-width: 640px) {
   .onboarding-step-presence {
-    --onboarding-slide-distance: 1rem;
+    --onboarding-slide-distance: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .onboarding-chrome {
     transition: none;
+  }
+
+  .onboarding-step-rail__track,
+  .onboarding-step-rail__item,
+  .onboarding-step-rail__marker,
+  .onboarding-step-rail__label,
+  .onboarding-step-rail__connector {
+    transition: none !important;
   }
 
   .onboarding-step-presence__pane {
@@ -443,6 +444,304 @@ html {
 .onboarding-chrome__stepper {
   width: 100%;
   justify-self: center;
+}
+
+.onboarding-step-rail {
+  --onboarding-rail-step-width: 9rem;
+  position: relative;
+  width: min(100%, 33rem);
+  min-width: 0;
+  overflow: hidden;
+  justify-self: center;
+  contain: layout paint;
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-step-rail::before,
+.onboarding-step-rail::after {
+  position: absolute;
+  inset-block: 0;
+  z-index: 10;
+  width: 30%;
+  content: "";
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 360ms ease-out;
+}
+
+.onboarding-step-rail::before {
+  inset-inline-start: 0;
+  background: linear-gradient(
+    90deg,
+    var(--app-canvas) 0%,
+    color-mix(in srgb, var(--app-canvas), transparent 8%) 26%,
+    color-mix(in srgb, var(--app-canvas), transparent 42%) 58%,
+    transparent 100%
+  );
+}
+
+.onboarding-step-rail::after {
+  inset-inline-end: 0;
+  background: linear-gradient(
+    270deg,
+    var(--app-canvas) 0%,
+    color-mix(in srgb, var(--app-canvas), transparent 8%) 26%,
+    color-mix(in srgb, var(--app-canvas), transparent 42%) 58%,
+    transparent 100%
+  );
+}
+
+.onboarding-step-rail__viewport {
+  width: 100%;
+  overflow: hidden;
+  padding-block: 0.75rem 0.35rem;
+}
+
+.onboarding-step-rail__track {
+  position: relative;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transform: translate3d(
+    var(--onboarding-active-translate),
+    0,
+    0
+  );
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.onboarding-step-rail__item {
+  position: relative;
+  display: flex;
+  width: var(--onboarding-rail-step-width);
+  flex: 0 0 var(--onboarding-rail-step-width);
+  flex-direction: column;
+  align-items: center;
+  opacity: 0;
+  transform: scale(0.88);
+  transform-origin: center 1.25rem;
+  transition:
+    opacity 430ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-step-rail__item[data-distance="0"] {
+  z-index: 3;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.onboarding-step-rail__item[data-distance="1"] {
+  z-index: 2;
+  opacity: 0.76;
+  transform: scale(0.94);
+}
+
+.onboarding-step-rail__item[data-distance="2"] {
+  opacity: 0.045;
+  transform: scale(0.9);
+}
+
+.onboarding-step-rail__item[data-direction="before"][data-distance="1"] {
+  transform: translateX(0.25rem) scale(0.94);
+}
+
+.onboarding-step-rail__item[data-direction="after"][data-distance="1"] {
+  transform: translateX(-0.25rem) scale(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .onboarding-step-rail:hover {
+    width: min(54rem, calc(100vw - 4rem));
+  }
+
+  .onboarding-step-rail:hover::before,
+  .onboarding-step-rail:hover::after {
+    opacity: 0;
+  }
+
+  .onboarding-step-rail:hover .onboarding-step-rail__track {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  .onboarding-step-rail:hover .onboarding-step-rail__item {
+    opacity: 1;
+    transform: translateX(0) scale(0.94);
+  }
+
+  .onboarding-step-rail:hover .onboarding-step-rail__item[data-distance="0"] {
+    transform: scale(1);
+  }
+}
+
+.onboarding-step-rail__connector {
+  position: absolute;
+  top: 1.25rem;
+  right: calc(50% + 1.45rem);
+  width: calc(100% - 2.9rem);
+  height: 1px;
+  background: var(--app-border);
+  transition: background-color 360ms ease-out;
+}
+
+.onboarding-step-rail__item:first-child .onboarding-step-rail__connector {
+  display: none;
+}
+
+.onboarding-step-rail__item[data-progress="complete"] .onboarding-step-rail__connector {
+  background: color-mix(in srgb, var(--onboarding-purple-500), transparent 26%);
+}
+
+.onboarding-step-rail__marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-elevated);
+  color: var(--onboarding-neutral-500);
+  box-shadow: 0 5px 18px rgb(31 24 61 / 0.08);
+  transition:
+    border-color 360ms ease-out,
+    background-color 360ms ease-out,
+    color 360ms ease-out,
+    box-shadow 430ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 430ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.onboarding-step-rail__marker--active {
+  border-color: var(--onboarding-purple-500);
+  background: var(--onboarding-purple-500);
+  color: white;
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--onboarding-purple-500), transparent 88%),
+    0 9px 26px color-mix(in srgb, var(--onboarding-purple-500), transparent 68%);
+  transform: scale(1.08);
+}
+
+.onboarding-step-rail__marker--complete {
+  border-color: var(--onboarding-purple-100);
+  background: var(--onboarding-purple-50);
+  color: var(--onboarding-purple-600);
+}
+
+.onboarding-step-rail__label {
+  max-width: calc(var(--onboarding-rail-step-width) - 0.5rem);
+  margin-top: 0.65rem;
+  overflow: hidden;
+  color: var(--onboarding-neutral-500);
+  font-size: 0.675rem;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color 360ms ease-out;
+}
+
+.onboarding-step-rail__label--active,
+.onboarding-step-rail__label--complete {
+  color: var(--onboarding-purple-700);
+}
+
+.dark .onboarding-step-rail__marker {
+  border-color: var(--app-border);
+  background: var(--app-elevated);
+  color: var(--app-fg-muted);
+}
+
+.dark .onboarding-step-rail__marker--active {
+  border-color: var(--onboarding-purple-400);
+  background: var(--onboarding-purple-500);
+  color: white;
+}
+
+.dark .onboarding-step-rail__marker--complete {
+  border-color: var(--onboarding-purple-800);
+  background: var(--onboarding-purple-900);
+  color: var(--onboarding-purple-200);
+}
+
+.dark .onboarding-step-rail__label {
+  color: var(--app-fg-subtle);
+}
+
+.dark .onboarding-step-rail__label--active,
+.dark .onboarding-step-rail__label--complete {
+  color: var(--onboarding-purple-200);
+}
+
+.checkout-accent-card {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(135deg, #fff 0%, #fcfbff 58%, #f7f3ff 100%) padding-box,
+    linear-gradient(135deg, #a56cff 0%, #ded5ff 48%, #cab8ff 100%) border-box;
+  box-shadow:
+    0 18px 48px rgb(84 41 223 / 0.075),
+    0 2px 8px rgb(84 41 223 / 0.035);
+}
+
+.checkout-accent-card::before {
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  right: 1.5rem;
+  left: 1.5rem;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(141 91 255 / 0.72), transparent);
+  pointer-events: none;
+}
+
+.checkout-accent-card--compact {
+  box-shadow:
+    0 10px 28px rgb(84 41 223 / 0.055),
+    0 2px 6px rgb(84 41 223 / 0.025);
+}
+
+.checkout-summary-row {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: 0.625rem;
+  padding: 0.5rem 0.625rem;
+}
+
+.checkout-summary-row:nth-child(odd) {
+  background: rgb(113 73 219 / 0.035);
+}
+
+.dark .checkout-accent-card {
+  background:
+    linear-gradient(135deg, #151820 0%, #171821 58%, #1b1727 100%) padding-box,
+    linear-gradient(135deg, #7551df 0%, #3d3556 48%, #6d54ae 100%) border-box;
+  box-shadow:
+    0 20px 52px rgb(0 0 0 / 0.22),
+    0 0 30px rgb(99 72 214 / 0.055);
+}
+
+.dark .checkout-summary-row:nth-child(odd) {
+  background: rgb(132 102 232 / 0.06);
+}
+
+.checkout-accent-card--stripe,
+.dark .checkout-accent-card--stripe {
+  background:
+    linear-gradient(#fff, #fff) padding-box,
+    linear-gradient(135deg, #a56cff 0%, #ded5ff 48%, #cab8ff 100%) border-box;
 }
 
 .onboarding-chrome-mobile,
@@ -667,6 +966,33 @@ html {
 
 .dark .onboarding-page .text-onboarding-neutral-600 {
   color: #d0d8e3;
+}
+
+.action-input-bar {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(105deg, rgb(147 51 234 / 0.72), rgb(196 181 253 / 0.82) 24%, rgb(255 255 255 / 0.96) 48%, rgb(165 180 252 / 0.86) 72%, rgb(79 70 229 / 0.76)) border-box;
+  background-size: 100% 100%, 220% 100%;
+}
+
+.action-input-bar[data-invalid="true"] {
+  background:
+    linear-gradient(#ffffff, #ffffff) padding-box,
+    linear-gradient(105deg, #fca5a5, #ef4444, #fca5a5) border-box;
+}
+
+.dark .action-input-bar {
+  background:
+    linear-gradient(#151b25, #151b25) padding-box,
+    linear-gradient(105deg, rgb(167 139 250 / 0.88), rgb(91 43 224 / 0.9) 28%, rgb(255 255 255 / 0.22) 50%, rgb(124 92 255 / 0.9) 72%, rgb(196 181 253 / 0.82)) border-box;
+  background-size: 100% 100%, 220% 100%;
+  box-shadow: 0 18px 48px rgb(0 0 0 / 0.28);
+}
+
+.dark .action-input-bar[data-invalid="true"] {
+  background:
+    linear-gradient(#151b25, #151b25) padding-box,
+    linear-gradient(105deg, #fca5a5, #ef4444, #fca5a5) border-box;
 }
 
 .onboarding-work-connector {
@@ -1137,6 +1463,15 @@ html {
     backdrop-filter: blur(0.75rem);
   }
 
+  .onboarding-chrome__stepper.onboarding-step-rail {
+    width: min(100%, 29rem);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
   .onboarding-stepper__label {
     font-size: 0.625rem;
   }
@@ -1220,6 +1555,549 @@ html {
 
   .onboarding-actions {
     bottom: max(0.5rem, var(--safe-area-bottom));
+  }
+}
+
+@media (max-width: 64rem) {
+  .strategy-channels-screen {
+    padding-top: 10rem !important;
+  }
+}
+
+@media (max-width: 64rem) and (max-height: 42.5rem) {
+  .strategy-channels-screen {
+    padding-top: 10.5rem !important;
+  }
+}
+
+@media (max-height: 42.5rem) {
+  .strategy-channels-actions {
+    position: static !important;
+    margin-top: auto;
+    padding-top: 1rem;
+    padding-bottom: max(1rem, var(--safe-area-bottom));
+  }
+}
+
+/* At normal desktop browser zoom, keep the complete onboarding composition
+   comfortably visible on laptop-height viewports. These are real responsive
+   dimensions—not CSS zoom—so browser zoom and text reflow stay intact. */
+@media (min-width: 64rem) and (max-height: 56.25rem) {
+  .onboarding-page-header h1,
+  .onboarding-screen-header h1 {
+    font-size: clamp(1.75rem, 3.8vh, 2rem);
+    line-height: 1.08;
+  }
+
+  .onboarding-page-header h1 + p,
+  .onboarding-screen-header h1 + p {
+    margin-top: 0.625rem;
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  .onboarding-actions {
+    bottom: max(0.5rem, var(--safe-area-bottom));
+  }
+
+  .onboarding-actions__item > button {
+    height: 2.75rem !important;
+    min-height: 2.75rem;
+    padding-inline: 1.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .onboarding-discovery-page > main {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .onboarding-discovery-screen {
+    min-height: 100dvh;
+    justify-content: center !important;
+    padding-top: 7rem !important;
+    padding-bottom: 5rem !important;
+  }
+
+  .discovery-website-card {
+    max-width: 33rem;
+    padding: 1.5rem 2rem;
+  }
+
+  .discovery-website-card h1 {
+    font-size: 1.875rem;
+    line-height: 1.1;
+  }
+
+  .discovery-website-card h1 + p {
+    margin-top: 0.625rem;
+    font-size: 0.875rem;
+    line-height: 1.35rem;
+  }
+
+  .discovery-website-card form {
+    margin-top: 1.25rem;
+  }
+
+  .discovery-website-card form + p {
+    margin-top: 1.25rem;
+  }
+
+  .strategy-how-screen {
+    justify-content: center !important;
+    padding-top: 7rem !important;
+    padding-bottom: 4rem !important;
+  }
+
+  .strategy-how-screen .acquisition-workflow-theme-layer {
+    --coverflow-card: clamp(13rem, 30vh, 13.5rem) !important;
+    margin-top: 0 !important;
+  }
+
+  .strategy-how-screen [data-acquisition-card-content] > div:nth-child(2) > * {
+    height: 5rem !important;
+  }
+
+  .strategy-how-screen .acquisition-workflow-theme-layer [tabindex="0"].cursor-grab {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .strategy-targeting-screen,
+  .onboarding-campaign-type-screen,
+  .onboarding-video-screen,
+  .onboarding-connect-screen,
+  .checkout-page {
+    justify-content: center !important;
+    padding-top: 7rem !important;
+    padding-bottom: 5rem !important;
+  }
+
+  .strategy-targeting-screen > .app-card {
+    margin-top: 0.5rem;
+    padding: 0.75rem 1.125rem;
+  }
+
+  .strategy-brief-content h2 {
+    margin-top: 0.375rem;
+    font-size: 1.125rem;
+    line-height: 1.4rem;
+  }
+
+  .strategy-brief-content > p {
+    margin-top: 0.5rem;
+    line-height: 1.25rem;
+  }
+
+  .strategy-brief-content > div:nth-of-type(2) {
+    margin-top: 0.625rem;
+    gap: 1rem;
+  }
+
+  .strategy-brief-content > div:nth-of-type(2) p {
+    margin-top: 0.375rem;
+    line-height: 1.25rem;
+  }
+
+  .strategy-brief-content > div:nth-of-type(2) div > div {
+    margin-top: 0.625rem;
+  }
+
+  .strategy-brief-content > ol {
+    margin-top: 0.625rem;
+    padding-top: 0.5rem;
+  }
+
+  .strategy-brief-content > ol p {
+    margin-top: 0.125rem;
+    line-height: 1.1rem;
+  }
+
+  .strategy-targeting-screen > .app-card > .mt-7 {
+    margin-top: 0.625rem;
+    padding-top: 0.625rem;
+  }
+
+  .strategy-connection-plan {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+    gap: 0.75rem;
+    padding-top: 0.625rem !important;
+  }
+
+  .strategy-connection-plan > div:first-child {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .strategy-connection-plan > div:first-child > p {
+    flex: 0 1 auto;
+    line-height: 1.15rem;
+  }
+
+  .strategy-connection-plan > div:first-child > div {
+    margin-top: 0;
+    flex: 1 1 auto;
+  }
+
+  .strategy-connection-plan > div:first-child span {
+    padding-block: 0.375rem;
+    font-size: 0.75rem;
+  }
+
+  .strategy-connection-plan > div:last-child {
+    padding-block: 0.375rem;
+    font-size: 0.8125rem;
+    line-height: 1.05rem;
+  }
+
+  .strategy-targeting-screen {
+    padding-bottom: 3.25rem !important;
+  }
+
+  .onboarding-campaign-type-screen {
+    padding-bottom: 4.625rem !important;
+  }
+
+  .onboarding-video-screen {
+    padding-bottom: 3.5rem !important;
+  }
+
+  .campaign-type-review {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  .campaign-type-review section > div + div {
+    margin-top: 0.5rem;
+  }
+
+  .campaign-type-review section > div + div > div {
+    padding-top: 0.5rem;
+  }
+
+  .campaign-type-grid {
+    margin-top: 0.875rem;
+    gap: 0.75rem;
+  }
+
+  .campaign-type-card {
+    min-height: 14.5rem;
+  }
+
+  .campaign-type-card > div:first-child {
+    padding: 0.75rem 1.125rem 0.625rem;
+  }
+
+  .campaign-type-card h2 {
+    margin-top: 0.625rem;
+  }
+
+  .campaign-type-card h2 + p {
+    margin-top: 0.25rem;
+    line-height: 1.25rem;
+  }
+
+  .campaign-type-card h2 + p + p {
+    margin-top: 0.75rem;
+  }
+
+  .campaign-type-card ul {
+    margin-top: 0.375rem;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+    line-height: 1.1rem;
+  }
+
+  .campaign-type-card ul > li + li {
+    margin-top: 0.25rem;
+  }
+
+  .campaign-type-card > div:last-of-type {
+    padding: 0.5rem 1.125rem;
+  }
+
+  .onboarding-video-content {
+    margin-top: 1rem;
+    gap: 0.875rem;
+  }
+
+  .video-message-review {
+    padding: 0.875rem 1rem !important;
+  }
+
+  .video-message-review section > div + div,
+  .video-message-body {
+    margin-top: 0.625rem;
+  }
+
+  .video-message-body {
+    padding: 0.75rem 0.875rem;
+  }
+
+  .video-message-copy {
+    min-height: 4.25rem;
+    padding-right: 4.5rem;
+  }
+
+  .video-message-copy p,
+  .video-message-copy a {
+    font-size: 0.8125rem;
+    line-height: 1.2rem;
+  }
+
+  .video-message-review section > p:last-child {
+    margin-top: 0.625rem;
+    font-size: 0.8125rem;
+  }
+
+  .onboarding-video-content > .space-y-6,
+  .onboarding-video-content > .space-y-6 > section {
+    gap: 0.75rem;
+  }
+
+  .video-tone-grid {
+    gap: 0.75rem;
+  }
+
+  .video-tone-card {
+    min-height: 7.5rem;
+    flex-direction: row;
+    align-items: stretch;
+    padding: 0.5rem;
+  }
+
+  .video-tone-preview {
+    width: 36%;
+    min-width: 5.25rem;
+    aspect-ratio: auto;
+  }
+
+  .video-tone-card > div:last-child {
+    display: grid;
+    width: 64%;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    align-content: center;
+    column-gap: 0.5rem;
+    padding: 0.5rem 0.375rem 0.5rem 0.625rem;
+  }
+
+  .video-tone-card > div:last-child > svg {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .video-tone-card h3 {
+    margin-top: 0;
+    font-size: 1rem;
+    line-height: 1.125rem;
+  }
+
+  .video-tone-card h3 + p {
+    grid-column: 1 / -1;
+    margin-top: 0.25rem;
+    font-size: 0.6875rem;
+    line-height: 0.9rem;
+  }
+
+  .video-tone-card h3 + p + p {
+    display: -webkit-box;
+    grid-column: 1 / -1;
+    margin-top: 0.25rem;
+    overflow: hidden;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .onboarding-connect-card {
+    margin-top: 1rem;
+  }
+
+  .onboarding-connect-row {
+    gap: 0.75rem;
+    padding: 0.25rem 1rem;
+  }
+
+  .onboarding-connect-row > span:first-child {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .onboarding-connect-row p {
+    margin-top: 0.125rem;
+    font-size: 0.8125rem;
+  }
+
+  .onboarding-connect-row button {
+    min-height: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .onboarding-connect-footer {
+    padding: 0.625rem 1rem;
+  }
+
+  .onboarding-connect-note {
+    margin-top: 0.625rem;
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+  }
+
+  .checkout-page > .relative.grid {
+    gap: 0;
+  }
+
+  .checkout-page section[aria-labelledby="payment-heading"] {
+    padding-right: 2rem;
+  }
+
+  .checkout-page section[aria-labelledby="payment-heading"] > div:first-child {
+    margin-bottom: 1rem;
+  }
+
+  .checkout-page #payment-heading {
+    font-size: 1.875rem;
+  }
+
+  .checkout-page #payment-heading + p {
+    margin-top: 0.5rem;
+    line-height: 1.25rem;
+  }
+
+  .checkout-accent-card--compact {
+    margin-bottom: 0.75rem;
+    padding-block: 0.5rem;
+  }
+
+  .checkout-mock {
+    padding: 1rem;
+  }
+
+  .checkout-mock > div:first-child {
+    padding-bottom: 0.625rem;
+  }
+
+  .checkout-mock-fields {
+    margin-top: 0.75rem;
+    gap: 0.625rem;
+  }
+
+  .checkout-mock-fields label > span,
+  .checkout-mock-fields > button {
+    height: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .checkout-page section[aria-labelledby="payment-heading"] > div:last-child {
+    margin-top: 0.625rem;
+  }
+
+  .checkout-page aside {
+    padding-left: 2rem;
+  }
+
+  .checkout-page #summary-heading {
+    font-size: 1.5rem;
+  }
+
+  .checkout-page #summary-heading + .checkout-accent-card {
+    margin-top: 1rem;
+  }
+
+  .checkout-page aside .checkout-accent-card > div {
+    padding: 1rem;
+  }
+
+  .checkout-page aside .checkout-accent-card .my-5 {
+    margin-top: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .checkout-page aside .checkout-accent-card + div {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+  }
+}
+
+/* Match the calm, fully visible composition of one browser zoom-out step at
+   normal zoom. Individual dimensions tighten instead of scaling the entire UI,
+   so browser zoom and text scaling continue to work accessibly. */
+@media (min-width: 64rem) and (max-height: 56.25rem) {
+  .strategy-channels-screen {
+    justify-content: center !important;
+    padding-top: clamp(7.25rem, 15vh, 8rem) !important;
+    padding-bottom: 6.75rem !important;
+  }
+
+  .strategy-channels-screen h1 {
+    font-size: clamp(1.75rem, 3.6vh, 2.125rem);
+    line-height: 1.08;
+  }
+
+  .strategy-channels-screen h1 + p {
+    margin-top: 0.625rem;
+    line-height: 1.35rem;
+  }
+
+  .strategy-channels-screen > div:last-child {
+    margin-top: clamp(1rem, 2.4vh, 1.5rem);
+  }
+
+  .strategy-channels-screen .strategy-channel-grid {
+    gap: clamp(0.75rem, 1.6vh, 1rem);
+    margin-top: 0.625rem;
+  }
+
+  .strategy-channels-screen .strategy-channel-card,
+  .strategy-channels-screen .strategy-channel-card--featured {
+    min-height: clamp(7.5rem, 17vh, 9rem);
+    gap: 0.875rem;
+    padding: clamp(0.875rem, 2vh, 1.125rem);
+  }
+
+  .strategy-channels-screen .strategy-channel-card > span:first-child {
+    width: clamp(2.75rem, 6vh, 3.5rem);
+    height: clamp(2.75rem, 6vh, 3.5rem);
+  }
+
+  .strategy-channels-screen .strategy-channel-card > span:last-child {
+    top: 1rem;
+    right: 1rem;
+  }
+
+  .strategy-channels-screen .strategy-channel-card span.text-lg {
+    font-size: 1.0625rem;
+  }
+
+  .strategy-channels-screen .strategy-channel-card .mt-2 {
+    margin-top: 0.375rem;
+  }
+
+  .strategy-channels-screen .strategy-channel-card + * {
+    min-width: 0;
+  }
+
+  .strategy-channels-screen .mt-6 {
+    margin-top: clamp(1rem, 2.2vh, 1.375rem);
+  }
+
+  .strategy-channels-screen .mt-5 {
+    margin-top: clamp(0.75rem, 1.8vh, 1rem);
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 42.5rem) {
+  .strategy-how-screen,
+  .strategy-targeting-screen,
+  .strategy-channels-screen,
+  .onboarding-campaign-type-screen,
+  .onboarding-video-screen,
+  .onboarding-connect-screen,
+  .checkout-page {
+    justify-content: flex-start !important;
   }
 }
 
@@ -4000,6 +4878,48 @@ html[data-page="discovery"].dark body {
   html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-new(root) {
     animation: none;
     mix-blend-mode: normal;
+  }
+
+  /* The view-transition snapshot owns this surface's color change. Keep the
+     rest of the interface interactive and animated while the wipe runs. */
+  html.theme-transitioning .theme-transition-surface {
+    transition: none !important;
+  }
+
+  /* A theme snapshot must never capture a card halfway through its content
+     reveal. Card motion resumes naturally after the circular wipe completes. */
+  html.theme-transitioning [data-acquisition-card-content],
+  html.theme-transitioning [data-acquisition-card-content] > * {
+    opacity: 1 !important;
+  }
+
+  html.theme-transitioning [data-acquisition-card-content] {
+    transform: translateY(0) !important;
+  }
+
+  html.theme-transitioning [data-acquisition-card-content] > * {
+    transform: none !important;
+  }
+
+  /* The circular page wipe must not cut across five independently themed
+     inactive cards. Fade those related surfaces as one short pre-transition
+     beat while the active card remains as the carousel's visual anchor. */
+  html.theme-transitioning .acquisition-workflow-theme-layer
+    [aria-roledescription="slide"]:not([aria-current="true"]) {
+    opacity: 0 !important;
+    transition: opacity 90ms cubic-bezier(0.4, 0, 1, 1) !important;
+  }
+
+  html.theme-transition-recovering .acquisition-workflow-theme-layer
+    [aria-roledescription="slide"]:not([aria-current="true"]) {
+    animation: acquisition-card-return 180ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+}
+
+@keyframes acquisition-card-return {
+  from {
+    opacity: 0;
   }
 }
 
