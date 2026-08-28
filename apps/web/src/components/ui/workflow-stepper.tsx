@@ -108,7 +108,11 @@ export function WorkflowStepper({
                         : "border-[#e5e7eb] bg-white text-[#4b5563] shadow-[0_4px_12px_rgba(31,35,56,.08)] group-hover:border-[#c4b5fd] group-hover:text-[#5429df] dark:border-white/15 dark:bg-[#171a2d] dark:text-white/50 dark:shadow-none dark:group-hover:border-white/30 dark:group-hover:text-white/80",
                 )}
               >
-                {isComplete ? <Check className="size-4" aria-hidden /> : index + 1}
+                {isComplete ? (
+                  <Check className="size-4" aria-hidden />
+                ) : isActive ? (
+                  <span className="size-2 rounded-full bg-current" aria-hidden />
+                ) : null}
               </m.span>
               <span
                 className={cn(

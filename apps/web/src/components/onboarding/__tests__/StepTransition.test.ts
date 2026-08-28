@@ -29,4 +29,19 @@ describe("getSlideDirection", () => {
       );
     }
   });
+
+  it("slides through Strategy subpages and adjacent onboarding pages in flow order", () => {
+    const flow = [
+      "discovery",
+      "strategy:how-it-works",
+      "strategy:targeting",
+      "strategy:channels",
+      "campaign-type",
+    ];
+
+    for (let index = 0; index < flow.length - 1; index += 1) {
+      expect(getSlideDirection(flow[index]!, flow[index + 1]!)).toBe("forward");
+      expect(getSlideDirection(flow[index + 1]!, flow[index]!)).toBe("backward");
+    }
+  });
 });

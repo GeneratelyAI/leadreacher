@@ -128,14 +128,28 @@ async function animateThemeToggle(nextIsDark: boolean, origin: ThemeToggleOrigin
   const root = document.documentElement;
   root.style.setProperty("--theme-toggle-x", `${xPercent}%`);
   root.style.setProperty("--theme-toggle-y", `${yPercent}%`);
-
-  const transition = document.startViewTransition(() => {
-    flushSync(() => {
-      setThemeState(nextIsDark);
-    });
-  });
+  root.classList.add("theme-transitioning");
+  window.dispatchEvent(new Event("leadreacher:theme-transition-start"));
 
   try {
+    // Give the carousel time to settle and softly clear its inactive cards
+    // before the browser captures the old and new theme snapshots. Keeping
+    // the centered card visible provides a stable visual anchor throughout.
+    const hasAcquisitionCarousel = Boolean(
+      document.querySelector(".acquisition-workflow-theme-layer"),
+    );
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(resolve, hasAcquisitionCarousel ? 100 : 0);
+      });
+    });
+
+    const transition = document.startViewTransition(() => {
+      flushSync(() => {
+        setThemeState(nextIsDark);
+      });
+    });
+
     await transition.ready;
 
     root.animate(
@@ -151,14 +165,20 @@ async function animateThemeToggle(nextIsDark: boolean, origin: ThemeToggleOrigin
         pseudoElement: "::view-transition-new(root)",
       },
     );
+
+    await Promise.race([
+      transition.finished.catch(() => undefined),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 650)),
+    ]);
   } finally {
-    try {
-      await transition.finished;
-    } catch {
-      // Transition may be skipped; still clear the CSS vars below.
-    }
+    root.classList.add("theme-transition-recovering");
+    root.classList.remove("theme-transitioning");
     root.style.removeProperty("--theme-toggle-x");
     root.style.removeProperty("--theme-toggle-y");
+    window.dispatchEvent(new Event("leadreacher:theme-transition-end"));
+    window.setTimeout(() => {
+      root.classList.remove("theme-transition-recovering");
+    }, 220);
   }
 }
 

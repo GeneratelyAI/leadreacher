@@ -9,7 +9,7 @@ import {
 } from "@/components/onboarding/steps/steps";
 import { cn } from "@/lib/utils";
 
-const STEP_TRANSITION_MS = 160;
+const STEP_TRANSITION_MS = 520;
 
 type SlideDirection = "forward" | "backward";
 type RenderedStep = {
@@ -18,6 +18,22 @@ type RenderedStep = {
 };
 
 export function getSlideDirection(currentKey: string, nextKey: string): SlideDirection {
+  const flowOrder = [
+    "discovery",
+    "strategy:how-it-works",
+    "strategy:targeting",
+    "strategy:channels",
+    "campaign-type",
+    "video-decision",
+    "checkout",
+    "channels",
+  ];
+  const currentFlowIndex = flowOrder.indexOf(currentKey);
+  const nextFlowIndex = flowOrder.indexOf(nextKey);
+  if (currentFlowIndex >= 0 && nextFlowIndex >= 0) {
+    return nextFlowIndex > currentFlowIndex ? "forward" : "backward";
+  }
+
   if (isOnboardingStep(currentKey) && isOnboardingStep(nextKey)) {
     return getOnboardingStepIndex(nextKey) > getOnboardingStepIndex(currentKey)
       ? "forward"
