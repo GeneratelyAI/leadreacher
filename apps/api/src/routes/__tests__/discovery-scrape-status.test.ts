@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { AnonScrapeIdSchema, resolveScrapeTerminalStatus } from "../discovery.js";
+import {
+  AnonScrapeIdSchema,
+  boundGroqWebsiteContext,
+  resolveScrapeTerminalStatus,
+} from "../discovery.js";
 
 describe("resolveScrapeTerminalStatus", () => {
   it("returns failed when all fields are empty", () => {
@@ -54,5 +58,21 @@ describe("resolveScrapeTerminalStatus", () => {
 describe("AnonScrapeIdSchema", () => {
   it("rejects non-UUID anonymous scrape ids", () => {
     expect(AnonScrapeIdSchema.safeParse("not-a-uuid").success).toBe(false);
+  });
+});
+
+describe("boundGroqWebsiteContext", () => {
+  it("keeps short website content intact", () => {
+    expect(boundGroqWebsiteContext("  concise website copy  ")).toBe("concise website copy");
+  });
+
+  it("preserves the beginning and end while bounding large scrapes", () => {
+    const markdown = `START-${"a".repeat(20_000)}-END`;
+    const bounded = boundGroqWebsiteContext(markdown);
+
+    expect(bounded.length).toBeLessThan(16_100);
+    expect(bounded).toContain("START-");
+    expect(bounded).toContain("-END");
+    expect(bounded).toContain("[content abbreviated]");
   });
 });

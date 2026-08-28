@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
   LINKEDIN_INDUSTRY_CODES,
@@ -158,6 +159,46 @@ Field guidance:
 
 Use polished business language. If context is weak, infer conservatively from the website URL/domain.`;
 
+const SCRAPE_RESPONSE_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    market: { type: "string" },
+    offer: { type: "string" },
+    audience: { type: "string" },
+    value: { type: "string" },
+    strategyStatus: { type: "string" },
+  },
+  required: ["market", "offer", "audience", "value", "strategyStatus"],
+  additionalProperties: false,
+} as const;
+
+const SUMMARY_RESPONSE_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    businessModel: { type: "string" },
+    industry: { type: "string" },
+    strengths: { type: "string" },
+    idealCustomer: { type: "string" },
+    suggestedChannels: {
+      type: "array",
+      items: { type: "string", enum: [...ALLOWED_CHANNELS] },
+    },
+    nextStep: { type: "string" },
+  },
+  required: [
+    "businessModel",
+    "industry",
+    "strengths",
+    "idealCustomer",
+    "suggestedChannels",
+    "nextStep",
+  ],
+  additionalProperties: false,
+} as const;
+
+const GROQ_WEBSITE_CONTEXT_MAX_CHARS = 16_000;
+const SCRAPE_LOCK_TTL_SECONDS = 5 * 60;
+
 const INDUSTRY_RECLASSIFICATION_CANDIDATE_LIMIT = 25;
 const INDUSTRY_RECLASSIFICATION_SYSTEM_PROMPT = `You classify a business into LinkedIn's industry taxonomy.
 
@@ -267,6 +308,38 @@ export function anonScrapeStatusKey(anonId: string): string {
 
 export function anonScrapeClaimKey(anonId: string): string {
   return `discovery:anon-scrape-claim:${anonId}`;
+}
+
+type ScrapeLock = { key: string; token: string };
+
+async function acquireScrapeLock(statusKey: string): Promise<ScrapeLock | null> {
+  const lock = { key: `${statusKey}:lock`, token: randomUUID() };
+  const acquired = await redis.set(
+    lock.key,
+    lock.token,
+    "EX",
+    SCRAPE_LOCK_TTL_SECONDS,
+    "NX",
+  );
+  return acquired === "OK" ? lock : null;
+}
+
+async function releaseScrapeLock(lock: ScrapeLock): Promise<void> {
+  await redis.eval(
+    "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+    1,
+    lock.key,
+    lock.token,
+  );
+}
+
+export function boundGroqWebsiteContext(markdown: string): string {
+  const normalized = markdown.trim();
+  if (normalized.length <= GROQ_WEBSITE_CONTEXT_MAX_CHARS) return normalized;
+
+  const headLength = Math.floor(GROQ_WEBSITE_CONTEXT_MAX_CHARS * 0.75);
+  const tailLength = GROQ_WEBSITE_CONTEXT_MAX_CHARS - headLength;
+  return `${normalized.slice(0, headLength)}\n\n[content abbreviated]\n\n${normalized.slice(-tailLength)}`;
 }
 
 export async function setScrapeStatus(
@@ -456,6 +529,7 @@ async function runDiscoveryScrape(
   url: string,
   ttlSeconds: number,
   anonymousScrapeId?: string,
+  lock?: ScrapeLock,
 ): Promise<void> {
   async function persist(status: DiscoveryScrapeStatus): Promise<void> {
     await setScrapeStatus(statusKey, status, ttlSeconds);
@@ -490,7 +564,7 @@ async function runDiscoveryScrape(
       return;
     }
 
-    const context = markdown;
+    const context = boundGroqWebsiteContext(markdown);
     const raw = await callGroq(
       SCRAPE_SYSTEM_PROMPT,
       [
@@ -500,7 +574,12 @@ async function runDiscoveryScrape(
         },
       ],
       500,
-      { jsonObject: true },
+      {
+        jsonSchema: {
+          name: "website_discovery",
+          schema: SCRAPE_RESPONSE_JSON_SCHEMA,
+        },
+      },
     );
     const fields = await repairUnresolvedDiscoveryMarket(
       parseScrapeResponse(raw),
@@ -531,6 +610,17 @@ async function runDiscoveryScrape(
         "Website analysis is temporarily busy. Please try again in a moment.",
       ),
     );
+  } finally {
+    if (lock) {
+      try {
+        await releaseScrapeLock(lock);
+      } catch (error) {
+        console.error("[discovery] Failed to release scrape lock", {
+          statusKey,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
   }
 }
 
@@ -643,7 +733,7 @@ async function buildSummarySystemPrompt(
   }
 
   return {
-    systemPrompt: `Website context for this business:\n${markdown}\n\nUse this to enrich the summary, especially nextStep.\n\n${SUMMARY_SYSTEM_PROMPT}`,
+    systemPrompt: `Website context for this business:\n${boundGroqWebsiteContext(markdown)}\n\nUse this to enrich the summary, especially nextStep.\n\n${SUMMARY_SYSTEM_PROMPT}`,
     websiteEnriched: true,
     websiteImageUrl: previewImageUrl,
   };
@@ -672,9 +762,15 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
       const url = normalizeScrapeUrl(rawUrl);
       const runningStatus = emptyScrapeStatus("running", url);
       const statusKey = orgScrapeStatusKey(orgId);
+      const lock = await acquireScrapeLock(statusKey);
+      if (!lock) {
+        return reply.send(
+          (await getScrapeStatus(statusKey)) ?? runningStatus,
+        );
+      }
 
       await setScrapeStatus(statusKey, runningStatus, SCRAPE_STATUS_TTL_SECONDS);
-      void runDiscoveryScrape(statusKey, url, SCRAPE_STATUS_TTL_SECONDS);
+      void runDiscoveryScrape(statusKey, url, SCRAPE_STATUS_TTL_SECONDS, undefined, lock);
 
       return reply.send(runningStatus);
     },
@@ -707,7 +803,12 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
       systemPrompt,
       [{ role: "user", content: conversation }],
       400,
-      { jsonObject: true },
+      {
+        jsonSchema: {
+          name: "discovery_summary",
+          schema: SUMMARY_RESPONSE_JSON_SCHEMA,
+        },
+      },
     );
     const summary = {
       ...parseSummaryResponse(raw),
@@ -805,6 +906,12 @@ export async function anonymousDiscoveryRoutes(
         return reply.send(existingStatus);
       }
       const runningStatus = emptyScrapeStatus("running", url);
+      const lock = await acquireScrapeLock(statusKey);
+      if (!lock) {
+        return reply.send(
+          (await getScrapeStatus(statusKey)) ?? runningStatus,
+        );
+      }
 
       await setScrapeStatus(
         statusKey,
@@ -816,6 +923,7 @@ export async function anonymousDiscoveryRoutes(
         url,
         ANON_SCRAPE_STATUS_TTL_SECONDS,
         anonId,
+        lock,
       );
 
       return reply.send(runningStatus);
