@@ -1,11 +1,9 @@
 "use client";
 
-import { ArrowRight, Brain, Globe, Lock, PenLine, Sparkles } from "@/components/ui/icons";
+import { ArrowRight, Globe, Lock, PenLine } from "@/components/ui/icons";
 import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CampaignSummary } from "@/components/onboarding/CampaignSummary";
-import { OnboardingBadge } from "@/components/onboarding/OnboardingBadge";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { AiRecommendation } from "@/components/onboarding/AiRecommendation";
 import { Button } from "@/components/ui/Button";
 import { ActionInputBar } from "@/components/ui/action-input-bar";
@@ -30,7 +28,7 @@ import {
   readDiscoveryScrapeCache,
 } from "@/lib/discovery-scrape-cache";
 import { cleanWebsiteDomain } from "@/lib/website-url";
-import { navigateOnboarding, strategyHref, type OnboardingStepParam } from "./steps";
+import { navigateOnboarding, strategyHref } from "./steps";
 
 const SHOW_CAMPAIGN_PILL = false;
 const AI_RECOMMENDATION_TYPING_INTERVAL_MS = 18;
@@ -102,11 +100,7 @@ function summaryFromScrapeStatus(status: WebsiteScrapeStatus): DiscoverySummary 
   };
 }
 
-export default function Discovery({
-  activeStep = "discovery",
-}: {
-  activeStep?: OnboardingStepParam;
-}) {
+export default function Discovery() {
   useLayoutEffect(() => {
     applyStoredTheme();
   }, []);
@@ -306,9 +300,7 @@ export default function Discovery({
     (!hasStoredUrl || scrapeStatus.status === "failed");
 
   return (
-    <div className="onboarding-page relative min-h-dvh w-full overflow-y-auto">
-      <OnboardingChrome activeStep={activeStep} />
-
+    <div className="onboarding-discovery-page onboarding-page relative min-h-dvh w-full overflow-y-auto">
       {SHOW_CAMPAIGN_PILL ? (
         <aside className="fixed top-24 right-6 z-20 hidden w-80 lg:block">
           <OnboardingCard className="overflow-hidden" aria-live="polite">
@@ -327,10 +319,9 @@ export default function Discovery({
 
       <main>
       {isWebsiteGatePending ? (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
-          <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
-            <OnboardingBadge className="animate-pulse" icon={<Sparkles className="size-6" />} />
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
+        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
+          <OnboardingCard className="discovery-website-card flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
+            <h1 className="text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
               Analyzing your website
             </h1>
             <p className="mt-4 max-w-md text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
@@ -339,10 +330,9 @@ export default function Discovery({
           </OnboardingCard>
         </section>
       ) : shouldShowWebsiteGate ? (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
-          <OnboardingCard className="flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10">
-            <OnboardingBadge icon={<Globe className="size-6" />} />
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
+        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
+          <OnboardingCard className="discovery-website-card flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10">
+            <h1 className="text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
               What&apos;s your website?
             </h1>
             <p className="mt-4 max-w-md text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
@@ -384,10 +374,10 @@ export default function Discovery({
                 </Button>
               </div>
               {websiteInputError ? (
-                <p id="discovery-website-url-error" role="alert" className="mt-1.5 text-[0.8125rem] text-onboarding-error-500">{websiteInputError}</p>
+                <p id="discovery-website-url-error" role="alert" className="mt-1.5 text-[0.8125rem] text-onboarding-error-700 dark:text-onboarding-error-200">{websiteInputError}</p>
               ) : null}
               {!websiteInputError && scrapeMessage ? (
-                <p className="mt-2 text-sm text-onboarding-error-500" role="alert">
+                <p className="mt-2 text-sm text-onboarding-error-700 dark:text-onboarding-error-200" role="alert">
                   {scrapeMessage}
                 </p>
               ) : null}
@@ -399,21 +389,19 @@ export default function Discovery({
           </OnboardingCard>
         </section>
       ) : (
-        <section className="flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
+        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
           <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
             <PageHeader
               className="mx-auto"
-              icon={<Brain className="size-7" aria-hidden />}
-              eyebrow="Acquisition brief"
-              title="One more thing..."
-              description="Before we generate your outreach strategy, tell us what makes your business different."
+              title="Why do customers choose you?"
+              description="Tell us what makes your offer different from the alternatives."
             />
             <ActionInputBar
               id="competitive-advantage"
               value={input}
               onValueChange={handleInputChange}
               onSubmit={handleSubmit}
-              placeholder="Describe your competitive advantage"
+              placeholder="What do you do better, faster, or differently?"
               submitLabel="Submit competitive advantage"
               disabled={isCompleting || isTypingRecommendation}
               loading={isCompleting}
@@ -429,10 +417,6 @@ export default function Discovery({
                 className="w-full max-w-2xl"
               />
             ) : null}
-            <p className="mt-8 flex items-center justify-center gap-2 text-sm text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-              <Lock className="size-4" aria-hidden />
-              Your information is secure and private
-            </p>
           </div>
         </section>
       )}

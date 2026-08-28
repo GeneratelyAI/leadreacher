@@ -149,7 +149,7 @@ export function ReviewMessage({ orgId }: { orgId: string }) {
 
   return (
     <Review
-      className="sm:px-7 sm:py-6"
+      className="video-message-review sm:px-7 sm:py-6"
       title={
         <span className="flex flex-wrap items-center gap-2">
           Review your message and CTA <StatusBadge tone="brand">AI generated</StatusBadge>
@@ -180,7 +180,7 @@ export function ReviewMessage({ orgId }: { orgId: string }) {
       ) : null}
 
       {message !== null ? (
-        <div className="mt-5 rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 px-5 py-4 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900/40">
+        <div className="video-message-body mt-5 rounded-onboarding border border-onboarding-neutral-150 bg-onboarding-neutral-0 px-5 py-4 dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900/40">
           {isEditing ? (
             <div>
               <textarea
@@ -252,7 +252,7 @@ export function ReviewMessage({ orgId }: { orgId: string }) {
               </div>
             </div>
           ) : (
-            <div className="relative min-h-36 pr-24">
+            <div className="video-message-copy relative min-h-36 pr-24">
               <p className="break-words whitespace-pre-line text-sm leading-6 text-onboarding-ink dark:text-onboarding-neutral-0">
                 {message}
               </p>

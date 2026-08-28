@@ -1,9 +1,8 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Clapperboard, Loader2 } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, Loader2 } from "@/components/ui/icons";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -236,12 +235,9 @@ export default function VideoSetup() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <OnboardingChrome activeStep="video-decision" />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <main className="onboarding-video-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
-          icon={<Clapperboard className="size-7" aria-hidden />}
-          eyebrow="Video decision"
           title={hero.title}
           description={hero.description}
         />
@@ -279,7 +275,7 @@ export default function VideoSetup() {
             />
           </OnboardingCard>
         ) : campaignType ? (
-          <div className="mx-auto mt-8 w-full max-w-5xl space-y-6">
+          <div className="onboarding-video-content mx-auto mt-8 w-full max-w-5xl space-y-6">
             {orgId ? <ReviewMessage orgId={orgId} /> : null}
             {campaignType === "personalized_outreach" ? (
               orgId ? (

@@ -40,7 +40,7 @@ export function VideoToneGrid({
   onSelect: (tone: VideoTone) => void;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-3" role="group" aria-label="Select video tone">
+    <div className="video-tone-grid grid gap-4 md:grid-cols-3" role="group" aria-label="Select video tone">
       {TONES.map((tone) => {
         const Icon = tone.icon;
         const selected = selectedTone === tone.value;
@@ -50,10 +50,10 @@ export function VideoToneGrid({
             key={tone.value}
             onClick={() => onSelect(tone.value)}
             selected={selected}
-            className="flex-col p-3"
+            className="video-tone-card flex-col p-3"
           >
             <div
-              className="aspect-video w-full rounded-[calc(var(--onboarding-radius)-0.25rem)] bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750"
+              className="video-tone-preview aspect-video w-full rounded-[calc(var(--onboarding-radius)-0.25rem)] bg-onboarding-neutral-150 dark:bg-onboarding-neutral-750"
               aria-hidden
             />
             <div className="px-2 pb-2 pt-5">

@@ -14,7 +14,6 @@ import {
 import { useEffect, useLayoutEffect, useState } from "react";
 import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
 import { Review } from "@/components/onboarding/Review";
-import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
@@ -148,13 +147,9 @@ export default function CampaignGoal() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <OnboardingChrome activeStep="campaign-type" />
-
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
+      <main className="onboarding-campaign-type-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28">
         <PageHeader
           className="mx-auto"
-          icon={<Sparkles className="size-7" aria-hidden />}
-          eyebrow="Campaign brief"
           title="Choose your campaign type"
           description="We&apos;ll recommend the best content, channels, and strategy based on your selection."
         />
@@ -170,7 +165,7 @@ export default function CampaignGoal() {
         ) : null}
 
         <Review
-          className="mx-auto mt-8 w-full max-w-5xl"
+          className="campaign-type-review mx-auto mt-8 w-full max-w-5xl"
           icon={<Sparkles className="size-6" strokeWidth={1.75} aria-hidden />}
           title="Video advantage"
           description="Video helps capture attention, increase engagement, and improve campaign performance."
@@ -200,7 +195,7 @@ export default function CampaignGoal() {
           </div>
         </Review>
 
-        <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
+        <div className="campaign-type-grid mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
           {CAMPAIGN_TYPE_OPTIONS.map((option) => {
             const Icon = option.icon;
             const isSelected = selectedType === option.id;
@@ -210,7 +205,7 @@ export default function CampaignGoal() {
                 key={option.id}
                 onClick={() => setSelectedType(option.id)}
                 selected={isSelected}
-                className="min-h-80 flex-col"
+                className="campaign-type-card min-h-80 flex-col"
               >
                 <div className="flex flex-1 flex-col px-6 pb-6 pt-7">
                   <span className="inline-flex items-center justify-center text-onboarding-purple-600 dark:text-onboarding-purple-200">
