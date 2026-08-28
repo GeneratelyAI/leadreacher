@@ -17,7 +17,12 @@ export type CoverflowSlide = {
 
 type CoverflowCarouselProps = {
   slides: readonly CoverflowSlide[];
-  renderSlide?: (slide: CoverflowSlide, index: number, isSelected: boolean) => React.ReactNode;
+  renderSlide?: (
+    slide: CoverflowSlide,
+    index: number,
+    isSelected: boolean,
+    isVisuallyActive: boolean,
+  ) => React.ReactNode;
   rotate?: number;
   depth?: number;
   perspective?: number;
@@ -32,6 +37,7 @@ type CoverflowCarouselProps = {
   autoPlay?: boolean;
   autoPlayInterval?: number;
   finalSlideHold?: number;
+  settleDuration?: number;
   label?: string;
   className?: string;
   cardClassName?: string;
@@ -54,6 +60,7 @@ export function CoverflowCarousel({
   autoPlay = false,
   autoPlayInterval = 4200,
   finalSlideHold = 0,
+  settleDuration = 260,
   label = "Customer acquisition workflow",
   className,
   cardClassName,
@@ -69,13 +76,27 @@ export function CoverflowCarousel({
   const dragRef = React.useRef<{ id: number; x: number; position: number; velocity: number; time: number } | null>(null);
   const didDragRef = React.useRef(false);
   const hoveredIndexRef = React.useRef<number | null>(null);
+  const selectedRef = React.useRef(0);
+  const visuallyActiveRef = React.useRef(0);
   const [selected, setSelected] = React.useState(0);
+  const [visuallyActive, setVisuallyActive] = React.useState(0);
   const [isHovering, setIsHovering] = React.useState(false);
   const [isNearViewport, setIsNearViewport] = React.useState(false);
+  const [isThemeTransitioning, setIsThemeTransitioning] = React.useState(false);
   const isPageVisible = usePageVisibility();
 
   const indexAt = React.useCallback((position: number) => ((Math.round(position) % count) + count) % count, [count]);
   const clamp = React.useCallback((position: number) => (loop ? position : Math.max(0, Math.min(count - 1, position))), [count, loop]);
+  const commitSelected = React.useCallback((index: number) => {
+    if (selectedRef.current === index) return;
+    selectedRef.current = index;
+    setSelected(index);
+  }, []);
+  const commitVisuallyActive = React.useCallback((index: number) => {
+    if (visuallyActiveRef.current === index) return;
+    visuallyActiveRef.current = index;
+    setVisuallyActive(index);
+  }, []);
 
   const paint = React.useCallback(() => {
     const width = widthRef.current;
@@ -107,21 +128,29 @@ export function CoverflowCarousel({
   const settle = React.useCallback((target: number) => {
     if (frameRefId.current !== null) cancelAnimationFrame(frameRefId.current);
     targetRef.current = target;
-    setSelected(indexAt(target));
+    const targetIndex = indexAt(target);
+    commitSelected(targetIndex);
 
     const start = positionRef.current;
     const distance = target - start;
     const startedAt = performance.now();
-    const duration = reducedMotion ? 0 : 580;
+    const duration = reducedMotion ? 0 : settleDuration;
 
     const step = (now: number) => {
       const progress = duration === 0 ? 1 : Math.min((now - startedAt) / duration, 1);
       const easedProgress = 1 - Math.pow(1 - progress, 3);
       positionRef.current = start + distance * easedProgress;
+
+      // Start the existing slide-content timeline immediately, while the
+      // active surface follows the card toward center. Its 130ms color change
+      // completes with the carousel movement instead of flashing on a side.
+      if (progress >= 0.32) commitVisuallyActive(targetIndex);
       paint();
 
       if (progress === 1) {
         positionRef.current = target;
+        commitSelected(targetIndex);
+        commitVisuallyActive(targetIndex);
         paint();
         frameRefId.current = null;
         return;
@@ -130,7 +159,7 @@ export function CoverflowCarousel({
     };
 
     frameRefId.current = requestAnimationFrame(step);
-  }, [indexAt, paint, reducedMotion]);
+  }, [commitSelected, commitVisuallyActive, indexAt, paint, reducedMotion, settleDuration]);
 
   const nudge = React.useCallback((by: number) => settle(clamp(Math.round(targetRef.current) + by)), [clamp, settle]);
   const goTo = React.useCallback((index: number) => {
@@ -144,13 +173,39 @@ export function CoverflowCarousel({
   }, [count, loop, settle]);
 
   React.useEffect(() => {
-    if (!autoPlay || reducedMotion || count < 2 || isHovering || !isNearViewport || !isPageVisible) return;
+    if (!autoPlay || reducedMotion || count < 2 || isHovering || isThemeTransitioning || !isNearViewport || !isPageVisible) return;
     const delay = autoPlayInterval + (selected === count - 1 ? finalSlideHold : 0);
     const timer = window.setTimeout(() => {
       if (dragRef.current === null) nudge(1);
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, isNearViewport, isPageVisible, nudge, reducedMotion, selected]);
+  }, [autoPlay, autoPlayInterval, count, finalSlideHold, isHovering, isNearViewport, isPageVisible, isThemeTransitioning, nudge, reducedMotion, selected]);
+
+  React.useEffect(() => {
+    const handleStart = () => {
+      if (frameRefId.current !== null) {
+        cancelAnimationFrame(frameRefId.current);
+        frameRefId.current = null;
+      }
+
+      dragRef.current = null;
+      hoveredIndexRef.current = null;
+      const stableTarget = targetRef.current;
+      const stableIndex = indexAt(stableTarget);
+      positionRef.current = stableTarget;
+      commitSelected(stableIndex);
+      commitVisuallyActive(stableIndex);
+      paint();
+      setIsThemeTransitioning(true);
+    };
+    const handleEnd = () => setIsThemeTransitioning(false);
+    window.addEventListener("leadreacher:theme-transition-start", handleStart);
+    window.addEventListener("leadreacher:theme-transition-end", handleEnd);
+    return () => {
+      window.removeEventListener("leadreacher:theme-transition-start", handleStart);
+      window.removeEventListener("leadreacher:theme-transition-end", handleEnd);
+    };
+  }, [commitSelected, commitVisuallyActive, indexAt, paint]);
 
   React.useEffect(() => {
     const frame = frameRef.current;
@@ -186,7 +241,7 @@ export function CoverflowCarousel({
   if (count === 0) return null;
 
   return (
-    <div className={cn("w-full", className)} style={{ ["--coverflow-card" as string]: cardWidth }} role="region" aria-roledescription="carousel" aria-label={label}>
+    <div className={cn("acquisition-workflow-theme-layer w-full", className)} style={{ ["--coverflow-card" as string]: cardWidth }} role="region" aria-roledescription="carousel" aria-label={label}>
       <div className="relative">
         <div
           ref={frameRef}
@@ -209,7 +264,8 @@ export function CoverflowCarousel({
             drag.velocity = ((positionRef.current - previous) / Math.max(now - drag.time, 1)) * 1000;
             drag.time = now;
             const index = indexAt(positionRef.current);
-            if (index !== selected) setSelected(index);
+            commitSelected(index);
+            commitVisuallyActive(index);
             paint();
           }}
           onPointerUp={(event) => {
@@ -221,11 +277,15 @@ export function CoverflowCarousel({
           onPointerCancel={() => { dragRef.current = null; settle(clamp(Math.round(positionRef.current))); }}
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
+          onFocusCapture={() => setIsHovering(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setIsHovering(false);
+          }}
           onKeyDown={(event) => {
             if (event.key === "ArrowLeft") { event.preventDefault(); nudge(-1); }
             if (event.key === "ArrowRight") { event.preventDefault(); nudge(1); }
           }}
-          className="cursor-grab overflow-hidden py-8 outline-none focus-visible:ring-2 focus-visible:ring-[#7354ee] active:cursor-grabbing sm:py-10"
+          className="cursor-grab overflow-hidden py-8 outline-none focus-visible:ring-2 focus-visible:ring-[#7354ee] active:cursor-grabbing sm:py-10 h-short:py-4"
           style={{ perspective: `calc(var(--coverflow-card) * ${perspective})`, touchAction: "pan-y" }}
         >
           <div className="relative select-none" style={{ height: `calc(var(--coverflow-card) / ${cardAspectRatio})`, transformStyle: "preserve-3d" }}>
@@ -236,6 +296,7 @@ export function CoverflowCarousel({
                 role="button"
                 tabIndex={0}
                 aria-roledescription="slide"
+                aria-label={`${index + 1} of ${count}${slide.title ? `: ${slide.title}` : ""}`}
                 aria-current={index === selected || undefined}
                 onClick={() => {
                   if (!didDragRef.current) goTo(index);
@@ -257,7 +318,7 @@ export function CoverflowCarousel({
                 className={cn("absolute left-1/2 top-0 aspect-[4/5] overflow-hidden rounded-2xl bg-white shadow-[0_10px_24px_rgba(43,33,104,.08)] transition-shadow duration-300 will-change-transform hover:shadow-[0_18px_36px_rgba(43,33,104,.14)] focus-visible:ring-2 focus-visible:ring-[#7354ee]", cardClassName)}
                 style={{ width: "var(--coverflow-card)" }}
               >
-                {renderSlide ? renderSlide(slide, index, index === selected) : slide.src ? <>
+                {renderSlide ? renderSlide(slide, index, index === selected, index === visuallyActive) : slide.src ? <>
                   {/* Generic slide URLs may be remote and are intentionally not constrained by Next image host configuration. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={slide.src} alt={slide.alt ?? ""} draggable={false} className="size-full select-none object-cover" />
@@ -268,13 +329,13 @@ export function CoverflowCarousel({
         </div>
 
         {showNavigation ? <>
-          <button type="button" aria-label="Previous slide" onClick={() => nudge(-1)} className="absolute left-3 top-1/2 z-[200] -translate-y-1/2 rounded-full bg-white/85 p-2 text-[#23263a] shadow-sm backdrop-blur hover:bg-white"><ChevronLeft className="size-5" /></button>
-          <button type="button" aria-label="Next slide" onClick={() => nudge(1)} className="absolute right-3 top-1/2 z-[200] -translate-y-1/2 rounded-full bg-white/85 p-2 text-[#23263a] shadow-sm backdrop-blur hover:bg-white"><ChevronRight className="size-5" /></button>
+          <button type="button" aria-label="Previous slide" onClick={() => nudge(-1)} className="absolute left-3 top-1/2 z-[200] grid size-11 -translate-y-1/2 place-items-center rounded-full border border-[#e6e2f2] bg-white/95 text-[#23263a] shadow-[0_8px_24px_rgba(29,22,64,.10)] backdrop-blur transition-transform hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7354ee] dark:border-white/10 dark:bg-[#242a35]/95 dark:text-white dark:hover:bg-[#303744]"><ChevronLeft className="size-5" /></button>
+          <button type="button" aria-label="Next slide" onClick={() => nudge(1)} className="absolute right-3 top-1/2 z-[200] grid size-11 -translate-y-1/2 place-items-center rounded-full border border-[#e6e2f2] bg-white/95 text-[#23263a] shadow-[0_8px_24px_rgba(29,22,64,.10)] backdrop-blur transition-transform hover:scale-105 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7354ee] dark:border-white/10 dark:bg-[#242a35]/95 dark:text-white dark:hover:bg-[#303744]"><ChevronRight className="size-5" /></button>
         </> : null}
       </div>
 
       {showPagination ? <div className="mt-1 flex items-center justify-center" aria-label="Carousel slides">
-        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className="group flex size-6 items-center justify-center rounded-full"><span aria-hidden className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7]" : "bg-[#dcd8ec] group-hover:bg-[#bdb5e5]")} /></button>)}
+        {slides.map((slide, index) => <button key={slide.title ?? index} type="button" aria-label={`Go to slide ${index + 1}`} aria-current={index === selected} onClick={() => goTo(index)} className="group flex size-6 items-center justify-center rounded-full"><span aria-hidden className={cn("size-2 rounded-full transition-[background-color,transform]", index === selected ? "scale-110 bg-[#6544e7] dark:bg-onboarding-purple-300" : "bg-[#dcd8ec] group-hover:bg-[#bdb5e5] dark:bg-onboarding-neutral-650 dark:group-hover:bg-onboarding-neutral-500")} /></button>)}
       </div> : null}
     </div>
   );
