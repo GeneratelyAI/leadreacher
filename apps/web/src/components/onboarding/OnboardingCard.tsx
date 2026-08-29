@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { Card } from "@/components/ui/Card";
+import { cn } from "@/lib/utils";
 
 type OnboardingCardProps = ComponentProps<"div"> & {
   selected?: boolean;
@@ -17,7 +18,7 @@ export function OnboardingCard({
   return (
     <Card
       variant={variant}
-      className={className}
+      className={cn("onboarding-accent-card", className)}
       {...props}
     />
   );

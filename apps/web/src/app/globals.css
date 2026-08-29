@@ -692,6 +692,55 @@ html {
     0 2px 8px rgb(84 41 223 / 0.035);
 }
 
+/* Keep the checkout's restrained violet edge as the common onboarding card
+   treatment. The fill stays theme-aware while the border carries the accent. */
+.onboarding-accent-card {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent;
+  background:
+    linear-gradient(135deg, #fff 0%, #fcfbff 58%, #f7f3ff 100%) padding-box,
+    linear-gradient(135deg, #a56cff 0%, #ded5ff 48%, #cab8ff 100%) border-box;
+  box-shadow:
+    0 16px 42px rgb(84 41 223 / 0.065),
+    0 2px 7px rgb(84 41 223 / 0.03);
+}
+
+.onboarding-accent-card::before {
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  right: 1.5rem;
+  left: 1.5rem;
+  height: 1px;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgb(141 91 255 / 0.68), transparent);
+  pointer-events: none;
+}
+
+.onboarding-accent-card.app-card--selected,
+.onboarding-accent-card[aria-pressed="true"] {
+  background:
+    linear-gradient(135deg, #fff 0%, #fbf8ff 58%, #f2ebff 100%) padding-box,
+    linear-gradient(135deg, #7c3df0 0%, #a56cff 52%, #7950d9 100%) border-box;
+}
+
+.dark .onboarding-accent-card {
+  background:
+    linear-gradient(135deg, #151820 0%, #171821 58%, #1b1727 100%) padding-box,
+    linear-gradient(135deg, #7551df 0%, #3d3556 48%, #6d54ae 100%) border-box;
+  box-shadow:
+    0 18px 48px rgb(0 0 0 / 0.2),
+    0 0 26px rgb(99 72 214 / 0.05);
+}
+
+.dark .onboarding-accent-card.app-card--selected,
+.dark .onboarding-accent-card[aria-pressed="true"] {
+  background:
+    linear-gradient(135deg, #171a23 0%, #191925 58%, #20182f 100%) padding-box,
+    linear-gradient(135deg, #9a7af4 0%, #6545c4 50%, #8c6de2 100%) border-box;
+}
+
 .checkout-accent-card::before {
   position: absolute;
   z-index: -1;
@@ -1650,12 +1699,12 @@ html {
   }
 
   .strategy-how-screen .acquisition-workflow-theme-layer {
-    --coverflow-card: clamp(13rem, 30vh, 13.5rem) !important;
+    --coverflow-card: clamp(14.5rem, 36vh, 16.25rem) !important;
     margin-top: 0 !important;
   }
 
   .strategy-how-screen [data-acquisition-card-content] > div:nth-child(2) > * {
-    height: 5rem !important;
+    height: 5.75rem !important;
   }
 
   .strategy-how-screen .acquisition-workflow-theme-layer [tabindex="0"].cursor-grab {

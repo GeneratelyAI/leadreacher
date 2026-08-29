@@ -809,7 +809,7 @@ function ChannelsScreen({
         disabled={item.channel === "linkedin"}
         onClick={() => onToggle(item.channel)}
         className={cn(
-          "strategy-channel-card group relative flex min-h-36 w-full items-start gap-4 rounded-3xl border bg-white p-5 text-left transition-[border-color,box-shadow,transform] duration-150 dark:bg-onboarding-neutral-900",
+          "strategy-channel-card onboarding-accent-card group relative flex min-h-36 w-full items-start gap-4 rounded-3xl border bg-white p-5 text-left transition-[border-color,box-shadow,transform] duration-150 dark:bg-onboarding-neutral-900",
           selected
             ? "border-onboarding-purple-500 shadow-[0_14px_34px_rgba(91,43,224,0.12)] dark:border-onboarding-purple-300"
             : "border-onboarding-neutral-150 hover:border-onboarding-purple-200 hover:shadow-onboarding-small dark:border-onboarding-neutral-750",

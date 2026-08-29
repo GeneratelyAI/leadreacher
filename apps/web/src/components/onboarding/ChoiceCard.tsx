@@ -12,7 +12,7 @@ export function ChoiceCard({ className, selected = false, children, ...props }: 
       type="button"
       aria-pressed={selected}
       className={cn(
-        "app-card app-card--interactive relative flex overflow-hidden text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
+        "app-card app-card--interactive onboarding-accent-card relative flex overflow-hidden text-left focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300",
         selected && "app-card--selected",
         className,
       )}

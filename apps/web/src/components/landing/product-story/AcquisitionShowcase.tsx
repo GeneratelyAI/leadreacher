@@ -398,16 +398,16 @@ export function AcquisitionWorkflowCarousel({
     <CoverflowCarousel
       slides={ACQUISITION_FLOW_STEPS}
       label="The LeadReacher customer acquisition workflow"
-      cardWidth={compact ? "clamp(12rem, min(18vw, 32vh), 16.5rem)" : "clamp(13rem, 20vw, 20rem)"}
-      cardAspectRatio={compact ? 0.54 : 11 / 16}
+      cardWidth={compact ? "clamp(14.5rem, min(22vw, 36vh), 18rem)" : "clamp(13rem, 20vw, 20rem)"}
+      cardAspectRatio={compact ? 17 / 25 : 11 / 16}
       autoPlay
       autoPlayInterval={3800}
       finalSlideHold={2000}
       settleDuration={compact ? 190 : 260}
       showNavigation={compact}
-      className={cn(compact ? "max-w-[82rem]" : "max-w-[100rem]", className)}
+      className={cn(compact ? "acquisition-workflow--compact max-w-[92rem]" : "max-w-[100rem]", className)}
       cardClassName={cn(
-        compact ? "aspect-[27/50] border border-[#e2deef]" : "aspect-[11/16] border border-[#e2deef]",
+        compact ? "aspect-[17/25] border border-[#e2deef]" : "aspect-[11/16] border border-[#e2deef]",
         compact && "dark:border-white/12 dark:bg-[#1a1f29]",
       )}
       renderSlide={(slide, index, _isSelected, isVisuallyActive) => {
@@ -430,21 +430,24 @@ export function AcquisitionWorkflowCarousel({
             )}>
               <div
                 data-acquisition-card-content
-                className="absolute inset-0 flex size-full flex-col p-4 text-left sm:p-5 h-short:p-3.5"
+                className={cn(
+                  "absolute inset-0 flex size-full flex-col text-left",
+                  compact ? "p-4 sm:p-[1.15rem] h-short:p-4" : "p-4 sm:p-5 h-short:p-3.5",
+                )}
               >
               <m.div initial={reducedMotion ? false : { opacity: 0.72, y: 6 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
                 <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isVisuallyActive ? "text-[#a792ff]" : "text-[#6948e4] dark:text-[#a792ff]")}>0{index + 1}</span>
                 <Icon className={cn("size-7 sm:size-9", isVisuallyActive ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
               </m.div>
-              <m.div initial={reducedMotion ? false : { opacity: 0.62, y: 8 }} animate={{ opacity: isVisuallyActive ? 1 : 0.78, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.04, ease: [0.22, 1, 0.36, 1] }} className="mt-2.5 sm:mt-4 h-short:mt-2">
+              <m.div initial={reducedMotion ? false : { opacity: 0.62, y: 8 }} animate={{ opacity: isVisuallyActive ? 1 : 0.78, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.04, ease: [0.22, 1, 0.36, 1] }} className={compact ? "mt-2.5 sm:mt-3 h-short:mt-2" : "mt-2.5 sm:mt-4 h-short:mt-2"}>
                 <AcquisitionStepVisual index={index} isSelected={isVisuallyActive} />
               </m.div>
               <m.span initial={reducedMotion ? false : { opacity: 0.65, scaleX: 0.75, originX: 0 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, scaleX: isVisuallyActive ? 1 : 0.82 }} transition={{ duration: reducedMotion ? 0 : 0.24, delay: reducedMotion || !isVisuallyActive ? 0 : 0.06, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-2.5 block h-0.5 w-7 rounded-full sm:mt-4 sm:w-8 h-short:mt-2", isVisuallyActive ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
-              <m.h3 initial={reducedMotion ? false : { opacity: 0.68, y: 7 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className="mt-3 text-balance text-[17px] font-semibold leading-[1.18] tracking-[-0.025em] sm:mt-4 sm:text-[1.4rem] sm:leading-[1.18] h-short:mt-2 h-short:text-[1.05rem]">
+              <m.h3 initial={reducedMotion ? false : { opacity: 0.68, y: 7 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.08, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 text-balance font-semibold leading-[1.18] tracking-[-0.025em] h-short:mt-2", compact ? "text-[1.05rem] sm:mt-3.5 sm:text-[1.22rem] h-short:text-[1.05rem]" : "text-[17px] sm:mt-4 sm:text-[1.4rem] sm:leading-[1.18] h-short:text-[1.05rem]")}>
                 {step.title}
               </m.h3>
               <m.span initial={reducedMotion ? false : { opacity: 0.55, scaleX: 0.75, originX: 0 }} animate={{ opacity: isVisuallyActive ? 0.9 : 0.7, scaleX: isVisuallyActive ? 1 : 0.82 }} transition={{ duration: reducedMotion ? 0 : 0.24, delay: reducedMotion || !isVisuallyActive ? 0 : 0.1, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 block h-px w-8 rounded-full sm:mt-3.5", isVisuallyActive ? "bg-[#9c83ff]" : "bg-[#6d49e4]")} aria-hidden />
-              <m.p initial={reducedMotion ? false : { opacity: 0.64, y: 7 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.12, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 text-xs leading-[1.5] sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.5] h-short:mt-2 h-short:text-xs", isVisuallyActive ? "text-white/76" : "text-[#62697e] dark:text-white/68")}>
+              <m.p initial={reducedMotion ? false : { opacity: 0.64, y: 7 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.12, ease: [0.22, 1, 0.36, 1] }} className={cn("mt-3 leading-[1.5] h-short:mt-2 h-short:text-xs", compact ? "text-[0.8rem] sm:mt-3 sm:text-[0.86rem]" : "text-xs sm:mt-3.5 sm:text-[0.95rem] sm:leading-[1.5]", isVisuallyActive ? "text-white/76" : "text-[#62697e] dark:text-white/68")}>
                 {step.description}
               </m.p>
               </div>
