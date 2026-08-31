@@ -169,9 +169,12 @@ export default function Channels() {
     new Set(),
   );
   const [selectedLinkedInAccountId, setSelectedLinkedInAccountId] = useState("");
-  const connectionFailed = searchParams.get("status") === "failed";
-  const connectionReturned = searchParams.get("status") === "connected";
+  const connectionFailed = searchParams.get("status") === "failed"
+    || Boolean(searchParams.get("error_title"));
+  const connectionReturned = searchParams.get("status") === "connected"
+    && Boolean(searchParams.get("account_id"));
   const returnedAccountId = searchParams.get("account_id");
+  const returnedConnectionToken = searchParams.get("state");
 
   const loadAccounts = useCallback(async (sync = false, showLoading = true) => {
     if (showLoading) setIsLoading(true);
@@ -245,7 +248,8 @@ export default function Channels() {
     if (!connectionReturned) return;
     let cancelled = false;
     const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
-    const connectionToken = window.localStorage.getItem("lr_pending_connection_token");
+    const connectionToken = returnedConnectionToken
+      ?? window.localStorage.getItem("lr_pending_connection_token");
 
     async function pollForConnection() {
       if (returnedAccountId) {
@@ -297,7 +301,7 @@ export default function Channels() {
     return () => {
       cancelled = true;
     };
-  }, [connectionReturned, loadAccounts, returnedAccountId, router]);
+  }, [connectionReturned, loadAccounts, returnedAccountId, returnedConnectionToken, router]);
 
   useEffect(() => {
     const activeLinkedInAccounts = accounts.filter(

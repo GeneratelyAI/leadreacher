@@ -49,7 +49,6 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
       NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
       NEXT_PUBLIC_API_URL: http://localhost:3001
-      UNIPILE_DSN: example.unipile.com
       UNIPILE_API_KEY: test-unipile-key
       UNIPILE_WEBHOOK_SECRET: test-unipile-webhook-secret
       APIFY_API_KEY: test-apify-key

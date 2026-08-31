@@ -74,7 +74,7 @@ describe("OpenAPI / Scalar docs", () => {
     expect(spec.paths).toHaveProperty("/campaigns");
     expect(spec.paths).toHaveProperty("/auth/bootstrap");
     expect(spec.components.securitySchemes).toHaveProperty("bearerAuth");
-    expect(spec.components.securitySchemes).toHaveProperty("unipileAuth");
+    expect(spec.components.securitySchemes).toHaveProperty("unipileSignature");
     expect(spec.components.securitySchemes).toHaveProperty("stripeSignature");
     expect(spec.components.schemas).toHaveProperty("ApiErrorResponse");
     expect(spec.paths["/campaigns"]?.get?.responses).toEqual(

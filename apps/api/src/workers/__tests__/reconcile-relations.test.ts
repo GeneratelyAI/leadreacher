@@ -18,7 +18,7 @@ vi.mock("../../lib/prisma.js", () => ({
   },
 }));
 vi.mock("../../config/env.js", () => ({
-  env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
+  env: { UNIPILE_API_KEY: "key" },
 }));
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {

@@ -17,7 +17,7 @@ function loadCandidates() {
   const cutoff = new Date(
     Date.now() - RECONCILE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
   );
-  // Invite sent (currentStep 1), still awaiting the new_relation webhook
+  // Invite sent (currentStep 1), still awaiting the relation.new webhook
   // (no chat yet), within the polling window.
   return prisma.campaignLead.findMany({
     where: {
@@ -102,7 +102,7 @@ async function reconcileCandidate(
   });
 
   // deliverSequenceStep1ViaChat is idempotent (linkedinChatId unique guard),
-  // so a racing new_relation webhook will not double-send.
+  // so a racing relation.new webhook will not double-send.
   await deliverSequenceStep1ViaChat({
     adapter,
     campaignLeadId: candidate.id,
@@ -123,7 +123,7 @@ async function reconcileCandidate(
 }
 
 /**
- * Poll-based fallback for the `new_relation` webhook: for invites that have
+ * Poll-based fallback for the `relation.new` webhook: for invites that have
  * been accepted but whose webhook lagged or never fired, detect the connection
  * via getProfile and advance the lead to step 1.
  */
@@ -137,7 +137,6 @@ export async function reconcilePendingConnections(): Promise<{
   }
 
   const adapter = new UnipileAdapter({
-    dsn: env.UNIPILE_DSN,
     apiKey: env.UNIPILE_API_KEY,
   });
   const unipileIdByOrg = new Map<string, string | null>();

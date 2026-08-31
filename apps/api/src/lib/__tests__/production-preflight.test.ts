@@ -39,7 +39,6 @@ describe("shared provider readiness checks", () => {
     STRIPE_PRICE_UPLOADED_VIDEO: "price_uploaded",
     STRIPE_PRICE_VIDEO_ADDON: "price_addon",
     UNIPILE_API_KEY: "unipile-key",
-    UNIPILE_DSN: "api.example.test",
     VIDEO_MOCK_MODE: false,
   };
 

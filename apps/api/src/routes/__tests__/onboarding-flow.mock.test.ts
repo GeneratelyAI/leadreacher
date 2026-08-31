@@ -73,7 +73,6 @@ vi.mock("../../config/env.js", () => ({
     STRIPE_PRICE_UPLOADED_VIDEO: "",
     STRIPE_PRICE_VIDEO_ADDON: "",
     APP_URL: "http://localhost:3000",
-    UNIPILE_DSN: "api.example.test:13111",
     UNIPILE_API_KEY: "unipile-key",
     UNIPILE_WEBHOOK_SECRET: "test-secret",
     UNIPILE_WEBHOOK_URL: "https://api.example.test/webhooks/unipile",
@@ -149,7 +148,7 @@ vi.mock("../../lib/prisma.js", () => ({
   },
 }));
 vi.mock("../../lib/redis.js", () => ({
-  redis: { get: vi.fn(), set: vi.fn(), del: vi.fn() },
+  redis: { get: vi.fn(), set: vi.fn(), del: vi.fn(), publish: vi.fn(async () => 1) },
 }));
 vi.mock("../../lib/stripe.js", () => ({
   getStripePrice,
@@ -325,11 +324,9 @@ describe("onboarding backend in Stripe mock mode", () => {
     });
     const hostedCallback = await app.inject({
       method: "POST",
-      url: "/webhooks/unipile",
+      url: "/social-accounts/connect/confirm",
       payload: {
-        status: "CREATION_SUCCESS",
-        account_id: "unipile-account-1",
-        name: `lr:${ORG_ID}:signed`,
+        accountId: "unipile-account-1",
       },
     });
     const accounts = await app.inject({ method: "GET", url: "/social-accounts" });
@@ -351,7 +348,11 @@ describe("onboarding backend in Stripe mock mode", () => {
       url: "https://unipile.test/link",
       connectionToken: expect.any(String),
     });
-    expect(hostedCallback.json()).toEqual({ received: true, handled: true });
+    expect(hostedCallback.json()).toEqual({
+      connected: true,
+      platform: "linkedin",
+      status: "active",
+    });
     expect(accounts.json()).toMatchObject({
       accounts: [expect.objectContaining({ platform: "linkedin", status: "active" })],
     });

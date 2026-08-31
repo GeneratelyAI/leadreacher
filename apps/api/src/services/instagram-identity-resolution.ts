@@ -48,7 +48,6 @@ export async function resolveInstagramCampaignIdentities(input: {
   adapter?: Pick<UnipileAdapter, "getProfile">;
 }): Promise<InstagramReachability> {
   const adapter = input.adapter ?? new UnipileAdapter({
-    dsn: env.UNIPILE_DSN,
     apiKey: env.UNIPILE_API_KEY,
   });
   let reachable = 0;

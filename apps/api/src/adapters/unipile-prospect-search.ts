@@ -6,7 +6,6 @@ import type {
 } from "./prospect-search.js";
 import {
   UnipileAdapter,
-  type UnipileLegacyPeopleSearchResult,
   type UnipilePeopleSearchBody,
   type UnipilePeopleSearchResponse,
   type UnipilePeopleSearchResult,
@@ -81,23 +80,6 @@ export function normalizeUnipileProspect(
   };
 }
 
-function normalizeLegacyResult(
-  result: UnipileLegacyPeopleSearchResult,
-): UnipilePeopleSearchResult {
-  return {
-    id: result.id,
-    display_name: result.name ?? "",
-    public_identifier: result.public_identifier,
-    profile_url: result.profile_url,
-    public_picture_url: result.profile_picture_url,
-    location: result.location,
-    headline: result.headline,
-    network_distance: result.network_distance ?? "OUT_OF_NETWORK",
-    industry: result.industry,
-    product: "classic",
-  };
-}
-
 function relationDisplayName(relation: UnipileRelationResult): string {
   if (relation.display_name) return relation.display_name;
   return [relation.first_name, relation.last_name].filter(Boolean).join(" ");
@@ -158,22 +140,6 @@ export class UnipileProspectSearchProvider implements ProspectSearchProvider {
 
   private async runSearch(input: ProspectSearchInput): Promise<UnipilePeopleSearchResponse> {
     const body = buildSearchBody(input);
-    if (!this.accountId.startsWith("acc_")) {
-      const legacy = await this.adapter.searchLinkedInPeopleLegacy(
-        this.accountId,
-        body,
-        input.maxResults,
-        input.searchUrl,
-      );
-      const response = {
-        data: legacy.items.map(normalizeLegacyResult),
-        total_count: legacy.total_count,
-      };
-      return response.data.length > 0 || input.searchUrl
-        ? response
-        : this.searchConnectedRelations(input);
-    }
-
     if (input.searchUrl) {
       return this.adapter.searchLinkedInPeopleFromUrl(
         this.accountId,

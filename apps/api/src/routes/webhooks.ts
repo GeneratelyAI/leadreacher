@@ -3,8 +3,6 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import crypto from "node:crypto";
 import { z } from "zod";
 import {
-  decodeHostedAuthName,
-  isAccountHealthy,
   UnipileAdapter,
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
@@ -30,67 +28,72 @@ import { isExplicitOutreachOptOut } from "../lib/outreach-suppression.js";
 
 const STATUS_REPLIED = "replied";
 
-const UnipileMessageReceivedSchema = z.object({
-  event: z.literal("message_received"),
-  account_id: z.string(),
-  account_type: z.string(),
-  message_id: z.string(),
+const UnipileMessageSchema = z.object({
+  id: z.string(),
+  sender_id: z.string(),
   chat_id: z.string(),
-  message: z.string(),
-  account_info: z.object({
-    user_id: z.string(),
-    type: z.string().optional(),
-    feature: z.string().optional(),
-  }),
-  sender: z.object({
-    attendee_id: z.string(),
-    attendee_name: z.string(),
-    attendee_provider_id: z.string(),
-    attendee_profile_url: z.string().optional(),
-  }),
+  text: z.string().optional().default(""),
   timestamp: z.string(),
+  is_sender: z.boolean(),
 });
 
-const UnipileNewRelationSchema = z.object({
-  event: z.literal("new_relation"),
-  account_id: z.string(),
-  account_type: z.string(),
-  webhook_name: z.string(),
-  user_full_name: z.string(),
-  user_provider_id: z.string(),
-  user_public_identifier: z.string(),
-  user_profile_url: z.string(),
-  user_picture_url: z.string().optional(),
+const UnipileRelationSchema = z.object({
+  id: z.string(),
+  user: z.object({
+    id: z.string(),
+    display_name: z.string().optional(),
+    public_identifier: z.string().optional(),
+    profile_url: z.string().optional(),
+    public_picture_url: z.string().optional(),
+  }),
 });
 
-const UnipileMailReceivedSchema = z.object({
-  event: z.literal("mail_received"),
-  account_id: z.string(),
-  email_id: z.string().optional(),
+const UnipileEmailSchema = z.object({
+  id: z.string(),
   message_id: z.string().optional(),
-  from_attendee: z
-    .object({
-      identifier: z.string().optional(),
-      display_name: z.string().optional(),
-    })
-    .optional(),
+  body: z.string().optional().default(""),
   subject: z.string().optional(),
-  body: z.string().optional(),
-  body_plain: z.string().optional(),
-  timestamp: z.string().optional(),
+  date: z.string(),
+  from: z.array(z.object({
+    email: z.string(),
+    display_name: z.string().optional(),
+  })).optional().default([]),
 });
 
-const UnipileWebhookSchema = z.discriminatedUnion("event", [
-  UnipileMessageReceivedSchema,
-  UnipileNewRelationSchema,
-  UnipileMailReceivedSchema,
+const UnipileEventBaseSchema = z.object({
+  id: z.string(),
+  created_at: z.string(),
+  account_id: z.string(),
+  account_provider: z.string(),
+  account_name: z.string(),
+  application_id: z.string(),
+  application_production: z.boolean(),
+});
+
+const UnipileWebhookSchema = z.discriminatedUnion("type", [
+  UnipileEventBaseSchema.extend({
+    type: z.literal("message.new"),
+    payload: UnipileMessageSchema,
+  }),
+  UnipileEventBaseSchema.extend({
+    type: z.literal("relation.new"),
+    payload: UnipileRelationSchema,
+  }),
+  UnipileEventBaseSchema.extend({
+    type: z.literal("email.new"),
+    payload: z.object({ folder_id: z.string(), email: UnipileEmailSchema }),
+  }),
+  UnipileEventBaseSchema.extend({
+    type: z.enum([
+      "account.status.running",
+      "account.status.disconnected",
+      "account.status.errored",
+      "account.status.degraded",
+      "account.status.partial",
+    ]),
+    payload: z.object({ timestamp: z.string() }).passthrough(),
+  }),
 ]);
-
-const UnipileHostedAuthCallbackSchema = z.object({
-  status: z.enum(["CREATION_SUCCESS", "RECONNECTED"]),
-  account_id: z.string().min(1),
-  name: z.string().min(1),
-});
 
 async function isDuplicate(externalId: string): Promise<boolean> {
   const existing = await prisma.message.findFirst({
@@ -120,22 +123,34 @@ async function cancelPendingSequenceJobs(
   }
 }
 
-function verifyUnipileAuthHeader(
+function verifyUnipileSignature(
+  rawBody: Buffer,
   provided: string | undefined,
   secret: string,
 ): boolean {
   if (!provided) {
     return false;
   }
-
-  const providedBuf = Buffer.from(provided, "utf8");
-  const secretBuf = Buffer.from(secret, "utf8");
-
-  if (providedBuf.length !== secretBuf.length) {
+  const parts = Object.fromEntries(
+    provided.split(",").map((part) => part.trim().split("=", 2)),
+  );
+  const timestamp = parts.t;
+  const signature = parts.v0;
+  const timestampNumber = Number(timestamp);
+  if (!timestamp || !signature || !Number.isFinite(timestampNumber)) {
     return false;
   }
-
-  return crypto.timingSafeEqual(providedBuf, secretBuf);
+  if (Math.abs(Math.floor(Date.now() / 1000) - timestampNumber) > 300) {
+    return false;
+  }
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody.toString("utf8")}`)
+    .digest("hex");
+  const providedBuf = Buffer.from(signature, "utf8");
+  const expectedBuf = Buffer.from(expected, "utf8");
+  return providedBuf.length === expectedBuf.length
+    && crypto.timingSafeEqual(providedBuf, expectedBuf);
 }
 
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
@@ -148,63 +163,23 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         tags: ["Webhooks"],
         summary: "Unipile messaging / relations / hosted-auth webhook",
         description:
-          "Receives Unipile events. Authenticate with the Unipile-Auth header. Do not try from Scalar.",
+          "Receives Unipile v2 events authenticated by the unipile-signature header.",
         security: [...unipileSecurity],
       },
+      config: { rawBody: true },
     },
     async (request, reply) => {
-    const hostedAuthCallback = UnipileHostedAuthCallbackSchema.safeParse(
-      request.body,
-    );
-    if (hostedAuthCallback.success) {
-      const orgId = decodeHostedAuthName(hostedAuthCallback.data.name);
-      if (!orgId) {
-        throw new AuthError();
-      }
-
-      const adapter = new UnipileAdapter({
-        dsn: env.UNIPILE_DSN,
-        apiKey: env.UNIPILE_API_KEY,
-      });
-      const account = await adapter.getAccountStatus(
-        hostedAuthCallback.data.account_id,
-      );
-      const status = isAccountHealthy(account) ? "active" : "reconnecting";
-      const platform = normalizeUnipilePlatform(account.type);
-
-      await prisma.socialAccount.upsert({
-        where: {
-          orgId_platform_platformUserId: {
-            orgId,
-            platform,
-            platformUserId: account.id,
-          },
-        },
-        create: {
-          orgId,
-          platform,
-          platformUserId: account.id,
-          unipileId: account.id,
-          accountName: account.name,
-          status,
-          metadata: { providerType: account.type.toLowerCase() },
-        },
-        update: {
-          unipileId: account.id,
-          accountName: account.name,
-          status,
-          metadata: { providerType: account.type.toLowerCase() },
-        },
-      });
-
-      return reply.send({ received: true, handled: true });
-    }
-
-    const authHeader = request.headers["unipile-auth"];
+    const authHeader = request.headers["unipile-signature"];
     const providedAuth =
       typeof authHeader === "string" ? authHeader : authHeader?.[0];
-
-    if (!verifyUnipileAuthHeader(providedAuth, env.UNIPILE_WEBHOOK_SECRET)) {
+    if (
+      !request.rawBody
+      || !verifyUnipileSignature(
+        Buffer.isBuffer(request.rawBody) ? request.rawBody : Buffer.from(request.rawBody),
+        providedAuth,
+        env.UNIPILE_WEBHOOK_SECRET,
+      )
+    ) {
       throw new AuthError();
     }
 
@@ -216,20 +191,36 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
     const data = parsed.data;
 
-    if (data.event === "message_received") {
-      if (await isDuplicate(data.message_id)) {
+    if (
+      data.type === "account.status.running"
+      || data.type === "account.status.disconnected"
+      || data.type === "account.status.errored"
+      || data.type === "account.status.degraded"
+      || data.type === "account.status.partial"
+    ) {
+      const status = data.type === "account.status.running"
+        ? "active"
+        : data.type === "account.status.disconnected"
+          ? "disconnected"
+          : "error";
+      const updated = await prisma.socialAccount.updateMany({
+        where: { unipileId: data.account_id },
+        data: { status },
+      });
+      return reply.send({ received: true, handled: updated.count > 0 });
+    }
+
+    if (data.type === "message.new") {
+      const message = data.payload;
+      if (await isDuplicate(message.id)) {
         return reply.send({ received: true, duplicate: true });
       }
 
-      const isOutbound =
-        data.sender.attendee_provider_id === data.account_info.user_id;
-      if (isOutbound) {
+      if (message.is_sender) {
         app.log.info({
-          event: data.event,
-          chat_id: data.chat_id,
-          reason: "outbound message_received",
-          sender_provider_id: data.sender.attendee_provider_id,
-          account_user_id: data.account_info.user_id,
+          event: data.type,
+          chat_id: message.chat_id,
+          reason: "outbound message.new",
         });
         return reply.send({ received: true });
       }
@@ -240,7 +231,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       if (!socialAccount) {
         app.log.info({
-          event: data.event,
+          event: data.type,
           account_id: data.account_id,
           reason: "no matching SocialAccount",
         });
@@ -251,8 +242,8 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         where: {
           campaign: { orgId: socialAccount.orgId },
           OR: [
-            { providerChatId: data.chat_id },
-            { linkedinChatId: data.chat_id },
+            { providerChatId: message.chat_id },
+            { linkedinChatId: message.chat_id },
           ],
         },
         include: { lead: true, campaign: true },
@@ -260,22 +251,22 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       if (!campaignLead) {
         app.log.info({
-          event: data.event,
-          chat_id: data.chat_id,
+          event: data.type,
+          chat_id: message.chat_id,
           reason: "no matching CampaignLead",
         });
         return reply.send({ received: true, handled: false });
       }
 
       const inboundChannel = normalizeUnipilePlatform(
-        socialAccount.platform || data.account_type,
+        socialAccount.platform || data.account_provider,
       );
 
       await prisma.lead.update({
         where: { id: campaignLead.leadId },
         data: {
           status: STATUS_REPLIED,
-          ...(isExplicitOutreachOptOut(data.message)
+          ...(isExplicitOutreachOptOut(message.text)
             ? {
                 outreachSuppressedAt: new Date(),
                 outreachSuppressionReason: "explicit_opt_out",
@@ -304,31 +295,32 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         leadId: campaignLead.leadId,
         orgId: socialAccount.orgId,
         channel: typeof inboundChannel === "string" ? inboundChannel : "linkedin",
-        content: { type: "text", message: data.message },
+        content: { type: "text", message: message.text },
         direction: "inbound",
         status: STATUS_REPLIED,
-        externalId: data.message_id,
+        externalId: message.id,
         stepIndex: campaignLead.currentStep,
-        sentAt: new Date(data.timestamp),
+        sentAt: new Date(message.timestamp),
       });
       await publishChatEvent({
         orgId: socialAccount.orgId,
         type: "message.created",
         campaignLeadId: campaignLead.id,
-        messageId: `inbound:${data.message_id}`,
+        messageId: `inbound:${message.id}`,
       });
       await invalidateDashboardChrome(socialAccount.orgId);
 
       app.log.info({
-        event: data.event,
+        event: data.type,
         account_id: data.account_id,
-        message_id: data.message_id,
-        chat_id: data.chat_id,
+        message_id: message.id,
+        chat_id: message.chat_id,
         channel: inboundChannel,
         inbound: true,
       });
-    } else if (data.event === "mail_received") {
-      const externalId = data.email_id ?? data.message_id;
+    } else if (data.type === "email.new") {
+      const email = data.payload.email;
+      const externalId = email.id ?? email.message_id;
       if (!externalId) {
         return reply.send({ received: true, handled: false });
       }
@@ -343,7 +335,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         return reply.send({ received: true, handled: false });
       }
 
-      const fromEmail = data.from_attendee?.identifier?.trim().toLowerCase();
+      const fromEmail = email.from[0]?.email.trim().toLowerCase();
       if (!fromEmail) {
         return reply.send({ received: true, handled: false });
       }
@@ -386,14 +378,14 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         channel: "email",
         content: {
           type: "email",
-          subject: data.subject,
-          body: data.body_plain ?? data.body ?? "",
+          subject: email.subject,
+          body: email.body,
         },
         direction: "inbound",
         status: STATUS_REPLIED,
         externalId,
         stepIndex: campaignLead.currentStep,
-        sentAt: data.timestamp ? new Date(data.timestamp) : new Date(),
+        sentAt: new Date(email.date),
       });
       await publishChatEvent({
         orgId: socialAccount.orgId,
@@ -401,14 +393,16 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         campaignLeadId: campaignLead.id,
         messageId: `inbound:${externalId}`,
       });
-    } else if (data.event === "new_relation") {
+    } else if (data.type === "relation.new") {
+      const relation = data.payload;
+      const relatedUser = relation.user;
       const socialAccount = await prisma.socialAccount.findFirst({
         where: { unipileId: data.account_id, status: "active" },
       });
 
       if (!socialAccount) {
         app.log.info({
-          event: data.event,
+          event: data.type,
           account_id: data.account_id,
           reason: "no matching SocialAccount",
         });
@@ -419,14 +413,14 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       const lead = await prisma.lead.findFirst({
         where: {
           orgId: socialAccount.orgId,
-          providerLinkedinId: data.user_provider_id,
+          providerLinkedinId: relatedUser.id,
         },
       });
 
       if (!lead) {
         app.log.info({
-          event: data.event,
-          user_provider_id: data.user_provider_id,
+          event: data.type,
+          user_provider_id: relatedUser.id,
           reason: "no matching Lead",
         });
         return reply.send({ received: true, handled: false });
@@ -448,7 +442,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       if (!campaignLead) {
         app.log.info({
-          event: data.event,
+          event: data.type,
           leadId: lead.id,
           reason: "no active CampaignLead",
         });
@@ -459,7 +453,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
         return reply.send({ received: true, duplicate: true });
       }
 
-      if (!socialAccount.unipileId || !data.user_provider_id) {
+      if (!socialAccount.unipileId || !relatedUser.id) {
         return reply.send({ received: true, handled: false });
       }
 
@@ -474,7 +468,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       const step1 = sequence[1];
       if (!step1) {
         app.log.info({
-          event: data.event,
+          event: data.type,
           campaignLeadId: campaignLead.id,
           reason: "no sequence step 1",
         });
@@ -483,7 +477,6 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         const adapter = new UnipileAdapter({
-          dsn: env.UNIPILE_DSN,
           apiKey: env.UNIPILE_API_KEY,
         });
 
@@ -493,7 +486,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
           orgId: socialAccount.orgId,
           campaignId: campaignLead.campaignId,
           leadId: campaignLead.leadId,
-          attendeeProviderId: data.user_provider_id,
+          attendeeProviderId: relatedUser.id,
           unipileAccountId: socialAccount.unipileId,
           sequence,
           existingChatId: campaignLead.linkedinChatId,
@@ -501,7 +494,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
         if ("skipped" in result) {
           app.log.info({
-            event: data.event,
+            event: data.type,
             campaignLeadId: campaignLead.id,
             reason: result.reason,
           });
@@ -516,9 +509,9 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       }
 
       app.log.info({
-        event: data.event,
+        event: data.type,
         account_id: data.account_id,
-        user_provider_id: data.user_provider_id,
+        user_provider_id: relatedUser.id,
       });
     }
 

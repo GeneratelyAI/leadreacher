@@ -56,7 +56,6 @@ jobs:
       STRIPE_PRICE_AI_VIDEO_AD: ${{ secrets.STAGING_STRIPE_PRICE_AI_VIDEO_AD }}
       STRIPE_PRICE_UPLOADED_VIDEO: ${{ secrets.STAGING_STRIPE_PRICE_UPLOADED_VIDEO }}
       STRIPE_PRICE_VIDEO_ADDON: ${{ secrets.STAGING_STRIPE_PRICE_VIDEO_ADDON }}
-      UNIPILE_DSN: ${{ secrets.STAGING_UNIPILE_DSN }}
       UNIPILE_API_KEY: ${{ secrets.STAGING_UNIPILE_API_KEY }}
       # Required by the API configuration parser but not used by account-list
       # verification. The real staging service holds the signing secret.
@@ -107,7 +106,6 @@ jobs:
             STAGING_STRIPE_PRICE_AI_VIDEO_AD
             STAGING_STRIPE_PRICE_UPLOADED_VIDEO
             STAGING_STRIPE_PRICE_VIDEO_ADDON
-            STAGING_UNIPILE_DSN
             STAGING_UNIPILE_API_KEY
             STAGING_R2_PREFLIGHT_VIDEO_URL
           )
@@ -132,7 +130,6 @@ jobs:
           STAGING_STRIPE_PRICE_AI_VIDEO_AD: ${{ secrets.STAGING_STRIPE_PRICE_AI_VIDEO_AD }}
           STAGING_STRIPE_PRICE_UPLOADED_VIDEO: ${{ secrets.STAGING_STRIPE_PRICE_UPLOADED_VIDEO }}
           STAGING_STRIPE_PRICE_VIDEO_ADDON: ${{ secrets.STAGING_STRIPE_PRICE_VIDEO_ADDON }}
-          STAGING_UNIPILE_DSN: ${{ secrets.STAGING_UNIPILE_DSN }}
           STAGING_UNIPILE_API_KEY: ${{ secrets.STAGING_UNIPILE_API_KEY }}
           STAGING_R2_PREFLIGHT_VIDEO_URL: ${{ secrets.STAGING_R2_PREFLIGHT_VIDEO_URL }}
 

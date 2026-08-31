@@ -18,7 +18,8 @@
     "preflight:staging": "tsx src/scripts/staging-provider-canary.ts",
     "test:staging-safe-journeys": "tsx src/scripts/staging-safe-journeys.ts",
     "verify:release-canary": "tsx src/scripts/verify-release-canary.ts",
-    "test:integration": "RUN_DATABASE_INTEGRATION=true vitest run src/integration"
+    "test:integration": "RUN_DATABASE_INTEGRATION=true vitest run src/integration",
+    "migrate:unipile-v2": "tsx src/scripts/migrate-unipile-v2-accounts.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1102.0",

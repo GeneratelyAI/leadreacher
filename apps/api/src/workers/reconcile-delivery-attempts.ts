@@ -46,7 +46,12 @@ async function reconcileUnknownAttempt(
       leadId: string;
       currentStep: number;
       linkedinChatId: string | null;
-      campaign: { orgId: string; sequence: unknown };
+      providerChatId: string | null;
+      campaign: {
+        orgId: string;
+        sequence: unknown;
+        senderAccount: { unipileId: string | null } | null;
+      };
     };
   },
 ): Promise<boolean> {
@@ -58,14 +63,22 @@ async function reconcileUnknownAttempt(
       return false;
     }
 
+    const accountId = attempt.campaignLead.campaign.senderAccount?.unipileId;
+    const chatId = attempt.stepIndex === 1
+      ? attempt.providerRef
+      : attempt.campaignLead.providerChatId ?? attempt.campaignLead.linkedinChatId;
+    if (!accountId || !chatId) {
+      return false;
+    }
+
     const confirmed =
       attempt.stepIndex === 1
         ? isConfirmedUnipileChat(
-            await adapter.getChat(attempt.providerRef),
+            await adapter.getChat(accountId, attempt.providerRef),
             attempt.providerRef,
           )
         : isConfirmedUnipileMessage(
-            await adapter.getMessage(attempt.providerRef),
+            await adapter.getMessage(accountId, chatId, attempt.providerRef),
             attempt.providerRef,
           );
 
@@ -232,7 +245,11 @@ export async function reconcileDeliveryAttempts(): Promise<{
   const cutoff = new Date(Date.now() - STALE_RESERVATION_MS);
   const attempts = await prisma.deliveryAttempt.findMany({
     where: { state: "reserved", reservedAt: { lte: cutoff } },
-    include: { campaignLead: { include: { campaign: true } } },
+    include: {
+      campaignLead: {
+        include: { campaign: { include: { senderAccount: true } } },
+      },
+    },
     take: BATCH_SIZE,
   });
 
@@ -270,11 +287,14 @@ export async function reconcileDeliveryAttempts(): Promise<{
         { state: "recovering", updatedAt: { lte: cutoff } },
       ],
     },
-    include: { campaignLead: { include: { campaign: true } } },
+    include: {
+      campaignLead: {
+        include: { campaign: { include: { senderAccount: true } } },
+      },
+    },
     take: BATCH_SIZE,
   });
   const adapter = new UnipileAdapter({
-    dsn: env.UNIPILE_DSN,
     apiKey: env.UNIPILE_API_KEY,
   });
 

@@ -65,7 +65,6 @@ const { publishDashboardEvent } = vi.hoisted(() => ({ publishDashboardEvent: vi.
 
 vi.mock("../../config/env.js", () => ({
   env: {
-    UNIPILE_DSN: "api.example.test:13111",
     UNIPILE_API_KEY: "unipile-key",
     UNIPILE_WEBHOOK_SECRET: "webhook-secret",
     UNIPILE_WEBHOOK_URL: "https://api.example.test/webhooks/unipile",
@@ -311,9 +310,10 @@ describe("channel connection and onboarding completion", () => {
       where: { id: "sa-1" },
       data: {
         unipileId: "unipile-1",
+        platformUserId: "unipile-1",
         accountName: "Ada Lovelace",
         status: "active",
-        metadata: { providerType: "linkedin" },
+        metadata: { providerType: "linkedin", unipileVersion: "v2" },
       },
     });
     expect(warn).toHaveBeenCalledWith(
@@ -367,11 +367,9 @@ describe("channel connection and onboarding completion", () => {
     });
     expect(createHostedAuthLink).toHaveBeenCalledWith(
       expect.objectContaining({
-        providers: ["LINKEDIN"],
-        name: "lr:org-1:signed",
-        notifyUrl: "https://api.example.test/webhooks/unipile",
-        successRedirectUrl: "http://localhost:3000/onboarding?step=channels&status=connected",
-        failureRedirectUrl: "http://localhost:3000/onboarding?step=channels&status=failed",
+        providers: ["linkedin"],
+        redirectUri: "http://localhost:3000/onboarding?step=channels&status=connected",
+        state: expect.any(String),
       }),
     );
   });

@@ -62,7 +62,6 @@ export async function searchLinkedInProspects(
   }
 
   const adapter = new UnipileAdapter({
-    dsn: env.UNIPILE_DSN,
     apiKey: env.UNIPILE_API_KEY,
   });
 

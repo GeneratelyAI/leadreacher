@@ -1,4 +1,6 @@
 import Fastify from "fastify";
+import crypto from "node:crypto";
+import fastifyRawBody from "fastify-raw-body";
 import { applyZodCompilers } from "../../lib/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,7 +30,6 @@ vi.mock("../../config/env.js", () => ({
   env: {
     REDIS_URL: "redis://localhost:6379",
     REDIS_PASSWORD: "",
-    UNIPILE_DSN: "dsn",
     UNIPILE_API_KEY: "key",
     UNIPILE_WEBHOOK_SECRET: "webhook-secret",
   },
@@ -55,20 +56,39 @@ vi.mock("../../services/campaign-step1-chat.js", () => ({
 import { webhookRoutes } from "../webhooks.js";
 
 const payload = {
-  event: "message_received",
+  id: "event-1",
+  created_at: "2026-07-17T12:00:01.000Z",
   account_id: "account-1",
-  account_type: "LINKEDIN",
-  message_id: "message-1",
-  chat_id: "chat-1",
-  message: "Please stop contacting me.",
-  account_info: { user_id: "account-owner" },
-  sender: {
-    attendee_id: "attendee-1",
-    attendee_name: "Prospect",
-    attendee_provider_id: "prospect-provider",
+  account_provider: "linkedin",
+  account_name: "Sender",
+  application_id: "app_123",
+  application_production: true,
+  type: "message.new",
+  payload: {
+    id: "message-1",
+    sender_id: "prospect-provider",
+    chat_id: "chat-1",
+    text: "Interested in learning more.",
+    timestamp: "2026-07-17T12:00:00.000Z",
+    is_sender: false,
   },
-  timestamp: "2026-07-17T12:00:00.000Z",
 };
+
+function signedRequestBody(value: unknown) {
+  const body = JSON.stringify(value);
+  const timestamp = Math.floor(Date.now() / 1000).toString();
+  const signature = crypto
+    .createHmac("sha256", "webhook-secret")
+    .update(`${timestamp}.${body}`)
+    .digest("hex");
+  return {
+    body,
+    headers: {
+      "content-type": "application/json",
+      "unipile-signature": `t=${timestamp},v0=${signature}`,
+    },
+  };
+}
 
 const sequence = [
   { type: "linkedin_invite", message: "Connect?", delayHours: 0 },
@@ -80,6 +100,12 @@ const sequence = [
 async function buildTestApp() {
   const app = Fastify();
   applyZodCompilers(app);
+  await app.register(fastifyRawBody, {
+    field: "rawBody",
+    global: false,
+    encoding: false,
+    runFirst: true,
+  });
   await app.register(webhookRoutes);
   return app;
 }
@@ -109,16 +135,17 @@ afterEach(async () => {
   await app.close();
 });
 
-describe("POST /webhooks/unipile message_received", () => {
+describe("POST /webhooks/unipile message.new", () => {
   it("does not mark a lead replied or cancel jobs for an outbound event", async () => {
+    const request = signedRequestBody({
+      ...payload,
+      payload: { ...payload.payload, is_sender: true },
+    });
     const response = await app.inject({
       method: "POST",
       url: "/webhooks/unipile",
-      headers: { "unipile-auth": "webhook-secret" },
-      payload: {
-        ...payload,
-        sender: { ...payload.sender, attendee_provider_id: "account-owner" },
-      },
+      headers: request.headers,
+      payload: request.body,
     });
 
     expect(response.statusCode).toBe(200);
@@ -131,11 +158,12 @@ describe("POST /webhooks/unipile message_received", () => {
   });
 
   it("marks inbound replies and removes all queued sequence jobs", async () => {
+    const request = signedRequestBody(payload);
     const response = await app.inject({
       method: "POST",
       url: "/webhooks/unipile",
-      headers: { "unipile-auth": "webhook-secret" },
-      payload,
+      headers: request.headers,
+      payload: request.body,
     });
 
     expect(response.statusCode).toBe(200);

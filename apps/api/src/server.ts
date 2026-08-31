@@ -71,7 +71,7 @@ export async function buildServer() {
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "Unipile-Auth", "stripe-signature"],
+    allowedHeaders: ["Authorization", "Content-Type", "unipile-signature", "stripe-signature"],
     exposedHeaders: ["X-Request-Id"],
   });
 

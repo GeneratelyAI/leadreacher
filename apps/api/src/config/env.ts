@@ -62,7 +62,6 @@ const envSchema = z.object({
   RUNTIME_ROLE: z.enum(["api", "worker"]).default("api"),
   DATABASE_URL: z.string().min(1),
   DIRECT_URL: z.string().min(1),
-  UNIPILE_DSN: z.string().min(1),
   UNIPILE_API_KEY: z.string().min(1),
   UNIPILE_WEBHOOK_SECRET: z.string().min(1),
   // Apify is optional company enrichment. LinkedIn discovery always uses Unipile.

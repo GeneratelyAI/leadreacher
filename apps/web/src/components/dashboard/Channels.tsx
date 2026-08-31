@@ -38,7 +38,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { apiFetch } from "@/lib/api";
-import { openChannelConnection, waitForChannelConnection } from "@/lib/channel-connection";
 import { cn } from "@/lib/utils";
 
 type ChannelTrend = {
@@ -97,12 +96,6 @@ const CONNECT_CHANNEL_OPTIONS: Array<{
   { provider: "GOOGLE", label: "Gmail", mark: "gmail" },
   { provider: "OUTLOOK", label: "Outlook", mark: "outlook" },
 ];
-
-function platformForProvider(provider: ConnectProvider): string {
-  if (provider === "GOOGLE" || provider === "OUTLOOK" || provider === "MAIL") return "email";
-  if (provider === "MESSENGER") return "facebook";
-  return provider.toLowerCase();
-}
 
 function ConnectChannelMark({ mark }: { mark: (typeof CONNECT_CHANNEL_OPTIONS)[number]["mark"] }) {
   return <ChannelLogo name={mark === "whatsapp" ? "whatsapp-mark" : mark} className="size-full object-contain" />;
@@ -352,9 +345,11 @@ export function Channels() {
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
   const connectStatus = searchParams.get("status");
+  const returnedAccountId = searchParams.get("account_id");
+  const returnedConnectionToken = searchParams.get("state");
+  const hostedAuthError = searchParams.get("error_title");
 
   const [isConnecting, setIsConnecting] = useState(false);
-  const [isWaitingForConnection, setIsWaitingForConnection] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -383,8 +378,8 @@ export function Channels() {
   const accounts = channelsQuery.data?.accounts ?? [];
   const summary = channelsQuery.data?.summary ?? null;
   const isLoading = channelsQuery.isLoading && !channelsQuery.data;
-  const connectionError = connectStatus === "failed"
-    ? "Channel connection failed. Try again."
+  const connectionError = connectStatus === "failed" || hostedAuthError
+    ? hostedAuthError ?? "Channel connection failed. Try again."
     : null;
   const syncError = syncMutation.error instanceof Error
     ? syncMutation.error.message
@@ -402,58 +397,37 @@ export function Channels() {
       : null;
 
   useEffect(() => {
-    if (connectStatus === "connected") {
+    if (connectStatus !== "connected" || !returnedAccountId) return;
+    void apiFetch("/social-accounts/connect/confirm", {
+      method: "POST",
+      body: JSON.stringify({
+        accountId: returnedAccountId,
+        ...(returnedConnectionToken ? { connectionToken: returnedConnectionToken } : {}),
+      }),
+    }).then(() => {
       syncAccounts();
       window.history.replaceState({}, "", "/dashboard/channels");
-    }
-  }, [connectStatus, syncAccounts]);
+    }).catch((requestError) => {
+      setActionError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to confirm the channel connection.",
+      );
+    });
+  }, [connectStatus, returnedAccountId, returnedConnectionToken, syncAccounts]);
 
   async function connect(provider: ConnectProvider) {
     setIsConnecting(true);
     try {
-      const platform = platformForProvider(provider);
-      const initialMatchingAccountCount = accounts.filter(
-        (account) => account.platform.toLowerCase() === platform,
-      ).length;
-      const result = await apiFetch<{ url: string }>("/social-accounts/connect", {
+      const result = await apiFetch<{ url: string; connectionToken: string }>("/social-accounts/connect", {
         method: "POST",
         body: JSON.stringify({ provider, returnTo: "dashboard" }),
       });
-      const connectionWindow = openChannelConnection(result.url);
-      if (!connectionWindow) {
-        window.location.assign(result.url);
-        return;
-      }
-
-      setIsWaitingForConnection(true);
-      const connected = await waitForChannelConnection(
-        async () => {
-          const response = await apiFetch<ChannelsResponse>(`/social-accounts${queryString ? `?${queryString}` : ""}`);
-          const matchingAccounts = response.accounts.filter(
-            (account) => account.platform.toLowerCase() === platform,
-          );
-          if (
-            matchingAccounts.length <= initialMatchingAccountCount
-            || !matchingAccounts.some((account) => account.status === "active")
-          ) return false;
-
-          await Promise.all([
-            queryClient.invalidateQueries({ queryKey: ["dashboard", "channels"] }),
-            queryClient.invalidateQueries({ queryKey: ["dashboard", "chrome"] }),
-          ]);
-          return true;
-        },
-        () => connectionWindow.close(),
-      );
-
-      if (!connected) {
-        setActionError("The account is still being activated. Keep this page open and refresh shortly.");
-      }
+      window.location.assign(result.url);
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to start channel connection.");
     } finally {
       setIsConnecting(false);
-      setIsWaitingForConnection(false);
     }
   }
 
@@ -483,12 +457,6 @@ export function Channels() {
           {notice}
         </div>
       ) : null}
-      {isWaitingForConnection ? (
-        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-700 dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
-          Finish the provider sign-in in the small window. This page will update automatically.
-        </div>
-      ) : null}
-
       {error ? (
         <div
           className="rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100"

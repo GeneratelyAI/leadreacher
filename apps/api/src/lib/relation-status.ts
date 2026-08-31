@@ -1,7 +1,7 @@
 /**
  * Whether a fetched LinkedIn profile indicates the account is now connected
  * (first-degree). Used by the relation-reconciliation worker as a fallback for
- * the `new_relation` webhook, which can lag or never fire.
+ * the `relation.new` webhook, which can lag or never fire.
  */
 export function isConnectedProfile(profile: {
   network_distance?: string;

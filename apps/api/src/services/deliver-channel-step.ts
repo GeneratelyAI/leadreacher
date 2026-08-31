@@ -174,6 +174,7 @@ export async function deliverMessagingChannelStep(input: {
   try {
     if (chatId) {
       const result = await input.adapter.sendMessageToChat(
+        input.sender.unipileId,
         chatId,
         input.currentStep.message,
       );
