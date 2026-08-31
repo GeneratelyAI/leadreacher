@@ -6,13 +6,13 @@ describe("security headers", () => {
     const policy = createContentSecurityPolicy("test-nonce", false);
     expect(policy).toContain("'nonce-test-nonce'");
     expect(policy).not.toContain("script-src 'self' 'unsafe-inline'");
-    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).toContain("frame-ancestors 'self'");
   });
 
   it("includes baseline browser protections", () => {
     expect(SECURITY_RESPONSE_HEADERS).toEqual(expect.arrayContaining([
       ["X-Content-Type-Options", "nosniff"],
-      ["X-Frame-Options", "DENY"],
+      ["X-Frame-Options", "SAMEORIGIN"],
     ]));
   });
 

@@ -32,7 +32,7 @@ export function createContentSecurityPolicy(
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
-    "frame-ancestors 'none'",
+    "frame-ancestors 'self'",
     "form-action 'self'",
     `script-src ${scriptSources.join(" ")}`,
     "style-src 'self' 'unsafe-inline'",
@@ -47,7 +47,7 @@ export function createContentSecurityPolicy(
 
 export const SECURITY_RESPONSE_HEADERS: Array<[string, string]> = [
   ["X-Content-Type-Options", "nosniff"],
-  ["X-Frame-Options", "DENY"],
+  ["X-Frame-Options", "SAMEORIGIN"],
   ["Referrer-Policy", "strict-origin-when-cross-origin"],
   ["Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()"],
   ["Cross-Origin-Opener-Policy", "same-origin"],
