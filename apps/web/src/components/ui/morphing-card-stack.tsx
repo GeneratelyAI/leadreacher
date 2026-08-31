@@ -1,6 +1,7 @@
 "use client";
 
-import { LayoutGroup, m, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "framer-motion";
 
 import type { AppIcon } from "@/components/ui/icons";
 import { ArrowUpRight, CheckCircle2 } from "@/components/ui/icons";
@@ -13,6 +14,7 @@ export type MorphingCard = {
   eyebrow?: string;
   status?: string;
   accent?: "violet" | "blue" | "green";
+  mobileDetails?: readonly string[];
 };
 
 type MorphingCardStackProps = {
@@ -24,35 +26,77 @@ type MorphingCardStackProps = {
 
 const accents = {
   violet: {
-    icon: "bg-[#6f4cff]/20 text-[#b3a3ff]",
-    border: "border-[#8064ff]/45",
-    glow: "from-[#6f4cff]/20",
+    icon: "bg-[#a992ff]/20 text-[#d9d0ff] ring-1 ring-inset ring-[#b9a9ff]/25",
+    border: "border-[#a18aff]/65",
+    glow: "from-[#7a52ff]/45 via-[#30225d]/28",
+    surface: "from-[#241948] via-[#17172d] to-[#111426]",
+    number: "text-[#c5b8ff]",
   },
   blue: {
-    icon: "bg-[#3f7cff]/18 text-[#91b2ff]",
-    border: "border-[#5f91ff]/40",
-    glow: "from-[#3f7cff]/18",
+    icon: "bg-[#77adff]/20 text-[#c7deff] ring-1 ring-inset ring-[#91bcff]/25",
+    border: "border-[#6da7ff]/65",
+    glow: "from-[#3384ff]/45 via-[#182d54]/30",
+    surface: "from-[#102d55] via-[#14213d] to-[#111426]",
+    number: "text-[#a9cbff]",
   },
   green: {
-    icon: "bg-[#36b87d]/18 text-[#78ddb0]",
-    border: "border-[#43c58d]/40",
-    glow: "from-[#36b87d]/16",
+    icon: "bg-[#57d6a1]/18 text-[#b7f5d6] ring-1 ring-inset ring-[#83e4ba]/20",
+    border: "border-[#54d5a0]/60",
+    glow: "from-[#1fb57e]/42 via-[#123c36]/30",
+    surface: "from-[#103d38] via-[#142a31] to-[#111426]",
+    number: "text-[#a8f0ce]",
   },
 } as const;
 
 export function MorphingCardStack({ cards, activeIndex, onActiveChange, className }: MorphingCardStackProps) {
   const reducedMotion = Boolean(useReducedMotion());
+  const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
+  const previousActiveIndexRef = useRef(activeIndex);
+  const [cardTransition, setCardTransition] = useState<{ from: number; to: number } | null>(null);
+
+  useEffect(() => {
+    const previousIndex = previousActiveIndexRef.current;
+    previousActiveIndexRef.current = activeIndex;
+    if (previousIndex === activeIndex || reducedMotion) return;
+
+    setCardTransition({ from: previousIndex, to: activeIndex });
+    const timeout = window.setTimeout(() => setCardTransition(null), 700);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeIndex, reducedMotion]);
 
   if (cards.length === 0) return null;
+
+  const selectStage = (index: number) => {
+    if (index === activeIndex) return;
+
+    setFlippedIndex(null);
+    onActiveChange(index);
+  };
 
   return (
     <div className={cn("space-y-6", className)}>
       <LayoutGroup id="landing-review-stack">
-        <div className="grid min-h-[330px] w-full max-w-[31rem] [grid-template-areas:'stack'] place-items-center sm:min-h-[365px]">
-          {cards.map(({ title, description, icon: Icon, eyebrow = "Campaign stage", status = "Ready", accent = "violet" }, index) => {
+        <div className="grid min-h-[25rem] w-full max-w-[31rem] [grid-template-areas:'stack'] place-items-center [perspective:1400px] sm:min-h-[26rem] lg:min-h-[365px]">
+          {cards.map(({ title, description, icon: Icon, eyebrow = "Campaign stage", status = "Ready", accent = "violet", mobileDetails = [] }, index) => {
             const palette = accents[accent];
             const position = (index - activeIndex + cards.length) % cards.length;
             const isActive = position === 0;
+            const isFlipped = isActive && flippedIndex === index;
+            const isFlippingIn = cardTransition?.to === index;
+            const isFlippingOut = cardTransition?.from === index;
+            const restingRotateY = -12 - position * 6;
+
+            const selectCard = () => {
+              if (!isActive) {
+                selectStage(index);
+                return;
+              }
+
+              if (window.matchMedia("(min-width: 1024px)").matches) {
+                setFlippedIndex((currentIndex) => currentIndex === index ? null : index);
+              }
+            };
 
             return (
               <m.button
@@ -60,46 +104,128 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
                 layout
                 type="button"
                 aria-pressed={isActive}
-                aria-label={`${title}: ${description}`}
-                onClick={() => onActiveChange(index)}
+                aria-label={`${eyebrow}. ${title}. ${description}. ${status}. ${isActive ? "Selected stage." : "Press to select this stage."}`}
+                onClick={selectCard}
                 initial={false}
                 animate={{
                   x: reducedMotion ? position * 10 : position * 18,
-                  y: position * 24,
-                  rotate: reducedMotion ? 0 : position * 1.6,
-                  scale: 1 - position * 0.035,
-                  opacity: 1 - position * 0.16,
+                  y: position * 30,
+                  rotate: reducedMotion ? 0 : position * 2.8,
+                  rotateY: reducedMotion ? 0 : isFlippingOut ? [0, -42, restingRotateY] : isFlippingIn ? [42, 0] : isActive ? 0 : restingRotateY,
+                  z: reducedMotion ? 0 : isActive ? 48 : -position * 16,
+                  scale: 1 - position * 0.025,
+                  opacity: 1 - position * 0.09,
                 }}
-                whileHover={reducedMotion ? undefined : { y: position * 24 - 8 }}
-                whileFocus={reducedMotion ? undefined : { y: position * 24 - 6 }}
-                transition={reducedMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                whileHover={reducedMotion ? undefined : isActive ? { y: -8 } : undefined}
+                whileFocus={reducedMotion ? undefined : isActive ? { y: -6 } : undefined}
+                transition={
+                  reducedMotion
+                    ? { duration: 0 }
+                    : {
+                        x: isFlippingOut ? { delay: 0.18, duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                        y: isFlippingOut ? { delay: 0.18, duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                        z: isFlippingOut ? { delay: 0.18, duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                        rotate: isFlippingOut ? { delay: 0.18, duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                        rotateY: isFlippingOut
+                          ? { duration: 0.68, times: [0, 0.68, 1], ease: [0.22, 1, 0.36, 1] }
+                          : isFlippingIn
+                          ? { delay: 0.08, duration: 0.62, ease: [0.16, 1, 0.3, 1] }
+                          : { duration: 0.5, ease: [0.4, 0, 1, 1] },
+                        scale: isFlippingOut ? { delay: 0.18, duration: 0.48, ease: [0.22, 1, 0.36, 1] } : { duration: 0.62, ease: [0.22, 1, 0.36, 1] },
+                        opacity: { duration: 0.36, ease: [0.22, 1, 0.36, 1] },
+                      }
+                }
                 className={cn(
-                  "group relative w-[min(27rem,calc(100vw-3rem))] [grid-area:stack] overflow-hidden rounded-xl border bg-[#111426] px-6 py-5 text-left text-white shadow-[0_30px_80px_rgba(12,10,34,0.25)] outline-none",
+                  "group relative w-[min(27rem,calc(100vw-3rem))] [grid-area:stack] min-h-[20.5rem] text-left outline-none sm:min-h-[21rem] lg:min-h-[15.75rem]",
                   "focus-visible:ring-2 focus-visible:ring-[#9c87ff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f7fb]",
-                  isActive ? palette.border : "border-white/12",
                 )}
-                style={{ zIndex: cards.length - position }}
+                style={{
+                  zIndex: cards.length - position,
+                  transformOrigin: "center center",
+                  transformStyle: "preserve-3d",
+                  WebkitTransformStyle: "preserve-3d",
+                  willChange: "transform",
+                }}
               >
-                <span aria-hidden className={cn("absolute inset-0 bg-gradient-to-br to-transparent opacity-90", palette.glow)} />
-                <span className="relative flex items-start justify-between gap-5">
-                  <span className="flex min-w-0 items-center gap-3.5">
-                    <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-lg", palette.icon)}>
-                      <Icon className="size-5" aria-hidden />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">{eyebrow}</span>
-                      <span className="mt-1 block text-lg font-semibold leading-tight">{title}</span>
-                    </span>
-                  </span>
-                  <ArrowUpRight className={cn("mt-1 size-4 shrink-0 transition-colors", isActive ? "text-white/75" : "text-white/28")} aria-hidden />
-                </span>
-                <span className="relative mt-5 block min-h-12 max-w-[34ch] text-sm leading-6 text-white/64">{description}</span>
-                <span className="relative mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-xs">
-                  <span className="flex items-center gap-1.5 text-white/70">
-                    <CheckCircle2 className="size-3.5 text-[#72d7a8]" aria-hidden />
-                    {status}
-                  </span>
-                  <span className="font-medium tabular-nums text-white/38">0{index + 1}</span>
+                <span
+                  className={cn(
+                    "absolute inset-0 block overflow-hidden rounded-2xl border bg-gradient-to-br px-5 py-5 text-white shadow-[0_30px_80px_rgba(12,10,34,0.25)] sm:px-6",
+                    palette.surface,
+                    isActive ? cn(palette.border, "shadow-[0_36px_80px_rgba(12,10,34,0.3)]") : "border-white/12",
+                  )}
+                  style={{
+                    backfaceVisibility: "hidden",
+                    transformOrigin: "center center",
+                    transformStyle: "preserve-3d",
+                    WebkitBackfaceVisibility: "hidden",
+                    WebkitTransformStyle: "preserve-3d",
+                    willChange: "transform",
+                  }}
+                >
+                  <span aria-hidden className={cn("absolute inset-0 rounded-2xl bg-gradient-to-br to-transparent opacity-95", palette.glow)} />
+                  <span aria-hidden className="absolute inset-x-6 top-0 h-px bg-white/35" />
+                  <span aria-hidden className="absolute inset-y-4 right-0 w-px bg-white/10" />
+                  <AnimatePresence mode="wait" initial={false}>
+                  <m.span
+                    key={isFlipped ? "review" : "summary"}
+                    aria-hidden
+                    initial={reducedMotion ? false : { opacity: 0, rotateY: isFlipped ? -90 : 90 }}
+                    animate={{ opacity: 1, rotateY: 0 }}
+                    exit={reducedMotion ? { opacity: 1 } : { opacity: 0, rotateY: isFlipped ? 90 : -90 }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative block [backface-visibility:hidden]"
+                  >
+                    {isFlipped ? (
+                      <span className="flex h-[13.25rem] flex-col justify-between">
+                        <span>
+                          <span className={cn("flex size-14 items-center justify-center rounded-2xl", palette.icon)}>
+                            <Icon className="size-7" />
+                          </span>
+                          <span className="mt-7 block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">Review point</span>
+                          <span className="mt-2 block text-2xl font-semibold leading-tight">{status}</span>
+                          <span className="mt-3 block max-w-[28ch] text-sm leading-6 text-white/65">This stage stays visible until you are ready to move forward.</span>
+                        </span>
+                        <span className="flex items-center justify-between border-t border-white/10 pt-3 text-xs font-medium text-white/70">
+                          <span>Press to flip back</span>
+                          <span className={cn("tabular-nums", palette.number)}>0{index + 1}</span>
+                        </span>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="flex items-start justify-between gap-5">
+                          <span className="flex min-w-0 items-center gap-3.5">
+                            <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-lg", palette.icon)}>
+                              <Icon className="size-5" />
+                            </span>
+                            <span className="min-w-0">
+                              <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-white/45">{eyebrow}</span>
+                              <span className="mt-1 block text-lg font-semibold leading-tight">{title}</span>
+                            </span>
+                          </span>
+                          <ArrowUpRight className={cn("mt-1 size-4 shrink-0 transition-[color,transform] duration-300", isActive ? "text-white/85 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" : "text-white/28")} />
+                        </span>
+                        <span className="mt-5 block min-h-12 max-w-[34ch] text-sm leading-6 text-white/64">{description}</span>
+                        {mobileDetails.length > 0 ? (
+                          <span className="mt-4 grid gap-2 border-t border-white/10 pt-4 lg:hidden">
+                            {mobileDetails.map((detail) => (
+                              <span key={detail} className="flex items-start gap-2 text-[13px] leading-5 text-white/72">
+                                <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-[#72d7a8]" />
+                                <span>{detail}</span>
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                        <span className="mt-5 flex items-center justify-between border-t border-white/10 pt-3 text-xs">
+                          <span className="flex items-center gap-1.5 text-white/70">
+                            <CheckCircle2 className="size-3.5 text-[#72d7a8]" />
+                            {status}
+                          </span>
+                          <span className={cn("font-semibold tabular-nums", palette.number)}>0{index + 1}</span>
+                        </span>
+                      </>
+                    )}
+                  </m.span>
+                  </AnimatePresence>
                 </span>
               </m.button>
             );
@@ -112,7 +238,7 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
           <button
             key={card.title}
             type="button"
-            onClick={() => onActiveChange(index)}
+            onClick={() => selectStage(index)}
             aria-label={`Show ${card.title}`}
             aria-current={index === activeIndex ? "step" : undefined}
             className="group flex size-11 items-center justify-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#6f4cff]"

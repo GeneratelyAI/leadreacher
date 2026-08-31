@@ -12,7 +12,7 @@ export default function LandingFooter({ children, footerClassName = "" }: Landin
   return (
     <div className="relative z-30 isolate bg-[#111318]">
       <div className="relative z-10">{children}</div>
-      <div className={`relative z-0 md:sticky md:bottom-0 ${footerClassName}`}>
+      <div className={`sticky bottom-0 z-0 ${footerClassName}`}>
         <FinalCtaAndFooter navbarDark />
       </div>
     </div>

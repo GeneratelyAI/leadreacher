@@ -57,9 +57,33 @@ export const checkoutStates = [
 ] as const;
 
 export const reviewCards = [
-  { title: "Audience ready", description: "Review the people selected for outreach.", icon: UsersRound, eyebrow: "Prospects", status: "Ready for review", accent: "blue" as const },
-  { title: "Outreach approved", description: "Edit messages and channel routing before launch.", icon: ShieldCheck, eyebrow: "Campaign", status: "Approved", accent: "violet" as const },
-  { title: "Conversations visible", description: "Replies arrive with their campaign context intact.", icon: MessagesSquare, eyebrow: "Chat", status: "Live context", accent: "green" as const },
+  {
+    title: "Audience ready",
+    description: "Review the people selected for outreach.",
+    icon: UsersRound,
+    eyebrow: "Prospects",
+    status: "Ready for review",
+    accent: "blue" as const,
+    mobileDetails: ["See the fit signals behind each prospect", "Approve people before campaign enrollment"],
+  },
+  {
+    title: "Outreach approved",
+    description: "Edit messages and channel routing before launch.",
+    icon: ShieldCheck,
+    eyebrow: "Campaign",
+    status: "Approved",
+    accent: "violet" as const,
+    mobileDetails: ["Review personalized copy and video choices", "Confirm every channel before launch"],
+  },
+  {
+    title: "Conversations visible",
+    description: "Replies arrive with their campaign context intact.",
+    icon: MessagesSquare,
+    eyebrow: "Chat",
+    status: "Live context",
+    accent: "green" as const,
+    mobileDetails: ["Keep channel and campaign context together", "Step in when a prospect is ready"],
+  },
 ] as const;
 
 export const faqs = [

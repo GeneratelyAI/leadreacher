@@ -54,6 +54,18 @@
   padding-bottom: var(--marquee-gap);
 }
 
+.mobileMarqueeTrack {
+  display: flex;
+  width: max-content;
+  animation: testimonial-mobile-marquee 72s linear infinite;
+  will-change: transform;
+}
+
+.mobileMarquee:active .mobileMarqueeTrack,
+.mobileMarquee:focus-within .mobileMarqueeTrack {
+  animation-play-state: paused;
+}
+
 @keyframes testimonial-marquee {
   from {
     transform: translate3d(0, 0, 0);
@@ -61,6 +73,16 @@
 
   to {
     transform: translate3d(0, calc(-100% - var(--marquee-gap)), 0);
+  }
+}
+
+@keyframes testimonial-mobile-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
@@ -89,6 +111,16 @@
   }
 
   .scrollGroup + .scrollGroup {
+    display: none;
+  }
+
+  .mobileMarqueeTrack {
+    animation: none;
+    transform: none;
+    will-change: auto;
+  }
+
+  .mobileMarqueeTrack > :last-child {
     display: none;
   }
 }

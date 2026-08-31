@@ -255,7 +255,16 @@ export type TestimonialPreview = {
   avatarPosition?: number;
 };
 
-function TestimonialCard({ name, role, body, initials, accent, avatarUrl, avatarPosition }: TestimonialPreview) {
+function TestimonialCard({
+  name,
+  role,
+  body,
+  initials,
+  accent,
+  avatarUrl,
+  avatarPosition,
+  className,
+}: TestimonialPreview & { className?: string }) {
   const updateSpotlight = (event: MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     event.currentTarget.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
@@ -265,7 +274,10 @@ function TestimonialCard({ name, role, body, initials, accent, avatarUrl, avatar
   return (
     <Card
       onMouseMove={updateSpotlight}
-      className="group/testimonial relative isolate h-[16.75rem] w-[16.25rem] overflow-hidden rounded-2xl border border-[#dcd6f7] bg-white/96 py-0 shadow-[0_14px_38px_rgba(54,36,120,0.10)] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-[#c8baff] hover:shadow-[0_18px_46px_rgba(54,36,120,0.16)]"
+      className={cn(
+        "group/testimonial relative isolate h-[16.75rem] w-[16.25rem] overflow-hidden rounded-2xl border border-[#dcd6f7] bg-white/96 py-0 shadow-[0_14px_38px_rgba(54,36,120,0.10)] backdrop-blur-sm transition-[border-color,box-shadow] duration-300 hover:border-[#c8baff] hover:shadow-[0_18px_46px_rgba(54,36,120,0.16)]",
+        className,
+      )}
     >
       <span
         aria-hidden
@@ -339,46 +351,72 @@ export function ThreeDimensionalTestimonials({
   return (
     <div
       ref={sectionRef}
-      className={cn(
-        "relative flex h-[28rem] w-full items-center justify-center overflow-hidden [perspective:800px]",
-        className,
-      )}
+      className={cn("relative w-full", className)}
       aria-label="LeadReacher customer testimonials"
     >
-      <div
-        className={cn(styles.perspectiveTrack, "flex h-[42rem] flex-row items-start gap-5")}
-        style={{
-          transform:
-            "translate3d(0,-1.25rem,-1rem) rotateX(7deg) rotateY(-6deg) rotateZ(4deg)",
-        }}
-      >
-        {columns.map((column, columnIndex) => (
-          <ScrollDrivenColumn
-            key={columnIndex}
-            reverse={columnIndex % 2 === 1}
-            active={isAnimationActive}
-            reducedMotion={reducedMotion}
-            velocityRef={velocityRef}
-            ariaLabel={columnIndex === 0 ? "Customer testimonials. Scroll to accelerate the columns." : undefined}
-            ariaHidden={columnIndex > 0}
-            className={cn(
-              "h-[42rem]",
-              columnIndex > 1 && "hidden sm:flex",
-            )}
-          >
-            {column.map((testimonial, itemIndex) => (
-              <TestimonialCard
-                key={`${columnIndex}-${testimonial.name}-${itemIndex}`}
-                {...testimonial}
-              />
-            ))}
-          </ScrollDrivenColumn>
-        ))}
+      <div className="lg:hidden">
+        <div
+          role="region"
+          aria-label="Swipe through customer testimonials"
+          tabIndex={0}
+          className={cn(styles.mobileMarquee, "-mx-4 overflow-x-auto overscroll-x-contain px-4 pb-7 pt-3 outline-none [scrollbar-width:none] [touch-action:pan-x_pan-y] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#6f4cff] min-[360px]:-mx-5 min-[360px]:px-5 sm:-mx-8 sm:px-8 [&::-webkit-scrollbar]:hidden")}
+        >
+          <div className={styles.mobileMarqueeTrack}>
+            <div className="flex shrink-0 gap-4 pr-4">
+              {testimonials.map((testimonial) => (
+                <TestimonialCard
+                  key={testimonial.name}
+                  {...testimonial}
+                  className="h-auto min-h-[17rem] w-[min(19rem,calc(100vw-3.5rem))] shrink-0 sm:w-[21rem]"
+                />
+              ))}
+            </div>
+            <div aria-hidden="true" className="flex shrink-0 gap-4 pr-4">
+              {testimonials.map((testimonial) => (
+                <TestimonialCard
+                  key={`duplicate-${testimonial.name}`}
+                  {...testimonial}
+                  className="h-auto min-h-[17rem] w-[min(19rem,calc(100vw-3.5rem))] shrink-0 sm:w-[21rem]"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white to-transparent" />
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent" />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
-      <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
+
+      <div className="relative hidden h-[28rem] w-full items-center justify-center overflow-hidden [perspective:800px] lg:flex">
+        <div
+          className={cn(styles.perspectiveTrack, "flex h-[42rem] flex-row items-start gap-5")}
+          style={{
+            transform:
+              "translate3d(0,-1.25rem,-1rem) rotateX(7deg) rotateY(-6deg) rotateZ(4deg)",
+          }}
+        >
+          {columns.map((column, columnIndex) => (
+            <ScrollDrivenColumn
+              key={columnIndex}
+              reverse={columnIndex % 2 === 1}
+              active={isAnimationActive}
+              reducedMotion={reducedMotion}
+              velocityRef={velocityRef}
+              ariaLabel={columnIndex === 0 ? "Customer testimonials. Scroll to accelerate the columns." : undefined}
+              ariaHidden={columnIndex > 0}
+              className="h-[42rem]"
+            >
+              {column.map((testimonial, itemIndex) => (
+                <TestimonialCard
+                  key={`${columnIndex}-${testimonial.name}-${itemIndex}`}
+                  {...testimonial}
+                />
+              ))}
+            </ScrollDrivenColumn>
+          ))}
+        </div>
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-white to-transparent" />
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-white to-transparent" />
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-white to-transparent" />
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-white to-transparent" />
+      </div>
     </div>
   );
 }

@@ -4,12 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
-import { AnimatePresence, m, useInView, useReducedMotion, useScroll } from "framer-motion";
+import { m, useInView, useReducedMotion, useScroll } from "framer-motion";
 
 import {
   ArrowRight,
   Check,
   Clock,
+  CreditCard,
   DollarSign,
   Eye,
   FilePenLine,
@@ -41,8 +42,8 @@ import { ScrollExpandMedia } from "@/components/ui/scroll-expansion-hero";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import AnimatedHighlightText, { Highlight, SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { MarkerHighlight } from "@/components/ui/marker-highlight";
+import { PointerHighlight } from "@/components/ui/pointer-highlight";
 import { BubbleText } from "@/components/ui/bubble-text";
-import { LinkPreview } from "@/components/ui/link-preview";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { cn } from "@/lib/utils";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/constants/brand";
@@ -641,125 +642,142 @@ function CampaignExpansionSection() {
   );
 }
 
-function LandingPricingCard() {
-  const includedFeatures = [
-    "AI strategy and prospect research",
-    "Personalized video outreach",
-    "Multi-channel automation",
-    "Campaign controls and analytics",
-    "Human support",
-  ];
+function PricingTrustShowcase() {
+  const reducedMotion = Boolean(useReducedMotion());
+  const handlePricingPointerMove = (event: MouseEvent<HTMLElement>) => {
+    if (reducedMotion) return;
+
+    const bounds = event.currentTarget.getBoundingClientRect();
+    event.currentTarget.style.setProperty("--pricing-pointer-x", `${event.clientX - bounds.left}px`);
+    event.currentTarget.style.setProperty("--pricing-pointer-y", `${event.clientY - bounds.top}px`);
+  };
+
+  const resetPricingPointer = (event: MouseEvent<HTMLElement>) => {
+    event.currentTarget.style.setProperty("--pricing-pointer-x", "50%");
+    event.currentTarget.style.setProperty("--pricing-pointer-y", "35%");
+  };
 
   return (
-    <aside className="w-full py-0">
-      <div className="lg:min-h-[13.5rem]">
-        <h2 className="mx-auto max-w-2xl text-balance text-center text-4xl font-semibold leading-[1.02] text-[#111527] sm:text-5xl lg:min-h-[6.5rem]">
-          <span className="block">Simple pricing.</span>
-          <span className="mt-1 block">
-            <ShimmerText
-              className="whitespace-nowrap"
-              style={{
-                "--lr-shimmer-base": "#4f46e5",
-                "--lr-shimmer-core": "#58a6ff",
-                "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
-              } as CSSProperties}
-            >
-              Serious results.
-            </ShimmerText>
-          </span>
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-center text-base leading-7 text-[#62697e]">One plan for your complete outreach workflow. Cancel anytime.</p>
-        <p className="mt-5 text-center text-sm font-medium text-[#62697e]">
-          <LinkPreview url="/pricing" className="rounded-sm outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#8b7fd4]">
-            <Highlight tabIndex={-1} icon={<SparklesIcon />} color="#4e28df">
-              Explore all pricing options
-            </Highlight>
-          </LinkPreview>
-        </p>
-      </div>
+    <section id="resources" aria-labelledby="pricing-trust-heading" className="relative mt-20 scroll-mt-24 py-4 sm:mt-24 sm:py-8">
+      <div className="grid items-center gap-12 lg:grid-cols-[1.08fr_.92fr] lg:gap-14 xl:gap-20">
+        <div className="max-w-3xl">
+          <m.p
+            initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.7 }}
+            transition={reducedMotion ? { duration: 0 } : { duration: 0.35 }}
+            className="text-sm font-semibold uppercase tracking-[0.14em] text-[#4e28df]"
+          >
+            Outreach without the risk
+          </m.p>
 
-      <SpotlightCard
-        spotlightColor="rgba(115, 79, 255, 0.16)"
-        className="mt-7 min-h-[31rem] rounded-[22px] border border-transparent bg-[linear-gradient(#ffffff,#ffffff),linear-gradient(105deg,rgba(147,51,234,.72),rgba(196,181,253,.82)_24%,rgba(255,255,255,.96)_48%,rgba(165,180,252,.86)_72%,rgba(79,70,229,.76))] shadow-[0_22px_55px_rgba(66,42,148,0.12)] [background-clip:padding-box,border-box] [background-origin:border-box] [background-size:100%_100%,220%_100%]"
-      >
-        <div className="flex min-h-[31rem] flex-col p-6 sm:p-8">
-          <div className="flex flex-col border-b border-[#e6e4f1] pb-6">
-            <p className="text-base font-semibold text-[#4e28df]">LeadReacher Pro</p>
-            <div className="mt-4 flex items-end gap-1 text-[#111527]">
-              <span className="text-6xl font-semibold leading-none tracking-[-0.055em]">$300</span>
-              <span className="pb-1 text-sm text-[#62697e]">/month</span>
+          <h2 id="pricing-trust-heading" className="mt-14 text-balance text-[clamp(3rem,5vw,5.5rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-[#101426]">
+            <span className="block">
+              No{" "}
+              <span className="relative inline-block text-[#101426]">
+                spam.
+                <m.span
+                  aria-hidden
+                  className="absolute left-[-2%] top-[52%] h-[5px] w-[104%] origin-left -rotate-2 rounded-full bg-[#ff625c] sm:h-[6px]"
+                  initial={reducedMotion ? false : { scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: false, amount: 0.9 }}
+                  transition={reducedMotion ? { duration: 0 } : { duration: 0.42, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </span>
+            </span>
+            <span className="mt-2 block sm:whitespace-nowrap">
+              No{" "}
+              <span className="relative inline-block whitespace-nowrap text-[#101426]">
+                ninja billing.
+                <m.span
+                  aria-hidden
+                  className="absolute left-[-1%] top-[52%] h-[5px] w-[102%] origin-left -rotate-1 rounded-full bg-[#ff625c] sm:h-[6px]"
+                  initial={reducedMotion ? false : { scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: false, amount: 0.9 }}
+                  transition={reducedMotion ? { duration: 0 } : { duration: 0.48, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </span>
+            </span>
+          </h2>
+
+          <p className="mt-8 max-w-xl text-xl leading-8 text-[#5e6377] sm:text-2xl sm:leading-9">
+            Responsible outreach.<br />
+            Transparent billing.<br />
+            No surprises.
+          </p>
+
+          <div className="mt-10 grid gap-7 border-t border-[#e3def2] pt-8 sm:grid-cols-2 sm:gap-8">
+            <div className="group flex items-start gap-4">
+              <span className="relative flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#f1edff] text-[#5428e4] ring-1 ring-[#d9d0ff] transition-transform duration-300 group-hover:-translate-y-1 motion-reduce:transform-none">
+                <ShieldCheck className="size-8" aria-hidden />
+                <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-[#36ad68] text-white"><Check className="size-3.5" aria-hidden /></span>
+              </span>
+              <div className="pt-1">
+                <h3 className="text-base font-semibold text-[#111527]">No Spam Guarantee</h3>
+                <p className="mt-2 max-w-[17rem] text-sm leading-6 text-[#62697e]">Platform-safe, controlled outreach that stays reviewable.</p>
+              </div>
             </div>
-            <p className="mt-3 text-xs leading-5 text-[#62697e]">Billed monthly. Cancel anytime.</p>
-          </div>
-
-          <ul className="grid gap-y-3 pt-6" aria-label="Included with LeadReacher Pro">
-            {includedFeatures.map((feature) => (
-              <li key={feature} className="flex items-start gap-2 text-sm leading-5 text-[#4d5368]">
-                <Check className="mt-0.5 size-4 shrink-0 text-[#4e28df]" aria-hidden />
-                {feature}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-auto pt-8">
-            <Link
-              href="/signup"
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#5a32ed] px-4 text-sm font-semibold text-white shadow-[0_12px_26px_rgba(90,50,237,.22)] transition-[background-color,transform,box-shadow] hover:-translate-y-0.5 hover:bg-[#6842f5] hover:shadow-[0_16px_32px_rgba(90,50,237,.28)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5a32ed] focus-visible:ring-offset-2"
-            >
-              Get started <ArrowRight className="size-4" aria-hidden />
-            </Link>
-            <p className="mt-4 flex items-start justify-center gap-2 text-center text-xs leading-5 text-[#62697e]">
-              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#4e28df]" aria-hidden />
-              No long-term contracts. Your final total is confirmed before purchase.
-            </p>
+            <div className="group flex items-start gap-4">
+              <span className="relative flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[#f1edff] text-[#5428e4] ring-1 ring-[#d9d0ff] transition-transform duration-300 group-hover:-translate-y-1 motion-reduce:transform-none">
+                <CreditCard className="size-8" aria-hidden />
+                <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full border-2 border-white bg-[#36ad68] text-white"><Check className="size-3.5" aria-hidden /></span>
+              </span>
+              <div className="pt-1">
+                <h3 className="text-base font-semibold text-[#111527]">No Ninja Billing</h3>
+                <p className="mt-2 max-w-[17rem] text-sm leading-6 text-[#62697e]">Know your final total before you are charged.</p>
+              </div>
+            </div>
           </div>
         </div>
-      </SpotlightCard>
-    </aside>
-  );
-}
 
-function TrustPromiseCard() {
-  const reducedMotion = Boolean(useReducedMotion());
+        <m.aside
+          aria-label="LeadReacher Pro pricing"
+          onMouseMove={handlePricingPointerMove}
+          onMouseLeave={resetPricingPointer}
+          initial={reducedMotion ? false : { opacity: 0, y: 22, scale: 0.98 }}
+          whileInView={{ opacity: 1, y: 0, scale: 1 }}
+          viewport={{ once: true, amount: 0.35 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          whileHover={reducedMotion ? undefined : { y: -5 }}
+          style={{ "--pricing-pointer-x": "50%", "--pricing-pointer-y": "35%" } as CSSProperties}
+          className="group relative isolate mx-auto w-full max-w-[35rem] overflow-hidden rounded-[30px] border border-white/10 bg-[#0c1020] p-7 text-white shadow-[0_32px_70px_rgba(43,27,105,.28),0_12px_26px_rgba(96,56,243,.18)] sm:p-10 lg:min-h-[39rem] lg:p-11"
+        >
+          <span aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 [background:radial-gradient(360px_circle_at_var(--pricing-pointer-x)_var(--pricing-pointer-y),rgba(126,91,255,.28),rgba(78,40,223,.10)_38%,transparent_70%)]" />
+          <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-[#6538f2]/20 blur-[72px]" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-32 -left-24 size-72 rounded-full bg-[#4222b6]/18 blur-[80px]" />
+          <div className="relative flex h-full min-h-[31rem] flex-col text-center lg:min-h-[33rem]">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#9c86ff]">Simple pricing</p>
+            <span aria-hidden className="mx-auto mt-5 block h-0.5 w-16 rounded-full bg-[#6842f5]" />
+            <p className="mt-10 text-xl font-semibold text-white">LeadReacher Pro</p>
+            <div className="mt-7 flex items-start justify-center text-white" aria-label="$199.99 per month">
+              <span aria-hidden className="mt-2 text-4xl font-semibold text-[#7249ff]">$</span>
+              <span aria-hidden className="text-[clamp(6.5rem,11vw,10rem)] font-semibold leading-[0.78] tracking-[-0.075em]">199</span>
+              <span aria-hidden className="ml-2 mt-1 text-4xl font-semibold leading-none tracking-[-0.04em] text-[#7249ff] sm:ml-3 sm:mt-0">.99</span>
+            </div>
+            <p className="mt-7 text-2xl font-semibold text-[#805fff]">/ month</p>
 
-  return (
-    <section className="w-full overflow-hidden">
-      <div className="relative lg:min-h-[13.5rem]">
-        <h2 className="mx-auto max-w-2xl text-balance text-center text-4xl font-semibold leading-[1.02] text-[#111527] sm:text-5xl lg:min-h-[6.5rem]">
-          <span className="block">
-            No{" "}
-            <span className="relative inline-block">
-              spam.
-              <m.span
-                aria-hidden
-                className="absolute left-0 top-1/2 h-[3px] w-full origin-left -rotate-2 rounded-full bg-[#ff625c]"
-                initial={reducedMotion ? false : { scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true, amount: 0.9 }}
-                transition={reducedMotion ? { duration: 0 } : { duration: 0.42, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </span>
-          </span>
-          <span className="mt-1 block">
-            No{" "}
-            <span className="relative inline-block whitespace-nowrap">
-              ninja billing.
-              <m.span
-                aria-hidden
-                className="absolute left-0 top-1/2 h-[3px] w-full origin-left -rotate-1 rounded-full bg-[#ff625c]"
-                initial={reducedMotion ? false : { scaleX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true, amount: 0.9 }}
-                transition={reducedMotion ? { duration: 0 } : { duration: 0.48, delay: 0.48, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </span>
-          </span>
-        </h2>
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-center text-base leading-7 text-[#62697e]">
-          Every message is reviewed. Every charge is visible.
-        </p>
+            <div className="mt-9 border-t border-white/12 pt-8">
+              <p className="text-base leading-7 text-white/68">One plan for your complete outreach workflow.</p>
+              <p className="mt-2 text-sm text-white/48">Billed monthly. Cancel anytime.</p>
+            </div>
+
+            <div className="mt-auto pt-9">
+              <Link
+                href="/pricing"
+                className="group inline-flex min-h-14 w-full items-center justify-center gap-3 rounded-xl bg-[linear-gradient(100deg,#5425ea,#6b35f5_58%,#5c2be8)] px-5 text-base font-semibold text-white shadow-[0_16px_30px_rgba(82,37,234,.28)] transition-[transform,box-shadow,filter] hover:-translate-y-0.5 hover:brightness-110 hover:shadow-[0_20px_38px_rgba(82,37,234,.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ad9cff] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0c1020] motion-reduce:transform-none"
+              >
+                View pricing <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1 motion-reduce:transform-none" aria-hidden />
+              </Link>
+              <p className="mt-5 flex items-center justify-center gap-2 text-xs leading-5 text-white/52">
+                <ShieldCheck className="size-4 text-[#9c86ff]" aria-hidden />
+                Final total confirmed before purchase.
+              </p>
+            </div>
+          </div>
+        </m.aside>
       </div>
-
-      <div className="mt-7 h-[31rem]" aria-hidden="true" />
     </section>
   );
 }
@@ -767,6 +785,8 @@ function TrustPromiseCard() {
 function PricingAndFaqSection() {
   const reducedMotion = Boolean(useReducedMotion());
   const reviewStoryRef = useRef<HTMLDivElement>(null);
+  const lastReviewScrollYRef = useRef<number | null>(null);
+  const reviewScrollFrameRef = useRef<number | null>(null);
   const [activeReviewIndex, setActiveReviewIndex] = useState(0);
   const { scrollYProgress: reviewScrollProgress } = useScroll({
     target: reviewStoryRef,
@@ -775,50 +795,47 @@ function PricingAndFaqSection() {
   const activeCheckoutState = checkoutStates[activeReviewIndex];
 
   useEffect(() => {
-    const desktopViewport = window.matchMedia("(min-width: 1024px)");
-    return reviewScrollProgress.on("change", (progress) => {
-      if (!desktopViewport.matches) return;
+    const unsubscribe = reviewScrollProgress.on("change", (progress) => {
+      const currentScrollY = window.scrollY;
+      const previousScrollY = lastReviewScrollYRef.current;
+      lastReviewScrollYRef.current = currentScrollY;
+
+      if (previousScrollY === null || Math.abs(currentScrollY - previousScrollY) < 1) return;
+
       const nextIndex = Math.min(reviewCards.length - 1, Math.floor(progress * reviewCards.length));
-      setActiveReviewIndex((currentIndex) => currentIndex === nextIndex ? currentIndex : nextIndex);
+      if (reviewScrollFrameRef.current !== null) window.cancelAnimationFrame(reviewScrollFrameRef.current);
+
+      reviewScrollFrameRef.current = window.requestAnimationFrame(() => {
+        reviewScrollFrameRef.current = null;
+        setActiveReviewIndex((currentIndex) => currentIndex === nextIndex ? currentIndex : nextIndex);
+      });
     });
+
+    return () => {
+      unsubscribe();
+      if (reviewScrollFrameRef.current !== null) window.cancelAnimationFrame(reviewScrollFrameRef.current);
+    };
   }, [reviewScrollProgress]);
-
-  const selectReviewStage = (index: number) => {
-    setActiveReviewIndex(index);
-
-    const story = reviewStoryRef.current;
-    if (!story || window.matchMedia("(max-width: 1023px)").matches) return;
-
-    const storyTop = story.getBoundingClientRect().top + window.scrollY;
-    const scrollDistance = Math.max(0, story.offsetHeight - window.innerHeight);
-    const stageProgress = (index + 0.5) / reviewCards.length;
-    window.scrollTo({
-      top: storyTop + scrollDistance * stageProgress,
-      behavior: reducedMotion ? "auto" : "smooth",
-    });
-  };
 
   return (
     <EdgeSurface as="section" id="pricing" data-navbar-theme="light" className="relative z-40 -mt-7 overflow-visible scroll-mt-20 rounded-[28px] py-16 sm:-mt-9 sm:rounded-[40px] sm:py-24 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
-        <div ref={reviewStoryRef} className="relative mt-20 sm:mt-24 lg:min-h-[220vh]">
-          <div className="grid items-center gap-10 lg:sticky lg:top-16 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[.9fr_1.1fr] lg:gap-14 lg:py-10">
+        <div ref={reviewStoryRef} data-review-story className="relative mt-20 min-h-[220svh] sm:mt-24 lg:min-h-[220vh]">
+          <div className="sticky top-20 grid min-h-[calc(100svh-5rem)] items-center gap-10 py-5 lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[.9fr_1.1fr] lg:gap-14 lg:py-10">
             <div className="px-1 py-4 sm:px-6">
               <p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Built for review, not guesswork</p>
               <h2 className="mt-4 text-3xl font-semibold text-[#111527] 2xl:text-4xl">The work stays visible as it moves.</h2>
-              <p className="mt-4 max-w-xl text-base leading-7 text-[#62697e] 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p>
-              <MorphingCardStack cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={selectReviewStage} className="mt-7" />
+              <p className="mt-4 hidden max-w-xl text-base leading-7 text-[#62697e] sm:block 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p>
+              <MorphingCardStack cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-7" />
             </div>
-            <div className="relative min-h-[610px] rounded-lg bg-[#101322] p-7 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] sm:p-9 lg:min-h-[647px]">
-              <AnimatePresence mode="wait" initial={false}>
-                <m.div
-                  key={activeReviewIndex}
-                  initial={reducedMotion ? false : { opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={reducedMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
-                  transition={reducedMotion ? { duration: 0 } : { duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  className="flex h-full flex-col"
-                >
+            <div className="relative hidden min-h-[647px] rounded-lg bg-[#101322] p-9 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] lg:block">
+              <m.div
+                key={activeReviewIndex}
+                initial={reducedMotion ? false : { opacity: 0.72, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                className="flex h-full flex-col"
+              >
                   <p className="text-xs font-semibold uppercase text-[#9d86ff]">{activeCheckoutState.eyebrow}</p>
                   <div className="mt-5 flex items-center justify-between gap-3 border-y border-white/10 py-3">
                     <div className="flex items-center gap-3">
@@ -836,15 +853,11 @@ function PricingAndFaqSection() {
                     <Link href="/signup" className="flex h-12 items-center justify-center gap-2 rounded-lg bg-[#5a32ed] font-semibold transition-colors hover:bg-[#6842f5]">{activeCheckoutState.action} <ArrowRight className="size-4" /></Link>
                     <p className="mt-4 text-center text-xs text-white/50">{activeCheckoutState.note}</p>
                   </div>
-                </m.div>
-              </AnimatePresence>
+              </m.div>
             </div>
           </div>
         </div>
-        <div id="resources" className="mt-20 grid scroll-mt-24 items-start gap-16 sm:mt-24 lg:grid-cols-[minmax(20rem,.76fr)_minmax(0,1.24fr)] lg:gap-14 xl:grid-cols-[minmax(22rem,.7fr)_minmax(0,1.3fr)] xl:gap-16">
-          <LandingPricingCard />
-          <TrustPromiseCard />
-        </div>
+        <PricingTrustShowcase />
         <section
           aria-labelledby="testimonials-heading"
           className="mt-20 sm:mt-24 lg:grid lg:grid-cols-[0.72fr_1.28fr] lg:items-center lg:gap-12"
@@ -859,7 +872,17 @@ function PricingAndFaqSection() {
             >
               <span className="whitespace-nowrap">Credibility is</span>{" "}
               <br aria-hidden="true" />
-              <span className="whitespace-nowrap"><MarkerHighlight>our foundation.</MarkerHighlight></span>
+              <span className="whitespace-nowrap">
+                <PointerHighlight
+                  inline
+                  indicator="plane"
+                  variant="marker"
+                  containerClassName="px-1"
+                  pointerClassName="text-[#6842f5]"
+                >
+                  our foundation.
+                </PointerHighlight>
+              </span>
             </h2>
             <p className="mt-7 text-pretty text-lg leading-8 text-[#62697e] lg:text-xl lg:leading-9">
               See why sales and marketing teams continue to trust LeadReacher to build stronger pipelines and open new market channels.
@@ -967,7 +990,7 @@ function FooterReveal() {
       <div className="relative z-10 bg-[#111318]">
         <PricingAndFaqSection />
       </div>
-      <div className="relative z-0 md:sticky md:bottom-0">
+      <div className="sticky bottom-0 z-0">
         <FinalCtaAndFooter navbarDark />
       </div>
     </div>
