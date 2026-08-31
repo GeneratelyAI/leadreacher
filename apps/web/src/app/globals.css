@@ -1630,7 +1630,7 @@ html {
 
 /* At normal desktop browser zoom, keep the complete onboarding composition
    comfortably visible on laptop-height viewports. These are real responsive
-   dimensions—not CSS zoom—so browser zoom and text reflow stay intact. */
+   dimensions, not CSS zoom, so browser zoom and text reflow stay intact. */
 @media (min-width: 64rem) and (max-height: 56.25rem) {
   .onboarding-page-header h1,
   .onboarding-screen-header h1 {

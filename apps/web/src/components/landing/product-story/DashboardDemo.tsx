@@ -404,7 +404,7 @@ function ProspectsDemo(props: DemoProps) {
           className="flex min-h-7 shrink-0 items-center justify-between gap-3"
         >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e4dcff] bg-[#f4f1ff] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.04em] text-[#5530d8] sm:text-[10px]">
-            <Sparkles className="size-3.5" weight="fill" aria-hidden /> Ads &amp; scripts <span className="hidden font-semibold text-[#7666bb] lg:inline">— generated for you</span>
+            <Sparkles className="size-3.5" weight="fill" aria-hidden /> Ads &amp; scripts <span className="hidden font-semibold text-[#7666bb] lg:inline">generated for you</span>
           </span>
           <p className="hidden text-right text-[10px] font-medium text-[#4f485d] sm:block lg:text-xs">
             Target <span className="font-bold text-[#5633df]">every language, culture and market</span> across the globe.
@@ -473,7 +473,7 @@ function ProspectsDemo(props: DemoProps) {
               <p className="text-[9px] font-extrabold uppercase tracking-wide sm:text-[10px]">Your cold DM</p>
               <p className="mt-0.5 text-[8px] text-[#736d7e] sm:text-[9px]">Personalized for every prospect.</p>
               <div className="mt-1 text-[9px] leading-[1.3] sm:text-[10px]">
-                <p>Hi [First Name] —</p>
+                <p>Hi [First Name],</p>
                 <p className="mt-0.5">{editing ? "I made this short idea for your growth team." : "[Your personalized sales message]"}</p>
                 <p className="mt-1 truncate">Ready to walk you through it. <span className="hidden font-semibold text-[#5730df] sm:inline">Book a consult →</span></p>
               </div>
@@ -608,7 +608,7 @@ function OutreachDemo(props: DemoProps) {
             <div className="grid min-h-0 flex-1 grid-cols-[1fr_48%] items-center gap-2 rounded-xl border border-[#e2ddec] bg-[linear-gradient(135deg,#f7f4ff_0%,#eeebff_100%)] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,.8)] sm:gap-2.5">
               <div className="flex min-h-0 min-w-0 flex-col justify-center border-l-2 border-[#7045ed] pl-2 text-[8px] leading-[1.35] text-[#342e42] sm:rounded-lg sm:border-l-0 sm:bg-white/55 sm:px-2.5 sm:py-2 sm:text-[9px] sm:shadow-[0_4px_14px_rgba(65,43,122,.045)] lg:text-[10px]">
                 <span className="mb-1 hidden items-center gap-1 text-[7px] font-bold uppercase tracking-[.08em] text-[#756b83] sm:flex"><Sparkles className="size-2.5 text-[#6437e8]" weight="fill" aria-hidden />Personalized DM</span>
-                <p className="font-medium">Hi &#123;&#123;First Name&#125;&#125; —</p>
+                <p className="font-medium">Hi &#123;&#123;First Name&#125;&#125;,</p>
                 <p className="mt-1 hidden text-[#5d5669] sm:block">&#123;&#123;Your personalized sales message&#125;&#125;</p>
                 <p className="mt-1 text-[#5d5669] sm:hidden">Message ready.</p>
                 <p className="mt-2 hidden sm:block">Ready to walk you through it.</p>
