@@ -12,7 +12,7 @@ import {
 } from "react";
 import { useReducedMotion } from "framer-motion";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/Card";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { cn } from "@/lib/utils";
@@ -252,9 +252,10 @@ export type TestimonialPreview = {
   initials: string;
   accent: string;
   avatarUrl?: string;
+  avatarPosition?: number;
 };
 
-function TestimonialCard({ name, role, body, initials, accent, avatarUrl }: TestimonialPreview) {
+function TestimonialCard({ name, role, body, initials, accent, avatarUrl, avatarPosition }: TestimonialPreview) {
   const updateSpotlight = (event: MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     event.currentTarget.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
@@ -273,10 +274,19 @@ function TestimonialCard({ name, role, body, initials, accent, avatarUrl }: Test
       <CardContent className="relative z-10 p-4.5">
         <div className="flex items-center gap-2.5">
           <Avatar className="size-9">
-            {avatarUrl ? (
-              <AvatarImage src={avatarUrl} alt="" className="object-cover" />
+            {avatarUrl && avatarPosition !== undefined ? (
+              <span
+                aria-hidden="true"
+                className="size-full rounded-full bg-[length:500%_100%] bg-no-repeat"
+                style={{
+                  backgroundImage: `url(${avatarUrl})`,
+                  backgroundPosition: `${avatarPosition * 25}% center`,
+                }}
+              />
             ) : null}
-            <AvatarFallback className={cn("font-semibold", accent)}>{initials}</AvatarFallback>
+            {!avatarUrl || avatarPosition === undefined ? (
+              <AvatarFallback className={cn("font-semibold", accent)}>{initials}</AvatarFallback>
+            ) : null}
           </Avatar>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-[#16182a]">{name}</p>
