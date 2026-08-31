@@ -1,0 +1,94 @@
+.marquee {
+  --marquee-gap: 1rem;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--marquee-gap);
+  overflow: hidden;
+}
+
+.track {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--marquee-gap);
+  animation: testimonial-marquee var(--marquee-duration, 38s) linear infinite;
+  will-change: transform;
+}
+
+.reverse {
+  animation-direction: reverse;
+}
+
+.pauseOnHover:hover .track,
+.pauseOnHover:focus-within .track {
+  animation-play-state: paused;
+}
+
+.perspectiveTrack {
+  transform-origin: center;
+}
+
+.scrollViewport {
+  --marquee-gap: 1rem;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.scrollTrack {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.scrollGroup {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: var(--marquee-gap);
+  padding-bottom: var(--marquee-gap);
+}
+
+@keyframes testimonial-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, calc(-100% - var(--marquee-gap)), 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .perspectiveTrack {
+    transform: none !important;
+  }
+
+  .track {
+    animation: none;
+    will-change: auto;
+  }
+
+  .track + .track {
+    display: none;
+  }
+
+  .scrollViewport {
+    overflow-y: auto;
+    user-select: auto;
+  }
+
+  .scrollTrack {
+    transform: none !important;
+    will-change: auto;
+  }
+
+  .scrollGroup + .scrollGroup {
+    display: none;
+  }
+}
