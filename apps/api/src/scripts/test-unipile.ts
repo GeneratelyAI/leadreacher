@@ -8,7 +8,7 @@
  * perform REAL LinkedIn actions against <publicId> - a live invite and DM.
  * Only pass --send when you intend to send those.
  *
- * Reads UNIPILE_DSN / UNIPILE_API_KEY directly from process.env (via .env) so a
+ * Reads UNIPILE_API_KEY directly from process.env (via .env) so a
  * database is NOT required - it does not import config/env.ts.
  *
  * Usage:
@@ -32,7 +32,7 @@ function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     console.error(`✗ Missing required env var: ${name}`);
-    console.error("  Set UNIPILE_DSN and UNIPILE_API_KEY in apps/api/.env");
+    console.error("  Set UNIPILE_API_KEY in apps/api/.env");
     process.exit(1);
   }
   return value;
@@ -58,16 +58,15 @@ async function runTest<T>(
 }
 
 async function main(): Promise<void> {
-  const dsn = requireEnv("UNIPILE_DSN");
   const apiKey = requireEnv("UNIPILE_API_KEY");
   const rawArgs = process.argv.slice(2);
   const send = rawArgs.includes("--send");
   const [accountIdArg, publicIdArg] = rawArgs.filter((a) => !a.startsWith("--"));
   const publicId = publicIdArg ?? DEFAULT_PUBLIC_ID;
 
-  const adapter = new UnipileAdapter({ dsn, apiKey });
+  const adapter = new UnipileAdapter({ apiKey });
 
-  console.log(`Unipile smoke test → ${dsn}\n`);
+  console.log("Unipile v2 smoke test\n");
 
   // T1 - credentials + connected accounts
   const t1 = await runTest("T1  GET /accounts (credentials + account list)", () =>
@@ -75,7 +74,7 @@ async function main(): Promise<void> {
   );
 
   if (!t1.ok) {
-    console.error("\nT1 failed - cannot continue. Check API key / DSN.");
+    console.error("\nT1 failed - cannot continue. Check the v2 API key.");
     process.exit(1);
   }
 
@@ -95,15 +94,12 @@ async function main(): Promise<void> {
   }
   console.log(`\n  Using account_id: ${accountId}\n`);
 
-  // T2 - specific account health (every source must report OK)
+  // T2 - specific account health
   const t2 = await runTest(`T2  getAccountStatus(${accountId})`, async () => {
     const account = await adapter.getAccountStatus(accountId);
-    const sources = account.sources
-      .map((s) => `${s.id}=${s.status}`)
-      .join(", ");
-    console.log(`        type: ${account.type}; sources: ${sources || "none"}`);
+    console.log(`        type: ${account.type}; status: ${account.status}`);
     if (!isAccountHealthy(account)) {
-      throw new Error("account is not healthy (a source is not OK)");
+      throw new Error("account is not running");
     }
     return account;
   });

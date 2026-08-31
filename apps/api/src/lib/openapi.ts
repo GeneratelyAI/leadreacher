@@ -64,7 +64,7 @@ export const errorResponses = {
 } as const;
 
 export const bearerSecurity = [{ bearerAuth: [] }] as const;
-export const unipileSecurity = [{ unipileAuth: [] }] as const;
+export const unipileSecurity = [{ unipileSignature: [] }] as const;
 export const stripeSecurity = [{ stripeSignature: [] }] as const;
 
 export function authenticatedRoute(tag: OpenApiTag, summary: string, description?: string) {

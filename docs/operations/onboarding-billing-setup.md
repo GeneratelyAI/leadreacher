@@ -22,10 +22,10 @@ any of them in frontend variables.
 | `UNIPILE_WEBHOOK_URL` | Hosted Auth connection | Public API URL ending in `/webhooks/unipile`; takes precedence over `PUBLIC_BASE_URL`. |
 | `PUBLIC_BASE_URL` | Hosted Auth connection if no explicit URL | Public API base URL. The adapter appends `/webhooks/unipile`. |
 
-`UNIPILE_DSN`, `UNIPILE_API_KEY`, and `UNIPILE_WEBHOOK_SECRET` remain required
-for Hosted Auth and its account callback. The hosted-auth `name` is bound to the
-organization using an HMAC derived from `UNIPILE_WEBHOOK_SECRET`; do not reuse
-or expose it in frontend code.
+`UNIPILE_API_KEY` and `UNIPILE_WEBHOOK_SECRET` remain required for Unipile v2
+Hosted Auth and signed webhook delivery. Use one v2 Service API key for backend
+operations and webhook administration. Never expose either secret to frontend
+code.
 
 ## Stripe dashboard
 

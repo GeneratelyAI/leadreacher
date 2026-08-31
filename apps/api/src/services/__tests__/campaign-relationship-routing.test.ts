@@ -19,7 +19,7 @@ const {
 }));
 
 vi.mock("../../config/env.js", () => ({
-  env: { UNIPILE_DSN: "api.example.test", UNIPILE_API_KEY: "key" },
+  env: { UNIPILE_API_KEY: "key" },
 }));
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {

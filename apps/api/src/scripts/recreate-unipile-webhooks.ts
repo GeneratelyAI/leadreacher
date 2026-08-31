@@ -1,12 +1,9 @@
 /**
- * Recreate Unipile webhooks with Unipile-Auth header authentication.
+ * Recreate the LeadReacher Unipile v2 webhook endpoint.
  *
- * Deletes existing webhooks pointing at WEBHOOK_URL, then creates:
- *   - leadreacher-messaging  (source: messaging, events: message_received)
- *   - leadreacher-relations  (source: users, events: new_relation)
- *
- * Usage:
- *   pnpm --filter @leadreacher/api exec tsx src/scripts/recreate-unipile-webhooks.ts
+ * UNIPILE_API_KEY must be a v2 Service API key because webhook management is
+ * an application-level operation. The endpoint secret returned by Unipile
+ * must be stored as UNIPILE_WEBHOOK_SECRET before deploying the API.
  */
 import path from "node:path";
 import { config } from "dotenv";
@@ -14,165 +11,91 @@ import { resolveWebhookUrl } from "../lib/webhook-url.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
 
-type WebhookHeader = { key: string; value: string };
+const BASE_URL = "https://api.unipile.com/v2";
+const TRIGGER_EVENTS = [
+  "message.new",
+  "email.new",
+  "relation.new",
+  "account.status.running",
+  "account.status.disconnected",
+  "account.status.errored",
+  "account.status.degraded",
+  "account.status.partial",
+] as const;
 
-type CreateWebhookPayload = {
-  request_url: string;
-  source: "messaging" | "users" | "email";
-  name: string;
-  events: string[];
-  headers: WebhookHeader[];
-};
-
-type WebhookListItem = {
+type WebhookEndpoint = {
   id: string;
-  name?: string;
-  request_url: string;
-  source?: string;
-  events?: string[];
+  url: string;
+  description?: string;
 };
 
-type WebhookListResponse = {
-  object: string;
-  items: WebhookListItem[];
+type WebhookEndpointList = {
+  data: WebhookEndpoint[];
 };
 
-type CreateWebhookResponse = {
-  object: string;
-  webhook_id: string;
+type CreatedWebhookEndpoint = WebhookEndpoint & {
+  secret: string;
 };
 
 function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`✗ Missing required env var: ${name}`);
-    process.exit(1);
-  }
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing required env var: ${name}`);
   return value;
 }
 
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-async function unipileRequest<T>(
-  dsn: string,
+async function request<T>(
   apiKey: string,
   method: "GET" | "POST" | "DELETE",
   apiPath: string,
   body?: Record<string, unknown>,
 ): Promise<T> {
-  const url = `https://${dsn}/api/v1${apiPath}`;
-  const init: RequestInit = {
+  const response = await fetch(`${BASE_URL}${apiPath}`, {
     method,
     headers: {
       "X-API-KEY": apiKey,
-      accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
     },
-  };
-
-  if (body !== undefined) {
-    init.headers = {
-      ...init.headers,
-      "Content-Type": "application/json",
-    };
-    init.body = JSON.stringify(body);
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`${method} ${apiPath} failed (${response.status}): ${text}`);
   }
-
-  const res = await fetch(url, init);
-  const text = await res.text();
-
-  if (!res.ok) {
-    throw new Error(`${method} ${apiPath} failed (${res.status}): ${text}`);
-  }
-
-  return text ? (JSON.parse(text) as T) : ({} as T);
+  return text ? JSON.parse(text) as T : {} as T;
 }
 
 async function main(): Promise<void> {
-  const dsn = requireEnv("UNIPILE_DSN");
   const apiKey = requireEnv("UNIPILE_API_KEY");
-  const webhookSecret = requireEnv("UNIPILE_WEBHOOK_SECRET");
-  const WEBHOOK_URL = resolveWebhookUrl(process.env);
+  const webhookUrl = resolveWebhookUrl(process.env);
+  const list = await request<WebhookEndpointList>(apiKey, "GET", "/webhooks/endpoints/");
+  const existing = list.data.filter((endpoint) => endpoint.url === webhookUrl);
+  for (const endpoint of existing) {
+    await request(apiKey, "DELETE", `/webhooks/endpoints/${endpoint.id}`);
+  }
 
-  const authHeaders: WebhookHeader[] = [
-    { key: "Unipile-Auth", value: webhookSecret },
-    { key: "Content-Type", value: "application/json" },
-  ];
-
-  console.log(`Unipile webhook recreate → ${dsn}`);
-  console.log(`Target URL: ${WEBHOOK_URL}\n`);
-
-  const list = await unipileRequest<WebhookListResponse>(
-    dsn,
+  const created = await request<CreatedWebhookEndpoint>(
     apiKey,
-    "GET",
-    "/webhooks",
+    "POST",
+    "/webhooks/endpoints/",
+    {
+      url: webhookUrl,
+      description: "LeadReacher production events",
+      trigger_events: [...TRIGGER_EVENTS],
+    },
   );
 
-  const existing = (list.items ?? []).filter(
-    (webhook) => webhook.request_url === WEBHOOK_URL,
-  );
-
-  if (existing.length === 0) {
-    console.log("No existing webhooks matched WEBHOOK_URL.");
-  } else {
-    console.log(`Deleting ${existing.length} webhook(s) for ${WEBHOOK_URL}:`);
-    for (const webhook of existing) {
-      console.log(`  - ${webhook.id} (${webhook.name ?? "unnamed"})`);
-      await unipileRequest(dsn, apiKey, "DELETE", `/webhooks/${webhook.id}`);
-      console.log(`    deleted`);
-    }
+  console.log(JSON.stringify({
+    endpointId: created.id,
+    url: created.url,
+    triggerEvents: TRIGGER_EVENTS,
+    secretRequiresConfiguration: Boolean(created.secret),
+  }, null, 2));
+  if (created.secret) {
+    console.log("Store the newly returned endpoint secret as UNIPILE_WEBHOOK_SECRET.");
   }
-
-  const webhooksToCreate: CreateWebhookPayload[] = [
-    {
-      name: "leadreacher-messaging",
-      request_url: WEBHOOK_URL,
-      source: "messaging",
-      events: ["message_received"],
-      headers: authHeaders,
-    },
-    {
-      name: "leadreacher-relations",
-      request_url: WEBHOOK_URL,
-      source: "users",
-      events: ["new_relation"],
-      headers: authHeaders,
-    },
-    {
-      name: "leadreacher-email",
-      request_url: WEBHOOK_URL,
-      source: "email",
-      events: ["mail_received"],
-      headers: authHeaders,
-    },
-  ];
-
-  console.log("\nCreating webhooks:");
-  for (const payload of webhooksToCreate) {
-    const created = await unipileRequest<CreateWebhookResponse>(
-      dsn,
-      apiKey,
-      "POST",
-      "/webhooks",
-      payload,
-    );
-
-    console.log(`✓ ${payload.name}`);
-    console.log(`  webhook_id: ${created.webhook_id}`);
-    console.log(`  source: ${payload.source}`);
-    console.log(`  events: ${payload.events.join(", ")}`);
-    console.log(`  request_url: ${payload.request_url}`);
-    console.log(
-      `  headers: ${payload.headers.map((h) => `${h.key}=${h.value.slice(0, 8)}…`).join(", ")}`,
-    );
-  }
-
-  console.log("\nDone. Verify webhooks in the Unipile dashboard.");
 }
 
-main().catch((error) => {
-  console.error(`✗ ${getErrorMessage(error)}`);
+void main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

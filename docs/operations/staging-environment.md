@@ -95,7 +95,7 @@ environment. Their names are deliberately target-specific:
 | Purpose | Secrets |
 | --- | --- |
 | Deployment smoke | `STAGING_API_URL`, `STAGING_WEB_URL` |
-| Read-only provider canary | `STAGING_STRIPE_SECRET_KEY`, all four `STAGING_STRIPE_PRICE_*` values, `STAGING_UNIPILE_DSN`, `STAGING_UNIPILE_API_KEY`, `STAGING_R2_PREFLIGHT_VIDEO_URL`, optional `STAGING_APIFY_API_KEY` |
+| Read-only provider canary | `STAGING_STRIPE_SECRET_KEY`, all four `STAGING_STRIPE_PRICE_*` values, `STAGING_UNIPILE_API_KEY`, `STAGING_R2_PREFLIGHT_VIDEO_URL`, optional `STAGING_APIFY_API_KEY` |
 | Authenticated browser checks | `STAGING_E2E_EMAIL`, `STAGING_E2E_PASSWORD`, `STAGING_E2E_PROSPECT_QUERY`, `STAGING_E2E_REVIEW_CAMPAIGN_ID` |
 | Synthetic safe journeys | `STAGING_DIRECT_URL`, `STAGING_SUPABASE_URL`, `STAGING_SUPABASE_ANON_KEY`, the controlled staging user credentials, `STAGING_STRIPE_SECRET_KEY`, `STAGING_STRIPE_WEBHOOK_SECRET`, and `STAGING_STRIPE_PRICE_PERSONALIZED_OUTREACH` |
 | Release evidence verifier | `STAGING_DIRECT_URL` in the separate `staging-release-canary` GitHub environment |

@@ -57,7 +57,7 @@ vi.mock("bullmq", () => ({
   },
 }));
 vi.mock("../../config/env.js", () => ({
-  env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
+  env: { UNIPILE_API_KEY: "key" },
   getBullMqIdleDrainDelaySeconds: () => 60,
 }));
 vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
@@ -281,6 +281,10 @@ describe("campaign sequence step zero", () => {
     await expect(processStep(1)).resolves.toMatchObject({ sent: true, step: 1 });
 
     expect(checkAndIncrementDailySendLimit).toHaveBeenCalledWith("account-1", "message");
-    expect(sendMessageToChat).toHaveBeenCalledWith("chat-1", "Thanks for connecting.");
+    expect(sendMessageToChat).toHaveBeenCalledWith(
+      "account-1",
+      "chat-1",
+      "Thanks for connecting.",
+    );
   });
 });

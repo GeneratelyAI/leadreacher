@@ -102,7 +102,11 @@ export async function deliverOperatorMessage(
       providerRef = result.email_id ?? result.provider_id ?? result.id ?? `email:${Date.now()}`;
     } else {
       if (!input.chatId) throw new Error(`This ${input.channel} conversation has no provider chat`);
-      const result = await adapter.sendMessageToChat(input.chatId, input.message);
+      const result = await adapter.sendMessageToChat(
+        input.senderAccountId,
+        input.chatId,
+        input.message,
+      );
       providerRef = result.message_id;
     }
   } catch (error) {

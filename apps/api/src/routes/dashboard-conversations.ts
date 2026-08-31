@@ -525,7 +525,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       throw new DailySendLimitError(status.resetAt);
     }
 
-    const adapter = new UnipileAdapter({ dsn: env.UNIPILE_DSN, apiKey: env.UNIPILE_API_KEY });
+    const adapter = new UnipileAdapter({ apiKey: env.UNIPILE_API_KEY });
     const result = await startOperatorLinkedInConversation(adapter, {
       orgId,
       campaignId: campaignLead.campaignId,
@@ -655,7 +655,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       }
     }
 
-    const adapter = new UnipileAdapter({ dsn: env.UNIPILE_DSN, apiKey: env.UNIPILE_API_KEY });
+    const adapter = new UnipileAdapter({ apiKey: env.UNIPILE_API_KEY });
     const result = await deliverOperatorMessage(adapter, {
       orgId,
       campaignId: campaignLead.campaignId,

@@ -12,7 +12,7 @@ vi.mock("../../lib/prisma.js", () => ({
   prisma: { socialAccount: { findMany, update } },
 }));
 vi.mock("../../config/env.js", () => ({
-  env: { UNIPILE_DSN: "api.example.test", UNIPILE_API_KEY: "test-key" },
+  env: { UNIPILE_API_KEY: "test-key" },
 }));
 vi.mock("../../adapters/unipile.js", () => ({
   UnipileAdapter: class {},

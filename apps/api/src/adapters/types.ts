@@ -1,5 +1,4 @@
 export type UnipileCredentials = {
-  dsn: string;
   apiKey: string;
 };
 

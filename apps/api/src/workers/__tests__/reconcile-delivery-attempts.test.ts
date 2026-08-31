@@ -38,7 +38,7 @@ vi.mock("../../lib/prisma.js", () => ({
   },
 }));
 vi.mock("../../config/env.js", () => ({
-  env: { UNIPILE_DSN: "dsn", UNIPILE_API_KEY: "key" },
+  env: { UNIPILE_API_KEY: "key" },
 }));
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_CAMPAIGN_SEQUENCE: "campaign-sequence",
@@ -75,8 +75,10 @@ function unknownAttempt(stepIndex: number, providerRef: string) {
       leadId: "lead-1",
       currentStep: stepIndex,
       linkedinChatId: null,
+      providerChatId: null,
       campaign: {
         orgId: "org-1",
+        senderAccount: { unipileId: "acc_123" },
         sequence: [
           { type: "linkedin_invite", message: "Invite", delayHours: 0 },
           { type: "linkedin_message", message: "Hello", delayHours: 0 },

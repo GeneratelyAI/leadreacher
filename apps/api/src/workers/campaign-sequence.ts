@@ -185,7 +185,6 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
       }
 
       const adapter = new UnipileAdapter({
-        dsn: env.UNIPILE_DSN,
         apiKey: env.UNIPILE_API_KEY,
       });
 
@@ -406,7 +405,7 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
                   : { providerLinkedinId: inviteProviderId }),
               },
             }),
-            // Step 1 is triggered by new_relation after the invite is accepted.
+            // Step 1 is triggered by relation.new after the invite is accepted.
             prisma.campaignLead.update({
               where: { id: campaignLeadId },
               data: {
@@ -474,7 +473,11 @@ export function startCampaignSequenceWorker(): Worker<CampaignSequenceJob> {
 
       let providerRef: string | undefined;
       try {
-        const result = await adapter.sendMessageToChat(chatId, preparedStep.message);
+        const result = await adapter.sendMessageToChat(
+          socialAccount.unipileId,
+          chatId,
+          preparedStep.message,
+        );
         providerRef = result.message_id;
         await prisma.$transaction([
           prisma.message.create({

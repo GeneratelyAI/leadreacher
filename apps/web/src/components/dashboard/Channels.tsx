@@ -345,6 +345,9 @@ export function Channels() {
   const startDate = searchParams.get("startDate") ?? "";
   const endDate = searchParams.get("endDate") ?? "";
   const connectStatus = searchParams.get("status");
+  const returnedAccountId = searchParams.get("account_id");
+  const returnedConnectionToken = searchParams.get("state");
+  const hostedAuthError = searchParams.get("error_title");
 
   const [isConnecting, setIsConnecting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -375,8 +378,8 @@ export function Channels() {
   const accounts = channelsQuery.data?.accounts ?? [];
   const summary = channelsQuery.data?.summary ?? null;
   const isLoading = channelsQuery.isLoading && !channelsQuery.data;
-  const connectionError = connectStatus === "failed"
-    ? "Channel connection failed. Try again."
+  const connectionError = connectStatus === "failed" || hostedAuthError
+    ? hostedAuthError ?? "Channel connection failed. Try again."
     : null;
   const syncError = syncMutation.error instanceof Error
     ? syncMutation.error.message
@@ -394,16 +397,29 @@ export function Channels() {
       : null;
 
   useEffect(() => {
-    if (connectStatus === "connected") {
+    if (connectStatus !== "connected" || !returnedAccountId) return;
+    void apiFetch("/social-accounts/connect/confirm", {
+      method: "POST",
+      body: JSON.stringify({
+        accountId: returnedAccountId,
+        ...(returnedConnectionToken ? { connectionToken: returnedConnectionToken } : {}),
+      }),
+    }).then(() => {
       syncAccounts();
       window.history.replaceState({}, "", "/dashboard/channels");
-    }
-  }, [connectStatus, syncAccounts]);
+    }).catch((requestError) => {
+      setActionError(
+        requestError instanceof Error
+          ? requestError.message
+          : "Unable to confirm the channel connection.",
+      );
+    });
+  }, [connectStatus, returnedAccountId, returnedConnectionToken, syncAccounts]);
 
   async function connect(provider: ConnectProvider) {
     setIsConnecting(true);
     try {
-      const result = await apiFetch<{ url: string }>("/social-accounts/connect", {
+      const result = await apiFetch<{ url: string; connectionToken: string }>("/social-accounts/connect", {
         method: "POST",
         body: JSON.stringify({ provider, returnTo: "dashboard" }),
       });

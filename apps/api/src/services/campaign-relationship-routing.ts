@@ -116,7 +116,6 @@ export async function refreshCampaignRelationshipRouting(input: {
     where: { campaignId: input.campaignId, campaign: { orgId: input.orgId } },
   });
   const adapter = input.adapter ?? new UnipileAdapter({
-    dsn: env.UNIPILE_DSN,
     apiKey: env.UNIPILE_API_KEY,
   });
   let nextIndex = 0;

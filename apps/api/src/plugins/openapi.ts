@@ -56,11 +56,11 @@ const openapiPluginImpl: FastifyPluginAsync = async (app) => {
             bearerFormat: "JWT",
             description: "Supabase access token (`Authorization: Bearer <token>`)",
           },
-          unipileAuth: {
+          unipileSignature: {
             type: "apiKey",
             in: "header",
-            name: "Unipile-Auth",
-            description: "Shared secret for Unipile webhooks. Do not try from Scalar.",
+            name: "unipile-signature",
+            description: "Unipile v2 HMAC webhook signature. Do not try from Scalar.",
           },
           stripeSignature: {
             type: "apiKey",

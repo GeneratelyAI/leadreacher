@@ -3,7 +3,6 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import {
-  encodeHostedAuthName,
   isAccountHealthy,
   UnipileAdapter,
 } from "../adapters/unipile.js";
@@ -21,7 +20,6 @@ import { publishDashboardEvent } from "../lib/dashboard-events.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { requireMfaForEstablishedOrganization } from "../plugins/auth.js";
 import { redis } from "../lib/redis.js";
-import { resolveWebhookUrl } from "../lib/webhook-url.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
 
@@ -83,19 +81,6 @@ function metricsForCampaigns(
   }
   bucket.prospectsReached = bucket.leadIds.size;
   return bucket;
-}
-
-function getHostedAuthNotifyUrl(): string {
-  try {
-    return resolveWebhookUrl({
-      UNIPILE_WEBHOOK_URL: env.UNIPILE_WEBHOOK_URL,
-      PUBLIC_BASE_URL: env.PUBLIC_BASE_URL,
-    });
-  } catch (error) {
-    throw new ValidationError(
-      error instanceof Error ? error.message : "Unipile webhook URL is not configured",
-    );
-  }
 }
 
 async function resolveAccountStatus(
@@ -270,7 +255,6 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     const orgId = requireOrgId(request);
     const { provider, returnTo } = request.body;
     const adapter = new UnipileAdapter({
-      dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
     });
     const resolvedReturnTo = returnTo === "home" ? "dashboard" : returnTo;
@@ -285,11 +269,9 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
 
     try {
       const link = await adapter.createHostedAuthLink({
-        providers: [provider],
-        name: encodeHostedAuthName(orgId),
-        notifyUrl: getHostedAuthNotifyUrl(),
-        successRedirectUrl: channelsRedirect(resolvedReturnTo, "connected"),
-        failureRedirectUrl: channelsRedirect(resolvedReturnTo, "failed"),
+        providers: [provider.toLowerCase()],
+        redirectUri: channelsRedirect(resolvedReturnTo, "connected"),
+        state: connectionToken,
         expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       });
 
@@ -325,7 +307,6 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const adapter = new UnipileAdapter({
-      dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
     });
     const account = await adapter.getAccountStatus(accountId);
@@ -387,7 +368,6 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     const orgId = requireOrgId(request);
 
     const adapter = new UnipileAdapter({
-      dsn: env.UNIPILE_DSN,
       apiKey: env.UNIPILE_API_KEY,
     });
 
@@ -421,7 +401,9 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       }
 
       const platform = normalizeUnipilePlatform(account.type);
-      const ownedAccount = accountsByExternalId.get(account.id);
+      const legacyId = account.metadata?.v1_account_id;
+      const ownedAccount = accountsByExternalId.get(account.id)
+        ?? (legacyId ? accountsByExternalId.get(legacyId) : undefined);
       // Unipile's account list is shared by the API key. Never create or
       // mutate an organization row from an unowned external account.
       if (!ownedAccount || ownedAccount.platform !== platform) {
@@ -442,9 +424,14 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
         where: { id: ownedAccount.id },
         data: {
           unipileId: account.id,
+          platformUserId: account.id,
           accountName: account.name ?? account.id,
           status: accountStatus,
-          metadata: { providerType: account.type.toLowerCase() },
+          metadata: {
+            providerType: account.type.toLowerCase(),
+            ...(legacyId ? { v1AccountId: legacyId } : {}),
+            unipileVersion: "v2",
+          },
         },
       });
 

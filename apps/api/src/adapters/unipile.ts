@@ -1,36 +1,28 @@
-import crypto from "node:crypto";
 import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
-import { env } from "../config/env.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
-const API_VERSION = "/api/v1";
 const UNIPILE_V2_BASE_URL = "https://api.unipile.com/v2";
 const UNIPILE_TIMEOUT_MS = 30_000;
 
-// Shape of GET /accounts/{id}, confirmed empirically against a live LinkedIn
-// account (the docs page does not render the response schema):
-//   { object, id, name, type, sources: [{ id, status }], connection_params, ... }
-// There is NO top-level `status` field - status lives per-source in `sources[]`.
-// A LinkedIn account can expose multiple sources (e.g. MESSAGING, RECRUITER),
-// each with its own status; observed value: "OK". `isAccountHealthy()` treats
-// only "OK" as healthy.
-// Docs: https://developer.unipile.com/reference/accountscontroller_getaccountbyid
-type UnipileAccountSource = {
-  id: string;
-  status: string;
-};
-
 type UnipileAccountStatus = {
   id: string;
+  user_id: string;
   type: string;
   name: string;
-  sources: UnipileAccountSource[];
+  status: "running" | "errored" | "disconnected" | "degraded" | "partial";
+  metadata?: {
+    v1_account_id?: string;
+    products_connection_status?: Record<string, string>;
+  };
 };
 
 type UnipileAccount = {
   id: string;
   type: string;
   name?: string;
+  user_id?: string;
+  status?: UnipileAccountStatus["status"];
+  metadata?: UnipileAccountStatus["metadata"];
 };
 
 type UnipileAccountList = {
@@ -39,6 +31,27 @@ type UnipileAccountList = {
 
 type HostedAuthLink = {
   url: string;
+};
+
+type UnipileV2Account = Omit<UnipileAccountStatus, "type"> & {
+  provider: string;
+};
+
+type UnipileV2AccountList = {
+  data: UnipileV2Account[];
+  has_more: boolean;
+};
+
+type UnipileV2Profile = {
+  id: string;
+  public_identifier?: string;
+  first_name?: string;
+  last_name?: string;
+  description?: string;
+  specifics?: {
+    network_distance?: string;
+    messaging_identifier?: string;
+  };
 };
 
 export type UnipilePeopleSearchResult = {
@@ -61,23 +74,6 @@ export type UnipilePeopleSearchResponse = {
   next_cursor?: string;
 };
 
-export type UnipileLegacyPeopleSearchResult = {
-  id: string;
-  name?: string;
-  public_identifier?: string;
-  profile_url?: string;
-  profile_picture_url?: string;
-  location?: string;
-  headline?: string;
-  network_distance?: string;
-  industry?: string;
-};
-
-export type UnipileLegacyPeopleSearchResponse = {
-  items: UnipileLegacyPeopleSearchResult[];
-  total_count?: number;
-};
-
 export type UnipilePeopleSearchBody = {
   keywords?: string;
   network_distance?: number[];
@@ -98,10 +94,6 @@ export type UnipileRelationResult = {
   profile_picture_url?: string;
 };
 
-type UnipileLegacyRelationsResponse = {
-  items: UnipileRelationResult[];
-};
-
 type UnipileV2Relation = UnipileRelationResult & {
   user?: UnipileRelationResult;
 };
@@ -112,38 +104,10 @@ type UnipileV2RelationsResponse = {
 
 export type CreateHostedAuthLinkInput = {
   providers: string[];
-  name: string;
-  notifyUrl: string;
-  successRedirectUrl: string;
-  failureRedirectUrl: string;
+  redirectUri: string;
+  state: string;
   expiresOn: string;
 };
-
-const HOSTED_AUTH_NAME_PREFIX = "lr";
-
-export function encodeHostedAuthName(orgId: string): string {
-  const signature = crypto
-    .createHmac("sha256", env.UNIPILE_WEBHOOK_SECRET)
-    .update(orgId)
-    .digest("hex");
-  return `${HOSTED_AUTH_NAME_PREFIX}:${orgId}:${signature}`;
-}
-
-export function decodeHostedAuthName(name: string): string | null {
-  const [prefix, orgId, signature] = name.split(":");
-  if (!prefix || !orgId || !signature || prefix !== HOSTED_AUTH_NAME_PREFIX) {
-    return null;
-  }
-
-  const expected = encodeHostedAuthName(orgId);
-  const expectedBuffer = Buffer.from(expected, "utf8");
-  const actualBuffer = Buffer.from(name, "utf8");
-  if (expectedBuffer.length !== actualBuffer.length) {
-    return null;
-  }
-
-  return crypto.timingSafeEqual(expectedBuffer, actualBuffer) ? orgId : null;
-}
 
 export type UnipileChat = {
   id?: string;
@@ -172,16 +136,6 @@ export class UnipileAdapter {
   private async request<T>(
     method: "GET" | "POST",
     path: string,
-    body?: Record<string, unknown> | FormData,
-  ): Promise<T> {
-    const url = `https://${this.credentials.dsn}${API_VERSION}${path}`;
-
-    return this.requestUrl<T>(method, url, body);
-  }
-
-  private async requestV2<T>(
-    method: "GET" | "POST",
-    path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
     return this.requestUrl<T>(method, `${UNIPILE_V2_BASE_URL}${path}`, body);
@@ -190,7 +144,7 @@ export class UnipileAdapter {
   private async requestUrl<T>(
     method: "GET" | "POST",
     url: string,
-    body?: Record<string, unknown> | FormData,
+    body?: Record<string, unknown>,
   ): Promise<T> {
 
     const init: RequestInit = {
@@ -199,15 +153,11 @@ export class UnipileAdapter {
     };
 
     if (body !== undefined) {
-      if (body instanceof FormData) {
-        init.body = body;
-      } else {
-        init.headers = {
-          ...init.headers,
-          "Content-Type": "application/json",
-        };
-        init.body = JSON.stringify(body);
-      }
+      init.headers = {
+        ...init.headers,
+        "Content-Type": "application/json",
+      };
+      init.body = JSON.stringify(body);
     }
 
     const maxAttempts = method === "GET" ? 3 : 1;
@@ -239,18 +189,29 @@ export class UnipileAdapter {
       throw new ExternalServiceError("Unipile", text);
     }
 
-    return (await res.json()) as T;
+    const responseText = await res.text();
+    return responseText ? JSON.parse(responseText) as T : undefined as T;
   }
 
   async getProfile(
     accountId: string,
     linkedinPublicId: string,
   ): Promise<UnipileProfile> {
-    const params = new URLSearchParams({ account_id: accountId });
-    return this.request<UnipileProfile>(
+    const profile = await this.request<UnipileV2Profile>(
       "GET",
-      `/users/${linkedinPublicId}?${params.toString()}`,
+      `/${accountId}/users/${encodeURIComponent(linkedinPublicId)}`,
     );
+    const networkDistance = profile.specifics?.network_distance ?? "OUT_OF_NETWORK";
+    return {
+      provider_id: profile.id,
+      messaging_identifier: profile.specifics?.messaging_identifier,
+      public_identifier: profile.public_identifier ?? linkedinPublicId,
+      first_name: profile.first_name ?? "",
+      last_name: profile.last_name ?? "",
+      headline: profile.description ?? "",
+      network_distance: networkDistance,
+      is_relationship: networkDistance === "FIRST_DEGREE",
+    };
   }
 
   async searchLinkedInPeople(
@@ -259,7 +220,7 @@ export class UnipileAdapter {
     limit: number,
   ): Promise<UnipilePeopleSearchResponse> {
     const params = new URLSearchParams({ limit: String(limit) });
-    return this.requestV2<UnipilePeopleSearchResponse>(
+    return this.request<UnipilePeopleSearchResponse>(
       "POST",
       `/${accountId}/linkedin/search/people?${params.toString()}`,
       body,
@@ -272,33 +233,10 @@ export class UnipileAdapter {
     limit: number,
   ): Promise<UnipilePeopleSearchResponse> {
     const params = new URLSearchParams({ limit: String(limit) });
-    return this.requestV2<UnipilePeopleSearchResponse>(
+    return this.request<UnipilePeopleSearchResponse>(
       "POST",
       `/${accountId}/linkedin/search?${params.toString()}`,
       { url: searchUrl },
-    );
-  }
-
-  async searchLinkedInPeopleLegacy(
-    accountId: string,
-    body: UnipilePeopleSearchBody,
-    limit: number,
-    searchUrl?: string,
-  ): Promise<UnipileLegacyPeopleSearchResponse> {
-    const params = new URLSearchParams({
-      account_id: accountId,
-      limit: String(limit),
-    });
-    return this.request<UnipileLegacyPeopleSearchResponse>(
-      "POST",
-      `/linkedin/search?${params.toString()}`,
-      searchUrl
-        ? { url: searchUrl }
-        : {
-            api: "classic",
-            category: "people",
-            ...body,
-          },
     );
   }
 
@@ -307,19 +245,11 @@ export class UnipileAdapter {
     limit: number,
   ): Promise<UnipileRelationResult[]> {
     const params = new URLSearchParams({ limit: String(limit) });
-    if (accountId.startsWith("acc_")) {
-      const response = await this.requestV2<UnipileV2RelationsResponse>(
-        "GET",
-        `/${accountId}/users/me/relations?${params.toString()}`,
-      );
-      return response.data.map((relation) => relation.user ?? relation);
-    }
-
-    const response = await this.request<UnipileLegacyRelationsResponse>(
+    const response = await this.request<UnipileV2RelationsResponse>(
       "GET",
-      `/users/relations?account_id=${encodeURIComponent(accountId)}&${params.toString()}`,
+      `/${accountId}/users/me/relations?${params.toString()}`,
     );
-    return response.items;
+    return response.data.map((relation) => relation.user ?? relation);
   }
 
   async sendConnectionInvite(
@@ -327,12 +257,9 @@ export class UnipileAdapter {
     providerId: string,
     message?: string,
   ): Promise<void> {
-    // Unipile's documented v1 invite endpoint has no provider idempotency
-    // header/body field. A successful send followed by a process crash is kept
-    // as an unknown reservation for provider-positive recovery or review.
-    await this.request<void>("POST", "/users/invite", {
-      account_id: accountId,
-      provider_id: providerId,
+    // Unipile documents no provider idempotency field for relation requests.
+    await this.request<void>("POST", `/${accountId}/users/me/relation-requests`, {
+      user_id: providerId,
       ...(message && { message }),
     });
   }
@@ -343,37 +270,34 @@ export class UnipileAdapter {
     text: string,
     options?: { videoMessage?: UnipileVideoMessage },
   ): Promise<{ chat_id: string }> {
-    // Unipile's documented v1 start-chat endpoint has no provider idempotency
-    // header/body field; callers rely on durable reservations around this call.
-    const formData = new FormData();
-    formData.append("account_id", accountId);
-    formData.append("text", text);
-    formData.append("attendees_ids", attendeeProviderId);
-    if (options?.videoMessage) {
-      const { buffer, filename, contentType } = options.videoMessage;
-      formData.append(
-        "video_message",
-        new Blob([buffer], { type: contentType }),
-        filename,
-      );
-    }
-
-    return this.request<{ chat_id: string }>("POST", "/chats", formData);
+    // Callers wrap this non-idempotent provider operation in a durable reservation.
+    const video = options?.videoMessage;
+    return this.request<{ chat_id: string }>("POST", `/${accountId}/chats/send`, {
+      text,
+      users_ids: attendeeProviderId,
+      ...(video
+        ? {
+            attachments: [{
+              content: video.buffer.toString("base64"),
+              content_type: video.contentType,
+              filename: video.filename,
+              send_mode: "native",
+            }],
+          }
+        : {}),
+    });
   }
 
   async sendMessageToChat(
+    accountId: string,
     chatId: string,
     text: string,
   ): Promise<{ message_id: string }> {
-    // Unipile's documented v1 send-message endpoint has no provider idempotency
-    // header/body field; callers preserve unknown state instead of blind retries.
-    const formData = new FormData();
-    formData.append("text", text);
-
+    // Callers preserve unknown state instead of blindly retrying this operation.
     return this.request<{ message_id: string }>(
       "POST",
-      `/chats/${chatId}/messages`,
-      formData,
+      `/${accountId}/chats/${encodeURIComponent(chatId)}/messages/send`,
+      { text },
     );
   }
 
@@ -384,71 +308,70 @@ export class UnipileAdapter {
     subject: string;
     body: string;
   }): Promise<{ id?: string; email_id?: string; provider_id?: string }> {
-    const formData = new FormData();
-    formData.append("account_id", input.accountId);
-    formData.append("subject", input.subject);
-    formData.append("body", input.body);
-    formData.append(
-      "to",
-      JSON.stringify([
-        {
-          display_name: input.toName?.trim() || input.toEmail,
-          identifier: input.toEmail,
-        },
-      ]),
-    );
-
     return this.request<{ id?: string; email_id?: string; provider_id?: string }>(
       "POST",
-      "/emails",
-      formData,
+      `/${input.accountId}/emails/send`,
+      {
+        subject: input.subject,
+        plain_text: input.body,
+        to: [{
+          email: input.toEmail,
+          ...(input.toName?.trim() ? { display_name: input.toName.trim() } : {}),
+        }],
+      },
     );
   }
 
   async getAccountStatus(accountId: string): Promise<UnipileAccountStatus> {
-    return this.request<UnipileAccountStatus>("GET", `/accounts/${accountId}`);
+    const account = await this.request<UnipileV2Account>("GET", `/accounts/${accountId}`);
+    return { ...account, type: account.provider };
   }
 
   async listAccounts(): Promise<UnipileAccountList> {
-    return this.request<UnipileAccountList>("GET", "/accounts");
+    const response = await this.request<UnipileV2AccountList>("GET", "/accounts/?limit=100");
+    return {
+      items: response.data.map((account) => ({
+        id: account.id,
+        type: account.provider,
+        name: account.name,
+        user_id: account.user_id,
+        status: account.status,
+        metadata: account.metadata,
+      })),
+    };
   }
 
   async createHostedAuthLink(
     input: CreateHostedAuthLinkInput,
   ): Promise<HostedAuthLink> {
-    return this.request<HostedAuthLink>("POST", "/hosted/accounts/link", {
-      type: "create",
+    const response = await this.request<{ link: string }>("POST", "/auth/link", {
       providers: input.providers,
-      api_url: `https://${this.credentials.dsn}`,
-      expiresOn: input.expiresOn,
-      name: input.name,
-      notify_url: input.notifyUrl,
-      success_redirect_url: input.successRedirectUrl,
-      failure_redirect_url: input.failureRedirectUrl,
+      expires_on: input.expiresOn,
+      redirect_uri: input.redirectUri,
+      state: input.state,
     });
+    return { url: response.link };
   }
 
-  async getChat(chatId: string): Promise<UnipileChat> {
-    return this.request<UnipileChat>("GET", `/chats/${chatId}`);
+  async getChat(accountId: string, chatId: string): Promise<UnipileChat> {
+    return this.request<UnipileChat>("GET", `/${accountId}/chats/${encodeURIComponent(chatId)}`);
   }
 
-  async getMessage(messageId: string): Promise<UnipileMessage> {
-    return this.request<UnipileMessage>("GET", `/messages/${messageId}`);
+  async getMessage(accountId: string, chatId: string, messageId: string): Promise<UnipileMessage> {
+    return this.request<UnipileMessage>(
+      "GET",
+      `/${accountId}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
+    );
   }
 }
 
-// An account is healthy when it has at least one source and every source is OK.
 export function isAccountHealthy(account: UnipileAccountStatus): boolean {
-  return (
-    account.sources.length > 0 &&
-    account.sources.every((source) => source.status === "OK")
-  );
+  return account.status === "running";
 }
 
 export type {
   UnipileAccount,
   UnipileAccountList,
-  UnipileAccountSource,
   UnipileAccountStatus,
   HostedAuthLink,
 };

@@ -7,13 +7,13 @@ Constraint: Unipile only (no Smartlead / second ESP).
 
 | Channel | Connect (hosted auth) | Send | Inbound |
 |---------|----------------------|------|---------|
-| LinkedIn | `LINKEDIN` | Invite + `/chats` | `new_relation`, `message_received` |
-| WhatsApp | `WHATSAPP` | `/chats` start + send | `message_received` (messaging source) |
-| Facebook Messenger | `MESSENGER` (hosted) - normalize to `facebook` | `/chats` with Messenger attendee id | `message_received` |
-| Instagram | `INSTAGRAM` | `/chats` using `provider_messaging_id` | `message_received` |
-| Email | `GOOGLE` / `OUTLOOK` / `MAIL` | `POST /emails` (multipart) | Email webhook source (mail received) |
+| LinkedIn | `linkedin` | Invite + `/chats/send` | `relation.new`, `message.new` |
+| WhatsApp | `whatsapp` | `/chats/send` | `message.new` |
+| Facebook Messenger | `messenger` | `/chats/send` | `message.new` |
+| Instagram | `instagram` | `/chats/send` | `message.new` |
+| Email | `google`, `outlook`, or `mail` | `/emails/send` | `email.new` |
 
-### Messaging attendee IDs (`POST /chats` → `attendees_ids`)
+### Messaging attendee IDs (`POST /{account_id}/chats/send` using `users_ids`)
 
 - **LinkedIn:** classic `provider_id` (`ACo…` / `ACw…` / `AE…`)
 - **WhatsApp:** `{phone}@s.whatsapp.net` (digits only before `@`, country code required)
@@ -22,7 +22,7 @@ Constraint: Unipile only (no Smartlead / second ESP).
 
 ### Email
 
-- Send: `POST /api/v1/emails` with `account_id`, `to[]`, `subject`, `body`
+- Send: `POST /v2/{account_id}/emails/send` with `to[]`, `subject`, and `plain_text`
 - Tracking optional (`opens`, `links`)
 - Reply matching: inbound mail webhook → match by account + recipient email / thread headers
 

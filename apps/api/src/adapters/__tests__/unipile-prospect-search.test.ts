@@ -77,24 +77,23 @@ describe("normalizeUnipileProspect", () => {
     }));
   });
 
-  it("uses the DSN-based search for legacy connected account IDs", async () => {
-    const searchLinkedInPeopleLegacy = vi.fn().mockResolvedValue({ items: [], total_count: 0 });
+  it("uses v2 search for connected account IDs", async () => {
+    const searchLinkedInPeople = vi.fn().mockResolvedValue({ data: [], total_count: 0 });
     const listLinkedInRelations = vi.fn().mockResolvedValue([]);
     const adapter = {
-      searchLinkedInPeopleLegacy,
+      searchLinkedInPeople,
       listLinkedInRelations,
     } as unknown as UnipileAdapter;
-    const provider = new UnipileProspectSearchProvider(adapter, "legacy-account-id");
+    const provider = new UnipileProspectSearchProvider(adapter, "acc_123");
 
     await provider.searchPeople(searchInput);
 
-    expect(searchLinkedInPeopleLegacy).toHaveBeenCalledWith(
-      "legacy-account-id",
+    expect(searchLinkedInPeople).toHaveBeenCalledWith(
+      "acc_123",
       { keywords: "Founder", network_distance: [1, 2, 3] },
       25,
-      undefined,
     );
-    expect(listLinkedInRelations).toHaveBeenCalledWith("legacy-account-id", 500);
+    expect(listLinkedInRelations).toHaveBeenCalledWith("acc_123", 500);
   });
 
   it("uses v2 for new acc_ account IDs", async () => {
@@ -117,7 +116,7 @@ describe("normalizeUnipileProspect", () => {
   });
 
   it("falls back to matching first-degree connections when search is empty", async () => {
-    const searchLinkedInPeopleLegacy = vi.fn().mockResolvedValue({ items: [], total_count: 0 });
+    const searchLinkedInPeople = vi.fn().mockResolvedValue({ data: [], total_count: 0 });
     const listLinkedInRelations = vi.fn().mockResolvedValue([
       {
         member_id: "founder-id",
@@ -135,10 +134,10 @@ describe("normalizeUnipileProspect", () => {
       },
     ]);
     const adapter = {
-      searchLinkedInPeopleLegacy,
+      searchLinkedInPeople,
       listLinkedInRelations,
     } as unknown as UnipileAdapter;
-    const provider = new UnipileProspectSearchProvider(adapter, "legacy-account-id");
+    const provider = new UnipileProspectSearchProvider(adapter, "acc_123");
 
     const result = await provider.searchPeople(searchInput);
 

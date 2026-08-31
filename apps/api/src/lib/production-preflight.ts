@@ -36,7 +36,6 @@ type ProviderReadinessConfiguration = Pick<
   | StripePriceEnvKey
   | "STRIPE_MOCK_MODE"
   | "UNIPILE_API_KEY"
-  | "UNIPILE_DSN"
   | "VIDEO_MOCK_MODE"
 >;
 
@@ -122,7 +121,6 @@ export async function runProviderReadinessChecks(
     options.listUnipileAccounts ??
     (() =>
       new UnipileAdapter({
-        dsn: configuration.UNIPILE_DSN,
         apiKey: configuration.UNIPILE_API_KEY,
       }).listAccounts());
   const priceIds = [
