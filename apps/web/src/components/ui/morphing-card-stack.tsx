@@ -126,7 +126,7 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
             />
           </button>
         ))}
-        <span className="ml-1 text-xs font-medium tabular-nums text-[#767b8d]">
+        <span className="ml-1 text-xs font-medium tabular-nums text-[#62697e]">
           0{activeIndex + 1} / 0{cards.length}
         </span>
       </div>

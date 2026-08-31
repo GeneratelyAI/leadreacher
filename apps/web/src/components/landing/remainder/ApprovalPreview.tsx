@@ -187,7 +187,7 @@ export function ApprovalPreview({
         <div className="border-t border-[#e4def6] bg-[#faf8ff]/95 px-4 py-2 backdrop-blur-sm">
           <div className="rounded-lg border border-[#bfb2e9] bg-white px-3 py-1.5 shadow-[inset_0_1px_2px_rgba(62,38,128,0.04)]">
             <div className="flex min-h-5 items-start">
-              <p className="text-xs text-[#7b7488]">Write a message…</p>
+              <p className="text-xs text-[#655f73]">Write a message…</p>
             </div>
             <div className="flex items-center gap-1 text-[#5f586d]">
               <button type="button" aria-label="Attach a file" className="flex size-7 items-center justify-center rounded-full hover:bg-[#f0ecff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6842f5]">

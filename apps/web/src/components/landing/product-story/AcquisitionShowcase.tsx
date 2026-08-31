@@ -157,7 +157,7 @@ function AcquisitionStepVisual({
     ];
     return <div className="flex h-16 flex-col justify-center gap-0.5 sm:h-28 sm:gap-1.5 h-short:h-20" aria-hidden>{prospects.map((prospect, prospectIndex) => <m.div key={prospect.name} className={cn("flex min-h-5 items-center gap-1 rounded-md border px-1 py-px shadow-[0_5px_12px_rgba(43,33,104,.06)] sm:min-h-8 sm:gap-2.5 sm:rounded-lg sm:px-2.5 sm:py-1 h-short:min-h-6 h-short:py-0", isSelected ? "border-white/10 bg-white/[.07]" : "border-[#e9e5f3] bg-white dark:border-white/10 dark:bg-white/[.055]")} initial={reducedMotion ? false : { opacity: 0, x: -8 }} animate={visible} transition={reveal(0.24 + prospectIndex * 0.08)}>
       <span className="relative size-6 shrink-0 overflow-hidden rounded-full sm:size-8"><Image src={prospect.src} alt="" fill sizes="32px" className="object-cover object-top" /></span>
-      <span className="min-w-0 flex-1"><span className="block truncate text-[9px] font-semibold leading-3 sm:text-[11px] sm:leading-4">{prospect.name}</span><span className={cn("block truncate text-[7px] leading-3 sm:text-[9px]", isSelected ? "text-white/55" : "text-[#767b8d] dark:text-white/55")}>{prospect.role}</span></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-[9px] font-semibold leading-3 sm:text-[11px] sm:leading-4">{prospect.name}</span><span className={cn("block truncate text-[7px] leading-3 sm:text-[9px]", isSelected ? "text-white/55" : "text-[#62697e] dark:text-white/55")}>{prospect.role}</span></span>
       <span className={cn("text-[10px] font-bold sm:text-sm", isSelected ? "text-[#b8a5ff]" : "text-[#6642de] dark:text-[#ad99ff]")}>{prospect.score}</span>
     </m.div>)}</div>;
   }

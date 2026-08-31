@@ -162,7 +162,7 @@ function WebsiteDemo(props: DemoProps) {
                 <h3 className="truncate text-[clamp(.7rem,1.35vw,1.12rem)] font-bold uppercase leading-tight tracking-[-0.015em]">Your custom strategy</h3>
               </div>
             </div>
-            <m.div key={String(ready)} initial={props.reducedMotion ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} aria-live="polite" aria-label={ready ? "Strategy ready" : "Update URL"} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/80 bg-white/85 p-1 text-[clamp(.52rem,.8vw,.68rem)] font-semibold uppercase tracking-[.02em] text-[#6842d8] shadow-[0_5px_14px_rgba(50,38,95,.07)] sm:px-2.5">
+            <m.div key={String(ready)} initial={props.reducedMotion ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} role="status" aria-live="polite" aria-label={ready ? "Strategy ready" : "Update URL"} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/80 bg-white/85 p-1 text-[clamp(.52rem,.8vw,.68rem)] font-semibold uppercase tracking-[.02em] text-[#6842d8] shadow-[0_5px_14px_rgba(50,38,95,.07)] sm:px-2.5">
               <span className="flex size-4 items-center justify-center rounded-full bg-[#45a852] text-white"><Check className="size-2.5" weight="bold" aria-hidden /></span>
               <span className="hidden sm:inline">{ready ? "Strategy ready" : "Update URL"}</span>
             </m.div>
