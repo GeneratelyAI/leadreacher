@@ -32,6 +32,8 @@ type AuthMode = "login" | "signup";
 
 type AuthFormProps = {
   mode: AuthMode;
+  demo?: boolean;
+  onDemoComplete?: (result: { fullName: string; email: string }) => void;
 };
 
 const inputClassName = cn(
@@ -50,7 +52,7 @@ const oauthButtonClassName = cn(
   "lg:h-10 lg:px-4 lg:text-sm xl:h-11 xl:text-base",
 );
 
-export default function AuthForm({ mode }: AuthFormProps) {
+export default function AuthForm({ mode, demo = false, onDemoComplete }: AuthFormProps) {
   const {
     email,
     setEmail,
@@ -71,7 +73,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
     isSignup,
     handleEmailSubmit,
     handleOAuth,
-  } = useAuthForm(mode);
+  } = useAuthForm(mode, { demo, onDemoComplete });
 
   const showMarketingPanel = isSignup;
   const alternateHref = isSignup ? "/login" : "/signup";
@@ -83,7 +85,7 @@ export default function AuthForm({ mode }: AuthFormProps) {
   return (
     <>
       <div className="lg:hidden">
-        <MobileAuth mode={mode} />
+        <MobileAuth mode={mode} demo={demo} onDemoComplete={onDemoComplete} />
       </div>
 
       <div

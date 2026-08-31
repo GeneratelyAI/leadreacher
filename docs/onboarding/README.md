@@ -46,3 +46,27 @@ Before changing an onboarding component, read the
 [onboarding implementation map](implementation-map.md). They identify the
 canonical route state, API ownership, persistence boundary, and tests for each
 step.
+
+## Public demo mode
+
+The optional public demo is a side-effect-free rendering of the production
+onboarding journey:
+
+- `DEMO_ONBOARDING_ENABLED=true` enables `/demo/onboarding` and
+  `/demo/dashboard` and branches landing-page website submissions into the
+  demo.
+- Demo progress is versioned and stored only in the current tab's
+  `sessionStorage` under `lr_demo_onboarding_v1`.
+- Demo signup does not create a Supabase account or organization.
+- After simulated signup, the demo renders the same `OnboardingFlow`, step
+  components, chrome, motion, responsive layout, and theme behavior as the
+  authenticated product.
+- The shared API client swaps to deterministic browser fixtures on the demo
+  pathname. The submitted website is normalized for display but is not scraped.
+- Checkout uses the production checkout presentation but never loads Stripe;
+  channel completion never opens Unipile.
+- `/onboarding-preview` remains a separate internal visual-development tool
+  controlled by `ENABLE_ONBOARDING_PREVIEW`.
+
+The feature defaults to disabled. Disabling it requires no data cleanup because
+the demo performs no backend writes.

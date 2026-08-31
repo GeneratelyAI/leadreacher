@@ -16,7 +16,15 @@ type AuthMode = "login" | "signup";
 type AccountType = "individual" | "company";
 type AuthFactor = { status: string };
 
-export function useAuthForm(mode: AuthMode) {
+type DemoAuthResult = {
+  fullName: string;
+  email: string;
+};
+
+export function useAuthForm(
+  mode: AuthMode,
+  options: { demo?: boolean; onDemoComplete?: (result: DemoAuthResult) => void } = {},
+) {
   const router = useRouter();
   const { waitForReadyToNavigate } = useWebsiteScrapeStatus({
     autoStart: false,
@@ -72,12 +80,18 @@ export function useAuthForm(mode: AuthMode) {
       }
     }
 
-    if (isCaptchaEnabled && !captchaToken) {
+    if (!options.demo && isCaptchaEnabled && !captchaToken) {
       setError("Complete the security verification to continue.");
       return;
     }
 
     setLoading(true);
+
+    if (options.demo) {
+      options.onDemoComplete?.({ fullName: fullName.trim(), email: email.trim() });
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
 
@@ -147,6 +161,13 @@ export function useAuthForm(mode: AuthMode) {
 
   async function handleOAuth(provider: "google" | "azure") {
     setError(null);
+    if (options.demo) {
+      options.onDemoComplete?.({
+        fullName: provider === "google" ? "Google Demo User" : "Microsoft Demo User",
+        email: `${provider}@demo.leadreacher.local`,
+      });
+      return;
+    }
     const supabase = createClient();
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent("/onboarding")}`;
 

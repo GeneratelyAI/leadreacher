@@ -8,6 +8,10 @@ import {
   writeDiscoveryScrapeCache,
 } from "@/lib/discovery-scrape-cache";
 import { cleanWebsiteDomain } from "@/lib/website-url";
+import {
+  fixtureWebsiteUrl,
+  usesOnboardingFixtures,
+} from "@/lib/onboarding/preview-api";
 
 export type WebsiteScrapeStatus = {
   status: "idle" | "running" | "completed" | "failed";
@@ -84,6 +88,8 @@ function readStoredWebsiteUrl(context: ScrapeContext): string | null {
   if (typeof window === "undefined") {
     return null;
   }
+
+  if (usesOnboardingFixtures()) return fixtureWebsiteUrl();
 
   if (context === "authenticated") {
     const scopedUrl = readActiveScopedWebsiteUrl();
@@ -263,6 +269,9 @@ function createScrapeController(context: ScrapeContext) {
   }
 
   async function getStatus(anonId: string | null): Promise<WebsiteScrapeStatus> {
+    if (usesOnboardingFixtures()) {
+      return apiFetch<WebsiteScrapeStatus>("/discovery/scrape-status");
+    }
     if (context === "anonymous") {
       if (!anonId) {
         return EMPTY_STATUS;
@@ -279,6 +288,12 @@ function createScrapeController(context: ScrapeContext) {
     websiteUrl: string,
     anonId: string | null,
   ): Promise<WebsiteScrapeStatus> {
+    if (usesOnboardingFixtures()) {
+      return apiFetch<WebsiteScrapeStatus>("/discovery/scrape", {
+        method: "POST",
+        body: JSON.stringify({ url: websiteUrl }),
+      });
+    }
     if (context === "anonymous") {
       if (!anonId) {
         throw new Error("Unable to initialize your website analysis.");

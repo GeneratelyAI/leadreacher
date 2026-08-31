@@ -30,6 +30,8 @@ type AuthMode = "login" | "signup";
 
 type MobileAuthProps = {
   mode: AuthMode;
+  demo?: boolean;
+  onDemoComplete?: (result: { fullName: string; email: string }) => void;
 };
 
 const inputClassName = cn(
@@ -44,7 +46,7 @@ const oauthButtonClassName = cn(
   "h-10 px-3 text-sm",
 );
 
-export default function MobileAuth({ mode }: MobileAuthProps) {
+export default function MobileAuth({ mode, demo = false, onDemoComplete }: MobileAuthProps) {
   const {
     email,
     setEmail,
@@ -65,7 +67,7 @@ export default function MobileAuth({ mode }: MobileAuthProps) {
     isSignup,
     handleEmailSubmit,
     handleOAuth,
-  } = useAuthForm(mode);
+  } = useAuthForm(mode, { demo, onDemoComplete });
 
   const alternateHref = isSignup ? "/login" : "/signup";
   const alternatePrompt = isSignup

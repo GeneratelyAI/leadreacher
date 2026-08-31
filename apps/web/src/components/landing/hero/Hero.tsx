@@ -7,6 +7,7 @@ import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { useLandingPerformanceTelemetry } from "@/hooks/useLandingPerformanceTelemetry";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
+import { initializeDemoSession } from "@/lib/onboarding/demo-store";
 import ShimmerText from "@/components/ui/shimmer-text";
 import HeroBackground from "./HeroBackground";
 import { BrowserBar } from "./BrowserBar";
@@ -83,7 +84,7 @@ function useRotatingHeroWord(isPageVisible: boolean) {
   return word;
 }
 
-export default function Hero() {
+export default function Hero({ demoEnabled = false }: { demoEnabled?: boolean }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const taglineRef = useRef<HTMLParagraphElement>(null);
@@ -175,7 +176,7 @@ export default function Hero() {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const domain = normalizeLandingWebsiteUrl(websiteUrl);
+    const domain = normalizeLandingWebsiteUrl(inputRef.current?.value ?? websiteUrl);
     if (!domain) {
       setPhase("idle");
       setErrorMessage("Enter a valid company website, such as example.com.");
@@ -183,6 +184,11 @@ export default function Hero() {
       return;
     }
     setWebsiteUrl(domain);
+    if (demoEnabled) {
+      initializeDemoSession(domain);
+      router.push("/demo/onboarding?step=signup");
+      return;
+    }
     void runAnalysis(domain);
   }
 

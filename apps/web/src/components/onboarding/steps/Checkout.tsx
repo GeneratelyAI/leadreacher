@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { EmbeddedCheckoutCard, PaymentTrustBar } from "@/components/onboarding/EmbeddedCheckoutCard";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
+import { isOnboardingDemo } from "@/lib/onboarding/preview-api";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 const PAYMENT_VERIFICATION_ATTEMPTS = 5;
@@ -284,7 +285,12 @@ export default function Checkout() {
             ) : null}
 
             {embeddedCheckout ? (
-              <EmbeddedCheckoutCard {...embeddedCheckout} />
+              <EmbeddedCheckoutCard
+                {...embeddedCheckout}
+                onMockSubmit={isOnboardingDemo() ? () => {
+                  navigateOnboarding(`${onboardingHref("checkout")}&status=success&session_id=demo`, true);
+                } : undefined}
+              />
             ) : null}
 
             <div className="mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3">
@@ -343,7 +349,7 @@ export default function Checkout() {
                   <div className="my-5 border-t border-onboarding-neutral-150 dark:border-onboarding-neutral-750" />
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-base font-semibold text-onboarding-ink dark:text-white">Total due today</span>
-                    <span className="text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{isLoading ? "—" : lineItems.map(formatPrice).join(" + ")}</span>
+                    <span className="text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{isLoading ? "…" : lineItems.map(formatPrice).join(" + ")}</span>
                   </div>
                 </div>
               </div>

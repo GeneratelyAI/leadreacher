@@ -21,13 +21,14 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
-import { isOnboardingPreview } from "@/lib/onboarding/preview-api";
+import { isOnboardingDemo, isOnboardingPreview } from "@/lib/onboarding/preview-api";
 import {
   getChannelRecommendations,
   type ChannelRecommendationKey,
   type JsonValue,
 } from "@/lib/onboarding/channel-recommendations";
 import { navigateOnboarding, onboardingHref } from "./steps";
+import { completeStoredDemoSession } from "@/lib/onboarding/demo-store";
 
 type SocialAccount = {
   id: string;
@@ -360,6 +361,12 @@ export default function Channels() {
         method: "POST",
         body: JSON.stringify({ provider, returnTo: "onboarding" }),
       });
+      if (isOnboardingDemo()) {
+        setActivationPendingChannelKey(channelKey);
+        await loadAccounts(false, false);
+        setActivationPendingChannelKey(null);
+        return;
+      }
       window.localStorage.setItem("lr_pending_channel_key", channelKey);
       window.localStorage.setItem("lr_pending_connection_token", result.connectionToken);
       setActivationPendingChannelKey(channelKey);
@@ -399,6 +406,11 @@ export default function Channels() {
       });
       if (isOnboardingPreview()) {
         navigateOnboarding(onboardingHref("channels"), true);
+        return;
+      }
+      if (isOnboardingDemo()) {
+        completeStoredDemoSession();
+        router.push("/demo/dashboard");
         return;
       }
       router.push(`/dashboard/campaigns?${params.toString()}`);

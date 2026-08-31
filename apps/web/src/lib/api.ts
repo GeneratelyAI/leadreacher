@@ -1,9 +1,9 @@
 import { getBrowserSession } from "@/lib/supabase/client";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import {
-  isOnboardingPreview,
   previewApiFetch,
   previewOrganization,
+  usesOnboardingFixtures,
 } from "@/lib/onboarding/preview-api";
 
 const TOKEN_CACHE_TTL_MS = 45_000;
@@ -90,7 +90,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  if (isOnboardingPreview()) {
+  if (usesOnboardingFixtures()) {
     return previewApiFetch<T>(path, options);
   }
 
@@ -188,7 +188,7 @@ export async function bootstrapCurrentOrganization(
   anonScrapeId?: string,
   accountType?: "individual" | "company",
 ) {
-  if (isOnboardingPreview()) return previewOrganization();
+  if (usesOnboardingFixtures()) return previewOrganization();
   const session = await getBrowserSession();
   return bootstrapOrganization(
     defaultOrgNameFromEmail(session?.user?.email ?? ""),

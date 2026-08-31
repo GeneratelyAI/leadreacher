@@ -1,7 +1,58 @@
+import { setDiscoveryOrgScope } from "@/lib/discovery-scrape-cache";
+import {
+  demoReducer,
+  readDemoState,
+  writeDemoState,
+  type DemoCampaignType,
+} from "@/lib/onboarding/demo-store";
+
 const PREVIEW_ORG_ID = "onboarding-preview-org";
+const DEMO_ACCOUNTS_KEY = "lr_demo_connected_accounts_v1";
+
+type FixtureAccount = {
+  id: string;
+  platform: string;
+  providerType: string;
+  accountName: string;
+  avatarUrl: null;
+  status: "active";
+};
+
+const DEFAULT_LINKEDIN_ACCOUNT: FixtureAccount = {
+  id: "preview-linkedin",
+  platform: "linkedin",
+  providerType: "linkedin",
+  accountName: "Alex Morgan",
+  avatarUrl: null,
+  status: "active",
+};
 
 export function isOnboardingPreview(): boolean {
   return typeof window !== "undefined" && window.location.pathname === "/onboarding-preview";
+}
+
+export function isOnboardingDemo(): boolean {
+  return typeof window !== "undefined" && window.location.pathname === "/demo/onboarding";
+}
+
+export function usesOnboardingFixtures(): boolean {
+  return isOnboardingPreview() || isOnboardingDemo();
+}
+
+export function fixtureWebsiteUrl(): string {
+  if (typeof window === "undefined") return "https://acme.example";
+  setDiscoveryOrgScope(PREVIEW_ORG_ID);
+  if (!isOnboardingDemo()) return "https://acme.example";
+
+  try {
+    const stored = window.sessionStorage.getItem("lr_demo_onboarding_v1");
+    const parsed = stored ? JSON.parse(stored) as { website?: unknown } : null;
+    return typeof parsed?.website === "string" && parsed.website.trim()
+      ? parsed.website
+      : "https://acme.example";
+  } catch {
+    return "https://acme.example";
+  }
 }
 
 const strategy = {
@@ -86,6 +137,58 @@ const scrapeStatus = {
   error: null,
 };
 
+function parseRequestBody(options: RequestInit): Record<string, unknown> {
+  if (typeof options.body !== "string") return {};
+  try {
+    const value = JSON.parse(options.body) as unknown;
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? value as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberDemoCampaignType(value: unknown): void {
+  if (!isOnboardingDemo()) return;
+  if (value !== "personalized_outreach" && value !== "ai_video_ad" && value !== "uploaded_video") return;
+  const current = readDemoState(window.sessionStorage);
+  if (!current) return;
+  const next = demoReducer(current, {
+    type: "select-campaign",
+    campaignType: value as DemoCampaignType,
+  });
+  writeDemoState(window.sessionStorage, next);
+}
+
+function readDemoAccounts(): FixtureAccount[] {
+  if (!isOnboardingDemo()) return [DEFAULT_LINKEDIN_ACCOUNT];
+  try {
+    const stored = window.sessionStorage.getItem(DEMO_ACCOUNTS_KEY);
+    if (!stored) return [DEFAULT_LINKEDIN_ACCOUNT];
+    const parsed = JSON.parse(stored) as unknown;
+    return Array.isArray(parsed) ? parsed as FixtureAccount[] : [DEFAULT_LINKEDIN_ACCOUNT];
+  } catch {
+    return [DEFAULT_LINKEDIN_ACCOUNT];
+  }
+}
+
+function connectDemoAccount(provider: unknown): FixtureAccount {
+  const definitions: Record<string, Omit<FixtureAccount, "id">> = {
+    LINKEDIN: { platform: "linkedin", providerType: "linkedin", accountName: "Demo LinkedIn account", avatarUrl: null, status: "active" },
+    WHATSAPP: { platform: "whatsapp", providerType: "whatsapp", accountName: "Demo WhatsApp account", avatarUrl: null, status: "active" },
+    INSTAGRAM: { platform: "instagram", providerType: "instagram", accountName: "Demo Instagram account", avatarUrl: null, status: "active" },
+    GOOGLE: { platform: "email", providerType: "google", accountName: "demo@gmail.com", avatarUrl: null, status: "active" },
+    OUTLOOK: { platform: "email", providerType: "outlook", accountName: "demo@outlook.com", avatarUrl: null, status: "active" },
+  };
+  const key = typeof provider === "string" ? provider : "LINKEDIN";
+  const definition = definitions[key] ?? definitions.LINKEDIN;
+  const accounts = readDemoAccounts();
+  const account = { ...definition, id: `demo-${key.toLowerCase()}-${accounts.length + 1}` };
+  window.sessionStorage.setItem(DEMO_ACCOUNTS_KEY, JSON.stringify([...accounts, account]));
+  return account;
+}
+
 /** Deterministic, side-effect-free API responses for the visual onboarding preview. */
 export async function previewApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
@@ -118,12 +221,16 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   if (path.endsWith("/outreach-message")) {
     return {
       message:
-        "Hi {{First Name}} — I noticed your team is scaling revenue without adding more manual prospecting work. LeadReacher helps coordinate personalized outreach across the channels your buyers already use, while keeping every message reviewable before launch.",
+        "Hi {{First Name}}, I noticed your team is scaling revenue without adding more manual prospecting work. LeadReacher helps coordinate personalized outreach across the channels your buyers already use, while keeping every message reviewable before launch.",
       ctaLabel: "Book a short call",
       ctaUrl: "https://leadreacher.ai/demo",
     } as T;
   }
-  if (path.includes("/campaign-type") || path.includes("/video-decision") || path.endsWith("/channels")) return strategy as T;
+  if (path.includes("/campaign-type")) {
+    rememberDemoCampaignType(parseRequestBody(options).campaignType);
+    return strategy as T;
+  }
+  if (path.includes("/video-decision") || path.endsWith("/channels")) return strategy as T;
   if (path === "/billing/pricing") {
     return {
       lineItems: [
@@ -137,11 +244,19 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   if (path === "/billing/checkout-session/reconcile") return { subscriptionStatus: "active" } as T;
   if (path === "/social-accounts" && method === "GET") {
     return {
-      accounts: [{ id: "preview-linkedin", platform: "linkedin", providerType: "linkedin", accountName: "Alex Morgan", avatarUrl: null, status: "active" }],
+      accounts: readDemoAccounts(),
     } as T;
   }
   if (path === "/social-accounts/sync") return { synced: true } as T;
   if (path === "/social-accounts/connect") {
+    if (isOnboardingDemo()) {
+      const account = connectDemoAccount(parseRequestBody(options).provider);
+      return {
+        url: `/demo/onboarding?step=channels&status=connected&account_id=${account.id}`,
+        connectionToken: `demo-${account.id}`,
+        account,
+      } as T;
+    }
     throw new Error("Channel connections are disabled in onboarding preview mode.");
   }
   if (path === "/onboarding/complete") {

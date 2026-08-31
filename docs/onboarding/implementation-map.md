@@ -31,6 +31,22 @@ Connecting LinkedIn does not send a connection invite, chat message, or video.
 | Query helpers and allowed values | `apps/web/src/components/onboarding/steps/steps.ts` | The only place to add a top-level step or Strategy substep. |
 | Resume decision | `apps/web/src/lib/onboarding-progress.ts` | Persisted Strategy and subscription data determine the safe default. |
 
+### Demo runtime entry points
+
+| Responsibility | File | Boundary |
+| --- | --- | --- |
+| Server feature gate | `apps/web/src/lib/features/demo-onboarding.ts` | Only the exact server-side value `DEMO_ONBOARDING_ENABLED=true` enables demo routes. |
+| Demo route | `apps/web/src/app/demo/onboarding/page.tsx` | Public, unauthenticated, and returns 404 while disabled. |
+| Demo state | `apps/web/src/lib/onboarding/demo-store.ts` | Pure reducer plus schema-validated, tab-scoped session storage. |
+| Demo fixtures | `apps/web/src/lib/onboarding/preview-api.ts` | Deterministic sample output returned through the shared API boundary. |
+| Demo journey | `apps/web/src/components/onboarding/demo/DemoOnboarding.tsx` | Simulates signup and mounts the canonical production `OnboardingFlow` for exact visual parity. |
+| Demo result | `apps/web/src/components/onboarding/demo/DemoDashboard.tsx` | Fixture/session summary only; incomplete sessions return to demo signup. |
+
+Demo mode must never call production discovery, authentication bootstrap,
+billing, file upload, channel authorization, onboarding completion, campaign
+launch, or worker endpoints. `apps/web/e2e/demo-onboarding.spec.ts` enforces this
+with a prohibited-request list.
+
 ## Route contract
 
 ```text

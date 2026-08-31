@@ -43,9 +43,12 @@ export function strategyHref(substep: StrategySubstepParam): string {
 export function navigateOnboarding(href: string, replace = false): void {
   if (typeof window === "undefined") return;
 
-  const destination = window.location.pathname === "/onboarding-preview"
+  const pathname = window.location.pathname;
+  const destination = pathname === "/onboarding-preview"
     ? href.replace(/^\/onboarding/, "/onboarding-preview")
-    : href;
+    : pathname === "/demo/onboarding"
+      ? href.replace(/^\/onboarding/, "/demo/onboarding")
+      : href;
 
   if (replace) {
     window.history.replaceState(null, "", destination);

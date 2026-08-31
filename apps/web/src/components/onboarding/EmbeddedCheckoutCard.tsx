@@ -1,11 +1,9 @@
 "use client";
 
-import { EmbeddedCheckout, EmbeddedCheckoutProvider } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { lazy, Suspense } from "react";
 import { CreditCard, Lock } from "@/components/ui/icons";
 
-const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+const StripeEmbeddedCheckout = lazy(() => import("@/components/onboarding/StripeEmbeddedCheckout"));
 
 function VisaMark() {
   return (
@@ -62,13 +60,13 @@ export function PaymentTrustBar() {
   );
 }
 
-function MockCheckout() {
+function MockCheckout({ onSubmit }: { onSubmit?: () => void }) {
   return (
     <div className="checkout-mock checkout-accent-card rounded-2xl p-5 sm:p-7 h-short:sm:p-5">
       <div className="flex items-center justify-between gap-4 border-b border-onboarding-neutral-150 pb-4 dark:border-onboarding-neutral-750">
         <div>
           <p className="text-sm font-semibold text-onboarding-ink dark:text-white">Card details</p>
-          <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Preview mode — no payment will be processed</p>
+          <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Preview mode: no payment will be processed</p>
         </div>
         <div className="flex items-center gap-1.5" aria-hidden>
           <VisaMark />
@@ -88,7 +86,7 @@ function MockCheckout() {
           Name on card
           <span className="flex h-14 items-center rounded-xl border border-onboarding-neutral-200 px-4 text-sm text-onboarding-neutral-700 dark:border-onboarding-neutral-650 dark:text-onboarding-neutral-200">Alex Morgan</span>
         </label>
-        <button type="button" className="mt-1 h-14 rounded-xl bg-onboarding-purple-600 text-sm font-semibold text-white shadow-onboarding-button transition-[transform,box-shadow,background-color] duration-150 enabled:hover:-translate-y-0.5 enabled:hover:bg-onboarding-purple-700 enabled:active:translate-y-0 disabled:cursor-not-allowed" disabled>
+        <button type="button" className="mt-1 h-14 rounded-xl bg-onboarding-purple-600 text-sm font-semibold text-white shadow-onboarding-button transition-[transform,box-shadow,background-color] duration-150 enabled:hover:-translate-y-0.5 enabled:hover:bg-onboarding-purple-700 enabled:active:translate-y-0 disabled:cursor-not-allowed" disabled={!onSubmit} onClick={onSubmit}>
           Subscribe to LeadReacher Pro
         </button>
       </div>
@@ -99,13 +97,15 @@ function MockCheckout() {
 export function EmbeddedCheckoutCard({
   clientSecret,
   mockMode,
+  onMockSubmit,
 }: {
   clientSecret: string;
   mockMode: boolean;
+  onMockSubmit?: () => void;
 }) {
-  if (mockMode) return <MockCheckout />;
+  if (mockMode) return <MockCheckout onSubmit={onMockSubmit} />;
 
-  if (!stripePromise) {
+  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()) {
     return (
       <div className="rounded-xl border border-onboarding-warning-150 bg-onboarding-warning-50 p-5 text-sm text-onboarding-warning-900" role="alert">
         Stripe Checkout is unavailable because the publishable key is not configured.
@@ -115,9 +115,9 @@ export function EmbeddedCheckoutCard({
 
   return (
     <div className="checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-2">
-      <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
-        <EmbeddedCheckout />
-      </EmbeddedCheckoutProvider>
+      <Suspense fallback={<div className="min-h-72" role="status" aria-label="Loading secure checkout" />}>
+        <StripeEmbeddedCheckout clientSecret={clientSecret} />
+      </Suspense>
     </div>
   );
 }

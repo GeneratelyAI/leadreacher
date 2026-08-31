@@ -58,6 +58,19 @@ Configure `@leadreacher/web` with:
 The service builds and starts through the root pnpm workspace. Configure the
 public frontend environment variables on this service only.
 
+The public onboarding demo is controlled by a separate server-side feature
+gate:
+
+```text
+DEMO_ONBOARDING_ENABLED=false
+```
+
+Set it to the exact value `true` only after the demo E2E suite passes in the
+matching environment. Turning it back to `false` immediately makes
+`/demo/onboarding` and `/demo/dashboard` return 404 and restores the landing
+website field's normal scrape-and-signup behavior. This is independent from
+`ENABLE_ONBOARDING_PREVIEW`, which protects the internal visual preview route.
+
 ## API service
 
 Configure `@leadreacher/api` with:
