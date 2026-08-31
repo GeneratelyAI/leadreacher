@@ -272,13 +272,13 @@ export class UnipileAdapter {
   ): Promise<{ chat_id: string }> {
     // Callers wrap this non-idempotent provider operation in a durable reservation.
     const video = options?.videoMessage;
-    return this.request<{ chat_id: string }>("POST", `/${accountId}/chats/send`, {
+    const response = await this.request<{ chat_id?: string; id?: string }>("POST", `/${accountId}/chats/send`, {
       text,
       users_ids: attendeeProviderId,
       ...(video
         ? {
             attachments: [{
-              content: video.buffer.toString("base64"),
+              data: video.buffer.toString("base64"),
               content_type: video.contentType,
               filename: video.filename,
               send_mode: "native",
@@ -286,6 +286,11 @@ export class UnipileAdapter {
           }
         : {}),
     });
+    const chatId = response?.chat_id ?? response?.id;
+    if (!chatId) {
+      throw new ExternalServiceError("Unipile", "Start chat response did not include a chat ID");
+    }
+    return { chat_id: chatId };
   }
 
   async sendMessageToChat(
@@ -294,11 +299,16 @@ export class UnipileAdapter {
     text: string,
   ): Promise<{ message_id: string }> {
     // Callers preserve unknown state instead of blindly retrying this operation.
-    return this.request<{ message_id: string }>(
+    const response = await this.request<{ message_id?: string; id?: string }>(
       "POST",
       `/${accountId}/chats/${encodeURIComponent(chatId)}/messages/send`,
       { text },
     );
+    const messageId = response?.message_id ?? response?.id;
+    if (!messageId) {
+      throw new ExternalServiceError("Unipile", "Send message response did not include a message ID");
+    }
+    return { message_id: messageId };
   }
 
   async sendEmail(input: {
