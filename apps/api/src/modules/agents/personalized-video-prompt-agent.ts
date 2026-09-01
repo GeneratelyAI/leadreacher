@@ -17,8 +17,20 @@ const PersonalizedVideoTemplatePromptInput = z.object({
   feedbackHints: z.array(z.string()).optional(),
 });
 
-const PersonalizedVideoTemplatePromptOutput = VideoPromptOutputSchema.extend({
-  sharedNarration: z.string().min(30).max(450),
+export function narrationWordCount(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
+export const PersonalizedVideoTemplatePromptOutput = VideoPromptOutputSchema.extend({
+  sharedNarration: z.string().min(30).max(180).superRefine((value, ctx) => {
+    const words = narrationWordCount(value);
+    if (words < 14 || words > 18) {
+      ctx.addIssue({
+        code: "custom",
+        message: `Shared narration must contain 14-18 words, received ${words}`,
+      });
+    }
+  }),
 });
 
 type Input = z.infer<typeof PersonalizedVideoTemplatePromptInput>;
@@ -28,7 +40,7 @@ export type PersonalizedVideoTemplatePromptResult = z.infer<
 
 const MAX_VALIDATION_RETRIES = 2;
 
-const SYSTEM_PROMPT = `You direct premium B2B personalized-video templates. The final delivery is ten seconds, but this prompt creates the shared template only and must never mention a specific lead, name, company, or title.
+const SYSTEM_PROMPT = `You direct premium personalized spokesperson advertisements. The final delivery is exactly ten seconds. This prompt creates the shared campaign template and must never mention a specific recipient, recipient company, or recipient title.
 
 HARD OUTPUT CONSTRAINTS:
 - storyboard must contain exactly four objects, never three or five
@@ -37,23 +49,29 @@ HARD OUTPUT CONSTRAINTS:
 - every storyboard imagePrompt must be at least 40 characters
 
 Timing:
-1. 0-1.5s: a silent direct-to-camera opening with the consistent spokesperson. This slot is reserved for a lead-specific “Hey {firstName},” audio overlay added later.
-2. 1.5-6.5s: visual business pitch. The separate sharedNarration plays here.
-3. 6.5-8s: resolve the visual pitch into clean negative space for the end card.
-4. 8-10s: the worker composites the original supplied logo over that end card. Do not ask the video model to recreate any logo, visual text, numbers, metrics, or claims.
+1. 0-1.5s: hold on an attractive, credible professional spokesperson looking directly into the camera in a busy, authentic setting relevant to the advertiser and industry. Show a natural silent acknowledgment with a closed or minimally moving mouth. This slot is reserved for a lead-specific “Hey {firstName},” audio overlay added later.
+2. 1.5-8s: animate a natural professional performance aligned with the separate sharedNarration. Keep the spokesperson, setting, lighting, and visual style consistent.
+3. 6.5-8.5s: use a smooth camera pan or theme-relevant transition that supports the advertiser's message. The transition may overlap the end of the narration.
+4. 8.5-10s: transition into the original supplied company logo as the exact final frame and preserve its integrity. Do not add any other text, data, numbers, graphics, logos, or invented branding.
+
+IMAGE DIRECTION:
+- Scene 1 is the seed-image prompt. It must create the professional spokesperson advertisement image using the supplied company logo only as a brand reference.
+- The spokesperson and environment must be relevant to the advertiser and industry.
+- Preserve the supplied logo exactly. Do not redraw, reinterpret, distort, or alter it.
+- Add no written copy, captions, numbers, extra logos, unrelated images, or decorative graphics.
 
 Return exactly this JSON shape:
 {
   "storyboard": [
-    { "sceneNumber": 1, "timeRange": "0-1.5s", "beat": "hook", "imagePrompt": "<silent direct-to-camera opening still>", "motionNote": "<silent greeting slot, then transition into pitch>" },
-    { "sceneNumber": 2, "timeRange": "1.5-4s", "beat": "problem", "imagePrompt": "<business context>", "motionNote": "<continuous movement>" },
-    { "sceneNumber": 3, "timeRange": "4-6.5s", "beat": "solution", "imagePrompt": "<credible product value>", "motionNote": "<transition toward clean end-card space>" },
-    { "sceneNumber": 4, "timeRange": "6.5-8s", "beat": "payoff", "imagePrompt": "<clean negative-space end-card background>", "motionNote": "<settle before the worker overlays the source logo for the 8-10s hold>" }
+    { "sceneNumber": 1, "timeRange": "0-1.5s", "beat": "hook", "imagePrompt": "<professional spokesperson in an authentic advertiser-relevant setting; no copy or altered logo>", "motionNote": "<silent greeting slot with minimal mouth movement>" },
+    { "sceneNumber": 2, "timeRange": "1.5-4s", "beat": "problem", "imagePrompt": "<spokesperson performance and advertiser-relevant context>", "motionNote": "<natural professional performance aligned with narration>" },
+    { "sceneNumber": 3, "timeRange": "4-6.5s", "beat": "solution", "imagePrompt": "<theme-relevant advertiser value scene>", "motionNote": "<smooth camera pan into supporting scene>" },
+    { "sceneNumber": 4, "timeRange": "6.5-8.5s", "beat": "payoff", "imagePrompt": "<visual payoff transitioning toward the supplied logo frame>", "motionNote": "<transition into the exact supplied logo at 8.5s>" }
   ],
-  "videoPrompt": "<visual-only Veo direction for the shared 8-second sequence; no spoken dialogue>",
-  "sharedNarration": "<6.5-second spoken campaign pitch for seconds 1.5-8; no greeting, no lead-specific language>",
+  "videoPrompt": "<visual-only direction for the complete 10-second spokesperson advertisement and supplied-logo ending>",
+  "sharedNarration": "<14-18 word campaign pitch that fits within 6.5 seconds; no greeting or lead-specific language>",
   "hookDescription": "<silent direct-to-camera opening>",
-  "ctaDescription": "<source-logo-only ending composited by the worker>"
+  "ctaDescription": "<exact supplied-logo-only ending from 8.5-10s>"
 }
 
 Output only valid json.`;
@@ -73,16 +91,16 @@ export function buildPersonalizedVideoTemplatePromptMessage(input: Input): strin
 Return exactly four storyboard scenes. Do not add a fifth scene or any fields outside the requested JSON shape. Use scene numbers 1, 2, 3, and 4 and beats hook, problem, solution, and payoff in that order. Each imagePrompt must be a detailed still-frame prompt of at least 40 characters.
 
 INITIAL CREATIVE DIRECTION: ${input.seedPrompt}
-Treat the initial creative direction as a production brief. Carry its narration direction, transition direction, logo instruction, audience, and timing into the storyboard and shared narration. Do not replace those instructions with generic ad copy.
+Treat the initial creative direction as the source of truth. Create a professional spokesperson advertisement tailored to the advertiser and industry. Carry its narration, transition, logo instruction, audience, and timing into the storyboard and shared narration. Do not replace those instructions with generic ad copy.
 PRODUCT / BUSINESS: ${input.product}
 TARGET AUDIENCE: ${input.audience}
 TONE: ${input.tone}
 AVATAR: ${input.avatar}
 SETTING: ${input.setting}
-LOGO REFERENCE AVAILABLE: ${input.hasLogoReference ? "yes - the worker, not the model, overlays it exactly at the end" : "no - use no written end-card text"}
+LOGO REFERENCE AVAILABLE: ${input.hasLogoReference ? "yes - use it as the exact final frame from 8.5-10s and preserve its integrity" : "no - finish cleanly with no written end-card text or invented branding"}
 ${feedback}
 
-The first 1.5 seconds must contain no spoken dialogue. Return JSON only.`;
+The first 1.5 seconds must contain no spoken dialogue or visible speaking. The spokesperson's mouth must remain closed or move minimally. The sharedNarration must contain 14-18 words and fit naturally within 6.5 seconds. Return JSON only.`;
 }
 
 export async function runPersonalizedVideoTemplatePromptAgent(

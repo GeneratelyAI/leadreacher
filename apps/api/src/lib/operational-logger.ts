@@ -12,12 +12,14 @@ export function logOperationalInfo(
   event: string,
   payload: Record<string, unknown>,
 ): void {
-  logger?.info({ event, ...payload });
+  const message = typeof payload.message === "string" ? payload.message : `[${event.toUpperCase()}] ${event}`;
+  logger?.info({ event, ...payload }, message);
 }
 
 export function logOperationalError(
   event: string,
   payload: Record<string, unknown>,
 ): void {
-  logger?.error({ event, ...payload });
+  const message = typeof payload.message === "string" ? payload.message : `[${event.toUpperCase()}] ${event} failed`;
+  logger?.error({ event, ...payload }, message);
 }

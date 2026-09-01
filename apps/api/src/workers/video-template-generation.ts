@@ -19,8 +19,10 @@ import { type VideoGenerationJob, videoGenerationQueue } from "../lib/queue.js";
 import {
   assertPersonalizedMasterVideo,
   extractRepresentativeFrames,
+  inspectAudioDurationMs,
   inspectVideoMedia,
   normalizeVideoDuration,
+  PERSONALIZED_SHARED_NARRATION_DURATION_SECONDS,
 } from "../lib/video-frames.js";
 import {
   createPersonalizedTemplateManifest,
@@ -40,9 +42,41 @@ import {
 const POLL_INTERVAL_MS = 10_000;
 const VEO_SUBMISSION_LEASE_MS = 2 * 60 * 1000;
 const VEO_ACTIVE_POLL_LEASE_MS = 2 * 60 * 1000;
+const MAX_NARRATION_TIMING_ATTEMPTS = 3;
+const AUDIO_DURATION_TOLERANCE_MS = 50;
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+async function generateTimedTemplateNarration(
+  orgId: string,
+  templateId: string,
+  seedPrompt: string,
+  context: Parameters<typeof generateApprovedPersonalizedTemplatePrompts>[3],
+) {
+  const limitMs = PERSONALIZED_SHARED_NARRATION_DURATION_SECONDS * 1000;
+  let timingFeedback: string[] = [];
+  for (let attempt = 1; attempt <= MAX_NARRATION_TIMING_ATTEMPTS; attempt++) {
+    const approved = await generateApprovedPersonalizedTemplatePrompts(
+      orgId,
+      templateId,
+      seedPrompt,
+      context,
+      timingFeedback,
+    );
+    const narration = await synthesizeSpeech(approved.sharedNarration);
+    const narrationDurationMs = await inspectAudioDurationMs(narration);
+    if (narrationDurationMs <= limitMs + AUDIO_DURATION_TOLERANCE_MS) {
+      return { approved, narration, narrationDurationMs };
+    }
+    timingFeedback = [
+      `The shared narration rendered at ${narrationDurationMs}ms and must fit within ${limitMs}ms. Rewrite it with shorter words and a more concise cadence while keeping 14-18 words.`,
+    ];
+  }
+  throw new Error(
+    `Shared narration exceeded ${limitMs}ms after ${MAX_NARRATION_TIMING_ATTEMPTS} attempts`,
+  );
 }
 
 export async function markTemplateFailed(
@@ -128,18 +162,15 @@ export async function processTemplateOrchestrate(
   );
 
   try {
-    const approved = await generateApprovedPersonalizedTemplatePrompts(
+    const { approved, narration, narrationDurationMs } = await generateTimedTemplateNarration(
       orgId,
       template.id,
       prompt,
       context,
     );
-    const [narration, image] = await Promise.all([
-      synthesizeSpeech(approved.sharedNarration),
-      context.referenceUrls.length > 0
-        ? generateImageWithAssets(approved.imagePrompt, context.referenceUrls, "9:16")
-        : generateImageFromPrompt(approved.imagePrompt, "9:16"),
-    ]);
+    const image = context.referenceUrls.length > 0
+      ? await generateImageWithAssets(approved.imagePrompt, context.referenceUrls, "9:16")
+      : await generateImageFromPrompt(approved.imagePrompt, "9:16");
     const r2 = new R2Adapter();
     const imageExt = image.mimeType.split("/")[1] ?? "png";
     const [{ url: sharedNarrationUrl }, { url: seedImageUrl }] = await Promise.all([
@@ -163,6 +194,7 @@ export async function processTemplateOrchestrate(
       seedImage: image.buffer,
       sharedNarrationUrl,
       sharedNarrationAudio: narration,
+      narrationDurationMs,
       logoUrl: context.logoUrl,
       provider: getConfiguredVideoProvider(),
     });

@@ -19,6 +19,7 @@ import { publishDashboardEvent } from "../lib/dashboard-events.js";
 const LAUNCHABLE_STATUSES = ["draft", "review"] as const;
 
 type LaunchLogger = {
+  info: (context: Record<string, unknown>, message: string) => void;
   error: (context: Record<string, unknown>, message: string) => void;
 };
 
@@ -151,8 +152,15 @@ export async function launchCampaign(input: {
       orgId: input.orgId,
     });
     input.logger?.error(
-      { error, campaignId: input.campaignId },
-      "campaign launch queueing failed",
+      {
+        error,
+        campaignId: input.campaignId,
+        campaignName: campaign.name,
+        accountId: campaign.senderAccount?.id,
+        accountName: campaign.senderAccount?.accountName,
+        retryStatus: "safe to retry",
+      },
+      `Campaign "${campaign.name}" could not be launched using ${campaign.senderAccount?.accountName ?? "the selected account"}. Queueing failed and the launch was rolled back safely.`,
     );
     throw new ConflictError("Campaign could not be scheduled. Please retry launch.");
   }
@@ -168,6 +176,17 @@ export async function launchCampaign(input: {
     type: "campaign.updated",
     resources: { campaignId: input.campaignId },
   });
+  input.logger?.info(
+    {
+      campaignId: input.campaignId,
+      campaignName: campaign.name,
+      accountId: campaign.senderAccount?.id,
+      accountName: campaign.senderAccount?.accountName,
+      queuedJobs: jobCount,
+      retryStatus: "not retried",
+    },
+    `Campaign "${campaign.name}" launched using ${campaign.senderAccount?.accountName ?? "the selected account"}. ${jobCount} outreach ${jobCount === 1 ? "job was" : "jobs were"} queued.`,
+  );
   return {
     launched: true,
     jobCount,

@@ -294,6 +294,27 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
     await invalidateDashboardChrome(orgId);
     await publishDashboardEvent({ orgId, type: "campaign.updated", resources: { campaignId: campaign.id } });
+    const accountIds = [...new Set([
+      ...Object.values(senders.channelAccounts),
+      ...(senders.linkedInSocialAccountId ? [senders.linkedInSocialAccountId] : []),
+    ])];
+    const accounts = accountIds.length > 0
+      ? await prisma.socialAccount.findMany({
+          where: { id: { in: accountIds }, orgId },
+          select: { id: true, accountName: true, platform: true },
+        })
+      : [];
+    request.log.info(
+      {
+        campaignId: campaign.id,
+        campaignName: campaign.name,
+        accountIds,
+        accountNames: accounts.map((account) => `${account.accountName} (${account.platform})`),
+        createdBy: request.userEmail ?? request.dbUserId ?? "authenticated user",
+        retryStatus: "not retried",
+      },
+      `Campaign "${campaign.name}" was created by ${request.userEmail ?? "an authenticated user"} using ${accounts.length > 0 ? accounts.map((account) => account.accountName).join(", ") : "no sender account yet"}.`,
+    );
     return reply.send(campaign);
   });
 

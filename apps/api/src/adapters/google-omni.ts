@@ -3,11 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GoogleGenAI, FileState } from "@google/genai";
 import { env } from "../config/env.js";
+import { withSilentVisualConstraint } from "../lib/video-generation-constraints.js";
 import { externalServiceFailure } from "../lib/errors.js";
 import { logOperationalInfo } from "../lib/operational-logger.js";
 import type { VideoJobStatus } from "./google-ai.js";
 
-export const GOOGLE_OMNI_VIDEO_MODEL = "gemini-omni-flash-preview";
+export const GOOGLE_OMNI_VIDEO_MODEL = "gemini-omni-1.1-flash-preview";
+export const GOOGLE_OMNI_VIDEO_DURATION = "10s";
+export const GOOGLE_OMNI_VIDEO_DURATION_MS = 10_000;
 const OMNI_OPERATION_PREFIX = "omni:";
 const OMNI_SUBMIT_TIMEOUT_MS = 60_000;
 const OMNI_OPERATION_TIMEOUT_MS = 30_000;
@@ -159,6 +162,7 @@ export async function submitOmniVideoJob(
   seedImageUrl: string,
   videoPrompt: string,
   aspectRatio: AspectRatio = "9:16",
+  finalFrameUrl?: string,
 ): Promise<{ jobId: string }> {
   try {
     if (env.VIDEO_MOCK_MODE) {
@@ -184,18 +188,42 @@ export async function submitOmniVideoJob(
     const seedMime = (
       seedResponse.headers.get("content-type") ?? "image/png"
     ).split(";")[0];
+    const finalFrame = finalFrameUrl && finalFrameUrl !== seedImageUrl
+      ? await fetchWithTimeout(
+        finalFrameUrl,
+        "Fetch Gemini Omni final frame",
+        OMNI_VIDEO_DOWNLOAD_TIMEOUT_MS,
+      )
+      : null;
+    if (finalFrame && !finalFrame.ok) {
+      throw new Error(`Failed to fetch final frame: ${finalFrameUrl}`);
+    }
+    const finalFrameMime = finalFrame
+      ? (finalFrame.headers.get("content-type") ?? "image/png").split(";")[0]
+      : null;
+    const finalFrameBuffer = finalFrame
+      ? Buffer.from(await finalFrame.arrayBuffer())
+      : null;
+    const finalFrameDirection = finalFrameBuffer
+      ? "Generate exactly 10 seconds. Treat the source prompt's eight-second sequence as the first eight seconds. The second supplied image is the exact final logo frame. Transition into it by 8.5 seconds and preserve it unchanged through 10 seconds."
+      : "Generate exactly 10 seconds. Treat the source prompt's eight-second sequence as the first eight seconds, then finish on a clean, stable closing frame through 10 seconds.";
     const input = [
+      {
+        type: "text" as const,
+        text: withSilentVisualConstraint(`${videoPrompt}\n\n${finalFrameDirection}`),
+      },
       {
         type: "image" as const,
         data: seedBuffer.toString("base64"),
         mime_type: seedMime,
       },
-      {
-        type: "text" as const,
-        text: `${videoPrompt}
-
-Generate a silent visual-only video. Do not add speech, dialogue, narration, music, sound effects, captions, subtitles, text, numbers, or metrics. The application adds audio separately after video generation.`,
-      },
+      ...(finalFrameBuffer && finalFrameMime
+        ? [{
+          type: "image" as const,
+          data: finalFrameBuffer.toString("base64"),
+          mime_type: finalFrameMime,
+        }]
+        : []),
     ];
 
     omniLog({
@@ -203,6 +231,8 @@ Generate a silent visual-only video. Do not add speech, dialogue, narration, mus
       model: GOOGLE_OMNI_VIDEO_MODEL,
       aspectRatio,
       responseFormat: "video uri",
+      duration: GOOGLE_OMNI_VIDEO_DURATION,
+      hasFinalFrame: Boolean(finalFrameBuffer),
       timeoutMs: OMNI_SUBMIT_TIMEOUT_MS,
     });
 
@@ -215,6 +245,10 @@ Generate a silent visual-only video. Do not add speech, dialogue, narration, mus
           type: "video",
           delivery: "uri",
           aspect_ratio: aspectRatio,
+          duration: GOOGLE_OMNI_VIDEO_DURATION,
+        },
+        generation_config: {
+          video_config: { task: "image_to_video" },
         },
       }),
       "Gemini Omni interactions.create",
@@ -309,7 +343,7 @@ export async function getOmniVideoJobResult(
     if (outputVideo?.data) {
       return {
         videoBuffer: Buffer.from(outputVideo.data, "base64"),
-        durationMs: 8_000,
+        durationMs: GOOGLE_OMNI_VIDEO_DURATION_MS,
       };
     }
 
@@ -320,7 +354,7 @@ export async function getOmniVideoJobResult(
     if (/^https?:\/\//.test(outputVideo.uri)) {
       return {
         videoBuffer: await fetchVideo(outputVideo.uri),
-        durationMs: 8_000,
+        durationMs: GOOGLE_OMNI_VIDEO_DURATION_MS,
       };
     }
 
@@ -339,7 +373,7 @@ export async function getOmniVideoJobResult(
       );
       return {
         videoBuffer: await readFile(downloadPath),
-        durationMs: 8_000,
+        durationMs: GOOGLE_OMNI_VIDEO_DURATION_MS,
       };
     } finally {
       await rm(temporaryDirectory, { recursive: true, force: true });

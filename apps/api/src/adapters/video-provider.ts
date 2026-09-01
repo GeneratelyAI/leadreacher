@@ -26,7 +26,12 @@ export async function submitVideoJobForProvider(
   aspectRatio: "1:1" | "9:16" | "16:9" | "4:3" | "3:4" = "9:16",
 ): Promise<{ jobId: string }> {
   if (provider === "omni") {
-    return submitOmniVideoJob(seedImageUrl, videoPrompt, aspectRatio);
+    return submitOmniVideoJob(
+      seedImageUrl,
+      videoPrompt,
+      aspectRatio,
+      referenceUrls[0],
+    );
   }
 
   return submitVideoJob(seedImageUrl, videoPrompt, referenceUrls, aspectRatio);

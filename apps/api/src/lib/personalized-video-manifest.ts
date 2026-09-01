@@ -18,7 +18,7 @@ export const PersonalizedRenderManifestSchema = z.object({
   timeline: z.object({
     greeting: z.literal("0.0-1.5s"),
     narration: z.literal("1.5-8.0s"),
-    sourceLogoEndCard: z.literal("8.0-10.0s"),
+    sourceLogoEndCard: z.enum(["8.0-10.0s", "8.5-10.0s"]),
   }),
   creativeBrief: z.object({
     storyboard: z.array(StoryboardSceneSchema).length(4),
@@ -49,6 +49,8 @@ export const PersonalizedRenderManifestSchema = z.object({
     outputAudioStreams: z.number().int().nonnegative().optional(),
     criticScore: z.number().int().min(0).max(10).optional(),
     criticPassed: z.boolean().optional(),
+    greetingDurationMs: z.number().int().nonnegative().optional(),
+    narrationDurationMs: z.number().int().nonnegative().optional(),
   }).default({}),
 });
 
@@ -67,6 +69,7 @@ export function createPersonalizedTemplateManifest(input: {
   seedImage: Buffer;
   sharedNarrationUrl: string;
   sharedNarrationAudio: Buffer;
+  narrationDurationMs?: number;
   logoUrl?: string | null;
   provider: "veo" | "omni";
 }): PersonalizedRenderManifest {
@@ -77,7 +80,7 @@ export function createPersonalizedTemplateManifest(input: {
     timeline: {
       greeting: "0.0-1.5s",
       narration: "1.5-8.0s",
-      sourceLogoEndCard: "8.0-10.0s",
+      sourceLogoEndCard: "8.5-10.0s",
     },
     creativeBrief: {
       storyboard: input.storyboard,
@@ -93,7 +96,11 @@ export function createPersonalizedTemplateManifest(input: {
       ...(input.logoUrl ? { logoUrl: input.logoUrl } : {}),
     },
     provider: { name: input.provider },
-    quality: {},
+    quality: {
+      ...(input.narrationDurationMs !== undefined
+        ? { narrationDurationMs: input.narrationDurationMs }
+        : {}),
+    },
   });
 }
 

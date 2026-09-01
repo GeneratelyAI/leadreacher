@@ -13,15 +13,17 @@ export const TARGET_VIDEO_DURATION_SECONDS = 10;
 export const TARGET_VIDEO_DURATION_MS = TARGET_VIDEO_DURATION_SECONDS * SECONDS_PER_MILLISECOND;
 export const PERSONALIZED_GREETING_DURATION_SECONDS = 1.5;
 export const PERSONALIZED_SHARED_NARRATION_DURATION_SECONDS = 6.5;
-export const PERSONALIZED_LOGO_END_CARD_START_SECONDS = 8;
-export const PERSONALIZED_LOGO_END_CARD_DURATION_SECONDS = 2;
+export const PERSONALIZED_LOGO_END_CARD_START_SECONDS = 8.5;
+export const PERSONALIZED_LOGO_END_CARD_DURATION_SECONDS = 1.5;
 
 export const FRAME_JPEG_QUALITY = 3;
 
 export const REPRESENTATIVE_FRAME_TIMESTAMPS = {
   openingSeconds: 0,
   earlyHookSeconds: 1,
-  closingOffsetFromEndSeconds: 2,
+  greetingTransitionSeconds: 1.5,
+  generatedCloseSeconds: 7.9,
+  logoTransitionSeconds: 9.25,
 } as const;
 
 const resolvedFfmpegPath = ffmpegPath;
@@ -68,6 +70,11 @@ export type VideoMediaInspection = {
   height: number;
   videoStreams: number;
   audioStreams: number;
+};
+
+export type PersonalizedAudioTiming = {
+  greetingDurationMs: number;
+  narrationDurationMs: number;
 };
 
 function parseDurationMilliseconds(stderr: string): number {
@@ -118,6 +125,81 @@ export async function inspectVideoMedia(videoBuffer: Buffer): Promise<VideoMedia
   }
 }
 
+export async function inspectAudioDurationMs(audioBuffer: Buffer): Promise<number> {
+  if (!resolvedFfmpegPath) {
+    throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+  }
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-audio-inspect-"));
+  try {
+    const inputPath = path.join(tempDir, "input.mp3");
+    await writeFile(inputPath, audioBuffer);
+    const { stderr } = await execFileAsync(resolvedFfmpegPath, [
+      "-hide_banner",
+      "-i",
+      inputPath,
+      "-f",
+      "null",
+      "-",
+    ]);
+    return parseDurationMilliseconds(stderr);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+export async function speedUpAudio(
+  audioBuffer: Buffer,
+  tempo: number,
+): Promise<Buffer> {
+  if (!resolvedFfmpegPath || !ffmpegPathExists) {
+    throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+  }
+  if (tempo < 1 || tempo > 2) {
+    throw new Error(`Audio tempo must be between 1 and 2, got ${tempo}`);
+  }
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-audio-speed-"));
+  try {
+    const inputPath = path.join(tempDir, "input.mp3");
+    const outputPath = path.join(tempDir, "output.mp3");
+    await writeFile(inputPath, audioBuffer);
+    await execFileAsync(resolvedFfmpegPath, [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-i",
+      inputPath,
+      "-filter:a",
+      `atempo=${tempo.toFixed(4)}`,
+      "-c:a",
+      "libmp3lame",
+      outputPath,
+    ]);
+    return readFile(outputPath);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+export async function validatePersonalizedAudioTiming(
+  greetingAudioBuffer: Buffer,
+  sharedNarrationAudioBuffer: Buffer,
+): Promise<PersonalizedAudioTiming> {
+  const [greetingDurationMs, narrationDurationMs] = await Promise.all([
+    inspectAudioDurationMs(greetingAudioBuffer),
+    inspectAudioDurationMs(sharedNarrationAudioBuffer),
+  ]);
+  const greetingLimitMs = PERSONALIZED_GREETING_DURATION_SECONDS * SECONDS_PER_MILLISECOND;
+  const narrationLimitMs = PERSONALIZED_SHARED_NARRATION_DURATION_SECONDS * SECONDS_PER_MILLISECOND;
+  if (greetingDurationMs > greetingLimitMs + 50) {
+    throw new Error(`Personalized greeting exceeds ${greetingLimitMs}ms: ${greetingDurationMs}ms`);
+  }
+  if (narrationDurationMs > narrationLimitMs + 50) {
+    throw new Error(`Shared narration exceeds ${narrationLimitMs}ms: ${narrationDurationMs}ms`);
+  }
+  return { greetingDurationMs, narrationDurationMs };
+}
+
 function assertTargetRuntime(media: VideoMediaInspection, label: string): void {
   if (Math.abs(media.durationMs - TARGET_VIDEO_DURATION_MS) > 100) {
     throw new Error(`${label} must be ${TARGET_VIDEO_DURATION_SECONDS}s, got ${media.durationMs}ms`);
@@ -148,7 +230,7 @@ export function assertPersonalizedDeliveryVideo(media: VideoMediaInspection): vo
 /**
  * Veo 3.1 image-to-video generation is limited to eight seconds. The product
  * delivers ten-second assets, so the worker extends the final generated frame
- * into a two-second branded hold before the asset is uploaded to R2.
+ * before composition adds the 1.5-second branded hold.
  */
 export async function normalizeVideoDuration(
   videoBuffer: Buffer,
@@ -225,13 +307,22 @@ export async function composePersonalizedVideo(
   greetingAudioBuffer: Buffer,
   sharedNarrationAudioBuffer: Buffer,
   logo?: { buffer: Buffer; extension: string },
-): Promise<{ videoBuffer: Buffer; durationMs: number }> {
+): Promise<{
+  videoBuffer: Buffer;
+  durationMs: number;
+  audioTiming: PersonalizedAudioTiming;
+}> {
   if (!resolvedFfmpegPath) {
     throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
   }
   if (!ffmpegPathExists) {
     throw new Error(`ffmpeg binary does not exist at ${resolvedFfmpegPath}`);
   }
+
+  const audioTiming = await validatePersonalizedAudioTiming(
+    greetingAudioBuffer,
+    sharedNarrationAudioBuffer,
+  );
 
   const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-video-compose-"));
   try {
@@ -312,6 +403,7 @@ export async function composePersonalizedVideo(
     return {
       videoBuffer: await readFile(outputPath),
       durationMs: TARGET_VIDEO_DURATION_MS,
+      audioTiming,
     };
   } finally {
     await rm(tempDir, { recursive: true, force: true });
@@ -386,15 +478,28 @@ export async function extractRepresentativeFrames(
         seconds: REPRESENTATIVE_FRAME_TIMESTAMPS.earlyHookSeconds,
       },
       {
+        label: "greeting-to-narration transition at 1.5s",
+        seconds: Math.min(
+          durationSeconds,
+          REPRESENTATIVE_FRAME_TIMESTAMPS.greetingTransitionSeconds,
+        ),
+      },
+      {
         label: "midpoint frame",
         seconds: Math.max(0, durationSeconds / 2),
       },
       {
-        label: "closing frame about 2s before end",
-        seconds: Math.max(
-          0,
-          durationSeconds -
-            REPRESENTATIVE_FRAME_TIMESTAMPS.closingOffsetFromEndSeconds,
+        label: "generated closing frame before the held transition",
+        seconds: Math.min(
+          durationSeconds,
+          REPRESENTATIVE_FRAME_TIMESTAMPS.generatedCloseSeconds,
+        ),
+      },
+      {
+        label: "final end-card frame after the logo transition",
+        seconds: Math.min(
+          durationSeconds,
+          REPRESENTATIVE_FRAME_TIMESTAMPS.logoTransitionSeconds,
         ),
       },
     ];

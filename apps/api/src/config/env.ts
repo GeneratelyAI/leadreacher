@@ -76,7 +76,7 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().min(1),
   GOOGLE_AI_API_KEY: z.string().optional().default(""),
   GOOGLE_TTS_API_KEY: z.string().optional().default(""),
-  VIDEO_GENERATION_PROVIDER: z.enum(["veo", "omni"]).default("veo"),
+  VIDEO_GENERATION_PROVIDER: z.enum(["veo", "omni"]).default("omni"),
   PERSONALIZED_VIDEO_TTS_VOICE: z.string().min(1).default("Kore"),
   SENTRY_DSN: z.string().optional().default(""),
   SENTRY_ENVIRONMENT: z.string().min(1).default(process.env.NODE_ENV ?? "development"),

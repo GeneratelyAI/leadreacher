@@ -145,17 +145,18 @@ LOGO INSTRUCTION: ${brief.logoInstruction}`;
 export function buildPersonalizedVideoSeedPrompt(input: VideoPromptBriefInput): string {
   const brief = strategyBrief(input);
 
-  return `Create the shared ten-second personalized AI outreach video template for this campaign.
+  return `Create a polished, professional ten-second personalized spokesperson advertisement for this campaign.
 
 ${sharedContext(input, brief)}
 
 PERSONALIZED VIDEO STRUCTURE:
-1. 0-1.5s: hold on the consistent spokesperson in a silent direct-to-camera opening. Leave this exact slot for a lead-specific TTS greeting added later, such as "Hey {firstName},". Do not speak the greeting in the shared narration and do not show lead-specific text on screen.
-2. 1.5-6.5s: deliver the shared narration as the visual business pitch. Show the audience context and the product or service value using only the strategy facts above.
-3. 6.5-8s: follow the transition direction and resolve into clean visual space for the end card. Do not recreate the logo in generated pixels.
-4. 8-10s: the worker overlays the original supplied logo as the final card. Do not add visual text, numbers, metrics, fabricated claims, or extra branding.
+1. IMAGE: using the supplied company logo as the brand reference, create an attractive, credible professional spokesperson filming an advertisement in a busy, authentic setting relevant to the advertiser and industry. Maintain the logo's exact visual integrity. Add no additional logos, written copy, captions, numbers, graphics, or unrelated images.
+2. 0-1.5s: hold on the spokesperson looking directly into the camera. Use a natural silent acknowledgment with a closed or minimally moving mouth. Leave this exact slot for a lead-specific TTS greeting added later, such as "Hey {firstName},". Do not include that greeting in the shared narration or show it as text.
+3. 1.5-8s: animate a natural professional performance aligned with the shared campaign pitch. Keep the spokesperson, setting, lighting, and visual style consistent.
+4. Within the pitch, around 6.5-8.5s: use a smooth camera pan or transition into a visually relevant scene based on the advertiser, industry, and message. The transition may overlap the end of the narration.
+5. 8.5-10s: transition into the supplied company logo and preserve it exactly as provided.
 
-Treat this as a production creative brief, not a generic prompt. Return the required four-scene storyboard, visual-only video direction, and shared narration while preserving the timing and the logo instruction exactly.`;
+Generate exactly ten seconds. Add no generated speech, dialogue, narration, music, captions, subtitles, additional copy, data, numbers, statistics, extra logos, or invented branding. Audio is added separately. Return the required four-scene storyboard, visual-only direction, and shared narration while preserving this structure.`;
 }
 
 export function buildStandardVideoSeedPrompt(input: VideoPromptBriefInput): string {

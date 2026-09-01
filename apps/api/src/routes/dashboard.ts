@@ -382,6 +382,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const dashboardRequestTimes = new WeakMap<object, number>();
 
+  // Keep timing available when this plugin is mounted independently in tests
+  // or tooling. The full server also exposes the same timing globally.
   app.addHook("onRequest", async (request) => {
     dashboardRequestTimes.set(request, performance.now());
   });
@@ -391,13 +393,6 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       reply.header("Server-Timing", `app;dur=${(performance.now() - startedAt).toFixed(1)}`);
     }
     return payload;
-  });
-  app.addHook("onResponse", async (request, reply) => {
-    const startedAt = dashboardRequestTimes.get(request);
-    const elapsed = startedAt === undefined ? null : performance.now() - startedAt;
-    if (elapsed !== null && elapsed >= 250) {
-      request.log.info({ dashboardRoute: request.routeOptions.url, statusCode: reply.statusCode, durationMs: Math.round(elapsed) }, "slow dashboard request");
-    }
   });
 
   r.get("/dashboard/chrome", {
@@ -1533,7 +1528,11 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const subscriber = createRedisSubscriber();
+    const preparedHeaders = reply.getHeaders();
     reply.hijack();
+    for (const [name, value] of Object.entries(preparedHeaders)) {
+      if (value !== undefined) reply.raw.setHeader(name, value);
+    }
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
@@ -1543,7 +1542,10 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     reply.raw.write(": connected\n\n");
 
     const heartbeat = setInterval(() => reply.raw.write(": keepalive\n\n"), 20_000);
+    let closedByClient = false;
+    let connectionFailed = false;
     const cleanup = () => {
+      closedByClient = true;
       clearInterval(heartbeat);
       subscriber.disconnect();
     };
@@ -1551,8 +1553,41 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     subscriber.on("message", (_channel, payload) => {
       if (!reply.raw.destroyed) reply.raw.write(`data: ${payload}\n\n`);
     });
-    subscriber.on("error", (error) => request.log.warn({ error }, "dashboard event subscriber error"));
-    await subscriber.subscribe(dashboardEventChannel(orgId));
+    subscriber.on("error", (error) => {
+      if (closedByClient || connectionFailed) return;
+      connectionFailed = true;
+      request.log.error({
+        category: "SYSTEM",
+        event: "dashboard.events.redis.disconnected",
+        orgId,
+        error: error.message,
+        retryStatus: "Redis reconnecting automatically",
+      }, "[SYSTEM] Dashboard event stream lost its Redis connection, reconnecting automatically");
+    });
+    subscriber.on("ready", () => {
+      if (!connectionFailed || closedByClient) return;
+      connectionFailed = false;
+      request.log.info({
+        category: "SYSTEM",
+        event: "dashboard.events.redis.reconnected",
+        orgId,
+        retryStatus: "reconnected",
+      }, "[SYSTEM] Dashboard event stream reconnected to Redis");
+    });
+    try {
+      await subscriber.subscribe(dashboardEventChannel(orgId));
+    } catch (error) {
+      if (!closedByClient && !connectionFailed) {
+        connectionFailed = true;
+        request.log.error({
+          category: "SYSTEM",
+          event: "dashboard.events.redis.subscribe_failed",
+          orgId,
+          error: error instanceof Error ? error.message : String(error),
+          retryStatus: "Redis reconnecting automatically",
+        }, "[SYSTEM] Dashboard event stream could not subscribe to Redis, reconnecting automatically");
+      }
+    }
   });
 
   await registerDashboardProspectRoutes(app);

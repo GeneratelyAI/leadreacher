@@ -32,6 +32,7 @@ vi.mock("../../config/env.js", () => ({
 }));
 
 import {
+  GOOGLE_OMNI_VIDEO_DURATION,
   getOmniVideoJobResult,
   isOmniOperation,
   pollOmniVideoJobStatus,
@@ -50,8 +51,8 @@ describe("Gemini Omni video adapter", () => {
   it("submits an image-to-video interaction with silent output instructions", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response("seed-image", {
+      vi.fn().mockImplementation(async () =>
+        new Response("image-bytes", {
           status: 200,
           headers: { "content-type": "image/png" },
         }),
@@ -62,25 +63,32 @@ describe("Gemini Omni video adapter", () => {
     const result = await submitOmniVideoJob(
       "https://assets.example.com/seed.png",
       "Animate the spokesperson with a smooth camera move.",
+      "9:16",
+      "https://assets.example.com/logo.png",
     );
 
     expect(result).toEqual({ jobId: "omni:interaction-123" });
     expect(isOmniOperation(result.jobId)).toBe(true);
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gemini-omni-flash-preview",
+        model: "gemini-omni-1.1-flash-preview",
         response_modalities: ["video"],
         response_format: {
           type: "video",
           delivery: "uri",
           aspect_ratio: "9:16",
+          duration: GOOGLE_OMNI_VIDEO_DURATION,
+        },
+        generation_config: {
+          video_config: { task: "image_to_video" },
         },
         input: [
-          expect.objectContaining({ type: "image", mime_type: "image/png" }),
           expect.objectContaining({
             type: "text",
-            text: expect.stringContaining("Do not add speech"),
+            text: expect.stringMatching(/Generate exactly 10 seconds[\s\S]*Do not add speech/),
           }),
+          expect.objectContaining({ type: "image", mime_type: "image/png" }),
+          expect.objectContaining({ type: "image", mime_type: "image/png" }),
         ],
       }),
     );
@@ -119,7 +127,7 @@ describe("Gemini Omni video adapter", () => {
     const result = await getOmniVideoJobResult("omni:interaction-123");
 
     expect(result.videoBuffer.toString()).toBe("video-bytes");
-    expect(result.durationMs).toBe(8_000);
+    expect(result.durationMs).toBe(10_000);
     expect(download).toHaveBeenCalledWith({
       file: "files/generated-video",
       downloadPath: expect.stringContaining("video.mp4"),

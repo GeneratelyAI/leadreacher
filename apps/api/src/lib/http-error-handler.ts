@@ -14,12 +14,141 @@ type FastifyHttpError = {
   message?: string;
 };
 
+type RequestLogState = {
+  startedAt: number;
+  requestedAt: string;
+  responseMessage?: string;
+};
+
+const OPERATIONAL_ID_KEYS = [
+  "campaignId",
+  "accountId",
+  "socialAccountId",
+] as const;
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function operationalIds(request: { params: unknown; query: unknown; body: unknown }): Record<string, string> {
+  const sources = [request.params, request.query, request.body]
+    .map(asRecord)
+    .filter((value): value is Record<string, unknown> => value !== null);
+  const ids: Record<string, string> = {};
+  for (const key of OPERATIONAL_ID_KEYS) {
+    const value = sources.map((source) => source[key]).find((candidate) => typeof candidate === "string");
+    if (typeof value === "string" && value.trim()) ids[key] = value;
+  }
+  return ids;
+}
+
+export function httpRequestLogContext(input: {
+  request: {
+    id: string;
+    method: string;
+    routeOptions: { url?: string };
+    url: string;
+    headers: Record<string, string | string[] | undefined>;
+    params: unknown;
+    query: unknown;
+    body: unknown;
+  };
+  statusCode: number;
+  durationMs: number;
+  requestTime?: string;
+  responseMessage?: string;
+  retryAfter?: string;
+}): Record<string, unknown> {
+  const retryAttempt = input.request.headers["x-retry-attempt"];
+  const retryStatus = input.retryAfter
+    ? `retry after ${input.retryAfter}`
+    : retryAttempt
+      ? `attempt ${Array.isArray(retryAttempt) ? retryAttempt[0] : retryAttempt}`
+      : "not retried";
+  return {
+    category: "HTTP",
+    event: "http.request.completed",
+    requestId: input.request.id,
+    method: input.request.method,
+    endpoint: input.request.routeOptions.url ?? input.request.url.split("?")[0],
+    requestTime: input.requestTime ?? new Date().toISOString(),
+    statusCode: input.statusCode,
+    durationMs: Math.round(input.durationMs),
+    performance: input.durationMs >= 250 ? "slow" : "normal",
+    response: input.responseMessage ?? (input.statusCode < 400 ? "Request completed" : "Request failed"),
+    ...operationalIds(input.request),
+    retryStatus,
+  };
+}
+
+function requestLogMessage(context: Record<string, unknown>): string {
+  const statusCode = Number(context.statusCode);
+  const parts = [
+    "[HTTP]",
+    context.method,
+    context.endpoint,
+    statusCode,
+    `${context.durationMs}ms`,
+  ];
+  if (context.performance === "slow") parts.push("SLOW");
+  if (context.campaignId) parts.push(`campaign=${context.campaignId}`);
+  if (context.accountId) parts.push(`account=${context.accountId}`);
+  if (context.socialAccountId) parts.push(`account=${context.socialAccountId}`);
+  if (context.retryStatus !== "not retried") parts.push(`retry=${context.retryStatus}`);
+  if (statusCode >= 400) {
+    parts.push(`request=${context.requestId}`);
+    parts.push(`error=${context.response}`);
+  }
+  return parts.join(" ");
+}
+
 export function installHttpErrorHandling(app: FastifyInstance): void {
+  const requestStates = new WeakMap<object, RequestLogState>();
+
   app.addHook("onRequest", async (request, reply) => {
+    requestStates.set(request, {
+      startedAt: performance.now(),
+      requestedAt: new Date().toISOString(),
+    });
     reply.header("X-Request-Id", request.id);
   });
 
+  app.addHook("onSend", async (request, reply, payload) => {
+    const state = requestStates.get(request);
+    if (state) {
+      const durationMs = performance.now() - state.startedAt;
+      reply.header("X-Request-Duration-Ms", Math.round(durationMs));
+      reply.header("Server-Timing", `app;dur=${durationMs.toFixed(1)}`);
+    }
+    reply.header("X-Retry-Status", reply.getHeader("Retry-After") ? "scheduled" : "not-retried");
+    return payload;
+  });
+
+  app.addHook("onResponse", async (request, reply) => {
+    if (request.method === "OPTIONS" && reply.statusCode < 400) return;
+    const state = requestStates.get(request);
+    const durationMs = state ? performance.now() - state.startedAt : 0;
+    const context = httpRequestLogContext({
+      request,
+      statusCode: reply.statusCode,
+      durationMs,
+      requestTime: state?.requestedAt,
+      responseMessage: state?.responseMessage,
+      retryAfter: reply.getHeader("Retry-After")?.toString(),
+    });
+    const message = requestLogMessage(context);
+    if (reply.statusCode >= 500) request.log.error(context, message);
+    else if (reply.statusCode >= 400) request.log.warn(context, message);
+    else request.log.info(context, message);
+  });
+
   app.setErrorHandler((error, request, reply) => {
+    const setResponseMessage = (message: string) => {
+      const state = requestStates.get(request);
+      if (state) state.responseMessage = message;
+    };
     if (error instanceof AppError) {
       if (error instanceof ExternalServiceError || error instanceof ExternalServiceTimeoutError) {
         request.log.error(
@@ -32,6 +161,7 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
           route: request.routeOptions.url,
         });
       }
+      setResponseMessage(error.publicMessage ?? error.message);
       return reply.status(error.statusCode).send(
         apiErrorResponse(
           request.id,
@@ -44,6 +174,7 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
     }
 
     if (error instanceof ZodError) {
+      setResponseMessage("Validation failed");
       return reply
         .status(400)
         .send(apiErrorResponse(request.id, 400, "VALIDATION_ERROR", error.message));
@@ -51,6 +182,7 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
 
     const fastifyError = error as FastifyHttpError;
     if (fastifyError.code === "FST_ERR_VALIDATION") {
+      setResponseMessage("Validation failed");
       return reply.status(400).send(
         apiErrorResponse(
           request.id,
@@ -74,6 +206,7 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
         : invalidContentType
           ? "Request content type is not supported"
           : "The request could not be processed";
+      setResponseMessage(message);
       return reply.status(status).send(apiErrorResponse(request.id, status, code, message));
     }
 
@@ -83,12 +216,15 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
       method: request.method,
       route: request.routeOptions.url,
     });
+    setResponseMessage("Internal error");
     return reply
       .status(500)
       .send(apiErrorResponse(request.id, 500, "INTERNAL_ERROR", "Internal error"));
   });
 
   app.setNotFoundHandler((request, reply) => {
+    const state = requestStates.get(request);
+    if (state) state.responseMessage = "Route not found";
     return reply
       .status(404)
       .send(apiErrorResponse(request.id, 404, "NOT_FOUND", "Route not found"));

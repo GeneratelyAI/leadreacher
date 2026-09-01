@@ -124,9 +124,12 @@ function findAudioContent(interaction: GeminiInteraction): GeminiAudioContent | 
   return undefined;
 }
 
-export async function synthesizeSpeech(text: string): Promise<Buffer> {
+export async function synthesizeSpeech(
+  text: string,
+  options: { mockDurationSeconds?: number } = {},
+): Promise<Buffer> {
   if (env.VIDEO_MOCK_MODE) {
-    return createSilentMp3();
+    return createSilentMp3(options.mockDurationSeconds);
   }
 
   if (!env.GOOGLE_AI_API_KEY) {

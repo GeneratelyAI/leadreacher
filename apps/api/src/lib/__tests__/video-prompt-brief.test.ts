@@ -40,13 +40,16 @@ describe("video prompt seed briefs", () => {
 
     expect(prompt).toContain("0-1.5s");
     expect(prompt).toContain('Hey {firstName},');
-    expect(prompt).toContain("1.5-6.5s");
-    expect(prompt).toContain("6.5-8s");
-    expect(prompt).toContain("8-10s");
+    expect(prompt).toContain("1.5-8s");
+    expect(prompt).toContain("6.5-8.5s");
+    expect(prompt).toContain("8.5-10s");
     expect(prompt).toContain(input.strategy.contentApproach.narrationScript);
     expect(prompt).toContain(input.strategy.contentApproach.transitionDirection);
     expect(prompt).toContain(input.strategy.creativeAssets.logoUrl);
-    expect(prompt).toContain("Do not add visual text, numbers, metrics");
+    expect(prompt).toContain("Add no generated speech, dialogue, narration, music, captions");
+    expect(prompt).toContain("personalized spokesperson advertisement");
+    expect(prompt).toContain("Maintain the logo's exact visual integrity");
+    expect(prompt).toContain("Generate exactly ten seconds");
   });
 
   it("gives standard video a non-personalized strategy and timing brief", () => {

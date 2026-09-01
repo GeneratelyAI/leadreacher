@@ -8,9 +8,13 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   assertPersonalizedMasterVideo,
   composePersonalizedVideo,
+  extractRepresentativeFrames,
+  inspectAudioDurationMs,
   inspectVideoMedia,
   normalizeVideoDuration,
+  speedUpAudio,
   TARGET_VIDEO_DURATION_MS,
+  validatePersonalizedAudioTiming,
 } from "../video-frames.js";
 
 const execFileAsync = promisify(execFile);
@@ -197,4 +201,62 @@ describe("composePersonalizedVideo", () => {
       height: 160,
     });
   }, 20_000);
+});
+
+describe("personalized audio timing", () => {
+  it("measures audio duration and shortens it without truncating", async () => {
+    if (!ffmpegPath) throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-audio-timing-test-"));
+    tempDirs.push(tempDir);
+    const sourcePath = path.join(tempDir, "source.mp3");
+    await execFileAsync(ffmpegPath, [
+      "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "sine=frequency=400:duration=1.8", "-q:a", "9", sourcePath,
+    ]);
+
+    const source = await readFile(sourcePath);
+    const shortened = await speedUpAudio(source, 1.2);
+    expect(await inspectAudioDurationMs(shortened)).toBeLessThan(await inspectAudioDurationMs(source));
+  });
+
+  it("rejects narration that would otherwise be cut off", async () => {
+    if (!ffmpegPath) throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-audio-reject-test-"));
+    tempDirs.push(tempDir);
+    const greetingPath = path.join(tempDir, "greeting.mp3");
+    const narrationPath = path.join(tempDir, "narration.mp3");
+    await Promise.all([
+      execFileAsync(ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=400:duration=0.4", "-q:a", "9", greetingPath,
+      ]),
+      execFileAsync(ffmpegPath, [
+        "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+        "sine=frequency=800:duration=7", "-q:a", "9", narrationPath,
+      ]),
+    ]);
+
+    await expect(validatePersonalizedAudioTiming(
+      await readFile(greetingPath),
+      await readFile(narrationPath),
+    )).rejects.toThrow("Shared narration exceeds 6500ms");
+  });
+
+  it("samples greeting and closing transitions for visual review", async () => {
+    if (!ffmpegPath) throw new Error("ffmpeg-static did not provide an ffmpeg binary path");
+    const tempDir = await mkdtemp(path.join(os.tmpdir(), "leadreacher-frame-sample-test-"));
+    tempDirs.push(tempDir);
+    const videoPath = path.join(tempDir, "video.mp4");
+    await execFileAsync(ffmpegPath, [
+      "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+      "color=c=black:s=90x160:r=24:d=10", "-an", "-c:v", "libx264", videoPath,
+    ]);
+
+    const frames = await extractRepresentativeFrames(await readFile(videoPath), 10_000);
+    expect(frames).toHaveLength(6);
+    expect(frames.map((frame) => frame.label)).toEqual(expect.arrayContaining([
+      "greeting-to-narration transition at 1.5s",
+      "final end-card frame after the logo transition",
+    ]));
+  });
 });

@@ -34,7 +34,7 @@ describe("personalized render manifest", () => {
     expect(updated.timeline).toEqual({
       greeting: "0.0-1.5s",
       narration: "1.5-8.0s",
-      sourceLogoEndCard: "8.0-10.0s",
+      sourceLogoEndCard: "8.5-10.0s",
     });
     expect(updated.creativeBrief.storyboard).toHaveLength(4);
     expect(updated.provider).toEqual({ name: "omni", operationId: "omni:123" });

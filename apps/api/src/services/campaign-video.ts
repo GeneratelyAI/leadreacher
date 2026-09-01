@@ -4,9 +4,13 @@ import { synthesizeSpeech } from "../adapters/google-tts.js";
 import {
   assertPersonalizedDeliveryVideo,
   composePersonalizedVideo,
+  inspectAudioDurationMs,
   inspectVideoMedia,
+  PERSONALIZED_GREETING_DURATION_SECONDS,
+  speedUpAudio,
 } from "../lib/video-frames.js";
 import {
+  PersonalizedRenderManifestSchema,
   sha256,
   updatePersonalizedTemplateManifest,
 } from "../lib/personalized-video-manifest.js";
@@ -23,6 +27,38 @@ type ReadyState =
   | { state: "failed"; reason: string };
 
 const MAX_LINKEDIN_VIDEO_MESSAGE_BYTES = 15 * 1024 * 1024;
+const MAX_GREETING_TEMPO = 1.2;
+const GREETING_DURATION_TOLERANCE_MS = 50;
+
+export async function fitGreetingAudio(audio: Buffer): Promise<Buffer | null> {
+  const limitMs = PERSONALIZED_GREETING_DURATION_SECONDS * 1000;
+  const durationMs = await inspectAudioDurationMs(audio);
+  if (durationMs <= limitMs + GREETING_DURATION_TOLERANCE_MS) return audio;
+
+  const requiredTempo = durationMs / limitMs;
+  const adjusted = await speedUpAudio(audio, Math.min(MAX_GREETING_TEMPO, requiredTempo * 1.02));
+  return await inspectAudioDurationMs(adjusted) <= limitMs + GREETING_DURATION_TOLERANCE_MS
+    ? adjusted
+    : null;
+}
+
+export async function createPersonalizedGreetingAudio(
+  firstName: string,
+  speechSynthesizer: typeof synthesizeSpeech = synthesizeSpeech,
+): Promise<Buffer> {
+  const name = firstName.replace(/\s+/g, " ").trim();
+  if (!name) throw new Error("Lead first name is required for personalized video");
+
+  const fullGreeting = await speechSynthesizer(`Hey ${name},`, { mockDurationSeconds: 1 });
+  const fittedGreeting = await fitGreetingAudio(fullGreeting);
+  if (fittedGreeting) return fittedGreeting;
+
+  const shortGreeting = await speechSynthesizer(name, { mockDurationSeconds: 1 });
+  const fittedShortGreeting = await fitGreetingAudio(shortGreeting);
+  if (fittedShortGreeting) return fittedShortGreeting;
+
+  throw new Error(`Could not fit the personalized greeting for ${name} within 1.5 seconds`);
+}
 
 export type PersonalizedVideoDelivery = {
   videoUrl: string;
@@ -31,6 +67,11 @@ export type PersonalizedVideoDelivery = {
   filename: string;
   contentType: string;
 };
+
+export function templateUsesNativeOmniEndCard(renderManifest: unknown): boolean {
+  const parsed = PersonalizedRenderManifestSchema.safeParse(renderManifest);
+  return parsed.success && parsed.data.provider.name === "omni";
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -397,11 +438,12 @@ export async function composePersonalizedVideoAsset(input: {
   });
 
   try {
+    const nativeOmniEndCard = templateUsesNativeOmniEndCard(asset.template.renderManifest);
     const [masterVideo, sharedNarration, greeting, logo] = await Promise.all([
       fetchPublicMedia(asset.template.masterVideoUrl, "Template video"),
       fetchPublicMedia(asset.template.sharedNarrationUrl, "Template narration"),
-      synthesizeSpeech(`Hey ${asset.lead.firstName},`),
-      asset.template.logoUrl
+      createPersonalizedGreetingAudio(asset.lead.firstName),
+      asset.template.logoUrl && !nativeOmniEndCard
         ? fetchPublicMedia(asset.template.logoUrl, "Template logo")
         : Promise.resolve(null),
     ]);
@@ -409,7 +451,7 @@ export async function composePersonalizedVideoAsset(input: {
       masterVideo.buffer,
       greeting,
       sharedNarration.buffer,
-      logo
+      logo && !nativeOmniEndCard
         ? { buffer: logo.buffer, extension: imageExtension(logo.mimeType) }
         : undefined,
     );
@@ -429,6 +471,8 @@ export async function composePersonalizedVideoAsset(input: {
         },
         quality: {
           outputAudioStreams: deliveryMedia.audioStreams,
+          greetingDurationMs: composed.audioTiming.greetingDurationMs,
+          narrationDurationMs: composed.audioTiming.narrationDurationMs,
           durationMs: deliveryMedia.durationMs,
           width: deliveryMedia.width,
           height: deliveryMedia.height,

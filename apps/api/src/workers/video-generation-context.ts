@@ -266,13 +266,14 @@ export async function generateApprovedPersonalizedTemplatePrompts(
   templateId: string,
   seedPrompt: string,
   context: TemplateVideoContext,
+  initialFeedbackHints: string[] = [],
 ): Promise<{
   storyboard: Awaited<ReturnType<typeof runPersonalizedVideoTemplatePromptAgent>>["storyboard"];
   imagePrompt: string;
   videoPrompt: string;
   sharedNarration: string;
 }> {
-  let feedbackHints: string[] = [];
+  let feedbackHints: string[] = [...initialFeedbackHints];
   for (let attempt = 1; attempt <= MAX_PROMPT_ATTEMPTS; attempt++) {
     const promptResult = await runPersonalizedVideoTemplatePromptAgent({
       orgId,

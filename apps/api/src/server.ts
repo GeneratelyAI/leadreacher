@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { LogController } from "fastify";
 import { createHash } from "node:crypto";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
@@ -33,7 +33,23 @@ import {
 } from "./lib/worker-leases.js";
 
 export async function buildServer() {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logController: new LogController({ disableRequestLogging: true }),
+    logger: process.env.NODE_ENV === "production"
+      ? true
+      : {
+          transport: {
+            target: "pino-pretty",
+            options: {
+              colorize: true,
+              translateTime: "HH:MM:ss.l",
+              ignore: "pid,hostname,requestTime,requestId",
+              singleLine: false,
+              hideObject: true,
+            },
+          },
+        },
+  });
   configureOperationalLogger(app.log);
   const workers: Array<{ close: () => Promise<void> }> = [];
   const stopHeartbeats: Array<() => void> = [];
@@ -68,8 +84,8 @@ export async function buildServer() {
     origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "unipile-signature", "stripe-signature"],
-    exposedHeaders: ["X-Request-Id"],
+    allowedHeaders: ["Authorization", "Content-Type", "X-Retry-Attempt", "unipile-signature", "stripe-signature"],
+    exposedHeaders: ["X-Request-Id", "X-Request-Duration-Ms", "X-Retry-Status", "Retry-After", "Server-Timing"],
   });
 
   installHttpErrorHandling(app);

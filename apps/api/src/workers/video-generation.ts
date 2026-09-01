@@ -69,6 +69,24 @@ type ReviewError = Error & {
   videoUrl?: string;
 };
 
+async function videoJobCampaignContext(campaignId: string | undefined): Promise<Record<string, unknown>> {
+  if (!campaignId) return {};
+  try {
+    const campaign = await prisma.campaign.findUnique({
+      where: { id: campaignId },
+      select: { name: true, senderAccount: { select: { id: true, accountName: true } } },
+    });
+    return {
+      campaignId,
+      campaignName: campaign?.name,
+      accountId: campaign?.senderAccount?.id,
+      accountName: campaign?.senderAccount?.accountName,
+    };
+  } catch (error) {
+    return { campaignId, logContextError: errorMessage(error) };
+  }
+}
+
 function logInfo(payload: Record<string, unknown>): void {
   logOperationalInfo("video-generation", payload);
 }
@@ -628,22 +646,40 @@ export function startVideoGenerationWorker(): Worker<VideoGenerationJob> {
     },
   );
 
-  worker.on("completed", (job) => {
+  worker.on("completed", async (job) => {
+    const campaignContext = await videoJobCampaignContext(job.data.campaignId);
+    const campaignLabel = typeof campaignContext.campaignName === "string"
+      ? campaignContext.campaignName
+      : job.data.campaignId;
     logInfo({
       path: "job-completed",
+      message: `Video generation completed for campaign "${campaignLabel}".`,
       jobId: job.id,
+      ...campaignContext,
       videoAssetId: job.data.videoAssetId,
       jobType: job.data.jobType ?? "orchestrate",
+      retryStatus: job.attemptsMade > 0 ? `completed after ${job.attemptsMade} retries` : "not retried",
     });
   });
 
   worker.on("failed", async (job, error) => {
+    const campaignContext = await videoJobCampaignContext(job?.data.campaignId);
+    const campaignLabel = typeof campaignContext.campaignName === "string"
+      ? campaignContext.campaignName
+      : job?.data.campaignId ?? "unknown";
+    const attemptsAllowed = job?.opts.attempts ?? 1;
+    const willRetry = Boolean(job && job.attemptsMade < attemptsAllowed);
     logError({
       path: "job-failed",
+      message: `Video generation failed for campaign "${campaignLabel}": ${error.message}`,
       jobId: job?.id,
+      ...campaignContext,
       videoAssetId: job?.data.videoAssetId,
       jobType: job?.data.jobType ?? "orchestrate",
       error: error.message,
+      retryStatus: willRetry
+        ? `retry scheduled, attempt ${job!.attemptsMade + 1} of ${attemptsAllowed}`
+        : "retries exhausted",
     });
 
     if (job && job.attemptsMade >= (job.opts.attempts ?? 1)) {

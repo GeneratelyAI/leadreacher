@@ -14,7 +14,7 @@ import {
   ValidationError,
   externalServiceFailure,
 } from "../errors.js";
-import { installHttpErrorHandling } from "../http-error-handler.js";
+import { httpRequestLogContext, installHttpErrorHandling } from "../http-error-handler.js";
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
 vi.mock("../sentry.js", () => ({ captureException }));
@@ -76,6 +76,8 @@ describe("HTTP error contract", () => {
   it("returns a correlated envelope for unknown routes", async () => {
     const response = await app.inject({ method: "GET", url: "/missing" });
     expect(response.statusCode).toBe(404);
+    expect(Number(response.headers["x-request-duration-ms"])).toBeGreaterThanOrEqual(0);
+    expect(response.headers["x-retry-status"]).toBe("not-retried");
     expect(response.json()).toEqual({
       status: 404,
       code: "NOT_FOUND",
@@ -132,5 +134,41 @@ describe("HTTP error contract", () => {
       message: "Unipile request failed",
       details: { service: "Unipile" },
     });
+  });
+});
+
+describe("HTTP request observability", () => {
+  it("builds a safe request summary with operational identifiers", () => {
+    const context = httpRequestLogContext({
+      request: {
+        id: "req-1",
+        method: "POST",
+        routeOptions: { url: "/campaigns/:campaignId/launch" },
+        url: "/campaigns/campaign-1/launch?token=secret",
+        headers: { "x-retry-attempt": "2", authorization: "Bearer secret" },
+        params: { campaignId: "campaign-1" },
+        query: {},
+        body: { socialAccountId: "account-1", token: "secret" },
+      },
+      statusCode: 409,
+      durationMs: 42.6,
+      responseMessage: "Campaign could not be scheduled",
+    });
+
+    expect(context).toMatchObject({
+      category: "HTTP",
+      event: "http.request.completed",
+      requestId: "req-1",
+      method: "POST",
+      endpoint: "/campaigns/:campaignId/launch",
+      statusCode: 409,
+      durationMs: 43,
+      performance: "normal",
+      response: "Campaign could not be scheduled",
+      campaignId: "campaign-1",
+      socialAccountId: "account-1",
+      retryStatus: "attempt 2",
+    });
+    expect(JSON.stringify(context)).not.toContain("secret");
   });
 });

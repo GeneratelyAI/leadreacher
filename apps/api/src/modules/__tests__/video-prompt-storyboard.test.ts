@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { VideoPromptOutputSchema } from "../agents/video-prompt-agent.js";
 import { normalizeVideoPromptCriticOutput } from "../critics/video-prompt-critic.js";
-import { buildPersonalizedVideoTemplatePromptMessage } from "../agents/personalized-video-prompt-agent.js";
+import {
+  buildPersonalizedVideoTemplatePromptMessage,
+  narrationWordCount,
+  PersonalizedVideoTemplatePromptOutput,
+} from "../agents/personalized-video-prompt-agent.js";
 import { normalizePersonalizedVideoTemplateCriticOutput } from "../critics/personalized-video-prompt-critic.js";
 
 const storyboard = [
@@ -109,8 +113,33 @@ describe("Personalized video template prompt pipeline", () => {
     });
 
     expect(message).toContain("first 1.5 seconds must contain no spoken dialogue");
-    expect(message).toContain("LOGO REFERENCE AVAILABLE: yes - the worker, not the model, overlays it exactly");
+    expect(message).toContain("mouth must remain closed or move minimally");
+    expect(message).toContain("14-18 words");
+    expect(message).toContain("LOGO REFERENCE AVAILABLE: yes - use it as the exact final frame from 8.5-10s");
+    expect(message).toContain("professional spokesperson advertisement tailored to the advertiser and industry");
+    expect(message).toContain("sharedNarration must contain 14-18 words");
     expect(message).not.toContain("LEAD COMPANY:");
+  });
+
+  it("counts narration words for the 6.5-second speech budget", () => {
+    expect(narrationWordCount("Turn approved audiences into relevant conversations with personalized outreach your team reviews before launch.")).toBe(14);
+  });
+
+  it("rejects shared narration outside the 14-18 word budget", () => {
+    const base = {
+      ...validOutput,
+      sharedNarration: "Turn approved audiences into relevant conversations with personalized outreach your team reviews before launch.",
+    };
+
+    expect(PersonalizedVideoTemplatePromptOutput.safeParse(base).success).toBe(true);
+    expect(PersonalizedVideoTemplatePromptOutput.safeParse({
+      ...base,
+      sharedNarration: "This narration is much too short for the required campaign timing.",
+    }).success).toBe(false);
+    expect(PersonalizedVideoTemplatePromptOutput.safeParse({
+      ...base,
+      sharedNarration: "This narration contains far too many unnecessary words for the available speaking window and should be rejected before any audio generation begins in production.",
+    }).success).toBe(false);
   });
 
   it("derives the personalized template critic pass state from its score", () => {
