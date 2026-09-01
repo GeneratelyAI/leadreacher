@@ -18,6 +18,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { useDashboardShell } from "@/components/dashboard/DashboardShell";
 import { MfaSecurityPanel } from "@/components/auth/MfaSecurityPanel";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -188,6 +189,8 @@ function SettingsSectionCard({
 }
 
 export function Settings() {
+  const { canExportData: initialCanExportData } = useDashboardShell();
+  const [canExportData, setCanExportData] = useState(initialCanExportData);
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [isSaving, setIsSaving] = useState(false);
@@ -204,13 +207,15 @@ export function Settings() {
     staleTime: 60_000,
   });
   const accountsQuery = useQuery({
-    queryKey: ["dashboard", "settings", "accounts"],
+    queryKey: ["social-accounts"],
     queryFn: () => apiFetch<{ accounts: SocialAccount[] }>("/social-accounts").catch(() => ({ accounts: [] as SocialAccount[] })),
     staleTime: 60_000,
   });
   const exportsQuery = useQuery({
     queryKey: ["dashboard", "settings", "exports"],
     queryFn: () => apiFetch<{ exports: ExportJob[] }>("/dashboard/exports"),
+    enabled: canExportData,
+    retry: false,
     staleTime: 15_000,
     refetchInterval: (query) => {
       const jobs = query.state.data?.exports ?? [];
@@ -268,6 +273,7 @@ export function Settings() {
   }
 
   async function requestExport() {
+    if (!canExportData) return;
     setIsRequestingExport(true);
     setActionError(null);
     try {
@@ -416,7 +422,7 @@ export function Settings() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSectionCard icon={<ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden />} title="Security">
-              <MfaSecurityPanel />
+              <MfaSecurityPanel onStatusChange={setCanExportData} />
             </SettingsSectionCard>
 
             <SettingsSectionCard icon={<SlidersHorizontal className="size-5" strokeWidth={1.75} aria-hidden />} title="Preferences">
@@ -564,12 +570,13 @@ export function Settings() {
                 <h3 className="mt-3 text-sm font-semibold">Organization export</h3>
                 <p className="mt-1 text-xs text-muted-foreground">Download campaign, prospect, message, audit, and media-manifest data.</p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Button variant="secondary" onClick={() => void requestExport()} disabled={isRequestingExport || latestExport?.status === "pending" || latestExport?.status === "processing"}>
+                  <Button variant="secondary" onClick={() => void requestExport()} disabled={!canExportData || isRequestingExport || latestExport?.status === "pending" || latestExport?.status === "processing"}>
                     {isRequestingExport ? <Loader2 className="animate-spin" /> : <Download />}
                     {latestExport?.status === "pending" || latestExport?.status === "processing" ? "Preparing export" : "Request export"}
                   </Button>
-                  {latestExportDownloadable && latestExport ? <Button variant="ghost" onClick={() => void downloadExport(latestExport.id)}>Download</Button> : null}
+                  {canExportData && latestExportDownloadable && latestExport ? <Button variant="ghost" onClick={() => void downloadExport(latestExport.id)}>Download</Button> : null}
                 </div>
+                {!canExportData ? <p className="mt-3 text-xs text-muted-foreground">Enable an authenticator app in Security before requesting an export.</p> : null}
                 {latestExport?.status === "failed" ? <p className="mt-3 text-xs text-red-600 dark:text-red-300">The latest export failed. Request a new export or contact support if it happens again.</p> : null}
                 {latestExport?.status === "ready" && latestExport.expiresAt && new Date(latestExport.expiresAt) <= new Date() ? <p className="mt-3 text-xs text-muted-foreground">The latest download expired. Request a new export.</p> : null}
               </div>

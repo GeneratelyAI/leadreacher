@@ -101,7 +101,7 @@ export function AddProspect({
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const accountsQuery = useQuery({
-    queryKey: ["social-accounts", "prospect-search"],
+    queryKey: ["social-accounts"],
     queryFn: () => apiFetch<SocialAccountsResponse>("/social-accounts"),
     enabled: open,
     refetchInterval: (query) => {

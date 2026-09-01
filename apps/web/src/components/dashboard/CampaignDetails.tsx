@@ -207,7 +207,7 @@ export function CampaignDetails({
       const next = await queryClient.fetchQuery({
         queryKey,
         queryFn: () => apiFetch<CampaignDetail>(`/campaigns/${id}`),
-        staleTime: 0,
+        staleTime: 10_000,
       });
       applyCampaignDetail(next, id);
     } catch (requestError) {

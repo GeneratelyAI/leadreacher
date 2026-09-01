@@ -9,10 +9,8 @@ import {
   CircleCheck,
   Inbox as InboxIcon,
   Loader2,
-  Maximize2,
   Megaphone,
   MessageSquare,
-  Minimize2,
   MoreHorizontal,
   Search,
   Send,
@@ -1027,17 +1025,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                           </a>
                         </Button>
                       ) : null}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hidden lg:inline-flex"
-                        onClick={toggleAmplified}
-                        aria-label={amplified ? "Exit amplified chat view" : "Enter amplified chat view"}
-                        aria-pressed={amplified}
-                        title={amplified ? "Exit amplified view (Esc)" : "Amplified chat view"}
-                      >
-                        {amplified ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
-                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-10 lg:size-8" aria-label="Conversation actions" />}>
                           <MoreHorizontal weight="regular" />

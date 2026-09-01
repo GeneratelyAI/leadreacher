@@ -68,7 +68,7 @@ type NavItem = {
   exact?: boolean;
 };
 
-const DashboardShellContext = createContext<{ memberName: string } | null>(null);
+const DashboardShellContext = createContext<{ memberName: string; canExportData: boolean } | null>(null);
 
 export function useDashboardShell() {
   const context = useContext(DashboardShellContext);
@@ -299,10 +299,12 @@ function WorkspaceSidebar({
 
 export function DashboardShell({
   memberName,
+  canExportData,
   children,
   modal,
 }: {
   memberName: string;
+  canExportData: boolean;
   children: ReactNode;
   modal?: ReactNode;
 }) {
@@ -407,13 +409,16 @@ export function DashboardShell({
       return;
     }
     if (href === "/dashboard/settings") {
-      void Promise.all([
+      const prefetches = [
         queryClient.prefetchQuery({ queryKey: ["dashboard", "settings"], queryFn: () => apiFetch("/dashboard/settings") }),
-        queryClient.prefetchQuery({ queryKey: ["dashboard", "settings", "accounts"], queryFn: () => apiFetch("/social-accounts") }),
-        queryClient.prefetchQuery({ queryKey: ["dashboard", "settings", "exports"], queryFn: () => apiFetch("/dashboard/exports") }),
-      ]);
+        queryClient.prefetchQuery({ queryKey: ["social-accounts"], queryFn: () => apiFetch("/social-accounts") }),
+      ];
+      if (canExportData) {
+        prefetches.push(queryClient.prefetchQuery({ queryKey: ["dashboard", "settings", "exports"], queryFn: () => apiFetch("/dashboard/exports") }));
+      }
+      void Promise.all(prefetches);
     }
-  }, [queryClient, rangeQuery, router]);
+  }, [canExportData, queryClient, rangeQuery, router]);
 
   useEffect(() => {
     const savedState = window.localStorage.getItem("leadreacher-sidebar-open");
@@ -616,7 +621,7 @@ export function DashboardShell({
           ["--dashboard-page-py" as string]: sidebarOpen ? "1.25rem" : "1rem",
         }}
       >
-      <DashboardShellContext.Provider value={{ memberName }}>
+      <DashboardShellContext.Provider value={{ memberName, canExportData }}>
       <div className="flex h-full w-full">
         <div className={cn("relative hidden h-full shrink-0 transition-[width] duration-200 ease-out lg:block", sidebarOpen ? "w-[17.75rem]" : "w-[4.5rem]")}>
           <WorkspaceSidebar pathname={pathname} memberName={memberName} overview={overview} collapsed={!sidebarOpen} onSignOut={handleSignOut} onPrefetch={prefetchWorkspace} />

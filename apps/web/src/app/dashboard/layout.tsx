@@ -73,7 +73,13 @@ export default async function DashboardLayout({
 
   return (
     <DashboardDataProvider scope={`${bootstrap.orgId}:${user.id}`}>
-      <DashboardShell memberName={bootstrap.memberName ?? displayName(user)} modal={modal ?? null}>{children}</DashboardShell>
+      <DashboardShell
+        memberName={bootstrap.memberName ?? displayName(user)}
+        canExportData={assurance?.currentLevel === "aal2"}
+        modal={modal ?? null}
+      >
+        {children}
+      </DashboardShell>
     </DashboardDataProvider>
   );
 }

@@ -21,7 +21,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Could not update multi-factor authentication.";
 }
 
-export function MfaSecurityPanel() {
+export function MfaSecurityPanel({ onStatusChange }: { onStatusChange?: (enabled: boolean) => void }) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [code, setCode] = useState("");
@@ -38,8 +38,10 @@ export function MfaSecurityPanel() {
       setError(errorMessage(factorsError));
       return;
     }
-    setFactorId((data.all as AuthFactor[]).find((factor: AuthFactor) => factor.status === "verified")?.id ?? null);
-  }, []);
+    const verifiedFactorId = (data.all as AuthFactor[]).find((factor: AuthFactor) => factor.status === "verified")?.id ?? null;
+    setFactorId(verifiedFactorId);
+    onStatusChange?.(Boolean(verifiedFactorId));
+  }, [onStatusChange]);
 
   useEffect(() => {
     void loadFactors();
@@ -113,6 +115,7 @@ export function MfaSecurityPanel() {
     }
     clearAccessTokenCache();
     setFactorId(null);
+    onStatusChange?.(false);
     setMessage("Authenticator app disabled.");
   }
 
