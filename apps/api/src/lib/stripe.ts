@@ -99,7 +99,7 @@ export async function createSubscriptionCheckoutSession(
     subscription_data: { metadata },
     ...(input.embedded
       ? {
-          ui_mode: "embedded_page" as const,
+          ui_mode: "elements" as const,
           return_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
         }
       : {

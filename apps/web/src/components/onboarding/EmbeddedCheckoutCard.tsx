@@ -114,7 +114,7 @@ export function EmbeddedCheckoutCard({
   }
 
   return (
-    <div className="checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-2">
+    <div className="checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-5 sm:p-7 h-short:sm:p-5">
       <Suspense fallback={<div className="min-h-72" role="status" aria-label="Loading secure checkout" />}>
         <StripeEmbeddedCheckout clientSecret={clientSecret} />
       </Suspense>
