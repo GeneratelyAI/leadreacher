@@ -109,7 +109,6 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/billing/checkout-session",
     {
-      preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Create Stripe checkout session"),
         body: CheckoutSessionBodySchema,
@@ -173,7 +172,6 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   r.post(
     "/billing/checkout-session/reconcile",
     {
-      preHandler: [requireMfa],
       schema: {
         ...authenticatedRoute("Billing", "Reconcile a completed Stripe Checkout session"),
         body: CheckoutSessionReconcileSchema,

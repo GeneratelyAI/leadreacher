@@ -203,7 +203,7 @@ describe("billing routes", () => {
     );
   });
 
-  it("requires a second factor before creating a checkout session", async () => {
+  it("allows an onboarding session without a second factor to create checkout", async () => {
     const response = await app.inject({
       method: "POST",
       url: "/billing/checkout-session",
@@ -211,9 +211,8 @@ describe("billing routes", () => {
       payload: {},
     });
 
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "MFA_REQUIRED" });
-    expect(createSubscriptionCheckoutSession).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
+    expect(createSubscriptionCheckoutSession).toHaveBeenCalled();
   });
 
   it("rejects checkout when campaign type has not been selected", async () => {
