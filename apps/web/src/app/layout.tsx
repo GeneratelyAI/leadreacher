@@ -1,11 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import { geist } from "@/lib/fonts/geist";
-import { themeInitScript } from "@/lib/theme-init-script";
 import { Toaster } from "@/components/ui/sonner";
 import RouteTransition from "@/components/layout/RouteTransition";
 import { SITE_URL } from "@/lib/constants/brand";
 import "./globals.css";
+
+export const dynamic = "force-dynamic";
 
 // The apex domain redirects here. Keep metadata on the serving host so search
 // engines associate one canonical favicon and page identity with the site.
@@ -18,9 +18,9 @@ const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png?v=20260812";
 // by URL, so changing this value is the reliable way to refresh existing tabs.
 const FAVICON_IMAGE = "/logo/leadreacher_icon_colored.svg?v=20260824";
 
-// theme-color is intentionally omitted here: themeInitScript and
-// useThemeMode own that meta tag directly (they remove/recreate it on
-// every load and toggle). Letting Next's metadata system also render it
+// theme-color is intentionally omitted here: useThemeMode owns that meta tag
+// directly and recreates it on every load and toggle. Letting Next's metadata
+// system also render it
 // gives two owners of the same DOM node - React's reconciler ends up
 // calling removeChild on a node our script already removed, throwing
 // "Cannot read properties of null (reading 'removeChild')".
@@ -79,12 +79,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="en"
@@ -96,11 +95,6 @@ export default async function RootLayout({
             in the installed Next version - set directly so "Add to Home
             Screen" launches standalone on iOS instead of opening Safari. */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <script
-          id="lr-theme-init"
-          nonce={nonce}
-          dangerouslySetInnerHTML={{ __html: themeInitScript }}
-        />
       </head>
       <body className="flex min-h-dvh flex-col overscroll-y-none font-sans bg-white dark:bg-[#0a0e14] text-slate-900 dark:text-slate-50">
         {children}
