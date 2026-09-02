@@ -223,6 +223,7 @@ beforeEach(async () => {
   });
   strategyFindFirst.mockResolvedValue({
     id: "strategy-1",
+    channels: { selected: ["linkedin", "email", "whatsapp"] },
     positioning: { businessModel: "B2B lead generation" },
     icpDefinition: { idealCustomer: "Revenue leaders" },
     messagingAngles: {
@@ -373,6 +374,37 @@ describe("channel connection and onboarding completion", () => {
       }),
     );
   });
+
+  it("rejects connection attempts for channels outside the purchased plan", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/connect",
+      payload: { provider: "INSTAGRAM" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "instagram is not included in your current plan",
+    });
+    expect(createHostedAuthLink).not.toHaveBeenCalled();
+  });
+
+  it.each(["GOOGLE", "OUTLOOK"] as const)(
+    "allows %s when the email channel is included in the purchased plan",
+    async (provider) => {
+      const response = await app.inject({
+        method: "POST",
+        url: "/social-accounts/connect",
+        payload: { provider },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(createHostedAuthLink).toHaveBeenCalledWith(
+        expect.objectContaining({ providers: [provider.toLowerCase()] }),
+      );
+    },
+  );
 
   it("confirms the returned account with the one-time organization token", async () => {
     const connectionToken = "4e17cd74-bbee-4d42-8e93-75cf9cb12e64";

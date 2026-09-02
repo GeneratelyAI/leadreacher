@@ -2,13 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   ArrowRight,
   Check,
   Loader2,
+  Lock,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
 } from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
@@ -75,7 +74,18 @@ const CHANNELS = [
     available: true,
     provider: "INSTAGRAM" as const,
     matchPlatforms: ["instagram"] as const,
-    recommendationKey: null,
+    recommendationKey: "instagram" as const,
+  },
+  {
+    key: "facebook",
+    title: "Facebook",
+    description: "Message prospects directly on Facebook Messenger.",
+    icon: <ChannelLogo name="facebook" className="size-10" />,
+    iconClassName: "onboarding-channel-logo--facebook",
+    available: true,
+    provider: "MESSENGER" as const,
+    matchPlatforms: ["facebook"] as const,
+    recommendationKey: "facebook" as const,
   },
   {
     key: "gmail",
@@ -166,6 +176,10 @@ export default function Channels() {
   const [recommendedChannels, setRecommendedChannels] = useState<Set<ChannelRecommendationKey>>(
     new Set(),
   );
+  const [purchasedChannels, setPurchasedChannels] = useState<Set<ChannelRecommendationKey>>(
+    new Set(),
+  );
+  const [isPlanLoading, setIsPlanLoading] = useState(true);
   const [selectedLinkedInAccountId, setSelectedLinkedInAccountId] = useState("");
   const connectionFailed = searchParams.get("status") === "failed"
     || Boolean(searchParams.get("error_title"));
@@ -338,12 +352,15 @@ export default function Channels() {
         setRecommendedChannels(new Set(
           selected.length > 0 ? selected : recommendations.map((item) => item.channel),
         ));
+        setPurchasedChannels(new Set(selected));
       } catch (loadError) {
         // "Recommended" tags are a decorative enhancement layered on top of
         // the strategy generated earlier in onboarding - a missing or failed
         // strategy (e.g. 404 before it's generated) should never block the
         // actual channel-connection flow, so this fails silently.
         if (loadError instanceof ApiError && loadError.status === 404) return;
+      } finally {
+        if (!cancelled) setIsPlanLoading(false);
       }
     })();
 
@@ -353,7 +370,7 @@ export default function Channels() {
   }, []);
 
   async function handleConnect(
-    provider: "LINKEDIN" | "WHATSAPP" | "INSTAGRAM" | "GOOGLE" | "OUTLOOK",
+    provider: "LINKEDIN" | "WHATSAPP" | "INSTAGRAM" | "MESSENGER" | "GOOGLE" | "OUTLOOK",
     channelKey: string,
   ) {
     if (isConnecting) return;
@@ -439,7 +456,7 @@ export default function Channels() {
         <PageHeader
           className="mx-auto"
           title="Connect your channels"
-          description="Connect LinkedIn for your first campaign. Other connected channels will be available when you build additional campaign sequences."
+          description="Connect the channels included in your plan. LinkedIn is required for your first campaign."
         />
 
         {connectionFailed ? (
@@ -451,7 +468,7 @@ export default function Channels() {
         {activationPendingChannelKey ? (
           <Alert
             tone="info"
-            className="mx-auto mt-6 w-full max-w-3xl"
+            className="fixed top-20 right-4 left-4 z-50 px-3 py-2 text-xs shadow-lg sm:left-auto sm:w-80"
             title="Activating your channel"
             action={
               <Button
@@ -473,7 +490,7 @@ export default function Channels() {
         ) : null}
 
         <OnboardingCard className="onboarding-connect-card mx-auto mt-8 w-full max-w-3xl overflow-hidden">
-          {isLoading ? (
+          {isLoading || isPlanLoading ? (
             <EmptyState icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading channels" role="status" aria-live="polite" />
           ) : (
             <div className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
@@ -485,6 +502,9 @@ export default function Channels() {
                 const isRecommended =
                   channel.recommendationKey !== null &&
                   recommendedChannels.has(channel.recommendationKey);
+                const isPurchased =
+                  channel.recommendationKey !== null &&
+                  purchasedChannels.has(channel.recommendationKey);
                 return (
                   <article key={channel.key} className="onboarding-connect-row flex items-center gap-4 px-5 py-5 sm:px-6">
                     <span className={`inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding ${channel.iconClassName}`}>
@@ -495,11 +515,8 @@ export default function Channels() {
                         <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
                           {channel.title}
                         </h2>
-                        {isRecommended ? (
-                          <StatusBadge tone="brand" className="gap-1">
-                            <Sparkles className="size-3" aria-hidden />
-                            Selected
-                          </StatusBadge>
+                        {!isPurchased && isRecommended ? (
+                          <StatusBadge>Recommended</StatusBadge>
                         ) : null}
                       </div>
                       <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
@@ -512,17 +529,19 @@ export default function Channels() {
                           <Check className="size-3" aria-hidden />
                           Connected
                         </StatusBadge>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={isConnecting}
-                          onClick={() => void handleConnect(channel.provider, channel.key)}
-                        >
-                          Add another
-                        </Button>
+                        {isPurchased ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isConnecting}
+                            onClick={() => void handleConnect(channel.provider, channel.key)}
+                          >
+                            Add another
+                          </Button>
+                        ) : null}
                       </div>
-                    ) : channel.available ? (
+                    ) : channel.available && isPurchased ? (
                       <Button
                         type="button"
                         variant="brand"
@@ -532,6 +551,11 @@ export default function Channels() {
                       >
                         {isConnecting ? "Opening..." : "Connect"}
                       </Button>
+                    ) : channel.available ? (
+                      <StatusBadge className="gap-1" aria-label={`${channel.title} is not included in your plan`}>
+                        <Lock className="size-3" aria-hidden />
+                        Not in plan
+                      </StatusBadge>
                     ) : (
                       <StatusBadge>Coming soon</StatusBadge>
                     )}
@@ -580,7 +604,6 @@ export default function Channels() {
       </main>
 
       <ActionBar
-        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("checkout"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
         trailing={<Button type="button" variant="primary" disabled={!linkedInConnected || isCompleting} onClick={() => void handleComplete()} className="h-13 px-8 text-base sm:px-10">{isCompleting ? "Preparing review..." : "Finish setup and review"}<ArrowRight className="size-5" aria-hidden /></Button>}
       />
     </div>

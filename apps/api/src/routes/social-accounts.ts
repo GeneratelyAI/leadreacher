@@ -8,7 +8,7 @@ import {
 } from "../adapters/unipile.js";
 import { env } from "../config/env.js";
 import { UNIPILE_CONNECT_PROVIDERS, normalizeUnipilePlatform } from "../lib/channels.js";
-import { ConflictError, ValidationError } from "../lib/errors.js";
+import { ConflictError, SubscriptionRequiredError, ValidationError } from "../lib/errors.js";
 import {
   ErrorResponseSchema,
   authenticatedRoute,
@@ -100,6 +100,44 @@ function channelsRedirect(returnTo: "onboarding" | "home" | "dashboard", status:
     return `${env.APP_URL}/onboarding?step=channels&status=${status}`;
   }
   return `${env.APP_URL}/dashboard/channels?status=${status}`;
+}
+
+function entitlementForProvider(provider: string): string {
+  const normalized = provider.toLowerCase();
+  if (normalized === "google" || normalized === "gmail" || normalized === "outlook" || normalized === "microsoft") {
+    return "email";
+  }
+  return normalizeUnipilePlatform(provider);
+}
+
+function selectedChannels(value: unknown): Set<string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return new Set();
+  const selected = (value as { selected?: unknown }).selected;
+  if (!Array.isArray(selected)) return new Set();
+  return new Set(selected.filter((channel): channel is string => typeof channel === "string"));
+}
+
+async function requirePurchasedChannel(orgId: string, provider: string): Promise<void> {
+  const [organization, strategy] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { subscriptionStatus: true },
+    }),
+    prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+      select: { channels: true },
+    }),
+  ]);
+
+  if (organization?.subscriptionStatus !== "active") {
+    throw new SubscriptionRequiredError("An active subscription is required to connect channels");
+  }
+
+  const entitlement = entitlementForProvider(provider);
+  if (!selectedChannels(strategy?.channels).has(entitlement)) {
+    throw new ValidationError(`${entitlement} is not included in your current plan`);
+  }
 }
 
 export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
@@ -254,6 +292,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const { provider, returnTo } = request.body;
+    await requirePurchasedChannel(orgId, provider);
     const adapter = new UnipileAdapter({
       apiKey: env.UNIPILE_API_KEY,
     });
@@ -310,6 +349,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       apiKey: env.UNIPILE_API_KEY,
     });
     const account = await adapter.getAccountStatus(accountId);
+    await requirePurchasedChannel(orgId, pending?.success ? pending.data.provider : account.type);
     const platform = normalizeUnipilePlatform(account.type);
     const expectedPlatform = pending?.success
       ? normalizeUnipilePlatform(pending.data.provider)
