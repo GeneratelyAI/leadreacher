@@ -237,7 +237,7 @@ export default function Hero({ demoEnabled = false }: { demoEnabled?: boolean })
             spotlight
           />
 
-          <div className="relative z-[1] mt-32 flex w-screen flex-col items-center bg-white px-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-16 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-white sm:mt-0 sm:w-full sm:bg-transparent sm:px-0 sm:before:hidden lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
+          <div className="relative z-[1] mt-12 flex w-screen flex-col items-center bg-white px-5 before:pointer-events-none before:absolute before:inset-x-0 before:-top-16 before:h-16 before:bg-gradient-to-b before:from-transparent before:to-white sm:mt-0 sm:w-full sm:bg-transparent sm:px-0 sm:before:hidden lg:row-start-3 lg:min-h-[clamp(11rem,21vh,16rem)] lg:justify-between lg:pt-[clamp(1.5rem,3.25vh,3rem)]">
           <p className="hero-entrance hero-entrance--description mt-6 max-w-[900px] text-balance text-lg leading-8 text-[#66708b] sm:mt-7 sm:text-lg sm:leading-8 lg:text-xl h-compact:sm:mt-3 h-compact:lg:text-lg h-compact:lg:leading-7 h-short:lg:mt-2 h-short:lg:text-base h-short:lg:leading-6 2xl:text-[1.375rem] 2xl:leading-8">
             <span className="font-semibold text-[#171729]">LeadReacher automates customer acquisition from start to finish.</span>{" "}
             It scrapes for prospects, creates personalized content and runs social outreach campaigns that convert. <span className="font-semibold text-[#5b41ef]">All you have to do is reply.</span>

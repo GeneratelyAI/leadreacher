@@ -148,6 +148,25 @@ test("shows the compact mobile navigation with the icon-only logo", async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("advances the mobile product story as the page scrolls", async ({ page }, testInfo) => {
+  test.skip(!phoneProjects.has(testInfo.project.name), "Phone product story only");
+  await openLanding(page);
+
+  const story = page.locator("#mobile-product-story-scroll");
+  const metrics = await story.evaluate((element) => ({
+    top: element.getBoundingClientRect().top + window.scrollY,
+    height: element.getBoundingClientRect().height,
+  }));
+  await page.evaluate((top) => window.scrollTo(0, top + 8), metrics.top);
+  await expect(page.getByRole("tab", { name: "Strategy, step 1" })).toHaveAttribute("aria-selected", "true");
+
+  await page.evaluate(({ top, height }) => {
+    window.scrollTo(0, top + (height - window.innerHeight) * 0.64);
+  }, metrics);
+  await expect(page.getByRole("tab", { name: "Outreach, step 4" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-outreach");
+});
+
 test("moves through the product story without layout overflow", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop story interaction only");
   await page.setViewportSize({ width: 1536, height: 1024 });

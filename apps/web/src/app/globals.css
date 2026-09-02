@@ -286,6 +286,9 @@ html {
 
 .onboarding-root {
   --radius: var(--onboarding-radius);
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
   background-color: var(--theme-onboarding-canvas);
   color: var(--theme-onboarding-ink);
   font-family: var(--font-ui);
@@ -321,10 +324,14 @@ html {
   position: relative;
   isolation: isolate;
   width: 100%;
-  overflow-x: clip;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .onboarding-step-presence__pane {
+  position: absolute;
+  inset: 0;
   display: flex;
   width: 100%;
   min-width: 0;
@@ -333,13 +340,26 @@ html {
   flex-direction: column;
 }
 
+.onboarding-viewport-fit {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.onboarding-viewport-fit__canvas {
+  --onboarding-fit-scale: 1;
+  min-height: 100%;
+  transform: scale(var(--onboarding-fit-scale));
+  transform-origin: top left;
+}
+
 .onboarding-step-presence--transitioning {
   pointer-events: none;
 }
 
 .onboarding-step-presence__pane--incoming {
-  position: absolute;
-  inset: 0;
+  z-index: 1;
 }
 
 .onboarding-step-presence--transitioning .onboarding-step-presence__pane {
@@ -2527,6 +2547,39 @@ html {
   select,
   textarea {
     font-size: 16px;
+  }
+}
+
+@keyframes landing-risk-strike-reveal {
+  0%, 12% {
+    scale: 0 1;
+  }
+
+  28%, 82% {
+    scale: 1 1;
+  }
+
+  100% {
+    scale: 0 1;
+  }
+}
+
+.landing-risk-strike {
+  scale: 0 1;
+  animation: landing-risk-strike-reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 0% exit 100%;
+}
+
+.landing-risk-strike--delayed {
+  animation-range: entry 8% exit 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-risk-strike,
+  .landing-risk-strike--delayed {
+    scale: 1 1;
+    animation: none;
   }
 }
 

@@ -24,7 +24,6 @@ import HeroBreak from "@/components/landing/hero/HeroBreak";
 import BrandsMarquee from "./BrandsMarquee";
 import { DashboardDemo } from "./DashboardDemo";
 import {
-  PRODUCT_STORY_STAGE_IDS,
   progressForStageIndex,
   stageIndexForProgress,
   type ProductStoryStageId,
@@ -289,20 +288,52 @@ function DesktopStory() {
 function MobileStory() {
   const reducedMotion = Boolean(useReducedMotion());
   const [activeIndex, setActiveIndex] = useState(0);
-  const observerRef = useRef<IntersectionObserver | null>(null);
+  const storyRef = useRef<HTMLDivElement>(null);
+  const activeIndexRef = useRef(0);
   const selectStage = useCallback((stageId: ProductStoryStageId) => {
     const stageIndex = STAGES.findIndex((stage) => stage.id === stageId);
-    if (stageIndex >= 0) setActiveIndex(stageIndex);
-    document.getElementById(`mobile-story-${stageId}`)?.scrollIntoView({ behavior: "auto", block: "start" });
-  }, []);
+    const story = storyRef.current;
+    if (stageIndex < 0 || !story) return;
+    activeIndexRef.current = stageIndex;
+    setActiveIndex(stageIndex);
+    const top = story.getBoundingClientRect().top + window.scrollY;
+    const scrollableDistance = Math.max(story.offsetHeight - window.innerHeight, 1);
+    window.scrollTo({
+      top: top + progressForStageIndex(stageIndex) * scrollableDistance,
+      behavior: reducedMotion ? "auto" : "smooth",
+    });
+  }, [reducedMotion]);
   useEffect(() => {
-    const elements = PRODUCT_STORY_STAGE_IDS.map((id) => document.getElementById(`mobile-story-${id}`)).filter((element): element is HTMLElement => Boolean(element));
-    observerRef.current = new IntersectionObserver((entries) => { const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0]; if (!visible) return; const index = elements.indexOf(visible.target as HTMLElement); if (index >= 0) setActiveIndex(index); }, { rootMargin: "-25% 0px -45%", threshold: [0.2, 0.5, 0.8] });
-    elements.forEach((element) => observerRef.current?.observe(element));
-    return () => observerRef.current?.disconnect();
+    let animationFrame = 0;
+    const updateStage = () => {
+      animationFrame = 0;
+      const story = storyRef.current;
+      if (!story) return;
+      const bounds = story.getBoundingClientRect();
+      const scrollableDistance = Math.max(story.offsetHeight - window.innerHeight, 1);
+      const progress = Math.min(1, Math.max(0, -bounds.top / scrollableDistance));
+      const nextIndex = stageIndexForProgress(progress);
+      if (nextIndex === activeIndexRef.current) return;
+      activeIndexRef.current = nextIndex;
+      setActiveIndex(nextIndex);
+    };
+    const scheduleUpdate = () => {
+      if (animationFrame) return;
+      animationFrame = window.requestAnimationFrame(updateStage);
+    };
+    updateStage();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate, { passive: true });
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("scroll", scheduleUpdate);
+      window.removeEventListener("resize", scheduleUpdate);
+    };
   }, []);
+  const activeStage = STAGES[activeIndex];
+
   return (
-    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="pt-12 text-white md:hidden">
+    <EdgeSurface as="div" tone="dark" data-navbar-theme="dark" className="overflow-visible pt-12 text-white md:hidden">
       <div aria-hidden className="absolute inset-0 bg-[radial-gradient(circle_at_50%_12%,rgba(104,66,245,.22),transparent_28%),linear-gradient(180deg,#171a2e,#0d1020)]" />
       <BackgroundPaths reducedMotion={reducedMotion} pathCount={11} className="opacity-65" />
       <div className="relative px-5 text-center">
@@ -310,12 +341,59 @@ function MobileStory() {
         <h2 className="mx-auto mt-3 max-w-sm text-balance text-3xl font-semibold leading-tight text-white">Leadreacher.ai brings the <ShimmerText duration={3.6} style={PRODUCT_STORY_SHIMMER_STYLE}>leads to you.</ShimmerText></h2>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-6 text-white/65">Simply reply and close deals.</p>
       </div>
-      <nav aria-label="Workflow progress" className="sticky top-16 z-30 mx-4 my-8 overflow-hidden rounded-full border border-white/12 bg-[#171a2e]/94 p-1 shadow-lg backdrop-blur-xl">
-        <div className="grid grid-cols-5">{STAGES.map((stage, index) => <a key={stage.id} href={`#mobile-story-${stage.id}`} onClick={(event) => { event.preventDefault(); selectStage(stage.id); }} aria-current={index === activeIndex ? "step" : undefined} aria-label={`${index + 1}, ${stage.label}`} className={cn("tap-target relative flex min-h-11 items-center justify-center rounded-full text-[10px] font-semibold text-white/55 transition-colors", index === activeIndex && "bg-[#6842f5] text-white shadow-[0_6px_18px_rgba(104,66,245,.35)]")}>{index + 1}</a>)}</div>
-      </nav>
-      <div className="relative px-5 pb-16">
-        <span aria-hidden className="absolute bottom-20 left-[34px] top-4 w-px bg-gradient-to-b from-[#765cf0] via-white/16 to-transparent" />
-        <div className="space-y-16">{STAGES.map((stage, index) => <article id={`mobile-story-${stage.id}`} key={stage.id} className="relative scroll-mt-40 pl-11"><span aria-hidden className={cn("absolute left-0 top-0 flex size-7 items-center justify-center rounded-full border text-[10px] font-semibold", index <= activeIndex ? "border-[#927df8] bg-[#6842f5] text-white shadow-[0_0_20px_rgba(104,66,245,.4)]" : "border-white/15 bg-[#171a2e] text-white/45")}>{index + 1}</span><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aa96ff]">{stage.eyebrow}</p><h3 className="mt-2 text-balance text-2xl font-semibold leading-tight text-white">{stage.title}</h3><p className="mt-3 text-sm leading-6 text-white/60">{stage.description}</p><div className="mt-5 aspect-square overflow-hidden rounded-2xl border border-white/12 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.32)]"><StagePreview stageId={stage.id} reducedMotion onStageChange={selectStage} /></div><div className="mt-4 flex items-center gap-2 text-xs font-medium text-white/75"><CheckCircle2 className="size-4 text-emerald-400" aria-hidden />{stage.result}</div></article>)}</div>
+      <div ref={storyRef} id="mobile-product-story-scroll" className="relative mt-6 h-[500svh] min-h-[3200px]">
+        <div className="sticky top-0 flex h-svh min-h-[620px] flex-col overflow-hidden px-4 pb-5 pt-20">
+          <nav aria-label="Workflow progress" className="z-30 shrink-0 overflow-hidden rounded-full border border-white/12 bg-[#171a2e]/94 p-1 shadow-lg backdrop-blur-xl">
+            <div className="grid grid-cols-5" role="tablist" aria-label="LeadReacher workflow stages">
+              {STAGES.map((stage, index) => (
+                <button
+                  key={stage.id}
+                  id={`mobile-story-tab-${stage.id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={index === activeIndex}
+                  aria-controls="mobile-story-panel"
+                  onClick={() => selectStage(stage.id)}
+                  className={cn("tap-target relative flex min-h-11 items-center justify-center rounded-full text-[10px] font-semibold text-white/55 transition-colors", index === activeIndex && "bg-[#6842f5] text-white shadow-[0_6px_18px_rgba(104,66,245,.35)]")}
+                >
+                  <span className="sr-only">{stage.label}, step </span>{index + 1}
+                </button>
+              ))}
+            </div>
+          </nav>
+
+          <div className="relative min-h-0 flex-1 pt-5">
+            <AnimatePresence mode="wait" initial={false}>
+              <m.article
+                id="mobile-story-panel"
+                key={activeStage.id}
+                role="tabpanel"
+                aria-labelledby={`mobile-story-tab-${activeStage.id}`}
+                initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -12 }}
+                transition={{ duration: reducedMotion ? 0.1 : 0.28, ease: "easeOut" }}
+                className="flex h-full min-h-0 flex-col"
+              >
+                <div className="shrink-0 px-1">
+                  <div className="flex items-center gap-3">
+                    <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[#927df8] bg-[#6842f5] text-xs font-semibold text-white shadow-[0_0_20px_rgba(104,66,245,.4)]">{activeIndex + 1}</span>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#aa96ff]">{activeStage.eyebrow}</p>
+                  </div>
+                  <h3 className="mt-3 text-balance text-[1.65rem] font-semibold leading-[1.08] text-white">{activeStage.title}</h3>
+                  <p className="mt-3 line-clamp-2 text-sm leading-5 text-white/65">{activeStage.description}</p>
+                </div>
+
+                <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-[22px] border border-white/12 bg-white shadow-[0_24px_60px_rgba(0,0,0,0.32)]">
+                  <StagePreview stageId={activeStage.id} reducedMotion={reducedMotion} onStageChange={selectStage} />
+                </div>
+                <div className="mt-3 flex shrink-0 items-center gap-2 px-1 text-xs font-medium text-white/75">
+                  <CheckCircle2 className="size-4 text-emerald-400" aria-hidden />{activeStage.result}
+                </div>
+              </m.article>
+            </AnimatePresence>
+          </div>
+        </div>
       </div>
     </EdgeSurface>
   );

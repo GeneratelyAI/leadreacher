@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
-import { m, useInView, useReducedMotion, useScroll } from "framer-motion";
+import { m, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion";
 
 import {
   ArrowRight,
@@ -229,6 +229,127 @@ function DataLensWord() {
   );
 }
 
+type OutreachModelKey = "diy" | "agency" | "leadreacher";
+
+const outreachModels = [
+  { key: "diy", title: "DIY", subtitle: "Do it yourself" },
+  { key: "agency", title: "Agency", subtitle: "Traditional agency" },
+  { key: "leadreacher", title: "LeadReacher", subtitle: "Done-for-you" },
+] as const;
+
+function MobileOutreachModelComparison({
+  rows,
+}: {
+  rows: ReadonlyArray<{
+    label: string;
+    icon: typeof Clock;
+    diy: string;
+    agency: string;
+    leadreacher: string;
+  }>;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [activeModel, setActiveModel] = useState<OutreachModelKey>("diy");
+  const { scrollYProgress } = useScroll({
+    target: trackRef,
+    offset: ["start start", "end end"],
+  });
+
+  useMotionValueEvent(scrollYProgress, "change", (progress) => {
+    const nextModel: OutreachModelKey = progress < 1 / 3 ? "diy" : progress < 2 / 3 ? "agency" : "leadreacher";
+    setActiveModel((current) => (current === nextModel ? current : nextModel));
+  });
+
+  const selectedModel = outreachModels.find(({ key }) => key === activeModel) ?? outreachModels[0];
+  const featured = activeModel === "leadreacher";
+
+  const selectModel = (key: OutreachModelKey) => {
+    setActiveModel(key);
+    const track = trackRef.current;
+    if (!track) return;
+
+    const index = outreachModels.findIndex((model) => model.key === key);
+    const availableScroll = Math.max(0, track.offsetHeight - window.innerHeight);
+    window.scrollTo({
+      top: track.getBoundingClientRect().top + window.scrollY + availableScroll * (index / 2),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  };
+
+  return (
+    <div ref={trackRef} className="relative h-[260vh] md:hidden">
+      <div className="sticky top-16 py-3">
+        <div className="grid min-h-12 grid-cols-3 overflow-hidden rounded-xl border border-[#dedcea] bg-white shadow-[0_10px_30px_rgba(36,25,80,0.08)]" role="tablist" aria-label="Outreach model comparison">
+          {outreachModels.map(({ key, title }) => {
+            const selected = key === activeModel;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-controls="mobile-outreach-model-panel"
+                onClick={() => selectModel(key)}
+                className={cn(
+                  "min-h-12 border-r border-[#e8e5ef] px-2 text-xs font-bold uppercase tracking-[0.04em] transition-colors last:border-r-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#582df2] motion-reduce:transition-none",
+                  selected ? "bg-[#582df2] text-white" : "bg-white text-[#4d5263]",
+                )}
+              >
+                {title}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-3 text-center text-xs font-medium text-[#73778a]">Scroll to compare each approach</p>
+
+        <section
+          id="mobile-outreach-model-panel"
+          role="tabpanel"
+          aria-label={`${selectedModel.title} outreach model`}
+          className={cn(
+            "mt-3 overflow-hidden rounded-[1.35rem] border bg-white shadow-[0_16px_42px_rgba(36,25,80,0.1)]",
+            featured ? "border-[#7b58ff]" : "border-[#dedcea]",
+          )}
+        >
+          <header className={cn("px-5 py-3 text-center", featured ? "bg-[#582df2] text-white" : "border-b border-[#e8e5ef] text-[#171a27]")}>
+            <h4 className="text-lg font-bold">{selectedModel.title}</h4>
+            <p className={cn("mt-0.5 text-[0.62rem] font-semibold uppercase tracking-[0.1em]", featured ? "text-white/75" : "text-[#686d80]")}>{selectedModel.subtitle}</p>
+          </header>
+
+          <dl className="divide-y divide-[#e8e5ef]">
+            {rows.map(({ label, icon: Icon, diy, agency, leadreacher }, index) => {
+              const value = activeModel === "diy" ? diy : activeModel === "agency" ? agency : leadreacher;
+              return (
+                <div key={label} className={cn("grid min-h-[3.65rem] grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] items-center gap-3 px-4 py-2.5", featured && "bg-[#fbfaff]")}>
+                  <dt className="flex items-center gap-2 text-[0.82rem] font-medium text-[#3e4353]">
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg border", featured ? "border-[#ddd4ff] bg-white text-[#5529e8]" : "border-[#e6e3ee] text-[#555a6a]")}>
+                      <Icon className="size-4.5" weight="regular" aria-hidden />
+                    </span>
+                    {label}
+                  </dt>
+                  <dd className={cn("flex items-center justify-end gap-2 text-right text-[0.82rem] leading-5 text-[#303443]", featured && "font-semibold text-[#4f2de0]", featured && index === rows.length - 1 && "text-base font-bold")}>
+                    <span>{value}</span>
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+
+          <div className={cn("border-t px-4 py-3 text-center", featured ? "border-[#d8ceff] bg-[#f7f4ff]" : "border-[#e8e5ef] bg-[#fafafd]")}>
+            <p className={cn("text-[0.66rem] font-semibold uppercase tracking-[0.08em]", featured ? "text-[#5b468f]" : "text-[#73778a]")}>
+              {featured ? "Less busywork. More conversations." : activeModel === "diy" ? "You own every step." : "You manage the relationship."}
+            </p>
+          </div>
+        </section>
+
+        <div className="mt-4 flex justify-center gap-2" aria-hidden>
+          {outreachModels.map(({ key }) => <span key={key} className={cn("h-1.5 rounded-full transition-[width,background-color] motion-reduce:transition-none", key === activeModel ? "w-8 bg-[#582df2]" : "w-1.5 bg-[#d6d2e2]")} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DataPerformanceSection() {
   const performanceRows = [
     { label: "Cold call", value: "<1%", icon: MessageCircle, featured: false },
@@ -269,7 +390,8 @@ function DataPerformanceSection() {
 
       <div className="mt-14 sm:mt-20">
         <div className="mb-5 flex items-center gap-4 text-[#4f2de0]"><span aria-hidden className="h-1 w-16 rounded-full bg-current" /><h3 className="text-xs font-bold uppercase tracking-[0.16em] sm:text-sm">Current outreach model comparison</h3></div>
-        <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.13)" spotlightClassName="z-[1] mix-blend-multiply motion-reduce:transition-none" className="rounded-2xl border border-[#dedcea] shadow-[0_18px_50px_rgba(36,25,80,0.08)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#c9c0f5] hover:shadow-[0_24px_65px_rgba(62,39,137,0.13)] motion-reduce:transform-none motion-reduce:transition-none">
+        <MobileOutreachModelComparison rows={modelRows} />
+        <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.13)" spotlightClassName="z-[1] mix-blend-multiply motion-reduce:transition-none" className="hidden rounded-2xl border border-[#dedcea] shadow-[0_18px_50px_rgba(36,25,80,0.08)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-0.5 hover:border-[#c9c0f5] hover:shadow-[0_24px_65px_rgba(62,39,137,0.13)] motion-reduce:transform-none motion-reduce:transition-none md:block">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px] border-collapse text-left text-sm text-[#171a27] lg:text-base">
               <thead><tr className="border-b border-[#dfddea]"><th scope="col" className="w-[21%] px-5 py-5 sm:px-7"><span className="sr-only">Category</span></th><th scope="col" className="w-[25%] border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7"><span className="block text-lg font-semibold">DIY</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em] text-[#686d80]">Do it yourself</span></th><th scope="col" className="w-[25%] border-l border-[#e8e5ef] px-5 py-4 text-center sm:px-7"><span className="block text-lg font-semibold">Agency</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em] text-[#686d80]">Traditional agency</span></th><th scope="col" className="w-[29%] border-l border-[#dcd4ff] bg-[#f7f4ff] px-5 py-4 text-center text-[#4f2de0] sm:px-7"><span className="block text-lg font-bold">LeadReacher</span><span className="block text-[0.65rem] font-semibold uppercase tracking-[0.06em]">Done-for-you</span></th></tr></thead>
@@ -452,7 +574,7 @@ function DifferentiationSection() {
   }, []);
 
   return (
-    <EdgeSurface data-navbar-theme="light" className="relative z-10 -mt-7 py-16 sm:-mt-9 sm:py-24 lg:py-28">
+    <EdgeSurface data-navbar-theme="light" className="relative z-10 -mt-7 overflow-clip py-16 sm:-mt-9 sm:py-24 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
         <DataPerformanceSection />
 
@@ -671,18 +793,17 @@ function PricingTrustShowcase() {
             Outreach without the risk
           </m.p>
 
-          <h2 id="pricing-trust-heading" className="mt-14 text-balance text-[clamp(3rem,5vw,5.5rem)] font-semibold leading-[0.94] tracking-[-0.055em] text-[#101426]">
+          <h2
+            id="pricing-trust-heading"
+            className="mt-8 text-balance text-[2.55rem] font-semibold leading-[0.96] tracking-[-0.055em] text-[#101426] sm:mt-14 sm:text-6xl lg:text-[clamp(3rem,5vw,5.5rem)]"
+          >
             <span className="block">
               No{" "}
               <span className="relative inline-block text-[#101426]">
                 spam.
-                <m.span
+                <span
                   aria-hidden
-                  className="absolute left-[-2%] top-[52%] h-[5px] w-[104%] origin-left -rotate-2 rounded-full bg-[#ff625c] sm:h-[6px]"
-                  initial={reducedMotion ? false : { scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
-                  viewport={{ once: false, amount: 0.9 }}
-                  transition={reducedMotion ? { duration: 0 } : { duration: 0.42, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  className="landing-risk-strike pointer-events-none absolute left-[-2%] top-[52%] z-10 h-[5px] w-[104%] origin-left -rotate-2 rounded-full bg-[#ff625c] sm:h-[6px]"
                 />
               </span>
             </span>
@@ -690,13 +811,9 @@ function PricingTrustShowcase() {
               No{" "}
               <span className="relative inline-block whitespace-nowrap text-[#101426]">
                 ninja billing.
-                <m.span
+                <span
                   aria-hidden
-                  className="absolute left-[-1%] top-[52%] h-[5px] w-[102%] origin-left -rotate-1 rounded-full bg-[#ff625c] sm:h-[6px]"
-                  initial={reducedMotion ? false : { scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
-                  viewport={{ once: false, amount: 0.9 }}
-                  transition={reducedMotion ? { duration: 0 } : { duration: 0.48, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                  className="landing-risk-strike landing-risk-strike--delayed pointer-events-none absolute left-[-1%] top-[52%] z-10 h-[5px] w-[102%] origin-left -rotate-1 rounded-full bg-[#ff625c] sm:h-[6px]"
                 />
               </span>
             </span>

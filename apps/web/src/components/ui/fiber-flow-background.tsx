@@ -82,7 +82,7 @@ export function FiberFlowBackground({
     const workloadScale = constrainedDevice ? 0.72 : 1;
     const fiberCount = Math.max(
       32,
-      Math.round((window.innerWidth < 640 ? density * 1.45 : density) * workloadScale),
+      Math.round((window.innerWidth < 640 ? density * 0.85 : density) * workloadScale),
     );
     const fibers: Fiber[] = Array.from({ length: fiberCount }, (_, index) => ({
       spread: seededValue(index, 1) * 2 - 1,
@@ -156,20 +156,23 @@ export function FiberFlowBackground({
 
     const fiberGeometry = (fiber: Fiber, elapsed: number) => {
       const isMobile = width < 640;
-      const mobileFiberCenter = 0.46;
-      const mobileFiberSpread = 0.34;
       const motion = Math.sin(elapsed * fiber.drift + fiber.phase) * height * 0.012;
       const scrollLift = scroll.progress * height;
+      const centerX = width * focalPoint.x;
+      const centerY = height * focalPoint.y;
+      const mobileSpread = height * 0.12;
       const startY =
-        height * (isMobile ? mobileFiberCenter + fiber.spread * mobileFiberSpread : 0.49 + fiber.spread * 0.26) +
+        (isMobile
+          ? centerY + fiber.spread * mobileSpread
+          : height * (0.49 + fiber.spread * 0.26)) +
         motion -
         scrollLift * (0.1 + Math.abs(fiber.spread) * 0.02);
       const pointerPullY = (pointer.y - focalPoint.y) * height * 0.08 * pointer.strength;
       const pointerPullX = (pointer.x - focalPoint.x) * width * 0.06 * pointer.strength;
-      const centerX = width * focalPoint.x;
-      const centerY = height * focalPoint.y;
       const endY =
-        height * (isMobile ? mobileFiberCenter - fiber.spread * mobileFiberSpread : 0.46 - fiber.spread * 0.28) +
+        (isMobile
+          ? centerY - fiber.spread * mobileSpread
+          : height * (0.46 - fiber.spread * 0.28)) +
         motion * 0.65 -
         scrollLift * (0.1 + Math.abs(fiber.spread) * 0.024);
 
@@ -177,7 +180,9 @@ export function FiberFlowBackground({
         startX: -width * 0.08,
         startY,
         controlAX: width * 0.13,
-        controlAY: startY + height * ((isMobile ? 0.18 : 0.12) + fiber.spread * 0.04),
+        controlAY: isMobile
+          ? startY + (centerY - startY) * 0.34
+          : startY + height * (0.12 + fiber.spread * 0.04),
         controlBX: centerX - width * 0.18 + pointerPullX,
         controlBY: centerY + fiber.spread * height * 0.025 + pointerPullY,
         centerX,
@@ -185,7 +190,9 @@ export function FiberFlowBackground({
         controlCX: centerX + width * 0.18 + pointerPullX,
         controlCY: centerY - fiber.spread * height * 0.025 + pointerPullY,
         controlDX: width * 0.87,
-        controlDY: endY + height * ((isMobile ? 0.18 : 0.15) - fiber.spread * 0.04),
+        controlDY: isMobile
+          ? endY + (centerY - endY) * 0.34
+          : endY + height * (0.15 - fiber.spread * 0.04),
         endX: width * 1.08,
         endY,
       };
@@ -230,6 +237,7 @@ export function FiberFlowBackground({
     };
 
     const drawRibbon = (elapsed: number, offset: number, lineWidth: number, alpha: number) => {
+      const isMobile = width < 640;
       const scrollEnergy = Math.min(1.4, Math.abs(scroll.velocity));
       const wave =
         Math.sin(elapsed * 0.35 + offset + scroll.progress * Math.PI * 1.4) *
@@ -251,11 +259,15 @@ export function FiberFlowBackground({
       context.beginPath();
       context.moveTo(
         -width * 0.08,
-        height * (0.5 + offset * 0.085) + wave - scrollLift * 0.08,
+        isMobile
+          ? centerY + height * offset * 0.055 + wave - scrollLift * 0.08
+          : height * (0.5 + offset * 0.085) + wave - scrollLift * 0.08,
       );
       context.bezierCurveTo(
         width * 0.16,
-        height * (0.64 + offset * 0.045) - scrollLift * 0.052,
+        isMobile
+          ? centerY + height * offset * 0.035 - scrollLift * 0.052
+          : height * (0.64 + offset * 0.045) - scrollLift * 0.052,
         centerX - width * 0.18 + pointerPullX,
         centerY + height * (offset * 0.025) - wave + pointerPullY,
         centerX,
@@ -265,9 +277,13 @@ export function FiberFlowBackground({
         centerX + width * 0.18 + pointerPullX,
         centerY - height * (offset * 0.02) + wave + pointerPullY,
         width * 0.84,
-        height * (0.63 - offset * 0.05) - scrollLift * 0.06,
+        isMobile
+          ? centerY - height * offset * 0.035 - scrollLift * 0.06
+          : height * (0.63 - offset * 0.05) - scrollLift * 0.06,
         width * 1.08,
-        height * (0.46 - offset * 0.1) - wave - scrollLift * 0.1,
+        isMobile
+          ? centerY - height * offset * 0.055 - wave - scrollLift * 0.1
+          : height * (0.46 - offset * 0.1) - wave - scrollLift * 0.1,
       );
       context.lineWidth = lineWidth;
       context.strokeStyle = gradient;
