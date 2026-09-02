@@ -840,7 +840,7 @@ function ChannelsScreen({
   };
 
   return (
-    <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-start px-5 pt-28 pb-32 sm:pt-30 lg:pt-28">
+    <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-col justify-start px-5 pt-28 pb-4 sm:pt-30 lg:pt-28">
       <ScreenHeader
         title="Choose your channels"
         subtitle="Select where LeadReacher can reach prospects. We’ll prioritize the channels that best fit your campaign."
@@ -1128,6 +1128,16 @@ export default function Strategy({
     (substep === "channels" && selectedChannels.length > 0 && !strategyError && !isSavingChannels) ||
     Boolean(analysis?.status === "completed" && recommendations.length > 0);
 
+  const shellActions = (
+    <ShellActions
+      className={substep === "channels" ? "strategy-channels-actions" : undefined}
+      canContinue={canContinue}
+      continueLabel={substep === "channels" ? (isSavingChannels ? "Saving channels..." : `Continue with ${selectedChannels.length} ${selectedChannels.length === 1 ? "channel" : "channels"}`) : "Continue to next step"}
+      onBack={handleBack}
+      onContinue={() => void handleContinue()}
+    />
+  );
+
   let activeSubstepContent: React.ReactNode;
   if (substep === "how-it-works") {
     activeSubstepContent = <HowItWorksScreen />;
@@ -1160,17 +1170,18 @@ export default function Strategy({
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
 
-      <StepMotion transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
+      <StepMotion
+        transitionKey={substep}
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          substep === "channels" && "strategy-channels-composition lg:justify-center",
+        )}
+      >
         {activeSubstepContent}
+        {substep === "channels" ? shellActions : null}
       </StepMotion>
 
-      <ShellActions
-        className={substep === "channels" ? "strategy-channels-actions" : undefined}
-        canContinue={canContinue}
-        continueLabel={substep === "channels" ? (isSavingChannels ? "Saving channels..." : `Continue with ${selectedChannels.length} ${selectedChannels.length === 1 ? "channel" : "channels"}`) : "Continue to next step"}
-        onBack={handleBack}
-        onContinue={() => void handleContinue()}
-      />
+      {substep === "channels" ? null : shellActions}
     </div>
   );
 }

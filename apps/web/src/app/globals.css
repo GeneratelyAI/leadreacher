@@ -803,11 +803,16 @@ html {
   background: rgb(132 102 232 / 0.06);
 }
 
-.checkout-accent-card--stripe,
-.dark .checkout-accent-card--stripe {
+.checkout-accent-card--stripe {
   background:
     linear-gradient(#fff, #fff) padding-box,
     linear-gradient(135deg, #a56cff 0%, #ded5ff 48%, #cab8ff 100%) border-box;
+}
+
+.dark .checkout-accent-card--stripe {
+  background:
+    linear-gradient(135deg, #151820 0%, #171821 58%, #1b1727 100%) padding-box,
+    linear-gradient(135deg, #7551df 0%, #3d3556 48%, #6d54ae 100%) border-box;
 }
 
 .onboarding-chrome-mobile,
@@ -2099,9 +2104,8 @@ html {
    so browser zoom and text scaling continue to work accessibly. */
 @media (min-width: 64rem) and (max-height: 56.25rem) {
   .strategy-channels-screen {
-    justify-content: center !important;
     padding-top: clamp(7.25rem, 15vh, 8rem) !important;
-    padding-bottom: 6.75rem !important;
+    padding-bottom: 1rem !important;
   }
 
   .strategy-channels-screen h1 {
@@ -2158,6 +2162,15 @@ html {
 
   .strategy-channels-screen .mt-5 {
     margin-top: clamp(0.75rem, 1.8vh, 1rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  .strategy-channels-actions {
+    position: static;
+    width: min(calc(100% - 2.5rem), 72rem);
+    margin: clamp(1rem, 2.4vh, 1.5rem) auto 0;
+    padding-inline: 0;
   }
 }
 

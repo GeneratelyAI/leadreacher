@@ -14,6 +14,7 @@ import {
 } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock } from "@/components/ui/icons";
+import { useThemeMode } from "@/hooks/useThemeMode";
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
@@ -93,12 +94,11 @@ function StripePreviewForm({ onSubmit }: { onSubmit?: () => void }) {
         onSubmit?.();
       }}
     >
-      <div className="flex items-center justify-between gap-4 border-b border-onboarding-neutral-150 pb-3 dark:border-onboarding-neutral-750">
+      <div className="border-b border-onboarding-neutral-150 pb-3 dark:border-onboarding-neutral-750">
         <div>
           <p className="text-sm font-semibold text-onboarding-ink dark:text-white">Card details</p>
           <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Stripe test fields for frontend preview</p>
         </div>
-        <span className="rounded-full bg-onboarding-purple-50 px-2.5 py-1 text-[0.65rem] font-semibold tracking-[0.08em] text-onboarding-purple-700 uppercase">Preview</span>
       </div>
       <LinkAuthenticationElement />
       <PaymentElement options={{
@@ -118,12 +118,26 @@ function StripePreviewForm({ onSubmit }: { onSubmit?: () => void }) {
   );
 }
 
-const appearance = {
+const lightAppearance = {
   theme: "stripe" as const,
   variables: {
     colorPrimary: "#5b2bc6",
+    colorBackground: "#ffffff",
     colorText: "#111527",
     colorDanger: "#b42318",
+    borderRadius: "10px",
+    fontFamily: "Arial, sans-serif",
+    spacingUnit: "4px",
+  },
+};
+
+const darkAppearance = {
+  theme: "night" as const,
+  variables: {
+    colorPrimary: "#9b7cff",
+    colorBackground: "#151820",
+    colorText: "#f7f7fb",
+    colorDanger: "#ff8a80",
     borderRadius: "10px",
     fontFamily: "Arial, sans-serif",
     spacingUnit: "4px",
@@ -143,6 +157,9 @@ export default function StripeEmbeddedCheckout({
   previewCurrency?: string;
   onPreviewSubmit?: () => void;
 }) {
+  const { isDark } = useThemeMode();
+  const appearance = isDark ? darkAppearance : lightAppearance;
+
   if (!stripePromise) return null;
 
   if (preview) {

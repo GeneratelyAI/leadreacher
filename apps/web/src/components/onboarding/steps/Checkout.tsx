@@ -315,7 +315,7 @@ export default function Checkout() {
           </Alert>
         ) : null}
 
-        <div className="relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0">
+        <div className="relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:translate-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0">
           <section className="min-w-0 lg:pr-8 xl:pr-10" aria-labelledby="payment-heading">
             <div className="mb-7 h-short:mb-5">
               <h1 id="payment-heading" className="text-3xl font-semibold tracking-[-0.035em] text-onboarding-ink dark:text-white sm:text-4xl">Complete your subscription</h1>
@@ -353,7 +353,7 @@ export default function Checkout() {
             </div>
           </section>
 
-          <aside className="min-w-0 border-onboarding-neutral-150 lg:border-l lg:pl-8 xl:pl-10 dark:border-onboarding-neutral-750" aria-labelledby="summary-heading">
+          <aside className="min-w-0 lg:pl-8 xl:pl-10" aria-labelledby="summary-heading">
             <div className="lg:sticky lg:top-32">
               <h2 id="summary-heading" className="text-2xl font-semibold tracking-[-0.025em] text-onboarding-ink dark:text-white sm:text-3xl">Order summary</h2>
 
@@ -444,11 +444,6 @@ export default function Checkout() {
                   </div>
                   <p className="mt-1.5 text-right text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Taxes calculated by Stripe at checkout</p>
                 </div>
-              </div>
-
-              <div className="mt-5 flex items-start gap-3 rounded-xl border border-onboarding-purple-100/80 bg-onboarding-purple-50/50 p-4 text-xs leading-5 text-onboarding-neutral-600 dark:border-onboarding-purple-800/40 dark:bg-onboarding-purple-950/20 dark:text-onboarding-neutral-400 h-short:mt-3">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-onboarding-success-500" aria-hidden />
-                Your payment is handled by Stripe. Your campaign will not send anything until you approve it.
               </div>
             </div>
           </aside>
