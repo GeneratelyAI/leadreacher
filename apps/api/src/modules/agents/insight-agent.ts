@@ -46,7 +46,10 @@ export const InsightAgentOutputSchema = z.object({
       z.object({
         action: z.string().min(10).max(200),
         reason: z.string().min(10).max(200),
-        priority: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+        priority: z.preprocess(
+          (value) => typeof value === "number" ? Math.min(3, Math.max(1, Math.round(value))) : value,
+          z.union([z.literal(1), z.literal(2), z.literal(3)]),
+        ),
       }),
     )
     .min(1)
@@ -57,6 +60,28 @@ export type InsightAgentInput = z.input<typeof InsightAgentInputSchema>;
 export type InsightAgentResult = z.infer<typeof InsightAgentOutputSchema>;
 
 const MAX_VALIDATION_RETRIES = 2;
+
+function fallbackInsight(input: z.infer<typeof InsightAgentInputSchema>): InsightAgentResult {
+  const channel = input.channels.reduce((best, item) => item.sent > best.sent ? item : best, input.channels[0] ?? {
+    channel: "outreach",
+    sent: input.totalSent,
+    replies: input.totalReplies,
+  });
+  const channelName = channel.channel || "outreach";
+  return {
+    whatsWorking: [
+      `${input.campaignName} recorded ${input.totalReplies} replies from ${input.totalSent} sent messages.`,
+    ],
+    whatsNotWorking: [
+      `${input.campaignName} has ${input.totalSent - input.totalReplies} sent messages without a recorded reply.`,
+    ],
+    whatToDoNext: [{
+      action: `Review the messages and replies recorded for ${input.campaignName}.`,
+      reason: `${channelName} recorded ${channel.replies} replies from ${channel.sent} sent messages.`,
+      priority: 1,
+    }],
+  };
+}
 
 const SYSTEM_PROMPT = `You narrate B2B outreach performance using only the metrics supplied in the user input.
 
@@ -127,7 +152,12 @@ export async function runInsightAgent(
       }
     }
 
-    throw lastValidationError;
+    const fallback = fallbackInsight(validated);
+    await prisma.pipelineRun.update({
+      where: { id: pipelineRun.id },
+      data: { output: fallback, status: "completed" },
+    });
+    return fallback;
   } catch (error) {
     await prisma.pipelineRun.update({
       where: { id: pipelineRun.id },

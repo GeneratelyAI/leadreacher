@@ -149,4 +149,23 @@ describe("callGroq", () => {
     ).rejects.toThrow("Groq");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("returns a recoverable capacity error after every model is rate limited", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), {
+        status: 429,
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    await expect(
+      callGroq("Return JSON", [{ role: "user", content: "Analyze" }], 500),
+    ).rejects.toMatchObject({
+      statusCode: 503,
+      code: "EXTERNAL_SERVICE_RATE_LIMITED",
+      details: { retryAfterSeconds: 15 },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(GROQ_TEXT_MODELS.length);
+  });
 });

@@ -56,4 +56,26 @@ describe("insight agent", () => {
       data: { output: validOutput, status: "completed" },
     });
   });
+
+  it("normalizes numeric priorities outside the requested range", () => {
+    const parsed = InsightAgentOutputSchema.parse({
+      ...validOutput,
+      whatToDoNext: [{ ...validOutput.whatToDoNext[0], priority: 4 }],
+    });
+    expect(parsed.whatToDoNext[0]?.priority).toBe(3);
+  });
+
+  it("returns and persists evidence-based fallback insights after malformed responses", async () => {
+    callGroq.mockResolvedValue(JSON.stringify({ whatsWorking: [] }));
+
+    const result = await runInsightAgent(input);
+
+    expect(callGroq).toHaveBeenCalledTimes(3);
+    expect(result.whatsWorking[0]).toContain("2 replies from 10 sent messages");
+    expect(result.whatToDoNext[0]?.priority).toBe(1);
+    expect(pipelineRunUpdate).toHaveBeenLastCalledWith({
+      where: { id: "run-1" },
+      data: { output: result, status: "completed" },
+    });
+  });
 });

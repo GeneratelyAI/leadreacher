@@ -5,6 +5,7 @@ import {
   ConflictError,
   DailySendLimitError,
   ExternalServiceError,
+  ExternalServiceRateLimitError,
   ForbiddenError,
   GoneError,
   NotFoundError,
@@ -71,6 +72,18 @@ describe("HTTP error contract", () => {
       code: "daily_message_limit",
       details: { resetAt: "2026-08-06T00:00:00.000Z" },
     });
+  });
+
+  it("returns retry guidance without reporting expected provider capacity to Sentry", async () => {
+    app.get("/provider-limit", async () => {
+      throw new ExternalServiceRateLimitError("AI generation", 15);
+    });
+
+    const response = await app.inject({ method: "GET", url: "/provider-limit" });
+    expect(response.statusCode).toBe(503);
+    expect(response.headers["retry-after"]).toBe("15");
+    expect(response.json()).toMatchObject({ code: "EXTERNAL_SERVICE_RATE_LIMITED" });
+    expect(captureException).not.toHaveBeenCalled();
   });
 
   it("returns a correlated envelope for unknown routes", async () => {

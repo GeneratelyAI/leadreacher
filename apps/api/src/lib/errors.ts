@@ -135,6 +135,16 @@ export class DeliveryFailedError extends AppError {
   }
 }
 
+export class RecipientUnreachableError extends AppError {
+  constructor() {
+    super(
+      "The recipient cannot be reached on this channel",
+      422,
+      "recipient_unreachable",
+    );
+  }
+}
+
 export class ExternalServiceError extends AppError {
   readonly internalMessage: string;
 
@@ -158,6 +168,18 @@ export class ExternalServiceTimeoutError extends ExternalServiceError {
       504,
       "EXTERNAL_SERVICE_TIMEOUT",
       `${service} request timed out`,
+    );
+  }
+}
+
+export class ExternalServiceRateLimitError extends AppError {
+  constructor(readonly service: string, retryAfterSeconds: number = 15) {
+    super(
+      `${service} capacity is temporarily unavailable`,
+      503,
+      "EXTERNAL_SERVICE_RATE_LIMITED",
+      { service, retryAfterSeconds },
+      `${service} is temporarily busy. Please try again shortly.`,
     );
   }
 }

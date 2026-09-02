@@ -152,3 +152,34 @@ describe("normalizeUnipileProspect", () => {
     ]);
   });
 });
+
+describe("Unipile prospect request contract", () => {
+  it("does not send the unsupported limit query parameter", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({ data: [] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    const adapter = new UnipileAdapter({ apiKey: "test-key" });
+
+    await adapter.searchLinkedInPeople("acc_123", { keywords: "Founder" }, 25);
+    await adapter.listLinkedInRelations("acc_123", 500);
+
+    const requestedUrls = fetchMock.mock.calls.map(([url]) => String(url));
+
+    expect(requestedUrls[0]).toMatch(/\/acc_123\/linkedin\/search\/people$/);
+    expect(requestedUrls[1]).toMatch(/\/acc_123\/users\/me\/relations$/);
+  });
+
+  it("classifies an unreachable recipient as an expected delivery outcome", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      type: "errors/invalid_recipient",
+      title: "Recipient cannot be reached",
+    }), { status: 422 })));
+    const adapter = new UnipileAdapter({ apiKey: "test-key" });
+
+    await expect(
+      adapter.startChat("acc_123", "recipient_123", "Hello"),
+    ).rejects.toMatchObject({ statusCode: 422, code: "recipient_unreachable" });
+  });
+});

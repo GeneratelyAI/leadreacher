@@ -1539,9 +1539,19 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
     });
-    reply.raw.write(": connected\n\n");
+    const writeEvent = (payload: string): boolean => {
+      if (reply.raw.destroyed || reply.raw.writableEnded) return false;
+      try {
+        return reply.raw.write(payload);
+      } catch (error) {
+        const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
+        if (["EIO", "EPIPE", "ECONNRESET", "ERR_STREAM_DESTROYED"].includes(code)) return false;
+        throw error;
+      }
+    };
+    writeEvent(": connected\n\n");
 
-    const heartbeat = setInterval(() => reply.raw.write(": keepalive\n\n"), 20_000);
+    const heartbeat = setInterval(() => writeEvent(": keepalive\n\n"), 20_000);
     let closedByClient = false;
     let connectionFailed = false;
     const cleanup = () => {
@@ -1551,7 +1561,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     };
     request.raw.once("close", cleanup);
     subscriber.on("message", (_channel, payload) => {
-      if (!reply.raw.destroyed) reply.raw.write(`data: ${payload}\n\n`);
+      writeEvent(`data: ${payload}\n\n`);
     });
     subscriber.on("error", (error) => {
       if (closedByClient || connectionFailed) return;

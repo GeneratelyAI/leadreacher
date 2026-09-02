@@ -150,6 +150,10 @@ export function installHttpErrorHandling(app: FastifyInstance): void {
       if (state) state.responseMessage = message;
     };
     if (error instanceof AppError) {
+      const retryAfterSeconds = error.details?.retryAfterSeconds;
+      if (typeof retryAfterSeconds === "number") {
+        reply.header("Retry-After", String(retryAfterSeconds));
+      }
       if (error instanceof ExternalServiceError || error instanceof ExternalServiceTimeoutError) {
         request.log.error(
           { err: error, upstreamMessage: error.internalMessage },

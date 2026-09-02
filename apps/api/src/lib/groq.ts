@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { ExternalServiceError, externalServiceFailure } from "./errors.js";
+import { ExternalServiceError, ExternalServiceRateLimitError, externalServiceFailure } from "./errors.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_TIMEOUT_MS = 30_000;
@@ -133,6 +133,7 @@ export async function callGroq(
   options: CallGroqOptions = {},
 ): Promise<string> {
   let lastError: ExternalServiceError | null = null;
+  let everyFailureWasRateLimited = true;
 
   for (const [index, model] of GROQ_TEXT_MODELS.entries()) {
     const responseFormat = options.jsonSchema
@@ -159,6 +160,7 @@ export async function callGroq(
 
     if (!response.ok) {
       const errorBody = await response.text().catch(() => response.statusText);
+      everyFailureWasRateLimited &&= response.status === 429;
       lastError = new ExternalServiceError("Groq", errorBody);
       const hasFallback = index < GROQ_TEXT_MODELS.length - 1;
       if (hasFallback && fallbackEligibleResponse(response.status, errorBody)) {
@@ -169,6 +171,7 @@ export async function callGroq(
         });
         continue;
       }
+      if (response.status === 429 && everyFailureWasRateLimited) break;
       throw lastError;
     }
 
@@ -187,6 +190,9 @@ export async function callGroq(
     }
   }
 
+  if (everyFailureWasRateLimited && lastError) {
+    throw new ExternalServiceRateLimitError("AI generation");
+  }
   throw lastError ?? new ExternalServiceError("Groq", "No text model was available");
 }
 

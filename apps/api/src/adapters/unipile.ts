@@ -1,4 +1,4 @@
-import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
+import { ExternalServiceError, RecipientUnreachableError, externalServiceFailure } from "../lib/errors.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const UNIPILE_V2_BASE_URL = "https://api.unipile.com/v2";
@@ -186,6 +186,9 @@ export class UnipileAdapter {
 
     if (!res.ok) {
       const text = (await res.text()).slice(0, 4_000);
+      if (res.status === 422 && /invalid_recipient|recipient cannot be reached/i.test(text)) {
+        throw new RecipientUnreachableError();
+      }
       throw new ExternalServiceError("Unipile", text);
     }
 
@@ -217,12 +220,11 @@ export class UnipileAdapter {
   async searchLinkedInPeople(
     accountId: string,
     body: UnipilePeopleSearchBody,
-    limit: number,
+    _limit: number,
   ): Promise<UnipilePeopleSearchResponse> {
-    const params = new URLSearchParams({ limit: String(limit) });
     return this.request<UnipilePeopleSearchResponse>(
       "POST",
-      `/${accountId}/linkedin/search/people?${params.toString()}`,
+      `/${accountId}/linkedin/search/people`,
       body,
     );
   }
@@ -232,24 +234,23 @@ export class UnipileAdapter {
     searchUrl: string,
     limit: number,
   ): Promise<UnipilePeopleSearchResponse> {
-    const params = new URLSearchParams({ limit: String(limit) });
-    return this.request<UnipilePeopleSearchResponse>(
+    const response = await this.request<UnipilePeopleSearchResponse>(
       "POST",
-      `/${accountId}/linkedin/search?${params.toString()}`,
+      `/${accountId}/linkedin/search`,
       { url: searchUrl },
     );
+    return { ...response, data: response.data.slice(0, limit) };
   }
 
   async listLinkedInRelations(
     accountId: string,
     limit: number,
   ): Promise<UnipileRelationResult[]> {
-    const params = new URLSearchParams({ limit: String(limit) });
     const response = await this.request<UnipileV2RelationsResponse>(
       "GET",
-      `/${accountId}/users/me/relations?${params.toString()}`,
+      `/${accountId}/users/me/relations`,
     );
-    return response.data.map((relation) => relation.user ?? relation);
+    return response.data.map((relation) => relation.user ?? relation).slice(0, limit);
   }
 
   async sendConnectionInvite(
