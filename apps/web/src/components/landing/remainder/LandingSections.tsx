@@ -300,7 +300,7 @@ function MobileOutreachModelComparison({
             );
           })}
         </div>
-        <p className="mt-3 text-center text-xs font-medium text-[#73778a]">Scroll to compare each approach</p>
+        <p className="mt-3 text-center text-xs font-medium text-[#686c7d]">Scroll to compare each approach</p>
 
         <section
           id="mobile-outreach-model-panel"
@@ -336,7 +336,7 @@ function MobileOutreachModelComparison({
           </dl>
 
           <div className={cn("border-t px-4 py-3 text-center", featured ? "border-[#d8ceff] bg-[#f7f4ff]" : "border-[#e8e5ef] bg-[#fafafd]")}>
-            <p className={cn("text-[0.66rem] font-semibold uppercase tracking-[0.08em]", featured ? "text-[#5b468f]" : "text-[#73778a]")}>
+            <p className={cn("text-[0.66rem] font-semibold uppercase tracking-[0.08em]", featured ? "text-[#5b468f]" : "text-[#686c7d]")}>
               {featured ? "Less busywork. More conversations." : activeModel === "diy" ? "You own every step." : "You manage the relationship."}
             </p>
           </div>
@@ -868,7 +868,7 @@ function PricingTrustShowcase() {
             <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#9c86ff]">Simple pricing</p>
             <span aria-hidden className="mx-auto mt-5 block h-0.5 w-16 rounded-full bg-[#6842f5]" />
             <p className="mt-10 text-xl font-semibold text-white">LeadReacher Pro</p>
-            <div className="mt-7 flex items-start justify-center text-white" aria-label="$199.99 per month">
+            <div className="mt-7 flex items-start justify-center text-white">
               <span aria-hidden className="mt-2 text-4xl font-semibold text-[#7249ff]">$</span>
               <span aria-hidden className="text-[clamp(6.5rem,11vw,10rem)] font-semibold leading-[0.78] tracking-[-0.075em]">199</span>
               <span aria-hidden className="ml-2 mt-1 text-4xl font-semibold leading-none tracking-[-0.04em] text-[#7249ff] sm:ml-3 sm:mt-0">.99</span>

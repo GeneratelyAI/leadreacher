@@ -364,7 +364,7 @@ function MobileStory() {
 
           <div className="relative min-h-0 flex-1 pt-5">
             <AnimatePresence mode="wait" initial={false}>
-              <m.article
+              <m.div
                 id="mobile-story-panel"
                 key={activeStage.id}
                 role="tabpanel"
@@ -390,7 +390,7 @@ function MobileStory() {
                 <div className="mt-3 flex shrink-0 items-center gap-2 px-1 text-xs font-medium text-white/75">
                   <CheckCircle2 className="size-4 text-emerald-400" aria-hidden />{activeStage.result}
                 </div>
-              </m.article>
+              </m.div>
             </AnimatePresence>
           </div>
         </div>
