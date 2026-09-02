@@ -25,7 +25,7 @@ import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
 
 const ConnectSocialAccountBodySchema = z.object({
   provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
-  returnTo: z.enum(["onboarding", "home", "dashboard"]).default("onboarding"),
+  returnTo: z.enum(["onboarding", "home", "dashboard", "preview"]).default("onboarding"),
 });
 
 const ConfirmSocialAccountBodySchema = z.object({
@@ -36,6 +36,7 @@ const ConfirmSocialAccountBodySchema = z.object({
 const PendingConnectionSchema = z.object({
   orgId: z.string().min(1),
   provider: z.enum(UNIPILE_CONNECT_PROVIDERS),
+  returnTo: z.enum(["onboarding", "home", "dashboard", "preview"]).optional(),
 });
 
 const CONNECTION_CONFIRMATION_TTL_SECONDS = 20 * 60;
@@ -95,11 +96,27 @@ async function resolveAccountStatus(
   }
 }
 
-function channelsRedirect(returnTo: "onboarding" | "home" | "dashboard", status: "connected" | "failed"): string {
+type ConnectionReturnTo = "onboarding" | "home" | "dashboard" | "preview";
+
+function channelsRedirect(returnTo: ConnectionReturnTo, status: "connected" | "failed"): string {
+  if (returnTo === "preview") {
+    return `${env.APP_URL}/onboarding-preview?step=channels&status=${status}`;
+  }
   if (returnTo === "onboarding") {
     return `${env.APP_URL}/onboarding?step=channels&status=${status}`;
   }
   return `${env.APP_URL}/dashboard/channels?status=${status}`;
+}
+
+function isLocalPreviewConnection(returnTo: ConnectionReturnTo | undefined): boolean {
+  if (returnTo !== "preview" || process.env.NODE_ENV === "production") return false;
+
+  try {
+    const hostname = new URL(env.APP_URL).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
 }
 
 function entitlementForProvider(provider: string): string {
@@ -292,7 +309,9 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const { provider, returnTo } = request.body;
-    await requirePurchasedChannel(orgId, provider);
+    if (!isLocalPreviewConnection(returnTo)) {
+      await requirePurchasedChannel(orgId, provider);
+    }
     const adapter = new UnipileAdapter({
       apiKey: env.UNIPILE_API_KEY,
     });
@@ -301,7 +320,7 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
     const key = pendingConnectionKey(connectionToken);
     await redis.set(
       key,
-      JSON.stringify({ orgId, provider }),
+      JSON.stringify({ orgId, provider, returnTo }),
       "EX",
       CONNECTION_CONFIRMATION_TTL_SECONDS,
     );
@@ -349,7 +368,9 @@ export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
       apiKey: env.UNIPILE_API_KEY,
     });
     const account = await adapter.getAccountStatus(accountId);
-    await requirePurchasedChannel(orgId, pending?.success ? pending.data.provider : account.type);
+    if (!isLocalPreviewConnection(pending?.success ? pending.data.returnTo : undefined)) {
+      await requirePurchasedChannel(orgId, pending?.success ? pending.data.provider : account.type);
+    }
     const platform = normalizeUnipilePlatform(account.type);
     const expectedPlatform = pending?.success
       ? normalizeUnipilePlatform(pending.data.provider)

@@ -275,6 +275,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
+  vi.unstubAllEnvs();
 });
 
 describe("channel connection and onboarding completion", () => {
@@ -373,6 +374,45 @@ describe("channel connection and onboarding completion", () => {
         state: expect.any(String),
       }),
     );
+  });
+
+  it("creates a real hosted-auth link that returns to the local onboarding preview", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/connect",
+      payload: { provider: "LINKEDIN", returnTo: "preview" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(createHostedAuthLink).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providers: ["linkedin"],
+        redirectUri: "http://localhost:3000/onboarding-preview?step=channels&status=connected",
+      }),
+    );
+    expect(strategyFindFirst).not.toHaveBeenCalled();
+    expect(redisSet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.stringContaining('"returnTo":"preview"'),
+      "EX",
+      expect.any(Number),
+    );
+  });
+
+  it("does not treat a preview return target as an entitlement bypass in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    organizationFindUnique.mockResolvedValueOnce({
+      subscriptionStatus: "active",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/social-accounts/connect",
+      payload: { provider: "INSTAGRAM", returnTo: "preview" },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(createHostedAuthLink).not.toHaveBeenCalled();
   });
 
   it("rejects connection attempts for channels outside the purchased plan", async () => {

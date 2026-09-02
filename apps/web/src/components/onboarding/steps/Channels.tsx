@@ -380,7 +380,10 @@ export default function Channels() {
     try {
       const result = await apiFetch<{ url: string; connectionToken: string }>("/social-accounts/connect", {
         method: "POST",
-        body: JSON.stringify({ provider, returnTo: "onboarding" }),
+        body: JSON.stringify({
+          provider,
+          returnTo: isOnboardingPreview() ? "preview" : "onboarding",
+        }),
       });
       if (isOnboardingDemo()) {
         setActivationPendingChannelKey(channelKey);

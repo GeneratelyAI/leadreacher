@@ -1,6 +1,7 @@
 import { getBrowserSession } from "@/lib/supabase/client";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import {
+  isOnboardingPreview,
   previewApiFetch,
   previewOrganization,
   usesOnboardingFixtures,
@@ -90,7 +91,9 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  if (usesOnboardingFixtures()) {
+  const usesRealPreviewConnection =
+    isOnboardingPreview() && path.startsWith("/social-accounts");
+  if (usesOnboardingFixtures() && !usesRealPreviewConnection) {
     return previewApiFetch<T>(path, options);
   }
 
