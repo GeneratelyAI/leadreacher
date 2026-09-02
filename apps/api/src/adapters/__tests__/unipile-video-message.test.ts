@@ -10,7 +10,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("UnipileAdapter.startChat", () => {
+describe("UnipileAdapter chat delivery", () => {
   it("sends a LinkedIn MP4 using the v2 base64 attachment contract", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(
       JSON.stringify({ chat_id: "chat-1" }),
@@ -19,7 +19,7 @@ describe("UnipileAdapter.startChat", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const adapter = new UnipileAdapter({ apiKey: "key" });
-    await adapter.startChat(
+    await adapter.startLinkedInChat(
       "account-1",
       "ACo-lead-1",
       "Thanks for connecting.",
@@ -33,7 +33,7 @@ describe("UnipileAdapter.startChat", () => {
     );
 
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe("https://api.unipile.com/v2/account-1/chats/send");
+    expect(url).toBe("https://api.unipile.com/v2/account-1/inboxes/CLASSIC_PRIMARY/chats/send");
     expect(JSON.parse(String(init.body))).toEqual({
       text: "Thanks for connecting.",
       users_ids: "ACo-lead-1",

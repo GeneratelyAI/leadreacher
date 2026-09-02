@@ -4,7 +4,24 @@ import type { UnipileCredentials, UnipileProfile } from "./types.js";
 const UNIPILE_V2_BASE_URL = "https://api.unipile.com/v2";
 const UNIPILE_TIMEOUT_MS = 30_000;
 
-type UnipileAccountStatus = {
+export class UnipileRequestError extends ExternalServiceError {
+  constructor(
+    readonly upstreamStatus: number,
+    message: string,
+    readonly requestId?: string,
+  ) {
+    super("Unipile", message);
+  }
+}
+
+export function isDefinitiveUnipileRejection(error: unknown): boolean {
+  return error instanceof UnipileRequestError &&
+    error.upstreamStatus >= 400 &&
+    error.upstreamStatus < 500 &&
+    ![408, 429].includes(error.upstreamStatus);
+}
+
+export type UnipileAccountStatus = {
   id: string;
   user_id: string;
   type: string;
@@ -48,6 +65,8 @@ type UnipileV2Profile = {
   first_name?: string;
   last_name?: string;
   description?: string;
+  public_picture_url?: string;
+  public_picture_url_large?: string;
   specifics?: {
     network_distance?: string;
     messaging_identifier?: string;
@@ -118,10 +137,35 @@ export type UnipileMessage = {
   message_id?: string;
 };
 
+export type UnipileChatMessage = {
+  id: string;
+  chat_id: string;
+  timestamp: string;
+  is_sender: boolean;
+  text?: string;
+  provider?: string;
+  attachments?: Array<{
+    id: string;
+    type?: string;
+    mimetype?: string;
+    filename?: string;
+  }>;
+};
+
+type UnipileChatMessagesPage = {
+  data: UnipileChatMessage[];
+  next_cursor?: string;
+};
+
 export type UnipileVideoMessage = {
   buffer: Buffer;
   filename: string;
   contentType: string;
+};
+
+export type UnipileOwnProfile = {
+  displayName: string;
+  avatarUrl: string | null;
 };
 
 export type { UnipileCredentials, UnipileProfile } from "./types.js";
@@ -189,7 +233,14 @@ export class UnipileAdapter {
       if (res.status === 422 && /invalid_recipient|recipient cannot be reached/i.test(text)) {
         throw new RecipientUnreachableError();
       }
-      throw new ExternalServiceError("Unipile", text);
+      let requestId: string | undefined;
+      try {
+        const parsed = JSON.parse(text) as { req_id?: unknown };
+        requestId = typeof parsed.req_id === "string" ? parsed.req_id : undefined;
+      } catch {
+        requestId = undefined;
+      }
+      throw new UnipileRequestError(res.status, text, requestId);
     }
 
     const responseText = await res.text();
@@ -214,6 +265,14 @@ export class UnipileAdapter {
       headline: profile.description ?? "",
       network_distance: networkDistance,
       is_relationship: networkDistance === "FIRST_DEGREE",
+    };
+  }
+
+  async getOwnProfile(accountId: string): Promise<UnipileOwnProfile> {
+    const profile = await this.request<UnipileV2Profile>("GET", `/${accountId}/users/me`);
+    return {
+      displayName: `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim(),
+      avatarUrl: profile.public_picture_url_large ?? profile.public_picture_url ?? null,
     };
   }
 
@@ -290,6 +349,40 @@ export class UnipileAdapter {
     const chatId = response?.chat_id ?? response?.id;
     if (!chatId) {
       throw new ExternalServiceError("Unipile", "Start chat response did not include a chat ID");
+    }
+    return { chat_id: chatId };
+  }
+
+  async startLinkedInChat(
+    accountId: string,
+    attendeeProviderId: string,
+    text: string,
+    options?: { videoMessage?: UnipileVideoMessage },
+  ): Promise<{ chat_id: string }> {
+    // LinkedIn chat creation is scoped to an inbox in Unipile v2. The generic
+    // start-chat endpoint is used by providers such as WhatsApp and Messenger.
+    const video = options?.videoMessage;
+    const response = await this.request<{ chat_id?: string; id?: string }>(
+      "POST",
+      `/${accountId}/inboxes/CLASSIC_PRIMARY/chats/send`,
+      {
+        text,
+        users_ids: attendeeProviderId,
+        ...(video
+          ? {
+              attachments: [{
+                data: video.buffer.toString("base64"),
+                content_type: video.contentType,
+                filename: video.filename,
+                send_mode: "native",
+              }],
+            }
+          : {}),
+      },
+    );
+    const chatId = response?.chat_id ?? response?.id;
+    if (!chatId) {
+      throw new ExternalServiceError("Unipile", "Start LinkedIn chat response did not include a chat ID");
     }
     return { chat_id: chatId };
   }
@@ -374,6 +467,38 @@ export class UnipileAdapter {
       `/${accountId}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}`,
     );
   }
+
+  async listChatMessages(
+    accountId: string,
+    chatId: string,
+    options?: { limit?: number; cursor?: string },
+  ): Promise<UnipileChatMessagesPage> {
+    const params = new URLSearchParams({ limit: String(options?.limit ?? 100) });
+    if (options?.cursor) params.set("cursor", options.cursor);
+    return this.request<UnipileChatMessagesPage>(
+      "GET",
+      `/${accountId}/chats/${encodeURIComponent(chatId)}/messages?${params.toString()}`,
+    );
+  }
+
+  async downloadChatMessageAttachment(
+    accountId: string,
+    chatId: string,
+    messageId: string,
+    attachmentId: string,
+  ): Promise<{ buffer: Buffer; contentType: string }> {
+    const response = await fetch(
+      `${UNIPILE_V2_BASE_URL}/${accountId}/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      { headers: this.headers, signal: AbortSignal.timeout(UNIPILE_TIMEOUT_MS) },
+    );
+    if (!response.ok) {
+      throw new UnipileRequestError(response.status, (await response.text()).slice(0, 4_000));
+    }
+    return {
+      buffer: Buffer.from(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type") ?? "application/octet-stream",
+    };
+  }
 }
 
 export function isAccountHealthy(account: UnipileAccountStatus): boolean {
@@ -383,6 +508,5 @@ export function isAccountHealthy(account: UnipileAccountStatus): boolean {
 export type {
   UnipileAccount,
   UnipileAccountList,
-  UnipileAccountStatus,
   HostedAuthLink,
 };

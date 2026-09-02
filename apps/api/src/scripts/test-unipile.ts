@@ -17,7 +17,7 @@
  *
  * Args (optional):
  *   --send     also run T4/T5 (sends a real invite + chat message); off by default
- *   accountId  override the account used for T2/T3 (defaults to first listed)
+ *   accountId  override the account used for T2/T3 (defaults to first LinkedIn account)
  *   publicId   public LinkedIn slug to fetch in T3 (defaults to "james-hartley-632b55415")
  */
 import path from "node:path";
@@ -84,7 +84,9 @@ async function main(): Promise<void> {
     console.log(`          - ${acct.id} (${acct.type})${acct.name ? ` - ${acct.name}` : ""}`);
   }
 
-  const accountId = accountIdArg ?? accounts[0]?.id;
+  const accountId = accountIdArg ?? accounts.find(
+    (account) => account.type.toLowerCase() === "linkedin",
+  )?.id;
   if (!accountId) {
     console.error(
       "\nNo account_id available. Connect a LinkedIn account in the Unipile dashboard,",
@@ -151,14 +153,14 @@ async function main(): Promise<void> {
     console.log(`        invite sent to provider_id: ${providerId}`);
   }
 
-  // T5 - open a chat (startChat sends the opening message directly)
+  // T5 - open a LinkedIn inbox chat (the method sends the opening message directly)
   // Only runs if T4 passed - connection invite must be accepted before
-  // startChat works on LinkedIn. This will likely fail immediately on a
+  // startLinkedInChat works on LinkedIn. This will likely fail immediately on a
   // fresh invite; it confirms the API call reaches Unipile correctly.
   const t5 = await runTest(
-    `T5  startChat(account, "${publicId}", message)`,
+    `T5  startLinkedInChat(account, "${publicId}", message)`,
     () =>
-      adapter.startChat(
+      adapter.startLinkedInChat(
         accountId,
         providerId,
         "Follow-up test message from LeadReacher.",

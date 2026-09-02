@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   messageFindFirst,
+  messageUpdateMany,
   socialAccountFindFirst,
+  socialAccountUpdateMany,
   campaignLeadFindFirst,
   leadUpdate,
   campaignLeadUpdate,
@@ -16,7 +18,9 @@ const {
   invalidateDashboardChrome,
 } = vi.hoisted(() => ({
   messageFindFirst: vi.fn(),
+  messageUpdateMany: vi.fn(),
   socialAccountFindFirst: vi.fn(),
+  socialAccountUpdateMany: vi.fn(),
   campaignLeadFindFirst: vi.fn(),
   leadUpdate: vi.fn(),
   campaignLeadUpdate: vi.fn(),
@@ -36,8 +40,8 @@ vi.mock("../../config/env.js", () => ({
 }));
 vi.mock("../../lib/prisma.js", () => ({
   prisma: {
-    message: { findFirst: messageFindFirst },
-    socialAccount: { findFirst: socialAccountFindFirst },
+    message: { findFirst: messageFindFirst, updateMany: messageUpdateMany },
+    socialAccount: { findFirst: socialAccountFindFirst, updateMany: socialAccountUpdateMany },
     campaignLead: { findFirst: campaignLeadFindFirst, update: campaignLeadUpdate },
     lead: { update: leadUpdate },
   },
@@ -114,7 +118,9 @@ let app: Awaited<ReturnType<typeof buildTestApp>>;
 
 beforeEach(async () => {
   messageFindFirst.mockReset().mockResolvedValue(null);
+  messageUpdateMany.mockReset().mockResolvedValue({ count: 1 });
   socialAccountFindFirst.mockReset().mockResolvedValue({ orgId: "org-1" });
+  socialAccountUpdateMany.mockReset().mockResolvedValue({ count: 1 });
   campaignLeadFindFirst.mockReset().mockResolvedValue({
     id: "campaign-lead-1",
     campaignId: "campaign-1",
@@ -136,6 +142,50 @@ afterEach(async () => {
 });
 
 describe("POST /webhooks/unipile message.new", () => {
+  it("acknowledges future event types without creating a provider retry storm", async () => {
+    const request = signedRequestBody({
+      ...payload,
+      type: "message.reaction.new",
+      payload: { chat_id: "chat-1", message_id: "message-1", reaction: {} },
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/webhooks/unipile",
+      headers: request.headers,
+      payload: request.body,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ received: true, handled: false });
+    expect(messageFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("updates outbound delivery receipts idempotently", async () => {
+    const request = signedRequestBody({
+      ...payload,
+      type: "message.receipt.delivery",
+      payload: {
+        chat_id: "chat-1",
+        message_id: "message-1",
+        user_id: "recipient-1",
+        timestamp: "2026-07-17T12:00:02.000Z",
+      },
+    });
+    const response = await app.inject({
+      method: "POST",
+      url: "/webhooks/unipile",
+      headers: request.headers,
+      payload: request.body,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ received: true, handled: true });
+    expect(messageUpdateMany).toHaveBeenCalledWith({
+      where: { externalId: "message-1", direction: "outbound" },
+      data: { status: "delivered" },
+    });
+  });
+
   it("does not mark a lead replied or cancel jobs for an outbound event", async () => {
     const request = signedRequestBody({
       ...payload,

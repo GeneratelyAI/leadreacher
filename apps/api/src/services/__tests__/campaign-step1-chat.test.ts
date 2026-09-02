@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
-  startChat,
+  startLinkedInChat,
   getReadyVideo,
   acquireReservation,
   markUnknown,
@@ -14,7 +14,7 @@ const {
   campaignFindUnique,
   leadFindUnique,
 } = vi.hoisted(() => ({
-  startChat: vi.fn(),
+  startLinkedInChat: vi.fn(),
   getReadyVideo: vi.fn(),
   acquireReservation: vi.fn(),
   markUnknown: vi.fn(),
@@ -62,7 +62,7 @@ vi.mock("../entitlements.js", () => ({
 import { deliverSequenceStep1ViaChat } from "../campaign-step1-chat.js";
 
 beforeEach(() => {
-  startChat.mockReset();
+  startLinkedInChat.mockReset();
   getReadyVideo.mockReset();
   acquireReservation.mockReset();
   markUnknown.mockReset();
@@ -72,7 +72,7 @@ beforeEach(() => {
   messageCreate.mockReset().mockResolvedValue({});
   deliveryAttemptUpdate.mockReset().mockResolvedValue({});
   acquireReservation.mockResolvedValue({ acquired: true, attemptId: "attempt-1" });
-  startChat.mockResolvedValue({ chat_id: "chat-1" });
+  startLinkedInChat.mockResolvedValue({ chat_id: "chat-1" });
   checkAndIncrementDailySendLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 49 });
   campaignFindUnique.mockReset().mockResolvedValue({ name: "Campaign", aiConfig: null });
   leadFindUnique.mockReset().mockResolvedValue({
@@ -97,7 +97,7 @@ describe("deliverSequenceStep1ViaChat", () => {
     });
 
     await expect(deliverSequenceStep1ViaChat({
-      adapter: { startChat } as never,
+      adapter: { startLinkedInChat } as never,
       campaignLeadId: "campaign-lead-1",
       orgId: "org-1",
       campaignId: "campaign-1",
@@ -111,7 +111,7 @@ describe("deliverSequenceStep1ViaChat", () => {
       existingChatId: null,
     })).resolves.toEqual({ delivered: true, chatId: "chat-1" });
 
-    expect(startChat).toHaveBeenCalledWith(
+    expect(startLinkedInChat).toHaveBeenCalledWith(
       "account-1",
       "linkedin-lead-1",
       "Thanks for connecting.",
@@ -141,7 +141,7 @@ describe("deliverSequenceStep1ViaChat", () => {
     checkAndIncrementDailySendLimit.mockResolvedValue({ allowed: false, remaining: 0 });
 
     await expect(deliverSequenceStep1ViaChat({
-      adapter: { startChat } as never,
+      adapter: { startLinkedInChat } as never,
       campaignLeadId: "campaign-lead-1",
       orgId: "org-1",
       campaignId: "campaign-1",
@@ -155,7 +155,7 @@ describe("deliverSequenceStep1ViaChat", () => {
       existingChatId: null,
     })).resolves.toEqual({ skipped: true, reason: "daily send limit reached for this sender" });
 
-    expect(startChat).not.toHaveBeenCalled();
+    expect(startLinkedInChat).not.toHaveBeenCalled();
     expect(queueAdd).toHaveBeenCalledWith(
       "campaign-sequence",
       { campaignLeadId: "campaign-lead-1", orgId: "org-1", step: 0 },

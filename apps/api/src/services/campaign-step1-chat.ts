@@ -125,7 +125,7 @@ export async function deliverSequenceStep1ViaChat(
 
   let chat: { chat_id: string };
   try {
-    chat = await adapter.startChat(
+    chat = await adapter.startLinkedInChat(
       unipileAccountId,
       attendeeProviderId,
       messageText,

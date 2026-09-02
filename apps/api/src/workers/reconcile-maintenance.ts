@@ -9,6 +9,7 @@ import { redisSubscriber } from "../lib/redis.js";
 import { reconcileCampaignStepZeroJobs } from "./reconcile-campaign-enrollments.js";
 import { reconcileDeliveryAttempts } from "./reconcile-delivery-attempts.js";
 import { reconcilePendingConnections } from "./reconcile-relations.js";
+import { reconcileSocialAccountStatuses } from "./reconcile-social-accounts.js";
 import {
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
@@ -19,6 +20,7 @@ import { purgeExpiredOrganizations } from "../services/organization-lifecycle.js
 
 const DELIVERY_ATTEMPT_INTERVAL_MS = 5 * 60 * 1000;
 const RELATION_INTERVAL_MS = 10 * 60 * 1000;
+const SOCIAL_ACCOUNT_INTERVAL_MS = 60 * 60 * 1000;
 const VEO_OPERATION_INTERVAL_MS = 5 * 60 * 1000;
 
 export type ReconciliationMaintenanceOptions = {
@@ -61,6 +63,11 @@ export async function runReconciliationMaintenance(
     if (isMaintenanceTaskDue(scheduledAt, RELATION_INTERVAL_MS)) {
       work.push(reconcilePendingConnections());
       names.push("relations");
+    }
+
+    if (isMaintenanceTaskDue(scheduledAt, SOCIAL_ACCOUNT_INTERVAL_MS)) {
+      work.push(reconcileSocialAccountStatuses());
+      names.push("social-accounts");
     }
   }
 

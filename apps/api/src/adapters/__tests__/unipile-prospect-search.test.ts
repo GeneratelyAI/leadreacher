@@ -179,7 +179,7 @@ describe("Unipile prospect request contract", () => {
     const adapter = new UnipileAdapter({ apiKey: "test-key" });
 
     await expect(
-      adapter.startChat("acc_123", "recipient_123", "Hello"),
+      adapter.startLinkedInChat("acc_123", "recipient_123", "Hello"),
     ).rejects.toMatchObject({ statusCode: 422, code: "recipient_unreachable" });
   });
 });

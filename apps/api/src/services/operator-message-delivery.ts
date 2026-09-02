@@ -1,9 +1,14 @@
-import type { UnipileAdapter } from "../adapters/unipile.js";
+import {
+  isDefinitiveUnipileRejection,
+  UnipileRequestError,
+  type UnipileAdapter,
+} from "../adapters/unipile.js";
 import { isUniqueConstraintError } from "../lib/inbound-message.js";
 import {
   DeliveryFailedError,
   DeliveryPendingError,
   DeliveryUnknownError,
+  RecipientUnreachableError,
 } from "../lib/errors.js";
 import { prisma } from "../lib/prisma.js";
 import { publishChatEvent } from "../lib/chat-events.js";
@@ -28,6 +33,69 @@ type ExistingOperatorDelivery = {
   status: string;
   manualDeliveryAttempt: { state: string } | null;
 };
+
+type DeliveryFailure = {
+  state: "failed" | "unknown";
+  category: string;
+  retryable: boolean;
+  upstreamStatus?: number;
+  providerRequestId?: string;
+};
+
+export function classifyOperatorDeliveryFailure(error: unknown): DeliveryFailure {
+  if (error instanceof RecipientUnreachableError) {
+    return { state: "failed", category: "recipient_unreachable", retryable: false };
+  }
+  if (error instanceof UnipileRequestError) {
+    const retryable = error.upstreamStatus === 408
+      || error.upstreamStatus === 429
+      || error.upstreamStatus >= 500;
+    return {
+      state: isDefinitiveUnipileRejection(error) || error.upstreamStatus === 429
+        ? "failed"
+        : "unknown",
+      category: error.upstreamStatus === 429
+        ? "rate_limited"
+        : error.upstreamStatus === 401 || error.upstreamStatus === 403
+          ? "account_authorization"
+          : error.upstreamStatus >= 500
+            ? "provider_unavailable"
+            : "provider_rejected",
+      retryable,
+      upstreamStatus: error.upstreamStatus,
+      ...(error.requestId ? { providerRequestId: error.requestId } : {}),
+    };
+  }
+  if (error instanceof Error && /has no provider chat|has no email address/i.test(error.message)) {
+    return { state: "failed", category: "invalid_recipient", retryable: false };
+  }
+  return { state: "unknown", category: "unconfirmed_provider_result", retryable: true };
+}
+
+function failedDeliveryAudit(
+  input: Pick<DeliverOperatorMessageInput, "orgId" | "campaignLeadId" | "channel">,
+  messageId: string,
+  action: string,
+  failure: DeliveryFailure,
+) {
+  return prisma.auditLog.create({
+    data: {
+      orgId: input.orgId,
+      action,
+      resource: "Message",
+      resourceId: messageId,
+      metadata: {
+        campaignLeadId: input.campaignLeadId,
+        channel: input.channel,
+        deliveryState: failure.state,
+        failureCategory: failure.category,
+        retryable: failure.retryable,
+        ...(failure.upstreamStatus ? { upstreamStatus: failure.upstreamStatus } : {}),
+        ...(failure.providerRequestId ? { providerRequestId: failure.providerRequestId } : {}),
+      },
+    },
+  });
+}
 
 export function resolveExistingOperatorDelivery(existing: ExistingOperatorDelivery): {
   messageId: string;
@@ -110,15 +178,17 @@ export async function deliverOperatorMessage(
       providerRef = result.message_id;
     }
   } catch (error) {
+    const failure = classifyOperatorDeliveryFailure(error);
     await prisma.$transaction([
       prisma.manualDeliveryAttempt.update({
         where: { messageId: prepared.id },
-        data: { state: "unknown" },
+        data: { state: failure.state },
       }),
       prisma.message.update({
         where: { id: prepared.id },
         data: { status: "skipped" },
       }),
+      failedDeliveryAudit(input, prepared.id, "message.operator_send_failed", failure),
     ]);
     throw error;
   }
@@ -227,22 +297,29 @@ export async function startOperatorLinkedInConversation(
 
   let chatId: string;
   try {
-    const chat = await adapter.startChat(
+    const chat = await adapter.startLinkedInChat(
       input.senderAccountId,
       input.recipientProviderId,
       input.message,
     );
     chatId = chat.chat_id;
   } catch (error) {
+    const failure = classifyOperatorDeliveryFailure(error);
     await prisma.$transaction([
       prisma.manualDeliveryAttempt.update({
         where: { messageId: prepared.id },
-        data: { state: "unknown" },
+        data: { state: failure.state },
       }),
       prisma.message.update({
         where: { id: prepared.id },
         data: { status: "skipped" },
       }),
+      failedDeliveryAudit(
+        { ...input, channel: "linkedin" },
+        prepared.id,
+        "message.operator_start_failed",
+        failure,
+      ),
     ]);
     throw error;
   }

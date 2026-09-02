@@ -4,12 +4,14 @@ const {
   reconcileCampaignStepZeroJobs,
   reconcileDeliveryAttempts,
   reconcilePendingConnections,
+  reconcileSocialAccountStatuses,
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
 } = vi.hoisted(() => ({
   reconcileCampaignStepZeroJobs: vi.fn(),
   reconcileDeliveryAttempts: vi.fn(),
   reconcilePendingConnections: vi.fn(),
+  reconcileSocialAccountStatuses: vi.fn(),
   reconcileUnknownTemplateVeoOperations: vi.fn(),
   reconcileUnknownVeoOperations: vi.fn(),
 }));
@@ -38,6 +40,7 @@ vi.mock("../reconcile-delivery-attempts.js", () => ({
   reconcileDeliveryAttempts,
 }));
 vi.mock("../reconcile-relations.js", () => ({ reconcilePendingConnections }));
+vi.mock("../reconcile-social-accounts.js", () => ({ reconcileSocialAccountStatuses }));
 vi.mock("../video-generation.js", () => ({
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
@@ -57,6 +60,7 @@ beforeEach(() => {
   reconcileCampaignStepZeroJobs.mockReset().mockResolvedValue({ checked: 0 });
   reconcileDeliveryAttempts.mockReset().mockResolvedValue({ markedUnknown: 0 });
   reconcilePendingConnections.mockReset().mockResolvedValue({ checked: 0 });
+  reconcileSocialAccountStatuses.mockReset().mockResolvedValue({ checked: 0 });
   reconcileUnknownTemplateVeoOperations.mockReset().mockResolvedValue({ checked: 0 });
   reconcileUnknownVeoOperations.mockReset().mockResolvedValue({ checked: 0 });
 });
@@ -97,6 +101,17 @@ describe("reconciliation maintenance", () => {
     expect(reconcileCampaignStepZeroJobs).not.toHaveBeenCalled();
     expect(reconcileDeliveryAttempts).not.toHaveBeenCalled();
     expect(reconcilePendingConnections).not.toHaveBeenCalled();
+    expect(reconcileSocialAccountStatuses).not.toHaveBeenCalled();
     expect(reconcileUnknownVeoOperations).not.toHaveBeenCalled();
+  });
+
+  it("reconciles provider account health on the hourly boundary", async () => {
+    const result = await runReconciliationMaintenance(
+      { reconcileEnabled: true, videoEnabled: false },
+      60 * MINUTE,
+    );
+
+    expect(reconcileSocialAccountStatuses).toHaveBeenCalledTimes(1);
+    expect(result).toHaveProperty("social-accounts");
   });
 });

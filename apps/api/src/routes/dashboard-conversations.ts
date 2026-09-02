@@ -17,6 +17,7 @@ import {
 } from "../services/operator-message-delivery.js";
 import { requireOrganizationEntitlement } from "../services/entitlements.js";
 import { getCampaignSenderForChannel } from "../services/campaign-channel-accounts.js";
+import { syncLinkedInHistory } from "../services/linkedin-history-sync.js";
 import { runReplyDraftAgent } from "../modules/agents/reply-draft-agent.js";
 import { conversationKey } from "./dashboard-support.js";
 
@@ -34,12 +35,17 @@ const ConversationMessagesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+const ProviderAttachmentParamsSchema = CampaignLeadIdParamsSchema.extend({
+  messageId: z.string().trim().min(1),
+  attachmentId: z.string().trim().min(1),
+});
+
 const OperatorReplyBodySchema = z.object({
   message: z.string().trim().min(1).max(600),
   idempotencyKey: z.string().uuid(),
 });
 
-type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
+type MessageContent = { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string; providerMessageId?: string; providerAttachmentId?: string }> };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -102,9 +108,19 @@ function messageContent(value: unknown): MessageContent {
       ...(typeof item.videoUrl === "string" ? { videoUrl: item.videoUrl } : {}),
       ...(typeof item.thumbnailUrl === "string" ? { thumbnailUrl: item.thumbnailUrl } : {}),
       ...(typeof item.filename === "string" ? { filename: item.filename } : {}),
+      ...(typeof item.providerMessageId === "string" ? { providerMessageId: item.providerMessageId } : {}),
+      ...(typeof item.providerAttachmentId === "string" ? { providerAttachmentId: item.providerAttachmentId } : {}),
     }];
   });
   return { message: jsonText(value) || "Message content unavailable", attachments };
+}
+
+function isProviderHistory(value: unknown): boolean {
+  return asRecord(value)?.providerHistory === true;
+}
+
+function isTranscriptMessage(message: { status: string }): boolean {
+  return message.status !== "skipped";
 }
 
 function leadName(lead: { firstName: string; lastName: string }): string {
@@ -185,7 +201,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       prisma.message.groupBy({
         by: ["campaignId", "leadId"],
         where: baseMessageWhere,
-        _max: { createdAt: true },
+        _max: { sentAt: true },
       }),
       prisma.message.groupBy({
         by: ["campaignId", "leadId"],
@@ -202,8 +218,8 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       ? await prisma.message.findMany({
           where: {
             orgId,
-            OR: latestGroups.flatMap((group) => group._max.createdAt
-              ? [{ campaignId: group.campaignId, leadId: group.leadId, createdAt: group._max.createdAt }]
+            OR: latestGroups.flatMap((group) => group._max.sentAt
+              ? [{ campaignId: group.campaignId, leadId: group.leadId, sentAt: group._max.sentAt }]
               : []),
           },
           select: {
@@ -218,7 +234,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
             sentAt: true,
             createdAt: true,
           },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
         })
       : [];
     const latestByConversation = new Map<string, (typeof latestMessages)[number]>();
@@ -302,6 +318,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
         leadId: true,
         status: true,
         currentStep: true,
+        createdAt: true,
         linkedinChatId: true,
         providerChatId: true,
         emailThreadKey: true,
@@ -331,9 +348,31 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
     });
     if (!campaignLead) throw new NotFoundError("Conversation");
 
+    const providerChatId = campaignLead.providerChatId ?? campaignLead.linkedinChatId;
+    const linkedInAccountId = campaignLead.campaign.senderAccount?.unipileId;
+    if (providerChatId && linkedInAccountId) {
+      try {
+        await syncLinkedInHistory(
+          new UnipileAdapter({ apiKey: env.UNIPILE_API_KEY }),
+          {
+            orgId,
+            campaignId: campaignLead.campaignId,
+            campaignLeadId: campaignLead.id,
+            leadId: campaignLead.leadId,
+            campaignLeadCreatedAt: campaignLead.createdAt,
+            accountId: linkedInAccountId,
+            chatId: providerChatId,
+            stepIndex: campaignLead.currentStep,
+          },
+        );
+      } catch (error) {
+        app.log.warn({ error, campaignLeadId }, "LinkedIn history sync failed");
+      }
+    }
+
     const messagePage = await prisma.message.findMany({
       where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       take: 51,
       select: {
         id: true,
@@ -352,24 +391,50 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
     const hasOlderMessages = messagePage.length > 50;
     const recentMessages = messagePage.slice(0, 50);
     const messages = [...recentMessages].reverse();
+    const transcriptMessages = messages.filter(isTranscriptMessage);
     await prisma.message.updateMany({
       where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId, direction: "inbound", readAt: null },
       data: { readAt: new Date() },
     });
     await invalidateDashboardChrome(orgId);
 
-    const latestChannel = messages.at(-1)?.channel ?? "linkedin";
-    const sender = isOutreachChannel(latestChannel)
+    const latestChannel = transcriptMessages.at(-1)?.channel ?? messages.at(-1)?.channel ?? "linkedin";
+    let sender = isOutreachChannel(latestChannel)
       ? await getCampaignSenderForChannel({
           campaignId: campaignLead.campaignId,
           channel: latestChannel,
           legacyLinkedInAccount: campaignLead.campaign.senderAccount,
         })
       : null;
+    if (latestChannel === "linkedin" && sender?.unipileId && sender.avatarUrl === null) {
+      try {
+        const profile = await new UnipileAdapter({ apiKey: env.UNIPILE_API_KEY })
+          .getOwnProfile(sender.unipileId);
+        if (profile.avatarUrl) {
+          await prisma.socialAccount.update({
+            where: { id: sender.id },
+            data: {
+              avatarUrl: profile.avatarUrl,
+              ...(profile.displayName ? { accountName: profile.displayName } : {}),
+            },
+          });
+          sender = {
+            ...sender,
+            avatarUrl: profile.avatarUrl,
+            ...(profile.displayName ? { accountName: profile.displayName } : {}),
+          };
+        }
+      } catch (error) {
+        app.log.warn({ error, accountId: sender.unipileId }, "LinkedIn sender profile sync failed");
+      }
+    }
     const senderLimit = latestChannel === "linkedin" && sender?.unipileId
       ? await getDailySendLimitStatus(sender.unipileId, "message")
       : null;
     const hasInboundMessage = messages.some((message) => message.direction === "inbound");
+    const hasStartedConversation = messages.some((message) => !(
+      message.status === "skipped" && message.manualDeliveryAttempt?.state === "failed"
+    ));
 
     return reply.send({
       conversation: {
@@ -392,20 +457,65 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
             : campaignLead.providerChatId ?? campaignLead.linkedinChatId),
         ),
         canStartConversation: Boolean(
-          messages.length === 0 &&
+          !hasStartedConversation &&
           campaignLead.status === "active" &&
           campaignLead.lead.providerLinkedinId &&
           sender?.status === "active" &&
           sender.unipileId,
         ),
-        messages: messages.map((message) => ({
+        messages: transcriptMessages.map((message) => ({
           ...message,
           content: messageContent(message.content),
+          isProviderHistory: isProviderHistory(message.content),
           occurredAt: message.sentAt ?? message.createdAt,
         })),
         nextCursor: hasOlderMessages ? recentMessages.at(-1)?.id ?? null : null,
       },
     });
+  });
+
+  r.get("/dashboard/conversations/:campaignLeadId/provider-messages/:messageId/attachments/:attachmentId", {
+    schema: {
+      ...authenticatedRoute("Dashboard", "Stream a conversation provider attachment"),
+      params: ProviderAttachmentParamsSchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { campaignLeadId, messageId, attachmentId } = request.params;
+    const campaignLead = await prisma.campaignLead.findFirst({
+      where: { id: campaignLeadId, campaign: { orgId } },
+      select: {
+        campaignId: true,
+        leadId: true,
+        providerChatId: true,
+        linkedinChatId: true,
+        campaign: { select: { senderAccount: { select: { unipileId: true } } } },
+      },
+    });
+    if (!campaignLead) throw new NotFoundError("Conversation");
+    const chatId = campaignLead.providerChatId ?? campaignLead.linkedinChatId;
+    const accountId = campaignLead.campaign.senderAccount?.unipileId;
+    if (!chatId || !accountId) throw new NotFoundError("Provider attachment");
+    const storedMessage = await prisma.message.findFirst({
+      where: {
+        orgId,
+        campaignId: campaignLead.campaignId,
+        leadId: campaignLead.leadId,
+        externalId: messageId,
+      },
+      select: { content: true },
+    });
+    const isKnownAttachment = storedMessage && messageContent(storedMessage.content).attachments.some(
+      (attachment) => attachment.providerMessageId === messageId && attachment.providerAttachmentId === attachmentId,
+    );
+    if (!isKnownAttachment) throw new NotFoundError("Provider attachment");
+
+    const attachment = await new UnipileAdapter({ apiKey: env.UNIPILE_API_KEY })
+      .downloadChatMessageAttachment(accountId, chatId, messageId, attachmentId);
+    return reply
+      .header("Content-Type", attachment.contentType)
+      .header("Cache-Control", "private, max-age=300")
+      .send(attachment.buffer);
   });
 
   r.get("/dashboard/conversations/:campaignLeadId/messages", {
@@ -426,7 +536,7 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
 
     const page = await prisma.message.findMany({
       where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ sentAt: "desc" }, { createdAt: "desc" }, { id: "desc" }],
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       take: limit + 1,
       select: {
@@ -446,9 +556,10 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
     const hasMore = page.length > limit;
     const selected = page.slice(0, limit);
     return reply.send({
-      messages: [...selected].reverse().map((message) => ({
+      messages: [...selected].reverse().filter(isTranscriptMessage).map((message) => ({
         ...message,
         content: messageContent(message.content),
+        isProviderHistory: isProviderHistory(message.content),
         occurredAt: message.sentAt ?? message.createdAt,
       })),
       nextCursor: hasMore ? selected.at(-1)?.id ?? null : null,
@@ -500,7 +611,15 @@ export async function registerDashboardConversationRoutes(app: FastifyInstance):
       throw new ValidationError("This prospect needs an active campaign membership before messaging");
     }
     const priorMessage = await prisma.message.findFirst({
-      where: { orgId, campaignId: campaignLead.campaignId, leadId: campaignLead.leadId },
+      where: {
+        orgId,
+        campaignId: campaignLead.campaignId,
+        leadId: campaignLead.leadId,
+        NOT: {
+          status: "skipped",
+          manualDeliveryAttempt: { is: { state: "failed" } },
+        },
+      },
       select: { id: true },
     });
     if (priorMessage || campaignLead.providerChatId || campaignLead.linkedinChatId) {

@@ -68,7 +68,9 @@ const UnipileEventBaseSchema = z.object({
   account_name: z.string(),
   application_id: z.string(),
   application_production: z.boolean(),
-});
+  type: z.string().min(1),
+  payload: z.unknown(),
+}).passthrough();
 
 const UnipileWebhookSchema = z.discriminatedUnion("type", [
   UnipileEventBaseSchema.extend({
@@ -93,7 +95,48 @@ const UnipileWebhookSchema = z.discriminatedUnion("type", [
     ]),
     payload: z.object({ timestamp: z.string() }).passthrough(),
   }),
+  UnipileEventBaseSchema.extend({
+    type: z.enum([
+      "account.locked",
+      "account.unlocked",
+      "account.remove",
+    ]),
+    payload: z.object({}).passthrough(),
+  }),
+  UnipileEventBaseSchema.extend({
+    type: z.enum(["account.add", "account.reconnect"]),
+    payload: z.object({
+      account: z.object({
+        id: z.string(),
+        status: z.string().optional(),
+      }).passthrough(),
+    }).passthrough(),
+  }),
+  UnipileEventBaseSchema.extend({
+    type: z.enum(["message.receipt.read", "message.receipt.delivery"]),
+    payload: z.object({
+      chat_id: z.string(),
+      message_id: z.string(),
+      timestamp: z.string(),
+    }).passthrough(),
+  }),
 ]);
+
+const SUPPORTED_UNIPILE_EVENT_TYPES: ReadonlySet<string> = new Set(
+  UnipileWebhookSchema.options.flatMap((schema) => {
+    const typeSchema = schema.shape.type;
+    if (typeSchema instanceof z.ZodLiteral) return [typeSchema.value];
+    if (typeSchema instanceof z.ZodEnum) return typeSchema.options;
+    return [];
+  }),
+);
+
+function webhookValidationIssues(error: z.ZodError): Array<{ path: string; code: string }> {
+  return error.issues.slice(0, 10).map((issue) => ({
+    path: issue.path.join("."),
+    code: issue.code,
+  }));
+}
 
 async function isDuplicate(externalId: string): Promise<boolean> {
   const existing = await prisma.message.findFirst({
@@ -183,9 +226,35 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       throw new AuthError();
     }
 
+    const envelope = UnipileEventBaseSchema.safeParse(request.body);
+    if (!envelope.success) {
+      request.log.warn({
+        event: "unipile.webhook.invalid_envelope",
+        issues: webhookValidationIssues(envelope.error),
+      }, "Rejected malformed Unipile webhook envelope");
+      throw new ValidationError("Invalid payload");
+    }
+
+    if (!SUPPORTED_UNIPILE_EVENT_TYPES.has(envelope.data.type)) {
+      request.log.info({
+        event: "unipile.webhook.ignored",
+        unipileEventId: envelope.data.id,
+        unipileEventType: envelope.data.type,
+        accountProvider: envelope.data.account_provider,
+      }, "Acknowledged unsupported Unipile webhook event");
+      return reply.send({ received: true, handled: false });
+    }
+
     const parsed = UnipileWebhookSchema.safeParse(request.body);
 
     if (!parsed.success) {
+      request.log.warn({
+        event: "unipile.webhook.invalid_supported_event",
+        unipileEventId: envelope.data.id,
+        unipileEventType: envelope.data.type,
+        accountProvider: envelope.data.account_provider,
+        issues: webhookValidationIssues(parsed.error),
+      }, "Rejected malformed supported Unipile webhook event");
       throw new ValidationError("Invalid payload");
     }
 
@@ -206,6 +275,40 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
       const updated = await prisma.socialAccount.updateMany({
         where: { unipileId: data.account_id },
         data: { status },
+      });
+      return reply.send({ received: true, handled: updated.count > 0 });
+    }
+
+    if (data.type === "account.locked" || data.type === "account.remove") {
+      const updated = await prisma.socialAccount.updateMany({
+        where: { unipileId: data.account_id },
+        data: { status: data.type === "account.remove" ? "disconnected" : "error" },
+      });
+      return reply.send({ received: true, handled: updated.count > 0 });
+    }
+
+    if (data.type === "account.unlocked") {
+      const updated = await prisma.socialAccount.updateMany({
+        where: { unipileId: data.account_id },
+        data: { status: "reconnecting" },
+      });
+      return reply.send({ received: true, handled: updated.count > 0 });
+    }
+
+    if (data.type === "account.add" || data.type === "account.reconnect") {
+      const updated = await prisma.socialAccount.updateMany({
+        where: { unipileId: data.payload.account.id },
+        data: { status: data.payload.account.status === "running" ? "active" : "reconnecting" },
+      });
+      return reply.send({ received: true, handled: updated.count > 0 });
+    }
+
+    if (data.type === "message.receipt.read" || data.type === "message.receipt.delivery") {
+      const updated = await prisma.message.updateMany({
+        where: { externalId: data.payload.message_id, direction: "outbound" },
+        data: data.type === "message.receipt.read"
+          ? { status: "opened", readAt: new Date(data.payload.timestamp) }
+          : { status: "delivered" },
       });
       return reply.send({ received: true, handled: updated.count > 0 });
     }
