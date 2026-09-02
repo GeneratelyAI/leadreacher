@@ -434,26 +434,38 @@ function createScrapeController(context: ScrapeContext) {
       return store.status;
     }
 
-    await ensureWebsiteScrapeStarted({ force: true });
-    if (isReadyToLeave(store)) {
-      return store.status;
-    }
-
     return new Promise<WebsiteScrapeStatus>((resolve) => {
-      const timeout = window.setTimeout(() => {
-        unsubscribe();
-        resolve(store.status);
-      }, maxWaitMs);
+      let settled = false;
+      let unsubscribe = () => {};
 
-      const unsubscribe = subscribe((nextStore) => {
-        if (!isReadyToLeave(nextStore)) {
-          return;
-        }
-
+      const finish = (status: WebsiteScrapeStatus) => {
+        if (settled) return;
+        settled = true;
         window.clearTimeout(timeout);
         unsubscribe();
-        resolve(nextStore.status);
-      });
+        resolve(status);
+      };
+
+      const timeout = window.setTimeout(() => {
+        finish(store.status);
+      }, maxWaitMs);
+
+      void ensureWebsiteScrapeStarted({ force: true }).then(
+        () => {
+          if (settled) return;
+          if (isReadyToLeave(store)) {
+            finish(store.status);
+            return;
+          }
+
+          unsubscribe = subscribe((nextStore) => {
+            if (isReadyToLeave(nextStore)) finish(nextStore.status);
+          });
+
+          if (isReadyToLeave(store)) finish(store.status);
+        },
+        () => finish(store.status),
+      );
     });
   }
 

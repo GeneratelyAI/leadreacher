@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import {
   getOnboardingStepIndex,
   isOnboardingStep,
@@ -16,6 +16,74 @@ type RenderedStep = {
   key: string;
   children: ReactNode;
 };
+
+function ViewportFittedPane({ children }: { children: ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const frame = frameRef.current;
+    const canvas = canvasRef.current;
+    if (!frame || !canvas) return;
+
+    let animationFrame = 0;
+    let currentScale = 1;
+
+    const applyScale = (scale: number) => {
+      currentScale = scale;
+      canvas.style.setProperty("--onboarding-fit-scale", String(scale));
+      canvas.style.width = `${100 / scale}%`;
+      canvas.style.transform = `scale(${scale})`;
+    };
+
+    const fit = (reset = false) => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(() => {
+        const availableWidth = frame.clientWidth;
+        const availableHeight = frame.clientHeight;
+        if (!availableWidth || !availableHeight) return;
+
+        if (reset) {
+          currentScale = 1;
+          canvas.style.width = "100%";
+          canvas.style.transform = "none";
+        }
+
+        const contentWidth = Math.max(canvas.scrollWidth, canvas.offsetWidth);
+        const contentHeight = Math.max(canvas.scrollHeight, canvas.offsetHeight);
+        const nextScale = Math.min(
+          1,
+          availableWidth / contentWidth,
+          availableHeight / contentHeight,
+        );
+
+        if (reset || nextScale < currentScale - 0.002) {
+          applyScale(nextScale);
+        }
+      });
+    };
+
+    const frameResizeObserver = new ResizeObserver(() => fit(true));
+    const contentResizeObserver = new ResizeObserver(() => fit());
+    frameResizeObserver.observe(frame);
+    contentResizeObserver.observe(canvas);
+    fit(true);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      frameResizeObserver.disconnect();
+      contentResizeObserver.disconnect();
+    };
+  }, [children]);
+
+  return (
+    <div ref={frameRef} className="onboarding-viewport-fit">
+      <div ref={canvasRef} className="onboarding-viewport-fit__canvas">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function getSlideDirection(currentKey: string, nextKey: string): SlideDirection {
   const flowOrder = [
@@ -155,7 +223,7 @@ export function StepMotion({
         aria-hidden={isTransitioning}
         inert={isTransitioning}
       >
-        {visibleChildren}
+        <ViewportFittedPane>{visibleChildren}</ViewportFittedPane>
       </div>
       {incoming ? (
         <div
@@ -163,7 +231,7 @@ export function StepMotion({
           className="onboarding-step-presence__pane onboarding-step-presence__pane--incoming"
           inert={!isAnimating}
         >
-          {incoming.children}
+          <ViewportFittedPane>{incoming.children}</ViewportFittedPane>
         </div>
       ) : null}
     </div>
