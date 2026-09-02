@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,9 +16,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EmbeddedCheckoutCard, PaymentTrustBar } from "@/components/onboarding/EmbeddedCheckoutCard";
+import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
-import { isOnboardingDemo } from "@/lib/onboarding/preview-api";
+import { isOnboardingDemo, isOnboardingPreview } from "@/lib/onboarding/preview-api";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 const PAYMENT_VERIFICATION_ATTEMPTS = 5;
@@ -31,6 +33,7 @@ type BillingLineItem = {
   unitAmount: number | null;
   currency: string | null;
   interval: string | null;
+  channel?: string;
 };
 
 type PricingResponse = {
@@ -46,6 +49,7 @@ type StrategyResponse = {
   icpDefinition: {
     idealCustomer?: unknown;
   };
+  channels?: unknown;
 };
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -60,8 +64,25 @@ function formatPrice(item: BillingLineItem): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: item.currency.toUpperCase(),
-    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
   }).format(item.unitAmount / 100);
+}
+
+function formatTotal(items: BillingLineItem[]): string {
+  if (items.length === 0) return "$0";
+  const currency = items[0]?.currency;
+  if (!currency || items.some((item) => item.unitAmount === null || item.currency !== currency)) {
+    return "Calculated at checkout";
+  }
+
+  const total = items.reduce((sum, item) => sum + (item.unitAmount ?? 0), 0);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency.toUpperCase(),
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(total / 100);
 }
 
 function campaignTypeLabel(value: string | null): string {
@@ -93,6 +114,27 @@ function idealCustomerLabel(icpDefinition: StrategyResponse["icpDefinition"]): s
     : "Not available";
 }
 
+function selectedChannelsFromStrategy(strategy: StrategyResponse | null): string[] {
+  if (!strategy?.channels || typeof strategy.channels !== "object" || Array.isArray(strategy.channels)) return [];
+  const selected = (strategy.channels as Record<string, unknown>).selected;
+  return Array.isArray(selected)
+    ? selected.filter((channel): channel is string => typeof channel === "string")
+    : [];
+}
+
+function channelLabel(channel: string): string {
+  if (channel === "linkedin") return "LinkedIn";
+  if (channel === "whatsapp") return "WhatsApp";
+  return `${channel.charAt(0).toUpperCase()}${channel.slice(1)}`;
+}
+
+function channelLogoName(channel: string): ChannelLogoName | null {
+  if (channel === "email") return "gmail";
+  if (channel === "whatsapp") return "whatsapp-mark";
+  if (channel === "linkedin" || channel === "instagram" || channel === "facebook") return channel;
+  return null;
+}
+
 export default function Checkout() {
   useLayoutEffect(() => {
     applyStoredTheme();
@@ -112,6 +154,15 @@ export default function Checkout() {
   const returnedFromCheckout = searchParams.get("status") === "success";
   const checkoutSessionId = searchParams.get("session_id");
   const checkoutSucceeded = subscriptionStatus === ACTIVE_SUBSCRIPTION_STATUS;
+  const selectedChannels = selectedChannelsFromStrategy(strategy);
+  const primaryLineItems = lineItems.filter((item) => item.key !== "additional_channel");
+  const additionalChannelItems = lineItems.filter((item) => item.key === "additional_channel");
+
+  useEffect(() => {
+    if (checkoutSucceeded) {
+      navigateOnboarding(onboardingHref("channels"), true);
+    }
+  }, [checkoutSucceeded]);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,7 +296,7 @@ export default function Checkout() {
 
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <main className="checkout-page mx-auto flex w-full max-w-[76rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-28 lg:pb-28 h-short:lg:pt-24 h-short:lg:pb-24">
+      <main className="checkout-page mx-auto flex w-full max-w-[74rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-24 lg:pb-24 h-short:lg:pt-20 h-short:lg:pb-20">
         {error ? (
           <Alert
             tone="error"
@@ -264,8 +315,8 @@ export default function Checkout() {
           </Alert>
         ) : null}
 
-        <div className="relative grid min-w-0 gap-10 lg:grid-cols-[minmax(0,1.55fr)_minmax(20rem,0.95fr)] lg:gap-0">
-          <section className="min-w-0 lg:pr-10 xl:pr-14" aria-labelledby="payment-heading">
+        <div className="relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0">
+          <section className="min-w-0 lg:pr-8 xl:pr-10" aria-labelledby="payment-heading">
             <div className="mb-7 h-short:mb-5">
               <h1 id="payment-heading" className="text-3xl font-semibold tracking-[-0.035em] text-onboarding-ink dark:text-white sm:text-4xl">Complete your subscription</h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Pay securely to continue. Your campaign stays in draft until you review and approve it.</p>
@@ -287,6 +338,9 @@ export default function Checkout() {
             {embeddedCheckout ? (
               <EmbeddedCheckoutCard
                 {...embeddedCheckout}
+                previewAmount={lineItems.reduce((total, item) => total + (item.unitAmount ?? 0), 0)}
+                previewCurrency={lineItems.find((item) => item.currency)?.currency ?? "usd"}
+                showStripePreview={isOnboardingPreview()}
                 onMockSubmit={isOnboardingDemo() ? () => {
                   navigateOnboarding(`${onboardingHref("checkout")}&status=success&session_id=demo`, true);
                 } : undefined}
@@ -299,7 +353,7 @@ export default function Checkout() {
             </div>
           </section>
 
-          <aside className="min-w-0 border-onboarding-neutral-150 lg:border-l lg:pl-10 xl:pl-14 dark:border-onboarding-neutral-750" aria-labelledby="summary-heading">
+          <aside className="min-w-0 border-onboarding-neutral-150 lg:border-l lg:pl-8 xl:pl-10 dark:border-onboarding-neutral-750" aria-labelledby="summary-heading">
             <div className="lg:sticky lg:top-32">
               <h2 id="summary-heading" className="text-2xl font-semibold tracking-[-0.025em] text-onboarding-ink dark:text-white sm:text-3xl">Order summary</h2>
 
@@ -307,28 +361,65 @@ export default function Checkout() {
                 <div className="border-b border-onboarding-neutral-150 p-5 dark:border-onboarding-neutral-750">
                   {isLoading ? (
                     <div className="flex items-center gap-3 text-sm text-onboarding-neutral-500"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading plan</div>
-                  ) : lineItems.map((item) => (
-                    <div key={item.priceId} className="flex items-center justify-between gap-5">
-                      <div className="flex min-w-0 items-center gap-3.5">
-                        <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-onboarding-purple-600 text-white shadow-onboarding-button">
-                          <CreditCard className="size-5" aria-hidden />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="truncate text-base font-semibold text-onboarding-ink dark:text-white">{item.label}</p>
-                          <p className="mt-0.5 text-xs text-onboarding-neutral-500">{item.interval ? `Billed ${item.interval}ly` : "Subscription"}</p>
+                  ) : (
+                    <div className="grid gap-3">
+                      {primaryLineItems.map((item) => (
+                        <div key={item.priceId} className="flex min-h-11 items-center justify-between gap-4">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className="grid size-10 shrink-0 place-items-center text-onboarding-purple-800 dark:text-onboarding-purple-300">
+                              {item.label === "LeadReacher Pro" ? (
+                                <Image
+                                  src="/logo/leadreacher_icon_colored.svg"
+                                  alt=""
+                                  width={40}
+                                  height={40}
+                                  className="size-10 object-contain"
+                                />
+                              ) : (
+                                <CreditCard className="size-7" aria-hidden />
+                              )}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-semibold text-onboarding-ink dark:text-white sm:text-base">{item.label}</p>
+                              <p className="mt-0.5 text-xs text-onboarding-neutral-500">{item.interval ? `Billed ${item.interval}ly` : "Subscription"}</p>
+                            </div>
+                          </div>
+                          <p className="shrink-0 text-lg font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{formatPrice(item)}<span className="ml-1 text-[0.7rem] font-normal text-onboarding-neutral-500">{item.interval ? `/${item.interval}` : ""}</span></p>
                         </div>
-                      </div>
-                      <p className="shrink-0 text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{formatPrice(item)}<span className="ml-1 text-xs font-normal text-onboarding-neutral-500">{item.interval ? `/${item.interval}` : ""}</span></p>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
+
+                {selectedChannels.length > 0 ? (
+                  <div className="border-b border-onboarding-neutral-150 p-5 dark:border-onboarding-neutral-750">
+                    <p className="text-xs font-semibold tracking-[0.12em] text-onboarding-neutral-500 uppercase">Channel billing</p>
+                    <div className="mt-3 grid gap-1.5">
+                      {selectedChannels.map((channel, index) => {
+                        const charge = additionalChannelItems.find((item) => item.channel === channel);
+                        const logoName = channelLogoName(channel);
+                        return (
+                          <div key={channel} className="flex min-h-8 items-center justify-between gap-4 rounded-lg px-1 text-sm">
+                            <span className="flex min-w-0 items-center gap-2.5 font-medium text-onboarding-ink dark:text-white">
+                              {logoName ? <ChannelLogo name={logoName} className="size-5 shrink-0" /> : null}
+                              <span>{channelLabel(channel)}</span>
+                            </span>
+                            <span className={index === 0 ? "text-onboarding-success-600" : "font-semibold text-onboarding-ink dark:text-white"}>
+                              {index === 0 ? "Included" : charge ? formatPrice(charge) : "$50"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div className="p-5">
                   <p className="text-xs font-semibold tracking-[0.12em] text-onboarding-neutral-500 uppercase">Campaign setup</p>
-                  <dl className="mt-3 grid gap-1.5 text-sm">
+                  <dl className="mt-3 grid gap-2 text-sm">
                     <div className="checkout-summary-row">
                       <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
-                      <dd className="max-w-48 text-right font-medium leading-5 text-onboarding-ink dark:text-onboarding-neutral-0">
+                      <dd className="max-w-52 text-right font-medium leading-5 text-onboarding-ink dark:text-onboarding-neutral-0">
                         {isLoading ? "Loading..." : strategy ? idealCustomerLabel(strategy.icpDefinition) : "Unavailable"}
                       </dd>
                     </div>
@@ -349,8 +440,9 @@ export default function Checkout() {
                   <div className="my-5 border-t border-onboarding-neutral-150 dark:border-onboarding-neutral-750" />
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-base font-semibold text-onboarding-ink dark:text-white">Total due today</span>
-                    <span className="text-xl font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{isLoading ? "…" : lineItems.map(formatPrice).join(" + ")}</span>
+                    <span className="text-2xl font-semibold tracking-[-0.03em] text-onboarding-ink dark:text-white">{isLoading ? "…" : formatTotal(lineItems)}</span>
                   </div>
+                  <p className="mt-1.5 text-right text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Taxes calculated by Stripe at checkout</p>
                 </div>
               </div>
 

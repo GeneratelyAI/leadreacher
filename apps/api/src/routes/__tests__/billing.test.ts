@@ -61,6 +61,7 @@ const strategy = {
     mode: "personalized",
     source: "generated",
   },
+  channels: { selected: ["linkedin", "email", "whatsapp"] },
 };
 
 async function buildTestApp() {
@@ -146,16 +147,34 @@ describe("billing routes", () => {
           interval: "month",
         },
         {
+          key: "additional_channel",
+          priceId: "mock_price_additional_channel",
+          label: "Email channel",
+          channel: "email",
+          unitAmount: null,
+          currency: null,
+          interval: "month",
+        },
+        {
+          key: "additional_channel",
+          priceId: "mock_price_additional_channel",
+          label: "Whatsapp channel",
+          channel: "whatsapp",
+          unitAmount: null,
+          currency: null,
+          interval: "month",
+        },
+        {
           key: "video_addon",
           priceId: "mock_price_video_addon",
-          label: "Video personalization",
+          label: "Personalized video",
           unitAmount: null,
           currency: null,
           interval: "month",
         },
       ],
     });
-    expect(getStripePrice).toHaveBeenCalledTimes(2);
+    expect(getStripePrice).toHaveBeenCalledTimes(4);
   });
 
   it("creates a hosted Stripe subscription Checkout session without accepting client prices", async () => {
@@ -174,7 +193,12 @@ describe("billing routes", () => {
       strategyId: "strategy-1",
       campaignType: "personalized_outreach",
       videoEnabled: true,
-      priceIds: ["mock_price_personalized_outreach", "mock_price_video_addon"],
+      priceIds: [
+        "mock_price_personalized_outreach",
+        "mock_price_additional_channel",
+        "mock_price_additional_channel",
+        "mock_price_video_addon",
+      ],
       customerId: null,
     });
   });

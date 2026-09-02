@@ -288,6 +288,11 @@ afterEach(async () => {
 
 describe("onboarding backend in Stripe mock mode", () => {
   it("persists video choice through checkout, verified activation, hosted channel connect, and completion", async () => {
+    const channelSelection = await app.inject({
+      method: "PATCH",
+      url: `/strategy/${ORG_ID}/channels`,
+      payload: { channels: ["linkedin"] },
+    });
     const videoDecision = await app.inject({
       method: "PATCH",
       url: `/strategy/${ORG_ID}/video-decision`,
@@ -336,6 +341,7 @@ describe("onboarding backend in Stripe mock mode", () => {
       payload: {},
     });
 
+    expect(channelSelection.statusCode).toBe(200);
     expect(videoDecision.statusCode).toBe(200);
     expect(pricing.statusCode).toBe(200);
     expect(checkout.json()).toEqual({

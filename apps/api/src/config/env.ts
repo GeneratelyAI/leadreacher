@@ -97,6 +97,7 @@ const envSchema = z.object({
   STRIPE_PRICE_AI_VIDEO_AD: z.string().optional().default(""),
   STRIPE_PRICE_UPLOADED_VIDEO: z.string().optional().default(""),
   STRIPE_PRICE_VIDEO_ADDON: z.string().optional().default(""),
+  STRIPE_PRICE_ADDITIONAL_CHANNEL: z.string().optional().default(""),
   APP_URL: z.string().url().default("http://localhost:3000"),
   UNIPILE_WEBHOOK_URL: z.string().url().optional(),
   PUBLIC_BASE_URL: z.string().url().optional(),

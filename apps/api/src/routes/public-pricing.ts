@@ -34,12 +34,13 @@ export async function publicPricingRoutes(app: FastifyInstance): Promise<void> {
           const catalog = buildPricingCatalog({
             campaignType,
             videoConfig: {
-              enabled: false,
-              mode: null,
-              source: null,
-              tone: null,
+              enabled: true,
+              mode: "personalized",
+              source: "generated",
+              tone: "professional",
               uploadedVideoUrl: null,
             },
+            selectedChannels: ["linkedin"],
           });
           const lineItems = await Promise.all(
             catalog.lineItems.map(async (item) => ({

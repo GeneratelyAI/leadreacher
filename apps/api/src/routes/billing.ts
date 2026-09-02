@@ -17,6 +17,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { requireOrgId } from "../lib/request-org.js";
 import { requireOrganizationOwner } from "../lib/organization-access.js";
+import { isOutreachChannel } from "../lib/channels.js";
 import { requireMfa } from "../plugins/auth.js";
 import {
   createBillingPortalSession,
@@ -33,9 +34,10 @@ const CheckoutSessionBodySchema = z.object({
   embedded: z.boolean().optional().default(false),
 });
 
-function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "videoConfig">): {
+function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "videoConfig" | "channels">): {
   campaignType: CampaignType;
   videoConfig: ReturnType<typeof parseVideoConfig>;
+  selectedChannels: string[];
 } {
   const parsedCampaignType = z
     .enum(["personalized_outreach", "ai_video_ad", "uploaded_video"])
@@ -47,10 +49,21 @@ function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "vide
   const videoConfig = parseVideoConfig(
     strategy.videoConfig ?? { enabled: false, mode: null, source: null },
   );
-  return { campaignType: parsedCampaignType.data, videoConfig };
+  const channelConfig = strategy.channels && typeof strategy.channels === "object" && !Array.isArray(strategy.channels)
+    ? strategy.channels as Record<string, unknown>
+    : {};
+  const selectedChannels = Array.isArray(channelConfig.selected)
+    ? channelConfig.selected.filter(
+        (value): value is string => typeof value === "string" && isOutreachChannel(value),
+      )
+    : [];
+  if (selectedChannels.length === 0) {
+    throw new ValidationError("Select at least one outreach channel before checkout");
+  }
+  return { campaignType: parsedCampaignType.data, videoConfig, selectedChannels };
 }
 
-async function buildLineItems(strategy: Pick<Strategy, "campaignType" | "videoConfig">): Promise<{
+async function buildLineItems(strategy: Pick<Strategy, "campaignType" | "videoConfig" | "channels">): Promise<{
   campaignType: CampaignType;
   videoEnabled: boolean;
   lineItems: BillingLineItem[];

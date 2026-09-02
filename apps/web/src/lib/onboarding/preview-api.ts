@@ -117,6 +117,7 @@ const strategy = {
     },
   },
   channels: {
+    selected: ["linkedin", "email", "whatsapp"],
     recommendations: [
       { channel: "linkedin", label: "LinkedIn", confidence: 92, signalCount: 155, totalProfiles: 180, tag: "Best fit", description: "Most decision makers are reachable here." },
       { channel: "email", label: "Email", confidence: 84, signalCount: 142, totalProfiles: 180, tag: "Strong coverage", description: "Reliable reach for follow-up sequences." },
@@ -234,7 +235,10 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   if (path === "/billing/pricing") {
     return {
       lineItems: [
-        { key: "platform", priceId: "preview", label: "LeadReacher Pro", unitAmount: 30000, currency: "usd", interval: "month" },
+        { key: "platform", priceId: "preview", label: "LeadReacher Pro", unitAmount: 19999, currency: "usd", interval: "month" },
+        { key: "additional_channel", priceId: "preview-channel-email", label: "Email channel", channel: "email", unitAmount: 5000, currency: "usd", interval: "month" },
+        { key: "additional_channel", priceId: "preview-channel-whatsapp", label: "Whatsapp channel", channel: "whatsapp", unitAmount: 5000, currency: "usd", interval: "month" },
+        { key: "video_addon", priceId: "preview-video", label: "Personalized video", unitAmount: 3000, currency: "usd", interval: "month" },
       ],
     } as T;
   }

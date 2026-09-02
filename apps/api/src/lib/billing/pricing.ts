@@ -57,6 +57,7 @@ export type CampaignType = z.infer<typeof CampaignTypeSchema>;
 export type PricingCatalogInput = {
   campaignType: CampaignType;
   videoConfig: VideoConfig;
+  selectedChannels: string[];
 };
 
 export type CatalogLineItem = {
@@ -64,9 +65,11 @@ export type CatalogLineItem = {
     | "personalized_outreach"
     | "ai_video_ad"
     | "uploaded_video"
-    | "video_addon";
+    | "video_addon"
+    | "additional_channel";
   priceId: string;
   label: string;
+  channel?: string;
 };
 
 export const CAMPAIGN_PRICE_CONFIG: Record<
@@ -139,11 +142,25 @@ export function buildPricingCatalog(input: PricingCatalogInput): {
     },
   ];
 
-  lineItems.push({
-    key: "video_addon",
-    priceId: resolvePriceId("video_addon", "STRIPE_PRICE_VIDEO_ADDON"),
-    label: "Video personalization",
-  });
+  for (const channel of input.selectedChannels.slice(1)) {
+    lineItems.push({
+      key: "additional_channel",
+      priceId: resolvePriceId(
+        "additional_channel",
+        "STRIPE_PRICE_ADDITIONAL_CHANNEL",
+      ),
+      label: `${channel.charAt(0).toUpperCase()}${channel.slice(1)} channel`,
+      channel,
+    });
+  }
+
+  if (input.videoConfig.enabled && input.videoConfig.mode === "personalized") {
+    lineItems.push({
+      key: "video_addon",
+      priceId: resolvePriceId("video_addon", "STRIPE_PRICE_VIDEO_ADDON"),
+      label: "Personalized video",
+    });
+  }
 
   return { lineItems };
 }

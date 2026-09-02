@@ -7,7 +7,7 @@ const StripeEmbeddedCheckout = lazy(() => import("@/components/onboarding/Stripe
 
 function VisaMark() {
   return (
-    <span className="inline-flex h-7 min-w-12 items-center justify-center rounded-md border border-[#dfe5f2] bg-white px-2 text-[0.72rem] font-black italic tracking-[-0.06em] text-[#1434cb] shadow-[0_1px_2px_rgba(18,31,68,0.06)]">
+    <span className="inline-flex h-5 w-8 items-center justify-center rounded-[2px] bg-[#0a5fb4] text-[0.62rem] font-black italic tracking-[-0.06em] text-white" role="img" aria-label="Visa">
       VISA
     </span>
   );
@@ -15,8 +15,8 @@ function VisaMark() {
 
 function MastercardMark() {
   return (
-    <span className="inline-flex h-7 min-w-12 items-center justify-center rounded-md border border-[#e7e1df] bg-white px-2 shadow-[0_1px_2px_rgba(18,31,68,0.06)]" role="img" aria-label="Mastercard">
-      <span className="relative h-4 w-7" aria-hidden>
+    <span className="inline-flex h-5 w-8 items-center justify-center rounded-[2px] bg-[#18181b]" role="img" aria-label="Mastercard">
+      <span className="relative h-3.5 w-5" aria-hidden>
         <span className="absolute inset-y-0 left-0 aspect-square rounded-full bg-[#eb001b]" />
         <span className="absolute inset-y-0 right-0 aspect-square rounded-full bg-[#f79e1b]" />
         <span className="absolute inset-y-0 left-1/2 aspect-square -translate-x-1/2 rounded-full bg-[#ff5f00] opacity-90" />
@@ -27,8 +27,16 @@ function MastercardMark() {
 
 function AmexMark() {
   return (
-    <span className="inline-flex h-7 min-w-12 items-center justify-center rounded-md border border-[#d6e7f7] bg-[#2e77bc] px-1.5 text-[0.58rem] font-black tracking-[-0.04em] text-white shadow-[0_1px_2px_rgba(18,31,68,0.06)]">
+    <span className="inline-flex h-5 w-8 items-center justify-center rounded-[2px] bg-[#009cde] text-[0.48rem] font-black italic tracking-[-0.08em] text-white" role="img" aria-label="American Express">
       AMEX
+    </span>
+  );
+}
+
+function UnionPayMark() {
+  return (
+    <span className="inline-flex h-5 w-8 -skew-x-12 items-center justify-center rounded-[2px] bg-[linear-gradient(110deg,#e21836_0_34%,#0071bc_34%_67%,#00a651_67%)] text-[0.34rem] font-black tracking-[-0.08em] text-white" role="img" aria-label="UnionPay">
+      <span className="skew-x-12">UnionPay</span>
     </span>
   );
 }
@@ -37,8 +45,8 @@ export function PaymentTrustBar() {
   return (
     <div className="checkout-accent-card checkout-accent-card--compact mb-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-xl px-4 py-3">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-onboarding-success-50 text-onboarding-success-600 dark:bg-onboarding-success-500/10 dark:text-onboarding-success-400">
-          <Lock className="size-3.5" aria-hidden />
+        <span className="grid size-8 shrink-0 place-items-center text-onboarding-success-600 dark:text-onboarding-success-400">
+          <Lock className="size-6" aria-hidden />
         </span>
         <div>
           <p className="text-xs font-semibold text-onboarding-ink dark:text-white">Protected checkout</p>
@@ -46,10 +54,11 @@ export function PaymentTrustBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5" aria-label="Accepted cards: Visa, Mastercard, and American Express">
+      <div className="flex items-center gap-1" aria-label="Accepted cards: Visa, Mastercard, American Express, and UnionPay">
         <VisaMark />
         <MastercardMark />
         <AmexMark />
+        <UnionPayMark />
       </div>
 
       <div className="flex items-center gap-1.5 border-onboarding-neutral-150 text-xs text-onboarding-neutral-500 sm:border-l sm:pl-5 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-400">
@@ -97,13 +106,19 @@ function MockCheckout({ onSubmit }: { onSubmit?: () => void }) {
 export function EmbeddedCheckoutCard({
   clientSecret,
   mockMode,
+  showStripePreview = false,
+  previewAmount,
+  previewCurrency,
   onMockSubmit,
 }: {
   clientSecret: string;
   mockMode: boolean;
+  showStripePreview?: boolean;
+  previewAmount?: number;
+  previewCurrency?: string;
   onMockSubmit?: () => void;
 }) {
-  if (mockMode) return <MockCheckout onSubmit={onMockSubmit} />;
+  if (mockMode && !showStripePreview) return <MockCheckout onSubmit={onMockSubmit} />;
 
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()) {
     return (
@@ -114,9 +129,15 @@ export function EmbeddedCheckoutCard({
   }
 
   return (
-    <div className="checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-5 sm:p-7 h-short:sm:p-5">
+    <div className="checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-4 sm:p-5">
       <Suspense fallback={<div className="min-h-72" role="status" aria-label="Loading secure checkout" />}>
-        <StripeEmbeddedCheckout clientSecret={clientSecret} />
+        <StripeEmbeddedCheckout
+          clientSecret={clientSecret}
+          preview={mockMode && showStripePreview}
+          previewAmount={previewAmount}
+          previewCurrency={previewCurrency}
+          onPreviewSubmit={onMockSubmit}
+        />
       </Suspense>
     </div>
   );

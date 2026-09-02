@@ -7,6 +7,7 @@ const { env } = vi.hoisted(() => ({
     STRIPE_PRICE_AI_VIDEO_AD: "price_ai_video",
     STRIPE_PRICE_UPLOADED_VIDEO: "price_uploaded_video",
     STRIPE_PRICE_VIDEO_ADDON: "price_video_addon",
+    STRIPE_PRICE_ADDITIONAL_CHANNEL: "price_additional_channel",
   },
 }));
 
@@ -26,6 +27,7 @@ describe("buildPricingCatalog", () => {
           tone: "professional",
           uploadedVideoUrl: null,
         },
+        selectedChannels: ["linkedin", "email", "whatsapp"],
       }),
     ).toEqual({
       lineItems: [
@@ -35,15 +37,27 @@ describe("buildPricingCatalog", () => {
           label: "Personalized outreach",
         },
         {
+          key: "additional_channel",
+          priceId: "price_additional_channel",
+          label: "Email channel",
+          channel: "email",
+        },
+        {
+          key: "additional_channel",
+          priceId: "price_additional_channel",
+          label: "Whatsapp channel",
+          channel: "whatsapp",
+        },
+        {
           key: "video_addon",
           priceId: "price_video_addon",
-          label: "Video personalization",
+          label: "Personalized video",
         },
       ],
     });
   });
 
-  it("adds a video add-on even when a stale caller sends disabled video", () => {
+  it("does not add personalized video when video is disabled", () => {
     expect(
       buildPricingCatalog({
         campaignType: "uploaded_video",
@@ -54,6 +68,7 @@ describe("buildPricingCatalog", () => {
           tone: null,
           uploadedVideoUrl: null,
         },
+        selectedChannels: ["linkedin"],
       }),
     ).toEqual({
       lineItems: [
@@ -61,11 +76,6 @@ describe("buildPricingCatalog", () => {
           key: "uploaded_video",
           priceId: "price_uploaded_video",
           label: "Uploaded video outreach",
-        },
-        {
-          key: "video_addon",
-          priceId: "price_video_addon",
-          label: "Video personalization",
         },
       ],
     });
@@ -85,6 +95,7 @@ describe("buildPricingCatalog", () => {
           tone: null,
           uploadedVideoUrl: null,
         },
+        selectedChannels: ["linkedin"],
       }),
     ).toThrow("STRIPE_PRICE_AI_VIDEO_AD");
 

@@ -765,11 +765,8 @@ html {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  border-radius: 0.625rem;
-  padding: 0.5rem 0.625rem;
-}
-
-.checkout-summary-row:nth-child(odd) {
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.75rem;
   background: rgb(113 73 219 / 0.035);
 }
 
@@ -782,7 +779,7 @@ html {
     0 0 30px rgb(99 72 214 / 0.055);
 }
 
-.dark .checkout-summary-row:nth-child(odd) {
+.dark .checkout-summary-row {
   background: rgb(132 102 232 / 0.06);
 }
 
@@ -1720,6 +1717,12 @@ html {
     justify-content: center !important;
     padding-top: 7rem !important;
     padding-bottom: 5rem !important;
+  }
+
+  .checkout-page {
+    justify-content: flex-start !important;
+    padding-top: 10rem !important;
+    padding-bottom: 2rem !important;
   }
 
   .strategy-targeting-screen > .app-card {

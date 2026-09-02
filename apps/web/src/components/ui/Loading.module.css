@@ -1,163 +1,92 @@
 .loading {
-  --primary: #f6f8ff;
-  --primary-dark: #d1d6ee;
-  --primary-darkest: #8a91b4;
-  --shadow: rgb(7 4 52 / 38%);
-  --border-radius: 0;
-  --rotate: 48;
-  --plane-x: 0;
-  --plane-y: 0;
-  --plane-opacity: 1;
-  --trails: rgb(255 255 255 / 15%);
-  --trails-stroke: 57;
-  --left-wing-background: var(--primary);
-  --left-wing-first-x: 0;
-  --left-wing-first-y: 0;
-  --left-wing-second-x: 40;
-  --left-wing-second-y: 90;
-  --left-wing-third-x: 27;
-  --left-wing-third-y: 95;
-  --left-body-background: var(--primary);
-  --left-body-first-x: 51;
-  --left-body-first-y: 0;
-  --left-body-second-x: 51;
-  --left-body-second-y: 100;
-  --left-body-third-x: 40;
-  --left-body-third-y: 90;
-  --right-wing-background: var(--primary);
-  --right-wing-first-x: 49;
-  --right-wing-first-y: 0;
-  --right-wing-second-x: 45;
-  --right-wing-second-y: 90;
-  --right-wing-third-x: 60;
-  --right-wing-third-y: 83;
-  --right-body-background: var(--primary);
-  --right-body-first-x: 49;
-  --right-body-first-y: 0;
-  --right-body-second-x: 49;
-  --right-body-second-y: 100;
-  --right-body-third-x: 45;
-  --right-body-third-y: 90;
+  --plane-color: #f6f8ff;
+  --plane-shadow: rgb(7 4 52 / 28%);
+  --wake-color: rgb(255 255 255 / 32%);
+  --glow-color: rgb(255 255 255 / 16%);
   position: relative;
   display: block;
-  width: 100px;
-  height: 40px;
-  transform: translateZ(0);
+  width: 112px;
+  height: 88px;
+  overflow: visible;
+  isolation: isolate;
 }
 
 .brand {
-  --primary: #6c42e8;
-  --primary-dark: #5a34d4;
-  --primary-darkest: #4522b7;
-  --trails: rgb(108 66 232 / 22%);
+  --plane-color: #5b2bd2;
+  --plane-shadow: rgb(83 38 183 / 28%);
+  --wake-color: rgb(91 43 210 / 28%);
+  --glow-color: rgb(91 43 210 / 12%);
 }
 
 .plane,
-.trails { position: absolute; pointer-events: none; }
+.glow,
+.trails {
+  position: absolute;
+  pointer-events: none;
+}
 
 .plane {
-  inset: 0;
-  filter: drop-shadow(0 4px 5px var(--shadow));
-  transform: translate(12px, -2px) rotate(calc(var(--rotate) * 1deg)) translateZ(0);
-  animation: paper-plane-flight 1.8s cubic-bezier(.45, 0, .2, 1) infinite;
+  top: 10px;
+  left: 27px;
+  z-index: 3;
+  width: 58px;
+  height: 58px;
+  background: var(--plane-color);
+  filter: drop-shadow(0 7px 7px var(--plane-shadow));
+  -webkit-mask: url("/logo/leadreacher_plane_only.svg") center / contain no-repeat;
+  mask: url("/logo/leadreacher_plane_only.svg") center / contain no-repeat;
+  transform-origin: 48% 52%;
+  will-change: transform, opacity;
 }
 
-.left,
-.right {
-  position: absolute;
-  inset: 0;
-  opacity: var(--plane-opacity);
-  transform: translate(calc(var(--plane-x) * 1px), calc(var(--plane-y) * 1px)) translateZ(0);
-}
-
-.left::before,
-.left::after,
-.right::before,
-.right::after {
-  position: absolute;
-  inset: 0;
-  z-index: var(--z-index, 2);
-  border-radius: calc(var(--border-radius) * 1px);
-  background: var(--left-wing-background);
-  clip-path: polygon(calc(var(--first-x, var(--left-wing-first-x)) * 1%) calc(var(--first-y, var(--left-wing-first-y)) * 1%), calc(var(--second-x, var(--left-wing-second-x)) * 1%) calc(var(--second-y, var(--left-wing-second-y)) * 1%), calc(var(--third-x, var(--left-wing-third-x)) * 1%) calc(var(--third-y, var(--left-wing-third-y)) * 1%));
-  content: "";
-  transform: translate(var(--part-x, .4%), 0) translateZ(0);
-}
-
-.left::after {
-  --part-x: -1%;
-  --z-index: 1;
-  --first-x: var(--left-body-first-x);
-  --first-y: var(--left-body-first-y);
-  --second-x: var(--left-body-second-x);
-  --second-y: var(--left-body-second-y);
-  --third-x: var(--left-body-third-x);
-  --third-y: var(--left-body-third-y);
-  background: var(--left-body-background);
-}
-
-.right::before {
-  --part-x: -1%;
-  --z-index: 2;
-  --first-x: var(--right-wing-first-x);
-  --first-y: var(--right-wing-first-y);
-  --second-x: var(--right-wing-second-x);
-  --second-y: var(--right-wing-second-y);
-  --third-x: var(--right-wing-third-x);
-  --third-y: var(--right-wing-third-y);
-  background: var(--right-wing-background);
-}
-
-.right::after {
-  --part-x: 0;
-  --z-index: 1;
-  --first-x: var(--right-body-first-x);
-  --first-y: var(--right-body-first-y);
-  --second-x: var(--right-body-second-x);
-  --second-y: var(--right-body-second-y);
-  --third-x: var(--right-body-third-x);
-  --third-y: var(--right-body-third-y);
-  background: var(--right-body-background);
+.glow {
+  top: 20px;
+  left: 37px;
+  z-index: 1;
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: var(--glow-color);
+  box-shadow: 0 0 30px 12px var(--glow-color);
+  will-change: transform, opacity;
 }
 
 .trails {
-  top: -4px;
-  left: 16px;
+  top: 34px;
+  left: 18px;
+  z-index: 2;
   display: block;
-  width: 33px;
-  height: 64px;
+  width: 34px;
+  height: 66px;
+  overflow: visible;
   fill: none;
-  stroke: var(--trails);
-  stroke-dasharray: 57px;
-  stroke-dashoffset: calc(var(--trails-stroke) * 1px);
+  opacity: 0;
+  stroke: var(--wake-color);
+  stroke-dasharray: 62px;
+  stroke-dashoffset: 62px;
   stroke-linecap: round;
   stroke-width: 2;
-  transform: rotate(68deg) translateZ(0);
+  transform: rotate(54deg) translateZ(0);
+  will-change: opacity, stroke-dashoffset;
 }
 
-.trails path {
-  animation: paper-trail 1.8s ease-in-out infinite;
-}
-
-.trails path:last-child { animation-delay: 90ms; }
-
-@keyframes paper-plane-flight {
-  0% { opacity: 0; transform: translate(-8px, 12px) rotate(58deg) translateZ(0); }
-  18% { opacity: 1; }
-  55% { opacity: 1; transform: translate(12px, -2px) rotate(48deg) translateZ(0); }
-  100% { opacity: 0; transform: translate(42px, -24px) rotate(40deg) translateZ(0); }
-}
-
-@keyframes paper-trail {
-  0%, 18% { opacity: 0; stroke-dashoffset: 57px; }
-  42%, 72% { opacity: 1; stroke-dashoffset: 12px; }
-  100% { opacity: 0; stroke-dashoffset: -40px; }
+.trails path:last-child {
+  opacity: .58;
+  transform: translateY(8px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .plane,
-  .trails path { animation: none; }
+  .plane {
+    opacity: 1;
+    transform: translate(8px, -5px) rotate(5deg);
+  }
 
-  .plane { transform: translate(12px, -2px) rotate(48deg) translateZ(0); }
-  .trails { opacity: .35; }
+  .glow {
+    opacity: .55;
+  }
+
+  .trails {
+    opacity: .3;
+    stroke-dashoffset: 10px;
+  }
 }

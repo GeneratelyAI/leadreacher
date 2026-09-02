@@ -90,9 +90,14 @@ export async function createSubscriptionCheckoutSession(
     campaignType: input.campaignType,
     videoEnabled: String(input.videoEnabled),
   };
+  const priceQuantities = new Map<string, number>();
+  for (const priceId of input.priceIds) {
+    priceQuantities.set(priceId, (priceQuantities.get(priceId) ?? 0) + 1);
+  }
   const session = await getStripeClient().checkout.sessions.create({
     mode: "subscription",
-    line_items: input.priceIds.map((price) => ({ price, quantity: 1 })),
+    automatic_tax: { enabled: true },
+    line_items: [...priceQuantities].map(([price, quantity]) => ({ price, quantity })),
     ...(input.customerId ? { customer: input.customerId } : {}),
     client_reference_id: input.orgId,
     metadata,
