@@ -79,24 +79,19 @@ test.describe("mobile landing journey", () => {
     await expect(nav.getByRole("link", { name: "Get Started", exact: true })).toBeVisible();
 
     await page.locator("#how-it-works").scrollIntoViewIfNeeded();
-    await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
+    await expect(page.locator('[id^="mobile-story-tab-"]')).toHaveCount(5);
 
-    const whatsapp = page.locator('[data-orbital-node="2"]');
-    await whatsapp.scrollIntoViewIfNeeded();
-    await whatsapp.click();
-    await expect(page.locator("#orbital-channel-2")).toContainText("Direct conversations");
-
-    const outreachTab = page.getByRole("tab", { name: "WhatsApp", exact: true });
+    const outreachTab = page.getByRole("tab", { name: /Outreach, step 4/ });
     await outreachTab.scrollIntoViewIfNeeded();
     await outreachTab.click();
     await expect(outreachTab).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator("#mobile-story-panel")).toContainText("Every message follows an approved sequence.");
 
     const faq = page.getByRole("button", { name: "How quickly can I get started?" });
     await faq.scrollIntoViewIfNeeded();
     await faq.click();
     await expect(page.getByText("Drop in your website to begin.", { exact: false })).toBeVisible();
 
-    await expect(page.getByRole("link", { name: "Review Sarah's campaign" })).toHaveAttribute("href", "/signup");
     await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
     await expect(page.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
     await expectNoPageOverflow(page);
@@ -109,7 +104,7 @@ test.describe("mobile pricing", () => {
   });
 
   for (const viewport of [{ width: 320, height: 700 }, { width: 390, height: 844 }, { width: 768, height: 1024 }]) {
-    test(`${viewport.width}px keeps pricing controls and comparisons in the viewport`, async ({ page }) => {
+    test(`${viewport.width}px keeps pricing controls and builder in the viewport`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await page.goto("/pricing", { waitUntil: "domcontentloaded" });
       await expect(page.getByRole("heading", { name: "Pricing designed for effortless outreach." })).toBeVisible();
@@ -123,9 +118,13 @@ test.describe("mobile pricing", () => {
       expect(billingBox?.x ?? -1).toBeGreaterThanOrEqual(0);
       expect((billingBox?.x ?? 0) + (billingBox?.width ?? 0)).toBeLessThanOrEqual(viewport.width);
 
-      await expect(page.getByTestId("pricing-comparison-mobile")).toBeVisible();
-      await expect(page.getByTestId("pricing-comparison-scroll")).toBeHidden();
-      await expect(page.getByTestId("pricing-comparison-mobile").getByRole("article")).toHaveCount(3);
+      const subscriptionBuilder = page.getByTestId("subscription-builder");
+      await expect(subscriptionBuilder).toBeVisible();
+      await subscriptionBuilder.getByRole("button", { name: "Add an additional channel" }).click();
+      await expect(subscriptionBuilder.getByRole("status")).toHaveText("1");
+      const videoSwitch = subscriptionBuilder.getByRole("switch", { name: "Add personalized video" });
+      await videoSwitch.click();
+      await expect(videoSwitch).toHaveAttribute("aria-checked", "true");
 
       const cycleSwitch = page.getByRole("switch", { name: "Switch between monthly and yearly billing" });
       await cycleSwitch.click();
@@ -182,7 +181,7 @@ test.describe("visual baselines", () => {
       ],
       [
         "approval.png",
-        page.locator("section").filter({ has: page.getByRole("heading", { name: /Nothing goes live/ }) }),
+        page.locator("section").filter({ has: page.getByRole("heading", { name: /The work stays visible/ }) }),
       ],
       ["pricing-and-faq.png", page.locator("#pricing")],
     ] as const;
