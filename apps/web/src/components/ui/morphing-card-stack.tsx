@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, LayoutGroup, m, useReducedMotion } from "framer-motion";
+import { LayoutGroup, m, useReducedMotion } from "framer-motion";
 
 import type { AppIcon } from "@/components/ui/icons";
 import { ArrowUpRight, CheckCircle2 } from "@/components/ui/icons";
@@ -50,7 +50,6 @@ const accents = {
 
 export function MorphingCardStack({ cards, activeIndex, onActiveChange, className }: MorphingCardStackProps) {
   const reducedMotion = Boolean(useReducedMotion());
-  const [flippedIndex, setFlippedIndex] = useState<number | null>(null);
   const previousActiveIndexRef = useRef(activeIndex);
   const [cardTransition, setCardTransition] = useState<{ from: number; to: number } | null>(null);
 
@@ -70,7 +69,6 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
   const selectStage = (index: number) => {
     if (index === activeIndex) return;
 
-    setFlippedIndex(null);
     onActiveChange(index);
   };
 
@@ -82,20 +80,12 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
             const palette = accents[accent];
             const position = (index - activeIndex + cards.length) % cards.length;
             const isActive = position === 0;
-            const isFlipped = isActive && flippedIndex === index;
             const isFlippingIn = cardTransition?.to === index;
             const isFlippingOut = cardTransition?.from === index;
             const restingRotateY = -12 - position * 6;
 
             const selectCard = () => {
-              if (!isActive) {
-                selectStage(index);
-                return;
-              }
-
-              if (window.matchMedia("(min-width: 1024px)").matches) {
-                setFlippedIndex((currentIndex) => currentIndex === index ? null : index);
-              }
+              selectStage(index);
             };
 
             return (
@@ -165,33 +155,7 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
                   <span aria-hidden className={cn("absolute inset-0 rounded-2xl bg-gradient-to-br to-transparent opacity-95", palette.glow)} />
                   <span aria-hidden className="absolute inset-x-6 top-0 h-px bg-white/35" />
                   <span aria-hidden className="absolute inset-y-4 right-0 w-px bg-white/10" />
-                  <AnimatePresence mode="wait" initial={false}>
-                  <m.span
-                    key={isFlipped ? "review" : "summary"}
-                    aria-hidden
-                    initial={reducedMotion ? false : { opacity: 0, rotateY: isFlipped ? -90 : 90 }}
-                    animate={{ opacity: 1, rotateY: 0 }}
-                    exit={reducedMotion ? { opacity: 1 } : { opacity: 0, rotateY: isFlipped ? 90 : -90 }}
-                    transition={reducedMotion ? { duration: 0 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative block [backface-visibility:hidden]"
-                  >
-                    {isFlipped ? (
-                      <span className="flex h-[13.25rem] flex-col justify-between">
-                        <span>
-                          <span className={cn("flex size-14 items-center justify-center rounded-2xl", palette.icon)}>
-                            <Icon className="size-7" />
-                          </span>
-                          <span className="mt-7 block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/50">Review point</span>
-                          <span className="mt-2 block text-2xl font-semibold leading-tight">{status}</span>
-                          <span className="mt-3 block max-w-[28ch] text-sm leading-6 text-white/65">This stage stays visible until you are ready to move forward.</span>
-                        </span>
-                        <span className="flex items-center justify-between border-t border-white/10 pt-3 text-xs font-medium text-white/70">
-                          <span>Press to flip back</span>
-                          <span className={cn("tabular-nums", palette.number)}>0{index + 1}</span>
-                        </span>
-                      </span>
-                    ) : (
-                      <>
+                  <span aria-hidden className="relative block [backface-visibility:hidden]">
                         <span className="flex items-start justify-between gap-5">
                           <span className="flex min-w-0 items-center gap-3.5">
                             <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-lg", palette.icon)}>
@@ -222,10 +186,7 @@ export function MorphingCardStack({ cards, activeIndex, onActiveChange, classNam
                           </span>
                           <span className={cn("font-semibold tabular-nums", palette.number)}>0{index + 1}</span>
                         </span>
-                      </>
-                    )}
-                  </m.span>
-                  </AnimatePresence>
+                  </span>
                 </span>
               </m.button>
             );
