@@ -11,10 +11,15 @@ import {
   createBillingPortalSession,
   createMockStripeWebhookEvent,
   MOCK_STRIPE_WEBHOOK_SIGNATURE,
+  STRIPE_API_VERSION,
   verifyStripeWebhookEvent,
 } from "../stripe.js";
 
 describe("Stripe mock mode", () => {
+  it("pins an API version that supports Checkout with ui_mode elements", () => {
+    expect(STRIPE_API_VERSION).toBe("2026-06-24.dahlia");
+  });
+
   it("creates a local billing portal URL without Stripe credentials", async () => {
     await expect(createBillingPortalSession("cus_mock")).resolves.toEqual({
       url: "http://localhost:3000/dashboard?billing=portal",

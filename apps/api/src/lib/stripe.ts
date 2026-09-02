@@ -42,9 +42,13 @@ export type StripeWebhookEvent = z.infer<typeof MockStripeEventSchema>;
 
 let stripeClient: Stripe | undefined;
 
+export const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2026-06-24.dahlia";
+
 function getStripeClient(): Stripe {
   if (!stripeClient) {
-    stripeClient = new Stripe(env.STRIPE_SECRET_KEY);
+    stripeClient = new Stripe(env.STRIPE_SECRET_KEY, {
+      apiVersion: STRIPE_API_VERSION,
+    });
   }
 
   return stripeClient;
