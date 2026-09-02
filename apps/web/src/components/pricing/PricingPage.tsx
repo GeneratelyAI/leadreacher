@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Video } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
@@ -10,68 +10,73 @@ import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
 import LandingFooter from "@/components/landing/remainder/LandingFooter";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import PricingComparison, { type ComparisonRow } from "@/components/pricing/PricingComparison";
+import { SpotlightCard } from "@/components/ui/spotlight-card";
 import { SUPPORT_EMAIL } from "@/lib/constants/brand";
 
-type CampaignGoal = "personalized_outreach" | "ai_video_ad" | "uploaded_video";
 type BillingCycle = "monthly" | "yearly";
-type PublicPlan = {
-  campaignType: CampaignGoal;
-  label: string;
-  unitAmount: number | null;
-  currency: string | null;
-  interval: string | null;
-};
 
-const PLANS: Record<CampaignGoal, {
-  name: string;
-  subtitle: string;
-  description: string;
-  highlights: string[];
-  features: string[];
-  featured?: boolean;
-  dark?: boolean;
-}> = {
-  uploaded_video: {
-    name: "Uploaded video",
-    subtitle: "Bring your creative",
-    description: "Use an approved video while LeadReacher handles targeting and delivery.",
-    highlights: ["Unlimited supported channels", "Unified reply inbox"],
-    features: ["Audience research", "Uploaded video delivery", "Multi-channel sequencing", "Campaign controls"],
-  },
-  personalized_outreach: {
-    name: "Personalized outreach",
-    subtitle: "Done for you",
-    description: "An individualized campaign built around each prospect and your offer.",
-    highlights: ["Prospect-level personalization", "Video personalization included"],
-    features: ["Everything in Uploaded video", "Personalized video choices", "Automated follow-ups", "Reply-aware sequence stopping"],
-    featured: true,
-  },
-  ai_video_ad: {
-    name: "AI video campaign",
-    subtitle: "Creative at scale",
-    description: "Generate AI campaign creative and deliver it through a reviewed workflow.",
-    highlights: ["AI-generated creative", "Approval before delivery"],
-    features: ["Audience and positioning strategy", "Channel routing", "Performance reporting", "Unified reply context"],
-    dark: true,
-  },
-};
+function billingPrice(monthlyPrice: number, billingCycle: BillingCycle, yearlyPrice: number): string {
+  const amount = billingCycle === "yearly"
+    ? yearlyPrice
+    : monthlyPrice;
 
-const ORDER: CampaignGoal[] = ["uploaded_video", "personalized_outreach", "ai_video_ad"];
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function AnimatedBillingPrice({
+  monthlyPrice,
+  yearlyPrice,
+  billingCycle,
+  prefix = "",
+}: {
+  monthlyPrice: number;
+  yearlyPrice: number;
+  billingCycle: BillingCycle;
+  prefix?: string;
+}) {
+  const monthly = `${prefix}${billingPrice(monthlyPrice, "monthly", yearlyPrice)}`;
+  const yearly = `${prefix}${billingPrice(monthlyPrice, "yearly", yearlyPrice)}`;
+
+  return (
+    <span className="relative inline-grid h-[1.08em] overflow-hidden align-baseline [mask-image:linear-gradient(to_bottom,transparent_0%,black_16%,black_84%,transparent_100%)]" aria-live="polite">
+      <span className="sr-only">{billingCycle === "yearly" ? yearly : monthly}</span>
+      <span
+        aria-hidden
+        className={cn(
+          "col-start-1 row-start-1 flex flex-col transition-transform duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform motion-reduce:transition-none",
+          billingCycle === "yearly" ? "-translate-y-1/2" : "translate-y-0",
+        )}
+      >
+        <span className="flex h-[1.08em] items-center whitespace-nowrap">{monthly}</span>
+        <span className="flex h-[1.08em] items-center whitespace-nowrap">{yearly}</span>
+      </span>
+    </span>
+  );
+}
+
 const comparisonRows: ComparisonRow[] = [
-  { label: "Audience research", values: [true, true, true] },
-  { label: "Multi-channel outreach", values: [true, true, true] },
-  { label: "Automated follow-ups", values: [true, true, true] },
-  { label: "Unified reply inbox", values: [true, true, true] },
-  { label: "Prospect-level personalization", values: [false, true, true] },
-  { label: "Personalized video choices", values: [false, true, false] },
-  { label: "AI-generated video creative", values: [false, false, true] },
+  { label: "How it is billed", values: ["Required base", "Optional add-on", "Optional add-on"] },
+  { label: "What it adds", values: ["Core platform", "One more channel", "Personalized video"] },
+  { label: "Platform and campaign controls", values: ["Included", "Requires Pro", "Requires Pro"] },
+  { label: "Outreach channels", values: ["First channel included", "Adds one channel", "No channel added"] },
+  { label: "Audience research", values: ["Included", "Uses Pro workflow", "Uses Pro workflow"] },
+  { label: "Automated follow-ups", values: ["Included", "Available through Pro", "Available through Pro"] },
+  { label: "Unified reply inbox", values: ["Included", "Replies stay unified", "Replies stay unified"] },
+  { label: "Prospect-level personalized video", values: ["Not included", "Not included", "Included"] },
+  { label: "Review before delivery", values: ["Included", "Included", "Included"] },
 ];
 
 const pricingFaqs = [
-  ["Why is the amount confirmed during setup?", "Your campaign and video choices determine the Stripe line items. LeadReacher shows the complete total before checkout."],
-  ["Is this a per-seat price?", "No. Pricing follows the campaign configuration, not the number of teammates or connected channels."],
+  ["What does LeadReacher Pro include?", "LeadReacher Pro is $199.99 per month or $2,000 per year and includes the platform, your first outreach channel, campaign controls, and the unified reply inbox."],
+  ["How are additional channels priced?", "Your first outreach channel is included. Each additional channel costs $50 per month or $500 per year."],
+  ["How much does personalized video cost?", "Personalized video is an optional $30 per month or $300 per year. It is only added when you select personalized video."],
+  ["Is this a per-seat or per-campaign price?", "No. The base price is a monthly platform subscription. Your total changes only when you add channels or personalized video."],
   ["Can I review the campaign first?", "Yes. Audience, messages, routing, and video choices remain reviewable before anything launches."],
-  ["Can I pause delivery?", "Yes. Active delivery can be paused from the campaign controls."],
 ] as const;
 
 const supportedChannels: readonly ({ label: string; logo: ChannelLogoName } | { label: string; icon: typeof Video })[] = [
@@ -83,29 +88,9 @@ const supportedChannels: readonly ({ label: string; logo: ChannelLogoName } | { 
   { label: "Video", icon: Video },
 ];
 
-function formatPrice(plan?: PublicPlan) {
-  if (!plan || plan.unitAmount === null || !plan.currency) return null;
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: plan.currency.toUpperCase(),
-    maximumFractionDigits: plan.unitAmount % 100 === 0 ? 0 : 2,
-  }).format(plan.unitAmount / 100);
-}
-
 export default function PricingPage() {
-  const [prices, setPrices] = useState<Partial<Record<CampaignGoal, PublicPlan>>>({});
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
-
-  useEffect(() => {
-    const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-    if (!base) return;
-    const controller = new AbortController();
-    fetch(`${base}/public/pricing`, { signal: controller.signal })
-      .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: { plans: PublicPlan[] }) => setPrices(Object.fromEntries(data.plans.map((plan) => [plan.campaignType, plan]))))
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, []);
+  const billingPeriod = billingCycle === "yearly" ? "per year" : "per month";
 
   return (
     <>
@@ -124,7 +109,7 @@ export default function PricingPage() {
             </span>
           </h1>
           <p className="mx-auto mt-4 max-w-[520px] text-balance text-[0.95rem] leading-6 text-[#596078] sm:mt-6 sm:text-xl sm:leading-8">
-            Pay for the campaign you need.<br />Connect every supported channel.
+            Start with LeadReacher Pro, then add only the channels and video personalization you need.
           </p>
           <div role="group" aria-label="Billing cycle" className="mx-auto mt-9 inline-flex max-w-full flex-nowrap items-center justify-center gap-1.5 rounded-full bg-white px-2 py-1.5 text-xs font-semibold text-[#111] shadow-[0_14px_35px_rgba(66,42,148,0.10)] sm:mt-14 sm:gap-3 sm:px-3.5 sm:py-2.5 sm:text-sm">
             <button type="button" aria-pressed={billingCycle === "monthly"} onClick={() => setBillingCycle("monthly")} className={cn("px-0.5 transition-colors duration-500 hover:text-[#4e28df] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7c58ed] focus-visible:ring-offset-4", billingCycle === "monthly" ? "text-[#111]" : "text-[#656070]")}>Monthly</button>
@@ -155,60 +140,56 @@ export default function PricingPage() {
         </div>
 
         <div className="mx-auto mt-10 grid max-w-[1100px] gap-4 sm:mt-12 sm:gap-5 min-[1000px]:mt-16 min-[1000px]:grid-cols-3">
-          {ORDER.map((type) => {
-            const plan = PLANS[type];
-            const price = formatPrice(prices[type]);
-            return (
-              <article key={type} className={cn(
-                "group relative flex min-h-0 flex-col overflow-hidden rounded-[20px] border p-5 shadow-[0_18px_45px_rgba(66,42,148,0.08)] transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(66,42,148,0.16)] sm:min-h-[640px] sm:rounded-[22px] sm:p-7",
-                plan.dark
-                  ? "border-[#2e2860] bg-[linear-gradient(150deg,#111322_0%,#18133e_52%,#201257_100%)] text-white"
-                  : plan.featured
-                    ? "border-brand-purple/25 bg-[linear-gradient(150deg,rgba(255,255,255,.88),rgba(246,241,255,.88))] text-[#111322] backdrop-blur-xl"
-                    : "border-white/80 bg-white/72 text-[#111322] backdrop-blur-xl",
-              )}>
-                {!plan.dark ? <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-purple/35 to-transparent" /> : null}
-                {plan.featured && (
-                  <span className="absolute right-0 top-0 -translate-y-px rounded-bl-xl rounded-tr-[22px] bg-[#24106e] px-4 py-2 text-sm font-medium text-[#e7f56f] shadow-[0_8px_24px_rgba(36,16,110,.2)]">
-                    <span className="mr-2">◉</span>Most popular
-                  </span>
-                )}
-                <h2 className={cn("text-[1.45rem] font-medium leading-tight sm:text-[1.75rem]", plan.featured && "pr-28")}>{plan.name}</h2>
-                <p className={cn("mt-2 text-sm", plan.dark ? "text-white/60" : "text-[#757575]")}>{plan.subtitle}</p>
-                <div className="mt-7 min-h-[68px] sm:mt-11 sm:min-h-[76px]">
-                  <p className="text-[2.15rem] font-medium leading-none sm:text-[2.5rem]">{price ?? "Custom"}</p>
-                  <p className={cn("mt-3 text-sm", plan.dark ? "text-white/60" : "text-[#757575]")}>
-                    {price ? "Per campaign" : "Confirmed before checkout"}
-                  </p>
-                </div>
-                <ul className="mt-6 space-y-2.5">
-                  {plan.highlights.map((highlight) => (
-                    <li key={highlight} className={cn("flex items-center gap-3 text-sm", plan.dark ? "text-white/70" : "text-[#596078]")}>
-                      <span className={cn("flex size-5 items-center justify-center rounded-full text-[9px]", plan.dark ? "bg-white/10 text-[#8b7fd4]" : "bg-brand-purple/8 text-brand-purple")}>●</span>{highlight}
-                    </li>
-                  ))}
-                </ul>
-                <div className={cn("mt-8 border-t pt-6", plan.dark ? "border-white/12" : "border-[#ededed]")}>
-                  <p className="text-sm font-medium">{plan.description}</p>
-                  <ul className="mt-5 space-y-3">
-                    {plan.features.map((feature) => (
-                    <li key={feature} className={cn("flex gap-3 text-sm", plan.dark ? "text-white/65" : "text-[#596078]")}>
-                        <Check className="mt-0.5 size-4 shrink-0" />{feature}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Link href={`/signup?campaignType=${type}`} className={cn(
-                  "mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border px-5 text-sm font-medium transition-[background-color,border-color,color,transform] hover:-translate-y-px sm:mt-auto",
-                  plan.dark ? "border-white/40 text-white hover:border-white hover:bg-white hover:text-[#111]" : "border-brand-purple/20 text-brand-purple hover:border-brand-purple hover:bg-brand-purple hover:text-white",
-                )}>
-                  Build campaign <ArrowRight className="size-4" />
-                </Link>
-                <p className={cn("mt-3 text-center text-xs", plan.dark ? "text-white/45" : "text-[#8a8a8a]")}>No card required to start</p>
-              </article>
-            );
-          })}
+          <SpotlightCard spotlightColor="rgba(151, 112, 255, 0.42)" spotlightClassName="z-10 mix-blend-screen motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-[#2e2860] bg-[linear-gradient(150deg,#111322_0%,#18133e_52%,#201257_100%)] px-6 pb-6 pt-14 text-white shadow-[0_24px_60px_rgba(66,42,148,0.18)] sm:px-8 sm:pb-8 sm:pt-14">
+            <span className="absolute right-0 top-0 rounded-bl-xl rounded-tr-[22px] bg-brand-purple px-4 py-2 text-sm font-semibold text-white">Base subscription</span>
+            <h2 className="whitespace-nowrap text-[1.55rem] font-medium sm:text-[1.8rem]">LeadReacher Pro</h2>
+            <p className="mt-2 text-sm text-white/60">Everything you need to launch outreach</p>
+            <div className="mt-9"><p className="text-[2.5rem] font-medium leading-none"><AnimatedBillingPrice monthlyPrice={199.99} yearlyPrice={2000} billingCycle={billingCycle} /></p><p className="mt-3 text-sm text-white/60 transition-opacity duration-500">{billingPeriod}</p></div>
+            <p className="mt-8 border-t border-white/12 pt-6 text-sm font-medium">Includes the platform and your first outreach channel.</p>
+            <ul className="mt-5 space-y-3 text-sm text-white/70">
+              {["Audience research", "Campaign controls", "Automated follow-ups", "Unified reply inbox"].map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}
+            </ul>
+            <Link href="/signup" className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/40 px-5 text-sm font-medium transition-colors hover:bg-white hover:text-[#111]">Start with Pro <ArrowRight className="size-4" /></Link>
+          </SpotlightCard>
+
+          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.22)" spotlightClassName="z-10 mix-blend-multiply motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-white/80 bg-white/72 px-6 pb-6 pt-14 text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl sm:px-8 sm:pb-8 sm:pt-14">
+            <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-purple/35 to-transparent" />
+            <h2 className="text-[1.55rem] font-medium sm:text-[1.8rem]">Additional channels</h2>
+            <p className="mt-2 text-sm text-[#757575]">Reach people where they already respond</p>
+            <div className="mt-9"><p className="text-[2.5rem] font-medium leading-none"><AnimatedBillingPrice monthlyPrice={50} yearlyPrice={500} billingCycle={billingCycle} prefix="+" /></p><p className="mt-3 text-sm text-[#757575]">per additional channel, {billingPeriod}</p></div>
+            <p className="mt-8 border-t border-[#ededed] pt-6 text-sm font-medium">Your first channel is included with Pro. Add more during setup.</p>
+            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm text-[#596078]">
+              {([
+                { label: "LinkedIn", logo: "linkedin" },
+                { label: "Gmail", logo: "gmail" },
+                { label: "Outlook", logo: "outlook" },
+                { label: "WhatsApp", logo: "whatsapp-mark" },
+                { label: "Instagram", logo: "instagram" },
+                { label: "Facebook", logo: "facebook" },
+              ] satisfies { label: string; logo: ChannelLogoName }[]).map(({ label, logo }) => (
+                <li key={label} className="flex items-center gap-2.5">
+                  <ChannelLogo name={logo} className="size-5 shrink-0" />
+                  {label}
+                </li>
+              ))}
+            </ul>
+          </SpotlightCard>
+
+          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.24)" spotlightClassName="z-10 mix-blend-multiply motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-brand-purple/25 bg-[linear-gradient(150deg,rgba(255,255,255,.88),rgba(246,241,255,.88))] px-6 pb-6 pt-14 text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl sm:px-8 sm:pb-8 sm:pt-14">
+            <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-purple/35 to-transparent" />
+            <h2 className="text-[1.55rem] font-medium sm:text-[1.8rem]">Personalized video</h2>
+            <p className="mt-2 text-sm text-[#757575]">Add prospect-level video personalization</p>
+            <div className="mt-9"><p className="text-[2.5rem] font-medium leading-none"><AnimatedBillingPrice monthlyPrice={30} yearlyPrice={300} billingCycle={billingCycle} prefix="+" /></p><p className="mt-3 text-sm text-[#757575]">{billingPeriod}</p></div>
+            <p className="mt-8 border-t border-[#ededed] pt-6 text-sm font-medium">Optional. Added only when you choose personalized video.</p>
+            <ul className="mt-5 space-y-3 text-sm text-[#596078]">
+              {["Personalized for each prospect", "Message and video work together", "Review before delivery", "Included in your monthly total"].map((feature) => <li key={feature} className="flex gap-3"><Check className="mt-0.5 size-4 shrink-0" />{feature}</li>)}
+            </ul>
+          </SpotlightCard>
         </div>
+
+        <p className="mx-auto mt-7 max-w-[760px] text-center text-sm leading-6 text-[#596078]">
+          Example: Pro + two additional channels + personalized video = <strong className="text-[#111322]"><AnimatedBillingPrice monthlyPrice={329.99} yearlyPrice={3300} billingCycle={billingCycle} /> {billingPeriod}</strong>. Your exact total is shown before checkout.
+        </p>
 
         <div className="mx-auto mt-16 max-w-[1100px] text-center sm:mt-28 sm:px-8">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6b5fbf]">Supported across your outreach workflow</p>
@@ -229,21 +210,33 @@ export default function PricingPage() {
 
       <section className="relative border-t border-white/45 bg-transparent px-4 py-16 sm:px-6 sm:py-28">
         <PricingComparison
-          eyebrow="Choose the workflow that fits"
-          heading="Compare campaigns"
-          ctaLabel="Choose plan"
-          plans={ORDER.map((type) => {
-            const plan = PLANS[type];
-            const price = formatPrice(prices[type]);
-            return {
-              id: type,
-              name: plan.name,
-              price: price ?? "Custom",
-              priceSuffix: price ? "/campaign" : "",
-              featured: plan.featured,
-              href: `/signup?campaignType=${type}`,
-            };
-          })}
+          eyebrow="Build your subscription"
+          heading="See what each price includes"
+          ctaLabel="Start setup"
+          plans={[
+            {
+              id: "pro",
+              name: "LeadReacher Pro",
+              price: billingPrice(199.99, billingCycle, 2000),
+              priceSuffix: billingPeriod,
+              featured: true,
+              href: "/signup",
+            },
+            {
+              id: "channel",
+              name: "Additional channel",
+              price: `+${billingPrice(50, billingCycle, 500)}`,
+              priceSuffix: billingPeriod,
+              href: "/signup",
+            },
+            {
+              id: "video",
+              name: "Personalized video",
+              price: `+${billingPrice(30, billingCycle, 300)}`,
+              priceSuffix: billingPeriod,
+              href: "/signup",
+            },
+          ]}
           rows={comparisonRows}
         />
       </section>
