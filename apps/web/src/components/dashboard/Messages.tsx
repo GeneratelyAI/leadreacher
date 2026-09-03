@@ -51,9 +51,11 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Loading } from "@/components/ui/Loading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { ApiError, apiFetch } from "@/lib/api";
+import { feedback } from "@/components/ui/feedback";
+import { ApiError, apiBlob, apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
@@ -100,7 +102,8 @@ type ConversationDetail = {
     direction: string;
     origin: string;
     status: string;
-    content: { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string }> };
+    isProviderHistory?: boolean;
+    content: { message: string; attachments: Array<{ type: string; videoUrl?: string; thumbnailUrl?: string; filename?: string; providerMessageId?: string; providerAttachmentId?: string }> };
     occurredAt: string;
   }>;
 };
@@ -112,6 +115,45 @@ type ConversationListResponse = {
   limit: number;
   offset: number;
 };
+
+function ProviderVideoAttachment({
+  conversationId,
+  messageId,
+  attachmentId,
+  filename,
+  className,
+}: {
+  conversationId: string;
+  messageId: string;
+  attachmentId: string;
+  filename?: string;
+  className?: string;
+}) {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let objectUrl: string | null = null;
+    void apiBlob(
+      `/dashboard/conversations/${encodeURIComponent(conversationId)}/provider-messages/${encodeURIComponent(messageId)}/attachments/${encodeURIComponent(attachmentId)}`,
+      controller.signal,
+    ).then((blob) => {
+      objectUrl = URL.createObjectURL(blob);
+      setVideoUrl(objectUrl);
+    }).catch((error: unknown) => {
+      if (!(error instanceof DOMException && error.name === "AbortError")) setFailed(true);
+    });
+    return () => {
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [attachmentId, conversationId, messageId]);
+
+  if (failed) return <p className={cn("mt-2 text-xs text-muted-foreground", className)}>Video unavailable</p>;
+  if (!videoUrl) return <div className={cn("mt-2 aspect-video w-full max-w-sm animate-pulse rounded-lg bg-muted", className)} aria-label="Loading video" />;
+  return <VideoAttachment src={videoUrl} filename={filename} className={className} />;
+}
 
 type CampaignOption = { id: string; name: string; status: string };
 
@@ -347,7 +389,11 @@ function buildFeedItems(
     const day = dayKey(message.occurredAt);
     if (day !== lastDay) {
       flushGroup();
-      items.push({ kind: "marker", id: `day-${day}`, label: formatDayLabel(message.occurredAt) });
+      items.push({
+        kind: "marker",
+        id: `day-${day}-${message.id}`,
+        label: formatDayLabel(message.occurredAt),
+      });
       lastDay = day;
     }
 
@@ -405,8 +451,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
   const [isDrafting, setIsDrafting] = useState(false);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const liveState: "connecting" | "live" | "polling" = "live";
-  const [failedMessage, setFailedMessage] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
   const [limitError, setLimitError] = useState<string | null>(null);
   const [amplified, setAmplified] = useState(false);
   const conversationListRef = useRef<HTMLDivElement | null>(null);
@@ -465,7 +509,16 @@ export function Messages({ conversationId }: { conversationId?: string }) {
   const counts = conversationsQuery.data?.pages[0]?.counts ?? { all: 0, unread: 0, needsReply: 0 };
   const campaigns = campaignsQuery.data?.campaigns ?? [];
   const isLoading = conversationsQuery.isLoading && !conversationsQuery.data;
-  const error = actionError ?? (conversationsQuery.error instanceof Error ? conversationsQuery.error.message : null);
+  const conversationError = conversationsQuery.error instanceof Error ? conversationsQuery.error.message : null;
+
+  useEffect(() => {
+    if (!conversationError) return;
+    feedback.error("Conversations could not be loaded", {
+      id: "messages:conversation-list-error",
+      description: conversationError,
+      action: { label: "Try again", onClick: () => void conversationsQuery.refetch() },
+    });
+  }, [conversationError, conversationsQuery]);
 
   useEffect(() => {
     if (!amplified) return;
@@ -572,7 +625,10 @@ export function Messages({ conversationId }: { conversationId?: string }) {
       }
     } catch (requestError) {
       if (!background) {
-        setActionError(requestError instanceof Error ? requestError.message : "Unable to load conversation.");
+        feedback.error("Conversation could not be opened", {
+          description: requestError instanceof Error ? requestError.message : "Please try again.",
+          action: { label: "Try again", onClick: () => void loadDetail(id) },
+        });
       }
     } finally {
       if (!background) setIsDetailLoading(false);
@@ -626,7 +682,10 @@ export function Messages({ conversationId }: { conversationId?: string }) {
       setMessage(result.drafts[0] ?? "");
       setDraftSeen(true);
     } catch (requestError) {
-      setActionError(requestError instanceof Error ? requestError.message : "Unable to generate a draft.");
+      feedback.error("Draft could not be generated", {
+        description: requestError instanceof Error ? requestError.message : "Please try again.",
+        action: { label: "Try again", onClick: () => void generateDraft() },
+      });
     } finally {
       setIsDrafting(false);
     }
@@ -663,7 +722,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
         ...current,
         messages: current.messages.map((item) => item.id === temporaryId ? { ...item, status: "sent" } : item),
       } : current);
-      setFailedMessage(null);
       setIdempotencyKey(crypto.randomUUID());
       setComposerTab("reply");
       void conversationsQuery.refetch();
@@ -674,7 +732,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
         ...current,
         messages: current.messages.map((item) => item.id === temporaryId ? { ...item, status: "failed" } : item),
       } : current);
-      setFailedMessage(sentMessage);
       if (requestError instanceof ApiError && requestError.code === "daily_message_limit") {
         const resetAt = requestError.details?.resetAt;
         const resetMessage = typeof resetAt === "string"
@@ -690,9 +747,27 @@ export function Messages({ conversationId }: { conversationId?: string }) {
           requestError.code ?? "",
         )
       ) {
-        setActionError(requestError.message);
+        feedback.error("Message delivery is still being confirmed", {
+          description: requestError.message,
+          action: {
+            label: "Restore message",
+            onClick: () => {
+              setMessage(sentMessage);
+              setIdempotencyKey(crypto.randomUUID());
+            },
+          },
+        });
       } else {
-        setActionError(requestError instanceof Error ? requestError.message : "Unable to send reply.");
+        feedback.error("Message could not be sent", {
+          description: requestError instanceof Error ? requestError.message : "Please try again.",
+          action: {
+            label: "Retry",
+            onClick: () => {
+              setMessage(sentMessage);
+              setIdempotencyKey(crypto.randomUUID());
+            },
+          },
+        });
       }
     } finally {
       setIsSending(false);
@@ -703,7 +778,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
     () =>
       detail
         ? buildFeedItems(
-            detail.messages,
+            detail.messages.filter((message) => message.status !== "skipped"),
             detail.prospect,
             detail.sender,
           )
@@ -765,12 +840,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
           : "h-full min-h-0 gap-0",
       )}
     >
-      {error ? (
-        <div role="alert" className="mx-4 mb-3 rounded-lg border border-onboarding-error-200 bg-onboarding-error-50 px-4 py-3 text-sm text-onboarding-error-700 lg:mx-0 dark:border-onboarding-error-500/40 dark:bg-onboarding-error-500/15 dark:text-onboarding-error-100">
-          {error}
-        </div>
-      ) : null}
-
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div
           className={cn(
@@ -821,7 +890,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
               </div>
 
               <label className="flex h-11 items-center gap-2 rounded-xl border border-input px-3 lg:h-9 lg:rounded-lg">
-                <Search className="size-4 shrink-0 text-muted-foreground" />
+                <Search className="size-4 shrink-0 text-muted-foreground" weight="regular" aria-hidden />
                 <span className="sr-only">Search conversations</span>
                 <input
                   value={query}
@@ -974,8 +1043,9 @@ export function Messages({ conversationId }: { conversationId?: string }) {
             )}
           >
             {isDetailLoading && !detail ? (
-              <div className="relative flex flex-1 items-center justify-center text-sm text-muted-foreground">
-                <Loader2 className="mr-2 size-4 animate-spin" /> Loading conversation
+              <div className="relative flex flex-1 flex-col items-center justify-center gap-1 text-sm text-muted-foreground">
+                <Loading tone="brand" label="Loading conversation" className="-mb-4" />
+                <span>Loading conversation</span>
               </div>
             ) : detail ? (
               <>
@@ -1088,18 +1158,11 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                                       <Message align={item.align}>
                                         <MessageAvatar>
                                           {entry.showAvatar ? (
-                                            <span className="relative inline-flex">
-                                              <PersonAvatar
-                                                name={item.senderName}
-                                                url={item.senderUrl}
-                                                size="sm"
-                                              />
-                                              <DashboardChannelLogo
-                                                platform={item.platform}
-                                                accountName={item.senderName}
-                                                className="absolute -right-1 -bottom-1 size-3.5 rounded-sm ring-2 ring-background"
-                                              />
-                                            </span>
+                                            <PersonAvatar
+                                              name={item.senderName}
+                                              url={item.senderUrl}
+                                              size="sm"
+                                            />
                                           ) : (
                                             <span className="size-6" aria-hidden />
                                           )}
@@ -1124,16 +1187,29 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                                           {entry.message.content.attachments
                                             .filter(
                                               (attachment) =>
-                                                attachment.type === "video" && attachment.videoUrl,
+                                                attachment.type === "video" && (
+                                                  attachment.videoUrl ||
+                                                  (attachment.providerMessageId && attachment.providerAttachmentId)
+                                                ),
                                             )
-                                            .map((attachment) => (
-                                              <VideoAttachment
-                                                key={attachment.videoUrl}
-                                                src={attachment.videoUrl!}
-                                                poster={attachment.thumbnailUrl}
-                                                filename={attachment.filename}
-                                              />
-                                            ))}
+                                            .map((attachment) => attachment.videoUrl ? (
+                                                <VideoAttachment
+                                                  key={attachment.videoUrl}
+                                                  src={attachment.videoUrl}
+                                                  poster={attachment.thumbnailUrl}
+                                                  filename={attachment.filename}
+                                                  className={cn("mt-0", !inbound && "self-end")}
+                                                />
+                                              ) : (
+                                                <ProviderVideoAttachment
+                                                  key={`${attachment.providerMessageId}:${attachment.providerAttachmentId}`}
+                                                  conversationId={selectedId!}
+                                                  messageId={attachment.providerMessageId!}
+                                                  attachmentId={attachment.providerAttachmentId!}
+                                                  filename={attachment.filename}
+                                                  className={cn("mt-0", !inbound && "self-end")}
+                                                />
+                                              ))}
                                           <MessageFooter>
                                             {entry.message.direction === "inbound" ? "Received" : titleCase(entry.message.status)} via {titleCase(entry.message.channel)} · {relativeTimeLong(entry.message.occurredAt)}
                                             {entry.message.origin === "operator" ? " · Operator" : ""}
@@ -1159,15 +1235,6 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                       {limitError || `Daily LinkedIn message limit reached. Sending resets at ${resetTime}.`}
                     </p>
                   ) : null}
-                  {failedMessage ? (
-                    <div className="mb-2 flex items-center justify-between gap-3 rounded-md bg-onboarding-error-50 px-3 py-2 text-xs text-onboarding-error-700 dark:bg-onboarding-error-950 dark:text-onboarding-error-200">
-                      <span>Message failed to send.</span>
-                      <Button variant="ghost" size="sm" onClick={() => { setMessage(failedMessage); setFailedMessage(null); setIdempotencyKey(crypto.randomUUID()); }}>
-                        Retry
-                      </Button>
-                    </div>
-                  ) : null}
-
                   {!detail.canReply && !detail.canStartConversation ? (
                     <p className="text-sm text-muted-foreground">
                       A real inbound reply and an active campaign sender are required before an operator can reply.

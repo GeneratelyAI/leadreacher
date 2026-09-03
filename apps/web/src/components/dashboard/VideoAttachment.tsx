@@ -34,7 +34,7 @@ export function VideoAttachment({
   }
 
   return (
-    <div className={cn("mt-2 w-full max-w-sm overflow-hidden rounded-lg border border-border bg-background shadow-sm", className)}>
+    <div className={cn("group relative mt-2 w-full max-w-sm overflow-hidden rounded-lg border border-border bg-background shadow-sm", className)}>
       <div className="relative aspect-video bg-muted">
         <video
           className="size-full object-cover"
@@ -63,12 +63,15 @@ export function VideoAttachment({
           </button>
         ) : null}
       </div>
-      <div className="flex items-center justify-between gap-3 px-3 py-2">
-        <span className="truncate text-xs font-medium">{filename}</span>
-        <a href={src} target="_blank" rel="noreferrer" className="shrink-0 text-muted-foreground hover:text-foreground" aria-label={`Open ${filename} in a new tab`}>
+      <a
+        href={src}
+        target="_blank"
+        rel="noreferrer"
+        className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full bg-black/45 text-white opacity-0 shadow-sm transition-opacity hover:bg-black/60 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white group-hover:opacity-100"
+        aria-label={`Open ${filename} in a new tab`}
+      >
           <ExternalLink className="size-3.5" />
-        </a>
-      </div>
+      </a>
     </div>
   );
 }

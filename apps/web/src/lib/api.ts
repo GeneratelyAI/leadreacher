@@ -151,6 +151,20 @@ export async function apiStream(path: string, signal: AbortSignal): Promise<Resp
   return response;
 }
 
+export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const token = await getAccessToken();
+  if (!token) throw new ApiError("Not authenticated", 401, "UNAUTHORIZED");
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+    throw apiErrorFromResponse(response, payload);
+  }
+  return response.blob();
+}
+
 export async function bootstrapOrganization(
   name: string,
   anonScrapeId?: string,
