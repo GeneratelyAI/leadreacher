@@ -17,11 +17,16 @@ type Enrollment = {
 
 type AuthFactor = { id: string; status: string };
 
+type MfaSecurityPanelProps = {
+  onStatusChange?: (enabled: boolean) => void;
+  recommendation?: string;
+};
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Could not update multi-factor authentication.";
 }
 
-export function MfaSecurityPanel({ onStatusChange }: { onStatusChange?: (enabled: boolean) => void }) {
+export function MfaSecurityPanel({ onStatusChange, recommendation }: MfaSecurityPanelProps) {
   const [factorId, setFactorId] = useState<string | null>(null);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [code, setCode] = useState("");
@@ -141,7 +146,7 @@ export function MfaSecurityPanel({ onStatusChange }: { onStatusChange?: (enabled
             <ShieldCheck className="size-5 text-emerald-700 dark:text-emerald-300" aria-hidden />
             <div>
               <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">Authenticator app enabled</p>
-              <p className="text-xs text-emerald-800/80 dark:text-emerald-200/75">Billing, data exports, and organization recovery require a second factor.</p>
+              <p className="text-xs text-emerald-800/80 dark:text-emerald-200/75">New channel connections, billing management, data exports, and organization recovery require a second factor.</p>
             </div>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void disableMfa()} disabled={working}>
@@ -159,7 +164,7 @@ export function MfaSecurityPanel({ onStatusChange }: { onStatusChange?: (enabled
     return (
       <form onSubmit={verifyEnrollment} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
-          <Image className="size-40 rounded-lg border border-border bg-white p-2" src={enrollment.qrCode} alt="QR code for your authenticator app" width={160} height={160} unoptimized />
+          <Image className="size-40 rounded-lg border border-border bg-white p-2" src={enrollment.qrCode.trimEnd()} alt="QR code for your authenticator app" width={160} height={160} unoptimized />
           <div className="space-y-3">
             <div>
               <p className="text-sm font-medium">Scan this code in your authenticator app</p>
@@ -186,6 +191,12 @@ export function MfaSecurityPanel({ onStatusChange }: { onStatusChange?: (enabled
 
   return (
     <div className="space-y-4">
+      {recommendation ? (
+        <div className="rounded-lg border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 dark:border-onboarding-purple-400/25 dark:bg-onboarding-purple-500/10">
+          <p className="text-sm font-medium text-onboarding-purple-900 dark:text-onboarding-purple-100">Recommended for your active workspace</p>
+          <p className="mt-1 text-xs text-onboarding-purple-800/80 dark:text-onboarding-purple-100/75">{recommendation}</p>
+        </div>
+      ) : null}
       <div>
         <p className="text-sm text-muted-foreground">Use an authenticator app to add a second verification step before sensitive workspace actions.</p>
         <p className="mt-1 text-xs text-muted-foreground">Keep access to your authenticator app. Recovery requires support verification until recovery codes are available.</p>
