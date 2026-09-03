@@ -57,6 +57,9 @@ type WorkspaceSettings = {
     hasBillingPortal: boolean;
   } | null;
   members: TeamMember[];
+  workspaceActivity?: {
+    hasStartedCampaigns: boolean;
+  };
 };
 
 type SocialAccount = {
@@ -225,6 +228,8 @@ export function Settings() {
   const settings = settingsQuery.data ?? null;
   const preferencesOrganization = settingsQuery.data?.organization;
   const accounts = useMemo(() => accountsQuery.data?.accounts ?? [], [accountsQuery.data?.accounts]);
+  const shouldRecommendMfa = accounts.some((account) => account.status !== "disconnected")
+    || Boolean(settings?.workspaceActivity?.hasStartedCampaigns);
   const isLoading = settingsQuery.isLoading && !settingsQuery.data;
   const error = actionError ?? (settingsQuery.error instanceof Error ? settingsQuery.error.message : null);
 
@@ -422,7 +427,12 @@ export function Settings() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSectionCard icon={<ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden />} title="Security">
-              <MfaSecurityPanel onStatusChange={setCanExportData} />
+              <MfaSecurityPanel
+                onStatusChange={setCanExportData}
+                recommendation={shouldRecommendMfa
+                  ? "This workspace has connected channels or campaign activity. Add an authenticator app to protect channel connections, billing management, and data exports."
+                  : undefined}
+              />
             </SettingsSectionCard>
 
             <SettingsSectionCard icon={<SlidersHorizontal className="size-5" strokeWidth={1.75} aria-hidden />} title="Preferences">

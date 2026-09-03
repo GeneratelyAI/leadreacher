@@ -967,6 +967,9 @@ describe("dashboard overview", () => {
           role: "owner",
         }),
       ],
+      workspaceActivity: {
+        hasStartedCampaigns: true,
+      },
     });
     expect(userFindMany).toHaveBeenCalledWith(
       expect.objectContaining({

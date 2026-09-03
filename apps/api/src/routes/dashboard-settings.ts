@@ -25,7 +25,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
     schema: authenticatedRoute("Dashboard", "Get organization settings"),
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const [organization, members] = await Promise.all([
+    const [organization, members, campaignCount] = await Promise.all([
       prisma.organization.findUnique({
         where: { id: orgId },
         select: {
@@ -42,6 +42,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
         orderBy: [{ role: "asc" }, { createdAt: "asc" }],
         select: memberSelect,
       }),
+      prisma.campaign.count({ where: { orgId } }),
     ]);
 
     return reply.send({
@@ -56,6 +57,9 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
           }
         : null,
       members,
+      workspaceActivity: {
+        hasStartedCampaigns: campaignCount > 0,
+      },
     });
   });
 
@@ -67,7 +71,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
     const { organizationName } = request.body;
-    const [organization, members] = await Promise.all([
+    const [organization, members, campaignCount] = await Promise.all([
       prisma.organization.update({
         where: { id: orgId },
         data: { name: organizationName },
@@ -78,6 +82,7 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
         orderBy: [{ role: "asc" }, { createdAt: "asc" }],
         select: memberSelect,
       }),
+      prisma.campaign.count({ where: { orgId } }),
     ]);
     return reply.send({
       organization: {
@@ -89,6 +94,9 @@ export async function registerDashboardSettingsRoutes(app: FastifyInstance): Pro
         hasBillingPortal: Boolean(organization.stripeCustomerId),
       },
       members,
+      workspaceActivity: {
+        hasStartedCampaigns: campaignCount > 0,
+      },
     });
   });
 }
