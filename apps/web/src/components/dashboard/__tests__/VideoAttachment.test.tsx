@@ -19,4 +19,12 @@ describe("VideoAttachment", () => {
     expect(markup).toContain("Play Sarah&#x27;s personalized video");
     expect(markup).toContain('target="_blank"');
   });
+
+  it("always renders a branded thumbnail when a video has no poster", () => {
+    const markup = renderToStaticMarkup(
+      <VideoAttachment src="https://media.example/personalized-video.mp4" />,
+    );
+
+    expect(markup).toContain('src="/landing/product-story/personalized-video-outreach-poster.webp"');
+  });
 });

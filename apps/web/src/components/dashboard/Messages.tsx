@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -19,7 +20,7 @@ import {
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
-import { VideoAttachment } from "@/components/dashboard/VideoAttachment";
+import { DEFAULT_VIDEO_THUMBNAIL, VideoAttachment } from "@/components/dashboard/VideoAttachment";
 import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
@@ -120,12 +121,14 @@ function ProviderVideoAttachment({
   conversationId,
   messageId,
   attachmentId,
+  thumbnailUrl,
   filename,
   className,
 }: {
   conversationId: string;
   messageId: string;
   attachmentId: string;
+  thumbnailUrl?: string;
   filename?: string;
   className?: string;
 }) {
@@ -151,8 +154,21 @@ function ProviderVideoAttachment({
   }, [attachmentId, conversationId, messageId]);
 
   if (failed) return <p className={cn("mt-2 text-xs text-muted-foreground", className)}>Video unavailable</p>;
-  if (!videoUrl) return <div className={cn("mt-2 aspect-video w-full max-w-sm animate-pulse rounded-lg bg-muted", className)} aria-label="Loading video" />;
-  return <VideoAttachment src={videoUrl} filename={filename} className={className} />;
+  if (!videoUrl) {
+    return (
+      <div className={cn("relative mt-2 aspect-video w-full max-w-sm overflow-hidden rounded-lg border border-border bg-muted", className)} aria-label="Loading video preview">
+        <Image
+          src={thumbnailUrl ?? DEFAULT_VIDEO_THUMBNAIL}
+          alt=""
+          fill
+          unoptimized
+          sizes="(max-width: 640px) 100vw, 384px"
+          className="object-cover"
+        />
+      </div>
+    );
+  }
+  return <VideoAttachment src={videoUrl} poster={thumbnailUrl} filename={filename} className={className} />;
 }
 
 type CampaignOption = { id: string; name: string; status: string };
@@ -1206,6 +1222,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                                                   conversationId={selectedId!}
                                                   messageId={attachment.providerMessageId!}
                                                   attachmentId={attachment.providerAttachmentId!}
+                                                  thumbnailUrl={attachment.thumbnailUrl}
                                                   filename={attachment.filename}
                                                   className={cn("mt-0", !inbound && "self-end")}
                                                 />

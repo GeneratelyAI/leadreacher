@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ExternalLink, Play } from "@/components/ui/icons";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,8 @@ type VideoAttachmentProps = {
   className?: string;
 };
 
+export const DEFAULT_VIDEO_THUMBNAIL = "/landing/product-story/personalized-video-outreach-poster.webp";
+
 export function VideoAttachment({
   src,
   poster,
@@ -19,6 +22,8 @@ export function VideoAttachment({
 }: VideoAttachmentProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [hasPosterError, setHasPosterError] = useState(false);
+  const thumbnail = !hasPosterError && poster ? poster : DEFAULT_VIDEO_THUMBNAIL;
 
   if (hasError) {
     return (
@@ -39,7 +44,7 @@ export function VideoAttachment({
         <video
           className="size-full object-cover"
           src={src}
-          poster={poster}
+          poster={thumbnail}
           controls={isPlaying}
           muted
           playsInline
@@ -48,19 +53,30 @@ export function VideoAttachment({
           onError={() => setHasError(true)}
         />
         {!isPlaying ? (
-          <button
-            type="button"
-            className="absolute inset-0 grid place-items-center bg-foreground/10 transition-colors hover:bg-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
-            aria-label={`Play ${filename}`}
-            onClick={(event) => {
-              const video = event.currentTarget.previousElementSibling;
-              if (video instanceof HTMLVideoElement) void video.play();
-            }}
-          >
-            <span className="grid size-11 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg">
-              <Play className="ml-0.5 size-5 fill-current" />
-            </span>
-          </button>
+          <>
+            <Image
+              src={thumbnail}
+              alt=""
+              fill
+              unoptimized
+              sizes="(max-width: 640px) 100vw, 384px"
+              className="absolute inset-0 size-full object-cover"
+              onError={() => setHasPosterError(true)}
+            />
+            <button
+              type="button"
+              className="absolute inset-0 grid place-items-center bg-foreground/10 transition-colors hover:bg-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+              aria-label={`Play ${filename}`}
+              onClick={(event) => {
+                const video = event.currentTarget.parentElement?.querySelector("video");
+                if (video instanceof HTMLVideoElement) void video.play();
+              }}
+            >
+              <span className="grid size-11 place-items-center rounded-full border border-white/30 bg-black/45 text-white shadow-lg">
+                <Play className="ml-0.5 size-5 fill-current" />
+              </span>
+            </button>
+          </>
         ) : null}
       </div>
       <a
