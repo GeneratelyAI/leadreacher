@@ -305,10 +305,10 @@ function SelectionActionBar({
         </Button>
       )}
     >
-      <SelectionToolbarAction leftIcon={<Check />} disabled={isUpdating} onClick={onApprove}>
+      <SelectionToolbarAction leftIcon={<Check weight="regular" />} disabled={isUpdating} onClick={onApprove}>
         Approve
       </SelectionToolbarAction>
-      <SelectionToolbarAction leftIcon={<X />} disabled={isUpdating} onClick={onExclude}>
+      <SelectionToolbarAction leftIcon={<X weight="regular" />} disabled={isUpdating} onClick={onExclude}>
         Exclude
       </SelectionToolbarAction>
       {!isCampaignReview ? <DropdownMenu>

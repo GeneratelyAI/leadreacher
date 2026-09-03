@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
+import { Loading } from "@/components/ui/Loading";
 import {
   Tooltip,
   TooltipContent,
@@ -509,8 +510,9 @@ export function Analytics() {
 
       {isLoading && !analytics ? (
         <Card>
-          <CardContent className="flex min-h-48 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" /> Loading analytics
+          <CardContent className="flex min-h-48 flex-col items-center justify-center text-sm text-muted-foreground">
+            <Loading tone="brand" label="Loading analytics" className="-mb-4" />
+            <span>Loading analytics</span>
           </CardContent>
         </Card>
       ) : analytics ? (

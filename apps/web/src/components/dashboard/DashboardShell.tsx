@@ -765,7 +765,7 @@ export function DashboardShell({
                 className="flex h-10 w-full items-center rounded-lg border border-app-border bg-app-elevated pr-3 pl-10 text-left text-sm text-app-fg-subtle outline-none transition-colors hover:border-app-border-strong focus-visible:ring-3 focus-visible:ring-onboarding-purple-300"
                 aria-label="Open search"
               >
-                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-onboarding-neutral-500" aria-hidden />
+                <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-onboarding-neutral-500" weight="regular" aria-hidden />
                 <span className="truncate">Ask Leadreacher anything...</span>
                 <kbd className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-[11px] font-medium text-onboarding-neutral-400">⌘ K</kbd>
               </button>
@@ -787,7 +787,7 @@ export function DashboardShell({
                 className="inline-flex size-10 items-center justify-center rounded-lg text-onboarding-neutral-600 transition-colors hover:bg-app-hover focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 lg:hidden"
                 aria-label="Open search"
               >
-                <Search className="size-[1.05rem]" aria-hidden />
+                <Search className="size-[1.05rem]" weight="regular" aria-hidden />
               </button>
               {showRangeControl ? (
                 <div className="block">

@@ -706,13 +706,13 @@ function CampaignSelectionActionBar({
       ariaLabel="Selected campaign actions"
       onClear={onClear}
     >
-      <SelectionToolbarAction leftIcon={<Pause />} disabled={isActing} onClick={onPause}>
+      <SelectionToolbarAction leftIcon={<Pause weight="regular" />} disabled={isActing} onClick={onPause}>
         Pause
       </SelectionToolbarAction>
-      <SelectionToolbarAction leftIcon={<Play />} disabled={isActing} onClick={onResume}>
+      <SelectionToolbarAction leftIcon={<Play weight="regular" />} disabled={isActing} onClick={onResume}>
         Resume
       </SelectionToolbarAction>
-      <SelectionToolbarAction leftIcon={<Archive />} disabled={isActing} onClick={onArchive}>
+      <SelectionToolbarAction leftIcon={<Archive weight="regular" />} disabled={isActing} onClick={onArchive}>
         Archive
       </SelectionToolbarAction>
     </SelectionToolbar>

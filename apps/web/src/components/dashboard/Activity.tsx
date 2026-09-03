@@ -8,7 +8,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Loader2,
   Megaphone,
   MessageSquare,
   Reply,
@@ -24,6 +23,7 @@ import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { Loading } from "@/components/ui/Loading";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -379,8 +379,9 @@ export function Activity() {
         </div>
 
         {isLoading ? (
-          <div className="flex min-h-44 items-center justify-center text-sm text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" /> Loading activity
+          <div className="flex min-h-44 flex-col items-center justify-center text-sm text-muted-foreground">
+            <Loading tone="brand" label="Loading activity" className="-mb-4" />
+            <span>Loading activity</span>
           </div>
         ) : activity.length === 0 ? (
           <div className="px-6 py-16 text-center">

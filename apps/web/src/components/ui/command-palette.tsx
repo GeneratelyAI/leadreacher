@@ -83,7 +83,7 @@ export function CommandPalette({
       <DialogContent showCloseButton={false} className="gap-0 overflow-hidden border-app-border bg-app-elevated p-0 sm:max-w-[42rem]" aria-describedby={undefined}>
         <DialogTitle className="sr-only">Command palette</DialogTitle>
         <div className="flex items-center gap-3 border-b border-app-border px-4">
-          <Search className="size-4 shrink-0 text-app-fg-subtle" aria-hidden />
+          <Search className="size-4 shrink-0 text-app-fg-subtle" weight="regular" aria-hidden />
           <Input
             ref={inputRef}
             value={query}

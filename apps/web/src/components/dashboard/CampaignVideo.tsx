@@ -18,6 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Loading } from "@/components/ui/Loading";
 import {
   Dialog,
   DialogContent,
@@ -260,7 +261,7 @@ export function CampaignVideo({ campaignId, video, onVideoChange }: CampaignVide
           </button>
         ) : isGenerating(resolved.status) ? (
           <span className="relative z-[1] flex flex-col items-center gap-1.5 text-xs font-medium text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-            <Loader2 className="size-5 animate-spin text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />
+            <Loading tone="brand" label="Generating campaign video" className="-my-5 scale-75" />
             Generating…
           </span>
         ) : resolved.status === "failed" || resolved.status === "rejected" || resolved.needsReview ? (
