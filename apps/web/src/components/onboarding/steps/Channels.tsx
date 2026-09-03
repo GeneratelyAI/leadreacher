@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   Check,
-  Loader2,
   Lock,
   RefreshCw,
   ShieldCheck,
@@ -16,6 +15,7 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Loading } from "@/components/ui/Loading";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
@@ -494,7 +494,7 @@ export default function Channels() {
 
         <OnboardingCard className="onboarding-connect-card mx-auto mt-8 w-full max-w-3xl overflow-hidden">
           {isLoading || isPlanLoading ? (
-            <EmptyState icon={<Loader2 className="size-5 animate-spin" aria-hidden />} title="Loading channels" role="status" aria-live="polite" />
+            <EmptyState icon={<Loading tone="brand" label="Loading channels" className="-my-5" />} title="Loading channels" role="status" aria-live="polite" />
           ) : (
             <div className="divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750">
               {CHANNELS.map((channel) => {

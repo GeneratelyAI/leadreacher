@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
+import { Loading } from "@/components/ui/Loading";
 import CampaignGoal from "@/components/onboarding/steps/CampaignGoal";
 import Channels from "@/components/onboarding/steps/Channels";
 import Checkout from "@/components/onboarding/steps/Checkout";
@@ -81,7 +82,10 @@ function DiscoveryBootstrapBridge() {
         role="status"
         aria-live="polite"
       >
-        <p className="text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Loading your workspace...</p>
+        <div className="flex flex-col items-center text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
+          <Loading tone="brand" label="Loading your workspace" className="-mb-4" />
+          <p>Loading your workspace...</p>
+        </div>
       </div>
     );
   }

@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Loader2 } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight } from "@/components/ui/icons";
 import { useEffect, useLayoutEffect, useState } from "react";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Loading } from "@/components/ui/Loading";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
@@ -270,7 +271,7 @@ export default function VideoSetup() {
             aria-live="polite"
           >
             <EmptyState
-              icon={<Loader2 className="size-6 animate-spin" aria-hidden />}
+              icon={<Loading tone="brand" label="Loading your video options" className="-my-5" />}
               title="Loading your video options"
             />
           </OnboardingCard>

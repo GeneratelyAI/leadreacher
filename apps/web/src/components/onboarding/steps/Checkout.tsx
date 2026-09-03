@@ -15,6 +15,7 @@ import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Loading } from "@/components/ui/Loading";
 import { EmbeddedCheckoutCard, PaymentTrustBar } from "@/components/onboarding/EmbeddedCheckoutCard";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
@@ -327,7 +328,7 @@ export default function Checkout() {
             {isRedirecting && !embeddedCheckout ? (
               <EmptyState
                 className="min-h-64 w-full rounded-2xl border border-onboarding-neutral-150 bg-white dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
-                icon={<Loader2 className="size-5 animate-spin" aria-hidden />}
+                icon={<Loading tone="brand" label="Loading secure checkout" className="-my-5" />}
                 title="Loading secure checkout"
                 description="Stripe is preparing your encrypted payment form."
                 role="status"

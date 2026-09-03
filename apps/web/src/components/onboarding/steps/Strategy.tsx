@@ -19,6 +19,7 @@ import { LandingMotion } from "@/components/landing/LandingMotion";
 import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/AcquisitionShowcase";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
+import { Loading } from "@/components/ui/Loading";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import {
@@ -445,7 +446,7 @@ function LoadingStrategy({ strategyBrief }: { strategyBrief: StrategyBrief | nul
     <OnboardingCard className="mx-auto mt-8 w-full max-w-4xl px-6 py-8 sm:px-8" role="status" aria-live="polite">
       {strategyBrief ? <StrategyBriefContent brief={strategyBrief} audiencePending /> : null}
       <div className={cn("flex flex-col items-center text-center", strategyBrief && "mt-7 border-t border-neutral-200 pt-7 dark:border-neutral-700")}>
-        <Loader2 className="size-9 animate-spin text-brand-purple" aria-hidden />
+        <Loading tone="brand" label="Running your audience analysis" className="-mb-2" />
         <h2 className="mt-5 text-xl font-bold text-onboarding-ink dark:text-onboarding-neutral-0">
           Running your audience analysis
         </h2>
@@ -840,7 +841,7 @@ function ChannelsScreen({
   };
 
   return (
-    <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-col justify-start px-5 pt-28 pb-4 sm:pt-30 lg:pt-28">
+    <section className="strategy-channels-screen mx-auto flex w-full max-w-6xl flex-1 flex-col justify-start px-5 pt-28 pb-32 sm:pt-30 lg:pt-28">
       <ScreenHeader
         title="Choose your channels"
         subtitle="Select where LeadReacher can reach prospects. We’ll prioritize the channels that best fit your campaign."
@@ -1128,16 +1129,6 @@ export default function Strategy({
     (substep === "channels" && selectedChannels.length > 0 && !strategyError && !isSavingChannels) ||
     Boolean(analysis?.status === "completed" && recommendations.length > 0);
 
-  const shellActions = (
-    <ShellActions
-      className={substep === "channels" ? "strategy-channels-actions" : undefined}
-      canContinue={canContinue}
-      continueLabel={substep === "channels" ? (isSavingChannels ? "Saving channels..." : `Continue with ${selectedChannels.length} ${selectedChannels.length === 1 ? "channel" : "channels"}`) : "Continue to next step"}
-      onBack={handleBack}
-      onContinue={() => void handleContinue()}
-    />
-  );
-
   let activeSubstepContent: React.ReactNode;
   if (substep === "how-it-works") {
     activeSubstepContent = <HowItWorksScreen />;
@@ -1170,18 +1161,17 @@ export default function Strategy({
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
 
-      <StepMotion
-        transitionKey={substep}
-        className={cn(
-          "flex min-h-0 flex-1 flex-col",
-          substep === "channels" && "strategy-channels-composition lg:justify-center",
-        )}
-      >
+      <StepMotion transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
         {activeSubstepContent}
-        {substep === "channels" ? shellActions : null}
       </StepMotion>
 
-      {substep === "channels" ? null : shellActions}
+      <ShellActions
+        className={substep === "channels" ? "strategy-channels-actions" : undefined}
+        canContinue={canContinue}
+        continueLabel={substep === "channels" ? (isSavingChannels ? "Saving channels..." : `Continue with ${selectedChannels.length} ${selectedChannels.length === 1 ? "channel" : "channels"}`) : "Continue to next step"}
+        onBack={handleBack}
+        onContinue={() => void handleContinue()}
+      />
     </div>
   );
 }

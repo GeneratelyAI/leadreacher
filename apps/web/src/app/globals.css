@@ -2104,8 +2104,9 @@ html {
    so browser zoom and text scaling continue to work accessibly. */
 @media (min-width: 64rem) and (max-height: 56.25rem) {
   .strategy-channels-screen {
+    justify-content: center !important;
     padding-top: clamp(7.25rem, 15vh, 8rem) !important;
-    padding-bottom: 1rem !important;
+    padding-bottom: 6.75rem !important;
   }
 
   .strategy-channels-screen h1 {
@@ -2162,15 +2163,6 @@ html {
 
   .strategy-channels-screen .mt-5 {
     margin-top: clamp(0.75rem, 1.8vh, 1rem);
-  }
-}
-
-@media (min-width: 64rem) {
-  .strategy-channels-actions {
-    position: static;
-    width: min(calc(100% - 2.5rem), 72rem);
-    margin: clamp(1rem, 2.4vh, 1.5rem) auto 0;
-    padding-inline: 0;
   }
 }
 

@@ -42,7 +42,6 @@ test("completes the demo without production side effects", async ({ page }, test
   const subscribe = page.getByRole("button", { name: "Subscribe to LeadReacher Pro" });
   await expect(subscribe).toBeVisible({ timeout: 10_000 });
   await subscribe.click();
-  await page.getByRole("button", { name: "Continue to channels" }).click();
   await expect(page.getByRole("heading", { name: "Connect your channels" })).toBeVisible();
   const whatsapp = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "WhatsApp" }) });
   await whatsapp.getByRole("button", { name: "Connect" }).click();

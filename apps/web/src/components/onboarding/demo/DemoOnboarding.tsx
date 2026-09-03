@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2 } from "@/components/ui/icons";
+import { Loading } from "@/components/ui/Loading";
 import AuthForm from "@/components/auth/AuthForm";
 import AuthLayout from "@/components/auth/AuthLayout";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
@@ -44,7 +44,7 @@ function DemoFlow() {
   }, [ready, requestedStep]);
 
   if (!ready || !hydrated) {
-    return <div className="grid min-h-dvh place-items-center" role="status"><Loader2 className="size-7 animate-spin text-onboarding-purple-600" aria-label="Loading demo workspace" /></div>;
+    return <div className="grid min-h-dvh place-items-center"><Loading tone="brand" label="Loading demo workspace" /></div>;
   }
   if (!requestedStep || requestedStep === "signup") return <DemoSignup />;
 
