@@ -2,7 +2,6 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import {
   SocialMediaIcon,
-  LINKEDIN_BRAND_LOGO_SRC,
   type SocialMediaIconName,
 } from "@/components/ui/SocialMediaIcon";
 
@@ -16,8 +15,6 @@ export type ChannelLogoName =
 type ChannelLogoProps = Omit<ComponentProps<"svg">, "children" | "viewBox"> & {
   name: ChannelLogoName;
 };
-
-export { LINKEDIN_BRAND_LOGO_SRC };
 
 // Same static brand marks used in the dashboard's channel picker
 // (Channels's ConnectChannelMark) - kept in sync so onboarding and

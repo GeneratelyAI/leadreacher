@@ -1,31 +1,5 @@
 import { MessagesSquare, ShieldCheck, UsersRound } from "@/components/ui/icons";
 
-export const comparisonRows = [
-  ["Learn complex software", "LeadReacher learns your business"],
-  ["Build and manage lists", "You review a focused audience"],
-  ["Write every campaign", "LeadReacher drafts the outreach"],
-  ["Send follow-ups manually", "Approved follow-ups run automatically"],
-  ["Chase replies across inboxes", "Interested replies arrive in Chat"],
-] as const;
-
-export const approvalTabs = ["Email", "LinkedIn", "WhatsApp", "Video"] as const;
-export type ApprovalTab = (typeof approvalTabs)[number];
-
-export const approvalBenefits = [
-  "Review and approve prospects",
-  "Edit personalized messages",
-  "Watch and approve video choices",
-] as const;
-
-export const checkoutFeatures = [
-  "AI strategy and audience research",
-  "Personalized messaging and video choices",
-  "Multi-channel outreach",
-  "Automated follow-ups",
-  "Unified reply management",
-  "Campaign controls and visibility",
-] as const;
-
 export const checkoutStates = [
   {
     eyebrow: "FOCUSED AUDIENCE",

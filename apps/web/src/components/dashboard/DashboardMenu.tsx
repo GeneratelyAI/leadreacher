@@ -8,14 +8,6 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-/** Shared popup panel look for dashboard Select and DropdownMenu. */
-export const DASHBOARD_MENU_CONTENT_CLASS =
-  "border border-onboarding-neutral-150 bg-onboarding-neutral-0 p-1 text-onboarding-ink shadow-onboarding-button dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900 dark:text-onboarding-neutral-0";
-
-/** Shared row look for dashboard menu / select items. */
-export const DASHBOARD_MENU_ITEM_CLASS =
-  "rounded-lg px-3 py-2 text-sm text-onboarding-ink focus:bg-onboarding-neutral-50 focus:text-onboarding-ink data-highlighted:bg-onboarding-neutral-50 data-highlighted:text-onboarding-ink dark:text-onboarding-neutral-0 dark:focus:bg-onboarding-neutral-800 dark:focus:text-onboarding-neutral-0 dark:data-highlighted:bg-onboarding-neutral-800 dark:data-highlighted:text-onboarding-neutral-0";
-
 export function TruncatedWithTooltip({
   text,
   className,

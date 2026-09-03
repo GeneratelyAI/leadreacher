@@ -127,10 +127,3 @@ export function DataTable<Row>({ columns, data, getRowKey, footer }: DataTablePr
     </>
   );
 }
-
-/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
-export type StatTableColumn<Row> = DataTableColumn<Row>;
-/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
-export type StatTableProps<Row> = DataTableProps<Row>;
-/** @deprecated Prefer DataTable. Kept until dashboard call sites migrate. */
-export const StatTable = DataTable;
