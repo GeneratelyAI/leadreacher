@@ -323,7 +323,7 @@ export async function ensureCampaignVideoReady(input: {
   return { state: "pending" };
 }
 
-export async function getReadyPersonalizedVideoForDelivery(input: {
+async function getReadyPersonalizedVideoForDelivery(input: {
   campaignId: string;
   leadId: string;
 }): Promise<PersonalizedVideoDelivery | null> {

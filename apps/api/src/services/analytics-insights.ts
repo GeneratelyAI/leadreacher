@@ -76,7 +76,7 @@ function replyRate(sent: number, replies: number): number {
   return Number(((replies / sent) * 100).toFixed(1));
 }
 
-export function analyticsInsightsCacheKey(orgId: string): string {
+function analyticsInsightsCacheKey(orgId: string): string {
   return `dashboard:analytics-insights:${orgId}`;
 }
 

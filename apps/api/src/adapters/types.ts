@@ -19,18 +19,3 @@ export type UnipileProfile = {
   network_distance: UnipileNetworkDistance | string;
   is_relationship: boolean;
 };
-
-export type {
-  ApifyCredentials,
-  ICPFilters,
-  ScrapedCompany,
-  ScrapedProfile,
-} from "./apify.js";
-
-export type {
-  ProspectProfile,
-  ProspectSearchFilters,
-  ProspectSearchInput,
-  ProspectSearchProvider,
-  ProspectSearchResult,
-} from "./prospect-search.js";

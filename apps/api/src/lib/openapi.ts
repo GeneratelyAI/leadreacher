@@ -17,7 +17,7 @@ export const OPENAPI_TAGS = [
 
 export type OpenApiTag = (typeof OPENAPI_TAGS)[number];
 
-export const ApiErrorResponseSchema = z
+const ApiErrorResponseSchema = z
   .object({
     status: z.number().int().min(400).max(599),
     code: z.string(),
@@ -29,7 +29,7 @@ export const ApiErrorResponseSchema = z
 
 export const ErrorResponseSchema = ApiErrorResponseSchema;
 
-export const RateLimitErrorSchema = ApiErrorResponseSchema.extend({
+const RateLimitErrorSchema = ApiErrorResponseSchema.extend({
   status: z.literal(429),
   details: z
     .object({

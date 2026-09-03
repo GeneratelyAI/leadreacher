@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Lead.status values (String column - not a Prisma enum). */
-export const LEAD_STATUS_VALUES = [
+const LEAD_STATUS_VALUES = [
   "new",
   "contacted",
   "connected",

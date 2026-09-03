@@ -65,7 +65,7 @@ export async function resolveAndSyncCampaignChannelAccounts(input: {
   };
 }
 
-export async function syncCampaignChannelAccountRows(
+async function syncCampaignChannelAccountRows(
   campaignId: string,
   channelAccounts: ChannelAccountMap,
 ): Promise<void> {

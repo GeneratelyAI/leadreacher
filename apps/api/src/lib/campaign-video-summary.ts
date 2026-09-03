@@ -18,7 +18,7 @@ export function campaignVideoPaused(aiConfig: unknown): boolean {
   return video?.paused === true;
 }
 
-export function pickPrimaryCampaignVideo<T extends { status: string; videoUrl: string | null; thumbnailUrl: string | null }>(
+function pickPrimaryCampaignVideo<T extends { status: string; videoUrl: string | null; thumbnailUrl: string | null }>(
   assets: T[],
 ): T | null {
   const ready = assets.find(

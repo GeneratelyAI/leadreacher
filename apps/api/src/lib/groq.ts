@@ -15,8 +15,6 @@ export const GROQ_TEXT_MODELS = [
   "openai/gpt-oss-120b",
   "qwen/qwen3.6-27b",
 ] as const;
-export const GROQ_TEXT_MODEL = GROQ_TEXT_MODELS[0];
-
 const GROQ_STRICT_JSON_MODELS = new Set<string>([
   "qwen/qwen3.8-27b",
   "openai/gpt-oss-20b",

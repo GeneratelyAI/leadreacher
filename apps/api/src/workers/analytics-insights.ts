@@ -9,7 +9,7 @@ import { redisSubscriber } from "../lib/redis.js";
 import { prisma } from "../lib/prisma.js";
 import { aggregateOrganizationAnalyticsInsights } from "../services/analytics-insights.js";
 
-export async function runAnalyticsInsightsAggregation(
+async function runAnalyticsInsightsAggregation(
   job: AnalyticsInsightsJob,
 ): Promise<{ organizations: number }> {
   const organizationIds = job.orgId

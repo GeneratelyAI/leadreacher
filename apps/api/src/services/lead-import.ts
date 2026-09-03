@@ -119,13 +119,6 @@ export async function importProspectProfiles(
   };
 }
 
-export function importScrapedProfiles(
-  orgId: string,
-  profiles: ProspectProfile[],
-): Promise<{ imported: number; skipped: number; leadIds: string[] }> {
-  return importProspectProfiles(orgId, profiles, "apify");
-}
-
 export async function importFromCSV(
   orgId: string,
   rows: CSVRow[],

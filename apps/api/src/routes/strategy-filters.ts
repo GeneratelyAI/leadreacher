@@ -4,9 +4,6 @@ import { resolveIndustryIds } from "../adapters/linkedin-industry-codes.js";
 export const COMPANY_SEARCH_UNAVAILABLE_REASON =
   "Industry classification wasn't precise enough for company search - showing decision-maker data only.";
 
-export const COMPANY_SEARCH_NO_RESULTS_REASON =
-  "We searched for matching companies but didn't find any real results for this market. Decision-maker data is still available.";
-
 export type CompanySearchPlan = {
   filters: ICPFilters;
   canSearch: boolean;

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { redis } from "./redis.js";
 
-export const DASHBOARD_EVENT_TYPES = [
+const DASHBOARD_EVENT_TYPES = [
   "campaign.updated",
   "campaign.metrics.updated",
   "conversation.updated",

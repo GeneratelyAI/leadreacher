@@ -91,7 +91,7 @@ export async function verifyR2PublicVideo(
   }
 }
 
-export async function verifyApifyConnectivity(
+async function verifyApifyConnectivity(
   apiKey = env.APIFY_API_KEY,
   fetcher: FetchLike = fetch,
 ): Promise<void> {

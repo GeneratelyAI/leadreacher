@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
-export const PERSONALIZED_RENDER_MANIFEST_VERSION = 1;
+const PERSONALIZED_RENDER_MANIFEST_VERSION = 1;
 
 const StoryboardSceneSchema = z.object({
   sceneNumber: z.number().int().min(1).max(4),

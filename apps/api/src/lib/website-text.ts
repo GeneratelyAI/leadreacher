@@ -7,7 +7,7 @@ const OG_IMAGE_PATTERNS = [
   /<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image(?::src)?["'][^>]*>/i,
 ];
 
-export function extractPreviewImageFromHtml(
+function extractPreviewImageFromHtml(
   html: string,
   baseUrl: string,
 ): string | null {

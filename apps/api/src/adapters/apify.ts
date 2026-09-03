@@ -143,7 +143,7 @@ type FetchResultsResult<T> = {
   totalFound: number;
 };
 
-export function isApifyQuotaMessage(message: string): boolean {
+function isApifyQuotaMessage(message: string): boolean {
   const normalized = message.toLowerCase();
   return (
     normalized.includes("free user") ||

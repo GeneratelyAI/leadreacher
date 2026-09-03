@@ -6,7 +6,7 @@ import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
 import { prisma } from "../lib/prisma.js";
 import { isConnectedProfile } from "../lib/relation-status.js";
 
-export const LINKEDIN_RELATIONSHIPS = [
+const LINKEDIN_RELATIONSHIPS = [
   "unknown",
   "connected",
   "invite_required",
