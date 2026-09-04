@@ -128,9 +128,7 @@ export default function Navbar() {
                           render={<Link href={resource.href} />}
                           className="group/resource grid grid-cols-[2.25rem_1fr] gap-3 rounded-md p-3"
                         >
-                          <span className="flex size-9 items-center justify-center rounded-md bg-brand-purple/8 text-brand-purple transition-colors group-hover/resource:bg-brand-purple/12">
-                            <Icon className="size-4" aria-hidden />
-                          </span>
+                          <Icon className="mt-0.5 size-4 text-brand-purple" aria-hidden />
                           <span className="min-w-0">
                             <span className="block text-sm font-medium text-foreground">{resource.label}</span>
                             <span className="mt-1 block text-xs leading-5 text-muted-foreground">{resource.description}</span>

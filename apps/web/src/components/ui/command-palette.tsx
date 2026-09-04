@@ -146,9 +146,7 @@ export function CommandPalette({
                         selected ? "bg-onboarding-purple-50 text-onboarding-purple-900 dark:bg-onboarding-purple-900/55 dark:text-onboarding-neutral-0" : "hover:bg-app-hover",
                       )}
                     >
-                      <span className={cn("inline-flex size-8 shrink-0 items-center justify-center rounded-md", selected ? "bg-onboarding-purple-100 text-onboarding-purple-700 dark:bg-onboarding-purple-800 dark:text-onboarding-purple-100" : "bg-app-muted-surface text-app-fg-muted")}>
-                        <Icon className="size-4" aria-hidden />
-                      </span>
+                      <Icon className={cn("size-4 shrink-0", selected ? "text-onboarding-purple-700 dark:text-onboarding-purple-100" : "text-app-fg-muted")} aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{item.title}</span>
                         {item.description ? <span className="mt-0.5 block truncate text-xs text-app-fg-muted">{item.description}</span> : null}

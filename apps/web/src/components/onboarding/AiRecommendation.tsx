@@ -26,9 +26,7 @@ export function AiRecommendation({
       )}
     >
       <div className="relative flex gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#eee8ff] text-[#5b32df] shadow-[0_5px_14px_rgba(84,41,223,.12)] dark:bg-onboarding-purple-900/80 dark:text-onboarding-purple-200 dark:shadow-[0_5px_18px_rgba(105,76,220,.2)]">
-          <Bot className="size-5" aria-hidden />
-        </span>
+        <Bot className="mt-0.5 size-5 shrink-0 text-[#5b32df] dark:text-onboarding-purple-200" aria-hidden />
         <div className="min-w-0 flex-1 sm:pr-32">
           <p className="text-sm font-semibold text-[#5429df] dark:text-onboarding-purple-200">AI recommendation</p>
           <p className="mt-3 text-sm font-medium leading-6 text-[#17203a] dark:text-onboarding-neutral-100">You could say something like:</p>

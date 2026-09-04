@@ -8,7 +8,6 @@ import {
   BarChart3,
   CalendarDays,
   Check,
-  CheckFat,
   Clock3,
   Copy,
   Ellipsis,
@@ -174,7 +173,7 @@ function activityHref(campaignId: string): string {
 }
 
 function StatusIcon({ status }: { status: CampaignStatus }) {
-  const Icon = status === "active" ? Play : status === "completed" ? CheckFat : status === "paused" ? Pause : Pencil;
+  const Icon = status === "active" ? Play : status === "completed" ? Check : status === "paused" ? Pause : Pencil;
   return (
     <Icon
       className={cn(
@@ -184,7 +183,7 @@ function StatusIcon({ status }: { status: CampaignStatus }) {
         ["draft", "review", "paused"].includes(status) && "text-onboarding-neutral-500 dark:text-onboarding-neutral-400",
       )}
       strokeWidth={1.75}
-      weight={status === "completed" ? "fill" : undefined}
+      weight="regular"
       aria-hidden
     />
   );

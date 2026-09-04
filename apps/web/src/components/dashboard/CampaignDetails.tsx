@@ -4,18 +4,23 @@ import Link from "next/link";
 import {
   CheckCircle2,
   CircleHelp,
+  Clock,
+  Info,
   Loader2,
+  LayoutDashboard,
   MessageSquare,
   Pause,
   Pencil,
   Play,
   RefreshCw,
+  Send,
   UserCheck,
   UserPlus,
   Users,
+  Video,
 } from "@/components/ui/icons";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CampaignVideo, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
@@ -141,6 +146,40 @@ function asSequence(value: unknown): SequenceStep[] {
       typeof (step as SequenceStep).message === "string" &&
       typeof (step as SequenceStep).delayHours === "number",
   );
+}
+
+function sequenceStepChannel(type: string): string | null {
+  const normalized = type.trim().toLowerCase();
+  if (normalized.includes("linkedin")) return "linkedin";
+  if (normalized.includes("whatsapp")) return "whatsapp";
+  if (normalized.includes("instagram")) return "instagram";
+  if (normalized.includes("facebook") || normalized.includes("messenger")) return "facebook";
+  if (normalized.includes("email")) return "email";
+  return null;
+}
+
+function sequenceStepLabel(type: string, index: number): string {
+  const normalized = type.trim().toLowerCase();
+  if (normalized === "linkedin_invite") return "LinkedIn introduction";
+  if (normalized === "linkedin_message") return index === 0 ? "LinkedIn introduction" : "LinkedIn follow-up";
+  if (normalized === "whatsapp_message") return "WhatsApp message";
+  if (normalized === "instagram_message") return "Instagram message";
+  if (normalized === "facebook_message") return "Facebook message";
+  if (normalized === "email") return "Email follow-up";
+  if (normalized.includes("video")) return "Personalized video";
+  return titleCase(type);
+}
+
+function formatWaitTime(hours: number): string {
+  if (hours === 24) return "Wait 1 day";
+  if (hours > 24 && hours % 24 === 0) return `Wait ${hours / 24} days`;
+  if (hours === 1) return "Wait 1 hour";
+  return `Wait ${hours} hours`;
+}
+
+function sequenceDay(steps: SequenceStep[], index: number): number {
+  const elapsedHours = steps.slice(0, index + 1).reduce((sum, step) => sum + Math.max(0, step.delayHours), 0);
+  return Math.floor(elapsedHours / 24) + 1;
 }
 
 export function CampaignDetails({
@@ -397,11 +436,11 @@ export function CampaignDetails({
       {
         key: "sequence",
         complete: detail.launchReady.hasSequenceReview,
-        label: "Sequence reviewed",
+        label: "Messaging reviewed",
         description: detail.launchReady.hasSequenceReview
           ? "Outreach copy is ready."
-          : "Review and save your outreach sequence.",
-        action: "Review sequence",
+          : "Review and save your outreach messaging.",
+        action: "Review messaging",
       },
       {
         key: "sender",
@@ -435,7 +474,7 @@ export function CampaignDetails({
     const target = event.target;
     if (target instanceof HTMLElement && target.closest("input, textarea, select, [contenteditable='true']")) return;
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-    const tabs = ["overview", "audience", "sequence", "delivery", "activity"];
+    const tabs = ["overview", "audience", "sequence", "delivery"];
     const index = tabs.indexOf(activeTab);
     const next = event.key === "ArrowRight"
       ? (index + 1) % tabs.length
@@ -481,9 +520,9 @@ export function CampaignDetails({
           </div>
         ) : (
           <>
-            <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 text-left sm:px-6">
+            <DialogHeader className="shrink-0 px-5 py-5 pr-14 text-left sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-xl">{formatSocialMediaNames(detail.name)}</DialogTitle>
+                <DialogTitle className="text-2xl tracking-tight">{formatSocialMediaNames(detail.name)}</DialogTitle>
                 <Badge variant="outline">{detail.status === "active" ? "Running" : titleCase(detail.status)}</Badge>
                 {detail.archived ? <Badge variant="secondary">Archived</Badge> : null}
               </div>
@@ -498,12 +537,23 @@ export function CampaignDetails({
             ) : null}
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="min-h-0 flex-1 gap-0">
-              <TabsList variant="line" className="mx-5 w-auto min-w-0 shrink-0 overflow-hidden border-b border-border sm:mx-6">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="audience">Audience</TabsTrigger>
-                <TabsTrigger value="sequence">Sequence</TabsTrigger>
-                <TabsTrigger value="delivery">Delivery</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsList className="mx-5 grid h-auto w-auto min-w-0 shrink-0 grid-cols-4 overflow-hidden rounded-2xl border border-onboarding-neutral-150 bg-onboarding-neutral-50/80 p-1.5 shadow-[0_1px_2px_rgb(15_23_42/0.05)] group-data-horizontal/tabs:!h-auto dark:border-onboarding-neutral-700 dark:bg-onboarding-neutral-900 sm:mx-6">
+                <TabsTrigger value="overview" className="h-[4.5rem] flex-col gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-onboarding-neutral-500 after:hidden hover:bg-onboarding-neutral-100 hover:text-onboarding-ink data-active:border-onboarding-purple-200 data-active:bg-background data-active:text-onboarding-purple-700 data-active:shadow-[0_2px_8px_rgb(83_38_183/0.1)] dark:text-onboarding-neutral-400 dark:hover:bg-onboarding-neutral-800 dark:hover:text-onboarding-neutral-0 dark:data-active:border-onboarding-purple-700 dark:data-active:bg-onboarding-neutral-800 dark:data-active:text-onboarding-purple-200 [&_svg]:size-5">
+                  <LayoutDashboard weight="fill" aria-hidden />
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger value="audience" className="h-[4.5rem] flex-col gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-onboarding-neutral-500 after:hidden hover:bg-onboarding-neutral-100 hover:text-onboarding-ink data-active:border-onboarding-purple-200 data-active:bg-background data-active:text-onboarding-purple-700 data-active:shadow-[0_2px_8px_rgb(83_38_183/0.1)] dark:text-onboarding-neutral-400 dark:hover:bg-onboarding-neutral-800 dark:hover:text-onboarding-neutral-0 dark:data-active:border-onboarding-purple-700 dark:data-active:bg-onboarding-neutral-800 dark:data-active:text-onboarding-purple-200 [&_svg]:size-5">
+                  <Users weight="fill" aria-hidden />
+                  Audience
+                </TabsTrigger>
+                <TabsTrigger value="sequence" className="h-[4.5rem] flex-col gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-onboarding-neutral-500 after:hidden hover:bg-onboarding-neutral-100 hover:text-onboarding-ink data-active:border-onboarding-purple-200 data-active:bg-background data-active:text-onboarding-purple-700 data-active:shadow-[0_2px_8px_rgb(83_38_183/0.1)] dark:text-onboarding-neutral-400 dark:hover:bg-onboarding-neutral-800 dark:hover:text-onboarding-neutral-0 dark:data-active:border-onboarding-purple-700 dark:data-active:bg-onboarding-neutral-800 dark:data-active:text-onboarding-purple-200 [&_svg]:size-5">
+                  <MessageSquare weight="fill" aria-hidden />
+                  Messaging
+                </TabsTrigger>
+                <TabsTrigger value="delivery" className="h-[4.5rem] flex-col gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-onboarding-neutral-500 after:hidden hover:bg-onboarding-neutral-100 hover:text-onboarding-ink data-active:border-onboarding-purple-200 data-active:bg-background data-active:text-onboarding-purple-700 data-active:shadow-[0_2px_8px_rgb(83_38_183/0.1)] dark:text-onboarding-neutral-400 dark:hover:bg-onboarding-neutral-800 dark:hover:text-onboarding-neutral-0 dark:data-active:border-onboarding-purple-700 dark:data-active:bg-onboarding-neutral-800 dark:data-active:text-onboarding-purple-200 [&_svg]:size-5">
+                  <Send weight="fill" aria-hidden />
+                  Delivery
+                </TabsTrigger>
               </TabsList>
             <TabsContent value="overview" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><div className="space-y-6">
               {detail.onboardingDiscovery ? (
@@ -677,14 +727,15 @@ export function CampaignDetails({
             </div></TabsContent>
 
             <TabsContent value="sequence" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><section ref={sequenceSectionRef} className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">Sequence</h3>
+                {editing || sequenceLocked ? (
+                  <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Messaging</h3>
                   {sequenceLocked ? (
                     <Button
                       size="sm"
                       variant="outline"
                       disabled={isSaving}
-                      onClick={() => void patch({ status: "paused" }, "Campaign paused - you can edit the sequence now")}
+                      onClick={() => void patch({ status: "paused" }, "Campaign paused - you can edit the messaging now")}
                     >
                       <Pause /> Pause to edit
                     </Button>
@@ -698,10 +749,11 @@ export function CampaignDetails({
                       {editing ? "Cancel edit" : "Edit"}
                     </Button>
                   )}
-                </div>
+                  </div>
+                ) : null}
                 {sequenceLocked ? (
                   <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                    Sequence is locked while the campaign is running. Pause to change steps, delays, or copy.
+                    Messaging is locked while the campaign is running. Pause to change steps, delays, or copy.
                   </p>
                 ) : null}
                 {editing && sequenceEditable ? (
@@ -747,18 +799,139 @@ export function CampaignDetails({
                       {isSaving ? <Loader2 className="animate-spin" /> : null} Save changes
                     </Button>
                   </div>
-                ) : (
-                  <ul className="space-y-2">
-                    {asSequence(detail.sequence).map((step, index) => (
-                      <li key={`${step.type}-${index}`} className="rounded-lg border border-border p-3">
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          Step {index + 1} · {step.type} · {step.delayHours}h delay
-                        </p>
-                        <p className="mt-1 text-sm whitespace-pre-wrap">{step.message}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                ) : (() => {
+                  const messageSteps = asSequence(detail.sequence);
+                  const finalDay = messageSteps.length ? sequenceDay(messageSteps, messageSteps.length - 1) : 1;
+
+                  return (
+                    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                      <section className="min-w-0">
+                        <div className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b border-border/70 pb-4">
+                          <div>
+                            <p className="text-xl font-semibold tracking-[-0.02em]">Message flow</p>
+                            <p className="mt-1 text-[0.8125rem] leading-5 text-muted-foreground">
+                              The messages each prospect receives, in order.
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="h-6 rounded-full px-2.5 text-xs font-medium">
+                            {messageSteps.length} {messageSteps.length === 1 ? "message" : "messages"} · {finalDay} {finalDay === 1 ? "day" : "days"}
+                          </Badge>
+                        </div>
+
+                        {messageSteps.length ? (
+                          <ol className="relative space-y-4 before:absolute before:top-8 before:bottom-8 before:left-3 before:w-px before:bg-onboarding-purple-200 dark:before:bg-onboarding-purple-800">
+                            {messageSteps.map((step, index) => {
+                              const channel = sequenceStepChannel(step.type);
+                              const isVideo = step.type.toLowerCase().includes("video");
+                              const day = sequenceDay(messageSteps, index);
+
+                              return (
+                                <Fragment key={`${step.type}-${index}`}>
+                                  {index > 0 && step.delayHours > 0 ? (
+                                    <li className="relative z-10 flex gap-4 py-0.5 pl-1">
+                                      <Clock weight="fill" className="mt-4 size-4 shrink-0 text-onboarding-purple-700 dark:text-onboarding-purple-200" aria-hidden />
+                                      <div className="flex min-h-14 flex-1 items-center rounded-xl border border-border bg-muted/15 px-5 py-3">
+                                        <div>
+                                          <p className="text-sm font-semibold">{formatWaitTime(step.delayHours)}</p>
+                                          <p className="text-xs text-muted-foreground">No action required</p>
+                                        </div>
+                                      </div>
+                                    </li>
+                                  ) : null}
+                                  <li className="relative z-10 flex gap-4 pl-1">
+                                    {isVideo ? (
+                                      <Video weight="fill" className={cn("mt-4 size-4 shrink-0", index === 0 ? "text-onboarding-purple-700 dark:text-onboarding-purple-200" : "text-muted-foreground")} aria-hidden />
+                                    ) : channel ? (
+                                      <DashboardChannelLogo platform={channel} className="mt-4 size-4 shrink-0" />
+                                    ) : (
+                                      <MessageSquare weight="fill" className={cn("mt-4 size-4 shrink-0", index === 0 ? "text-onboarding-purple-700 dark:text-onboarding-purple-200" : "text-muted-foreground")} aria-hidden />
+                                    )}
+                                    <article className={cn(
+                                      "min-w-0 flex-1 rounded-xl border bg-background px-5 py-4 transition-shadow duration-200",
+                                      index === 0
+                                        ? "border-onboarding-purple-300 shadow-[0_2px_10px_rgb(83_38_183/0.08)] dark:border-onboarding-purple-700"
+                                        : "border-border shadow-sm",
+                                    )}>
+                                      <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                          <p className="text-[0.9375rem] font-semibold text-foreground">
+                                            Day {day} · {sequenceStepLabel(step.type, index)}
+                                          </p>
+                                          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground whitespace-pre-wrap">
+                                            {step.message || "No message copy has been added yet."}
+                                          </p>
+                                        </div>
+                                        {channel ? (
+                                          <Badge variant="outline" className="shrink-0 rounded-full text-[11px] font-medium text-muted-foreground">
+                                            {channelDisplayName(channel)}
+                                          </Badge>
+                                        ) : null}
+                                      </div>
+                                    </article>
+                                  </li>
+                                </Fragment>
+                              );
+                            })}
+                          </ol>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-onboarding-purple-200 bg-onboarding-purple-50/40 px-5 py-8 text-center dark:border-onboarding-purple-800 dark:bg-onboarding-purple-950/30">
+                            <MessageSquare weight="fill" className="mx-auto size-6 text-onboarding-purple-600 dark:text-onboarding-purple-300" aria-hidden />
+                            <p className="mt-3 text-sm font-semibold">No messages yet</p>
+                            <p className="mt-1 text-sm text-muted-foreground">Add your first message to create the campaign path.</p>
+                          </div>
+                        )}
+
+                        {sequenceEditable ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-5 h-11 w-full rounded-xl border-dashed border-onboarding-purple-300 text-onboarding-purple-700 hover:border-onboarding-purple-400 hover:bg-onboarding-purple-50 hover:text-onboarding-purple-800 dark:border-onboarding-purple-700 dark:text-onboarding-purple-200 dark:hover:bg-onboarding-purple-950"
+                            onClick={() => setEditing(true)}
+                          >
+                            <Pencil className="size-4" /> Edit messages
+                          </Button>
+                        ) : null}
+                      </section>
+
+                      <aside className="h-fit overflow-hidden rounded-2xl border border-border bg-muted/15 shadow-[0_6px_20px_rgb(15_23_42/0.04)]">
+                        <div className="border-b border-border bg-background/80 px-5 py-4">
+                          <p className="text-base font-semibold tracking-tight">Campaign delivery</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Live context for this message flow.</p>
+                        </div>
+                        <div className="divide-y divide-border">
+                          <div className="flex gap-3 px-5 py-4">
+                            <Send weight="fill" className="mt-0.5 size-4 shrink-0 text-onboarding-purple-700 dark:text-onboarding-purple-200" aria-hidden />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">Sending through</p>
+                              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                                {detail.channels.slice(0, 2).map((channel) => <DashboardChannelLogo key={channel} platform={channel} className="size-4" />)}
+                                {campaignChannelLabel(detail.channels)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 px-5 py-4">
+                            <UserCheck weight="fill" className="mt-0.5 size-4 shrink-0 text-onboarding-purple-700 dark:text-onboarding-purple-200" aria-hidden />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">Sender</p>
+                              <p className="mt-0.5 truncate text-sm text-muted-foreground">{detail.senderAccount?.accountName ?? "Select a sender before launch"}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 px-5 py-4">
+                            <Clock weight="fill" className="mt-0.5 size-4 shrink-0 text-onboarding-purple-700 dark:text-onboarding-purple-200" aria-hidden />
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold">Campaign progress</p>
+                              <p className="mt-0.5 text-sm text-muted-foreground">{detail.metrics.sent} sent · {detail.metrics.replies} replies</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="m-4 flex gap-2.5 rounded-xl border border-onboarding-purple-200 bg-onboarding-purple-50/70 p-3 text-xs leading-5 text-onboarding-purple-800 dark:border-onboarding-purple-800 dark:bg-onboarding-purple-950/50 dark:text-onboarding-purple-200">
+                          <Info weight="fill" className="mt-0.5 size-4 shrink-0" aria-hidden />
+                          <p>Review and approve the audience, sender, and messaging before anything is sent.</p>
+                        </div>
+                      </aside>
+                    </div>
+                  );
+                })()}
               </section></TabsContent>
 
             <TabsContent value="audience" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><section className="space-y-3">
@@ -922,11 +1095,6 @@ export function CampaignDetails({
                   )}
                 </div>
               </section></div></TabsContent>
-            <TabsContent value="activity" className="min-h-0 overflow-y-auto px-5 py-5 sm:px-6"><div className="space-y-3">
-              <h3 className="text-sm font-semibold">Campaign activity</h3>
-              <p className="text-sm text-muted-foreground">Open the activity timeline to review delivery, reply, and campaign events.</p>
-              <Button variant="outline" asChild><Link href={`/dashboard/activity?kind=campaign&campaignId=${detail.id}`}>Open activity</Link></Button>
-            </div></TabsContent>
             </Tabs>
 
             <DialogFooter className="shrink-0 border-t border-border px-5 py-4 pb-[max(1rem,var(--safe-area-bottom))] sm:px-6 sm:pb-4">

@@ -15,15 +15,6 @@ const toneIconClass: Record<MetricCardTone, string> = {
   blue: "text-blue-600 dark:text-blue-300",
 };
 
-const toneIconSurfaceClass: Record<MetricCardTone, string> = {
-  purple: "bg-onboarding-purple-50 dark:bg-onboarding-purple-900/40",
-  green: "bg-onboarding-success-50 dark:bg-onboarding-success-900/30",
-  gray: "bg-onboarding-neutral-100 dark:bg-white/10",
-  yellow: "bg-onboarding-warning-50 dark:bg-onboarding-warning-900/30",
-  red: "bg-onboarding-error-50 dark:bg-onboarding-error-900/30",
-  blue: "bg-blue-50 dark:bg-blue-950/50",
-};
-
 /**
  * Domain-agnostic KPI card - icon + value + label (+ optional detail).
  * Lives in `patterns/` so features reuse one layout without copying Card markup.
@@ -56,9 +47,7 @@ export function MetricCard({
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <p className="min-w-0 text-sm font-medium text-app-fg-muted">{label}</p>
-          <span className={cn("inline-flex size-8 shrink-0 items-center justify-center rounded-md", toneIconSurfaceClass[tone])}>
-            <Icon className={cn("size-4", toneIconClass[tone])} strokeWidth={1.9} aria-hidden />
-          </span>
+          <Icon className={cn("size-5 shrink-0", toneIconClass[tone])} strokeWidth={1.9} aria-hidden />
         </div>
         <p className="mt-4 text-3xl font-semibold tracking-tight">{displayValue}</p>
         {detail != null && detail !== "" ? (

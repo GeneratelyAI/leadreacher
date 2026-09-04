@@ -510,7 +510,7 @@ export default function Channels() {
                   purchasedChannels.has(channel.recommendationKey);
                 return (
                   <article key={channel.key} className="onboarding-connect-row flex items-center gap-4 px-5 py-5 sm:px-6">
-                    <span className={`inline-flex size-11 shrink-0 items-center justify-center rounded-onboarding ${channel.iconClassName}`}>
+                    <span className={`inline-flex shrink-0 items-center justify-center ${channel.iconClassName}`}>
                       {channel.icon}
                     </span>
                     <div className="min-w-0 flex-1">

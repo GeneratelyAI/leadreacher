@@ -628,9 +628,7 @@ function TargetingScreen({
                   {companiesUnavailable ? "Company research" : "Companies found"}
                 </div>
               </div>
-              <div className="rounded-xl bg-brand-purple/8 p-2.5 text-brand-purple dark:bg-brand-purple/20 dark:text-brand-100">
-                <Building2 className="size-6" aria-hidden />
-              </div>
+              <Building2 className="size-6 shrink-0 text-brand-purple dark:text-brand-100" aria-hidden />
             </div>
             <div className="metric-hint mt-4">
               {companiesUnavailable
@@ -646,9 +644,7 @@ function TargetingScreen({
                 <div className="metric-value">{analysis.decisionMakers.sampleSize.toLocaleString()}</div>
                 <div className="metric-label mt-2">Profiles ready to review</div>
               </div>
-              <div className="rounded-xl bg-info-50 p-2.5 text-info-500 dark:bg-info-500/15 dark:text-blue-200">
-                <UserRound className="size-6" aria-hidden />
-              </div>
+              <UserRound className="size-6 shrink-0 text-info-500 dark:text-blue-200" aria-hidden />
             </div>
             <div className="metric-hint mt-4">
               Reviewed sample from your target roles
@@ -662,9 +658,7 @@ function TargetingScreen({
                 <div className="metric-value">{analysis.reachability.percentage}%</div>
                 <div className="metric-label mt-2">Reachability</div>
               </div>
-              <div className="rounded-xl bg-success-50 p-2.5 text-success-500 dark:bg-success-500/15 dark:text-emerald-200">
-                <TrendingUp className="size-6" aria-hidden />
-              </div>
+              <TrendingUp className="size-6 shrink-0 text-success-500 dark:text-emerald-200" aria-hidden />
             </div>
             <div className="metric-hint mt-4">
               {analysis.reachability.reachableProfiles}/{analysis.reachability.totalProfiles} with email

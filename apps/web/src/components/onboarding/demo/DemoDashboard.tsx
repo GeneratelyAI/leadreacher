@@ -52,7 +52,7 @@ export default function DemoDashboard() {
 
         <div className="mt-10 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
           <OnboardingCard className="p-6 sm:p-8">
-            <div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-onboarding-purple-100 text-onboarding-purple-700 dark:bg-onboarding-purple-900/40 dark:text-onboarding-purple-100"><LayoutDashboard className="size-5" aria-hidden /></span><StatusBadge tone="success"><Check className="size-3" />Ready for review</StatusBadge></div>
+            <div className="flex items-start justify-between gap-4"><LayoutDashboard className="size-5 text-onboarding-purple-700 dark:text-onboarding-purple-100" aria-hidden /><StatusBadge tone="success"><Check className="size-3" />Ready for review</StatusBadge></div>
             <p className="mt-6 text-xs font-semibold tracking-wide text-onboarding-purple-600 uppercase dark:text-onboarding-purple-200">Sample campaign</p>
             <h2 className="mt-2 text-2xl font-semibold text-onboarding-ink dark:text-white">{state?.campaignType ? CAMPAIGN_LABELS[state.campaignType] : "Personalized Ad"}</h2>
             <p className="mt-3 text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-300">{DEMO_STRATEGY.valueProposition}</p>

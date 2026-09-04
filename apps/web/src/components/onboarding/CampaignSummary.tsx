@@ -154,12 +154,10 @@ function CampaignSummaryCard({
 
   return (
     <div className="discovery-campaign-card apple-glass-panel__row flex items-start gap-3 border-b border-white/20 px-4 py-3.5 last:border-b-0">
-      <span className="apple-glass-panel__chip inline-flex size-8 shrink-0 items-center justify-center rounded-xl">
-        <Icon
-          className="discovery-campaign-card__icon size-4"
-          aria-hidden
-        />
-      </span>
+      <Icon
+        className="discovery-campaign-card__icon mt-0.5 size-4 shrink-0"
+        aria-hidden
+      />
       <div className="min-w-0 flex-1">
         <p className="discovery-campaign-title flex items-center gap-2 text-sm font-semibold tracking-tight text-neutral-900">
           <span>{item.title}</span>

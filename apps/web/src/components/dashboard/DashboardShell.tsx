@@ -612,7 +612,7 @@ export function DashboardShell({
 
   return (
     <TooltipProvider>
-      <IconContext.Provider value={{ weight: "fill" }}>
+      <IconContext.Provider value={{ weight: "regular" }}>
       <div
         className="dashboard-shell h-dvh overflow-hidden bg-app-canvas text-app-fg"
         style={{
