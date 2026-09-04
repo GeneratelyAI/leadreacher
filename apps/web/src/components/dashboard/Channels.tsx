@@ -7,8 +7,6 @@ import {
   ArrowUp,
   CheckCircle2,
   ChevronRight,
-  ExternalLink,
-  Info,
   Link2,
   Loader2,
   MoreVertical,
@@ -21,11 +19,12 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
+import { feedback } from "@/components/ui/feedback";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -148,8 +147,8 @@ function titleCase(value: string): string {
   return value.replace(/[_-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function channelName(platform: string): string {
-  return channelDisplayName(platform);
+function channelName(platform: string, accountName?: string | null, providerType?: string | null): string {
+  return channelDisplayName(providerType ?? platform, accountName);
 }
 
 function initials(name: string): string {
@@ -202,8 +201,22 @@ function TrendLine({ trend, fallback }: { trend?: ChannelTrend; fallback: string
   );
 }
 
-function PlatformMark({ platform }: { platform: string }) {
-  return <DashboardChannelLogo platform={platform} className="size-10" />;
+function PlatformMark({
+  platform,
+  accountName,
+  providerType,
+}: {
+  platform: string;
+  accountName?: string | null;
+  providerType?: string | null;
+}) {
+  return (
+    <DashboardChannelLogo
+      platform={providerType ?? platform}
+      accountName={accountName}
+      className="size-10"
+    />
+  );
 }
 
 function ChannelAccountRow({
@@ -233,11 +246,17 @@ function ChannelAccountRow({
     <li className="border-b border-border last:border-b-0">
       <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1.5fr)_repeat(4,minmax(0,0.72fr))_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <PlatformMark platform={account.platform} />
+          <PlatformMark
+            platform={account.platform}
+            accountName={account.accountName}
+            providerType={account.providerType}
+          />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className="truncate font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">{account.accountName}</p>
-              <Badge variant="outline">{channelName(account.platform)}</Badge>
+              <Badge variant="outline">
+                {channelName(account.platform, account.accountName, account.providerType)}
+              </Badge>
             </div>
             <div className="mt-1 flex min-w-0 items-center gap-2">
               {account.avatarUrl ? (
@@ -249,7 +268,7 @@ function ChannelAccountRow({
               <p className="truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
                 {account.assignedCampaigns.length === 0
                   ? "Not assigned to a campaign"
-                  : account.assignedCampaigns.map((campaign) => campaign.name).slice(0, 2).join(" · ")}
+                  : account.assignedCampaigns.map((campaign) => formatSocialMediaNames(campaign.name)).slice(0, 2).join(" · ")}
               </p>
             </div>
           </div>
@@ -315,7 +334,12 @@ function ChannelAccountRow({
             {healthy ? "Healthy" : "Needs attention"}
           </span>
           <div className="flex items-center">
-            <Button variant="ghost" size="icon" asChild aria-label={`View ${channelName(account.platform)} activity`}>
+            <Button
+              variant="ghost"
+              size="icon"
+              asChild
+              aria-label={`View ${channelName(account.platform, account.accountName, account.providerType)} activity`}
+            >
               <Link href={`/dashboard/activity?channel=${encodeURIComponent(account.platform)}`}>
                 <ChevronRight className="size-4" />
               </Link>
@@ -415,6 +439,18 @@ export function Channels() {
       );
     });
   }, [connectStatus, returnedAccountId, returnedConnectionToken, syncAccounts]);
+
+  useEffect(() => {
+    feedback.guidance("Your outreach stays in your control", {
+      id: "channels:safety-guidance",
+      duration: 8_000,
+      description: "All messages are sent only after your explicit approval and follow platform guidelines.",
+      action: {
+        label: "Safety guidelines",
+        onClick: () => window.location.assign("/dashboard/settings"),
+      },
+    });
+  }, []);
 
   async function connect(provider: ConnectProvider) {
     setIsConnecting(true);
@@ -557,19 +593,6 @@ export function Channels() {
         </div>
       </Card>
 
-      <div className="flex flex-col gap-2 rounded-xl border border-onboarding-purple-200 bg-onboarding-purple-50 px-4 py-3 text-sm text-onboarding-purple-800 sm:flex-row sm:items-center sm:justify-between dark:border-onboarding-purple-400/30 dark:bg-onboarding-purple-500/15 dark:text-onboarding-purple-100">
-        <p className="inline-flex items-start gap-2 sm:items-center">
-          <Info className="mt-0.5 size-4 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-300 sm:mt-0" aria-hidden />
-          All messages are sent only after your explicit approval and follow platform guidelines.
-        </p>
-        <Link
-          href="/dashboard/settings"
-          className="inline-flex shrink-0 items-center gap-1 font-medium underline-offset-4 hover:underline"
-        >
-          View channel safety guidelines
-          <ExternalLink className="size-3.5" aria-hidden />
-        </Link>
-      </div>
     </div>
   );
 }
