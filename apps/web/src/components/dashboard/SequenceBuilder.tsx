@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
+import { channelDisplayName } from "@/components/dashboard/ChannelIdentity";
 
 export type SequenceStepDraft = {
   type: string;
@@ -139,7 +140,7 @@ export function SequenceBuilder({
               </select>
               {selectedOptionUnavailable ? (
                 <span className="text-xs font-normal text-amber-700 dark:text-amber-300">
-                  Connect a {selectedOption?.channel} account before changing this step.
+                  Connect a {selectedOption ? channelDisplayName(selectedOption.channel) : "channel"} account before changing this step.
                 </span>
               ) : null}
             </label>

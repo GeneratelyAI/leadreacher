@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { CampaignVideo, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
-import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/badge";
@@ -128,7 +128,7 @@ function titleCase(value: string): string {
 }
 
 function campaignChannelLabel(channels: string[]): string {
-  return channels.length === 1 ? titleCase(channels[0]) : "Multi-channel";
+  return channels.length === 1 ? channelDisplayName(channels[0]) : "Multi-channel";
 }
 
 function asSequence(value: unknown): SequenceStep[] {
@@ -483,12 +483,12 @@ export function CampaignDetails({
           <>
             <DialogHeader className="shrink-0 border-b border-border px-5 py-5 pr-14 text-left sm:px-6">
               <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="text-xl">{detail.name}</DialogTitle>
+                <DialogTitle className="text-xl">{formatSocialMediaNames(detail.name)}</DialogTitle>
                 <Badge variant="outline">{detail.status === "active" ? "Running" : titleCase(detail.status)}</Badge>
                 {detail.archived ? <Badge variant="secondary">Archived</Badge> : null}
               </div>
               <DialogDescription>
-                {detail.channels.map((channel) => titleCase(channel)).join(" · ")} · Updated{" "}
+                {detail.channels.map((channel) => channelDisplayName(channel)).join(" · ")} · Updated{" "}
                 {new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(detail.updatedAt))}
               </DialogDescription>
             </DialogHeader>

@@ -31,6 +31,7 @@ import {
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
+import { formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -563,7 +564,7 @@ export function DashboardShell({
         label: "Campaigns",
         items: results.campaigns.map((campaign) => ({
           id: `campaign-${campaign.id}`,
-          title: campaign.name,
+          title: formatSocialMediaNames(campaign.name),
           description: titleCase(campaign.status),
           icon: Megaphone,
           keywords: ["campaign", campaign.status],

@@ -18,7 +18,7 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
-import { channelDisplayName, DashboardChannelLogo, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
 import { Filter, MultiFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -328,7 +328,7 @@ export function Analytics() {
       label: "Campaigns",
       options: (analytics?.filters.campaigns ?? []).map((campaign) => ({
         value: campaign.id,
-        label: campaign.name,
+        label: formatSocialMediaNames(campaign.name),
       })),
     }]
     : [];
@@ -654,7 +654,7 @@ export function Analytics() {
                   items={insights.whatsWorking.map((item) => (
                     <div key={`${item.campaignId}:${item.text}`}>
                       <p className="text-sm leading-6">{item.text}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.campaignName}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatSocialMediaNames(item.campaignName)}</p>
                     </div>
                   ))}
                 />
@@ -664,7 +664,7 @@ export function Analytics() {
                   items={insights.whatsNotWorking.map((item) => (
                     <div key={`${item.campaignId}:${item.text}`}>
                       <p className="text-sm leading-6">{item.text}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{item.campaignName}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatSocialMediaNames(item.campaignName)}</p>
                     </div>
                   ))}
                 />
@@ -676,7 +676,7 @@ export function Analytics() {
                       <p className="text-sm font-medium leading-6">{item.action}</p>
                       <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.reason}</p>
                       <p className="mt-2 text-xs text-muted-foreground">
-                        Priority {item.priority} · {item.campaignName}
+                        Priority {item.priority} · {formatSocialMediaNames(item.campaignName)}
                       </p>
                     </div>
                   ))}

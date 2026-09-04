@@ -25,6 +25,7 @@ import {
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { TruncatedWithTooltip } from "@/components/dashboard/DashboardMenu";
+import { formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
@@ -178,6 +179,19 @@ function titleCase(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function formatProspectCampaignNames(detail: ProspectDetail): ProspectDetail {
+  return {
+    ...detail,
+    campaigns: detail.campaigns.map((membership) => ({
+      ...membership,
+      campaign: {
+        ...membership.campaign,
+        name: formatSocialMediaNames(membership.campaign.name),
+      },
+    })),
+  };
+}
+
 function lifecycleLabel(value: string): string {
   return value === "meeting" ? "Booked" : titleCase(value);
 }
@@ -318,7 +332,7 @@ function SelectionActionBar({
           }
         >
           <span className="max-w-40 truncate">
-            {campaigns.find((campaign) => campaign.id === enrollmentCampaignId)?.name ?? "Add to campaign"}
+            {formatSocialMediaNames(campaigns.find((campaign) => campaign.id === enrollmentCampaignId)?.name ?? "Add to campaign")}
           </span>
           <ChevronDown className="size-3.5 opacity-70" aria-hidden />
         </DropdownMenuTrigger>
@@ -328,7 +342,7 @@ function SelectionActionBar({
             .filter((campaign) => ["draft", "review"].includes(campaign.status))
             .map((campaign) => (
               <DropdownMenuItem key={campaign.id} onClick={() => onEnrollmentCampaignChange(campaign.id)}>
-                <TruncatedWithTooltip text={campaign.name} />
+                <TruncatedWithTooltip text={formatSocialMediaNames(campaign.name)} />
                 {enrollmentCampaignId === campaign.id ? <Check className="ml-auto size-3.5 shrink-0" /> : null}
               </DropdownMenuItem>
             ))}
@@ -447,12 +461,12 @@ export function Prospects() {
   async function openDetail(id: string) {
     const cached = queryClient.getQueryData<{ lead: ProspectDetail }>(["dashboard", "prospect", id]);
     if (cached) {
-      setSelectedDetail(cached.lead);
+      setSelectedDetail(formatProspectCampaignNames(cached.lead));
       setDetailOpen(true);
     }
     try {
       const response = await fetchProspectDetail(id);
-      setSelectedDetail(response.lead);
+      setSelectedDetail(formatProspectCampaignNames(response.lead));
       setDetailOpen(true);
     } catch (requestError) {
       setActionError(requestError instanceof Error ? requestError.message : "Unable to load prospect details.");
@@ -519,7 +533,7 @@ export function Prospects() {
   }];
   const campaignFilterGroups: FilterGroup[] = campaigns.length ? [{
     label: "Campaigns",
-    options: campaigns.map((campaign) => ({ value: campaign.id, label: campaign.name })),
+    options: campaigns.map((campaign) => ({ value: campaign.id, label: formatSocialMediaNames(campaign.name) })),
   }] : [];
   const relationshipFilterGroups: FilterGroup[] = [{
     label: "Relationship routes",
@@ -802,7 +816,7 @@ export function Prospects() {
                         </TableCell>
                         <TableCell>
                           <div className="max-w-48 truncate text-xs text-primary">
-                            {lead.campaigns.length ? lead.campaigns.map((campaign) => campaign.name).join(", ") : "Not enrolled"}
+                            {lead.campaigns.length ? lead.campaigns.map((campaign) => formatSocialMediaNames(campaign.name)).join(", ") : "Not enrolled"}
                           </div>
                           {campaignFilter ? (
                             <div className="mt-1">

@@ -23,7 +23,7 @@ import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard
 import { DEFAULT_VIDEO_THUMBNAIL, VideoAttachment } from "@/components/dashboard/VideoAttachment";
 import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -315,7 +315,7 @@ function InboxNavigation({
                     : "text-muted-foreground hover:bg-muted hover:text-foreground",
                 )}
               >
-                <Icon className="size-4 shrink-0" aria-hidden />
+                <Icon className="size-5 shrink-0" aria-hidden />
                 <span className="min-w-0 flex-1 truncate">{label}</span>
                 <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
               </button>
@@ -336,7 +336,7 @@ function InboxNavigation({
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
-              <MessageSquare className="size-4 shrink-0" aria-hidden />
+              <MessageSquare className="size-5 shrink-0" aria-hidden />
               <span className="truncate">All channels</span>
             </button>
             {channels.map((channel) => {
@@ -353,7 +353,7 @@ function InboxNavigation({
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <DashboardChannelLogo platform={channel} className="size-4" />
+                  <DashboardChannelLogo platform={channel} className="size-5" />
                   <span className="min-w-0 flex-1 truncate">{channelDisplayName(channel)}</span>
                 </button>
               );
@@ -814,7 +814,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
       label: "Campaigns",
       options: campaigns.map((campaign) => ({
         value: campaign.id,
-        label: campaign.name,
+        label: formatSocialMediaNames(campaign.name),
       })),
     }]
     : [];
@@ -824,7 +824,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
       options: availableChannels.map((channel) => ({
         value: channel,
         label: channelDisplayName(channel),
-        icon: <DashboardChannelLogo platform={channel} className="size-5" />,
+        icon: <DashboardChannelLogo platform={channel} className="size-6" />,
       })),
     }]
     : [];
@@ -922,7 +922,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                   groups={channelFilterGroups}
                   onValueChange={setChannelFilter}
                   allLabel="All channels"
-                  allIcon={<MessageSquare className="size-5" aria-hidden />}
+                  allIcon={<MessageSquare className="size-6" aria-hidden />}
                   aria-label="Filter conversations by channel"
                   className="h-9 min-w-0 max-w-44 px-2.5 text-xs lg:hidden"
                   menuWidth="22rem"
@@ -932,7 +932,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                   groups={campaignFilterGroups}
                   onValueChange={setCampaignFilter}
                   allLabel="All campaigns"
-                  allIcon={<Megaphone className="size-5" aria-hidden />}
+                  allIcon={<Megaphone className="size-6" aria-hidden />}
                   aria-label="Filter conversations by campaign"
                   className="h-9 min-w-0 max-w-48 px-2.5 text-xs"
                   menuWidth="22rem"
@@ -1020,9 +1020,9 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                               </time>
                             </span>
                             <span className="mt-0.5 block truncate text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                              <DashboardChannelLogo platform={conversation.channel} accountName={conversation.sender?.accountName} className="mr-1 inline-flex size-3.5 align-[-2px]" />
+                              <DashboardChannelLogo platform={conversation.channel} accountName={conversation.sender?.accountName} className="mr-1 inline-flex size-4.5 align-[-2px]" />
                               {conversation.prospect.title || conversation.prospect.company || "Prospect"}
-                              {conversation.campaign.name ? ` · ${conversation.campaign.name}` : ""}
+                              {conversation.campaign.name ? ` · ${formatSocialMediaNames(conversation.campaign.name)}` : ""}
                             </span>
                             <span
                               className={cn(
@@ -1081,7 +1081,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                         <div className="flex items-center gap-2">
                           <h2 className="truncate text-base font-semibold lg:text-lg">{detail.prospect.name}</h2>
                           <Badge variant="secondary" className="hidden gap-1.5 capitalize sm:inline-flex">
-                            <DashboardChannelLogo platform={detail.channel} accountName={detail.sender?.accountName} className="size-3.5" />
+                            <DashboardChannelLogo platform={detail.channel} accountName={detail.sender?.accountName} className="size-4.5" />
                             {channelDisplayName(detail.channel, detail.sender?.accountName)}
                           </Badge>
                           <span className="hidden size-2 rounded-full bg-onboarding-success-500 lg:inline-flex" aria-hidden />
@@ -1095,7 +1095,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                           ) : null}
                         </div>
                         <p className="truncate text-xs text-muted-foreground lg:text-sm">
-                          <span className="lg:hidden">{detail.campaign.name}</span>
+                          <span className="lg:hidden">{formatSocialMediaNames(detail.campaign.name)}</span>
                           <span className="hidden lg:inline">
                             {[detail.prospect.title, detail.prospect.company].filter(Boolean).join(" at ") || "Prospect"}
                             {detail.prospect.location ? ` · ${detail.prospect.location}` : ""}
@@ -1228,7 +1228,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                                                 />
                                               ))}
                                           <MessageFooter>
-                                            {entry.message.direction === "inbound" ? "Received" : titleCase(entry.message.status)} via {titleCase(entry.message.channel)} · {relativeTimeLong(entry.message.occurredAt)}
+                                            {entry.message.direction === "inbound" ? "Received" : titleCase(entry.message.status)} via {channelDisplayName(entry.message.channel)} · {relativeTimeLong(entry.message.occurredAt)}
                                             {entry.message.origin === "operator" ? " · Operator" : ""}
                                           </MessageFooter>
                                         </MessageContent>

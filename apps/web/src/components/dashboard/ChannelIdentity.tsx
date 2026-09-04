@@ -31,6 +31,20 @@ export function channelDisplayName(platform: string, accountName?: string | null
   return platform.replace(/[_-]+/g, " ").replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+/** Normalizes provider names embedded in API activity and campaign text. */
+export function formatSocialMediaNames(value: string): string {
+  return value
+    .replace(/\blinkedin\b/gi, "LinkedIn")
+    .replace(/\bwhatsapp\b/gi, "WhatsApp")
+    .replace(/\binstagram\b/gi, "Instagram")
+    .replace(/\bfacebook\b/gi, "Facebook")
+    .replace(/\bgmail\b/gi, "Gmail")
+    .replace(/\boutlook\b/gi, "Outlook")
+    .replace(/\byoutube\b/gi, "YouTube")
+    .replace(/\btiktok\b/gi, "TikTok")
+    .replace(/\btelegram\b/gi, "Telegram");
+}
+
 export type ChannelMetricRow = {
   channel: string;
   messagesSent: number;

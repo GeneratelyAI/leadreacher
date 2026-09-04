@@ -33,7 +33,7 @@ import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
-import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +131,7 @@ function titleCase(value: string): string {
 }
 
 function channelLabel(channel: string): string {
-  return titleCase(channel);
+  return channelDisplayName(channel);
 }
 
 function campaignChannelLabel(channels: string[]): string {
@@ -335,7 +335,7 @@ function CampaignActions({ campaign, handlers }: { campaign: CampaignRow; handle
         </Button>
       ) : null}
       <DropdownMenu>
-        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More actions for ${campaign.name}`} />}>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More actions for ${formatSocialMediaNames(campaign.name)}`} />}>
           <Ellipsis weight="regular" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
@@ -415,13 +415,13 @@ function CampaignRowView({
           <Checkbox
             checked={selected}
             onCheckedChange={(checked) => onToggleSelect(campaign.id, checked === true)}
-            aria-label={`Select ${campaign.name}`}
+            aria-label={`Select ${formatSocialMediaNames(campaign.name)}`}
             className="mt-1.5"
           />
           <StatusIcon status={campaign.status} />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-lg font-semibold">{campaign.name}</h3>
+              <h3 className="truncate text-lg font-semibold">{formatSocialMediaNames(campaign.name)}</h3>
               <StatusBadge status={campaign.status} />
               <VideoChip video={campaign.video} />
             </div>

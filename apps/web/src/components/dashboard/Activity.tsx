@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { channelDisplayName, DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
@@ -283,7 +283,7 @@ export function Activity() {
       label: "Campaigns",
       options: campaigns.map((campaign) => ({
         value: `campaign:${campaign.id}`,
-        label: campaign.name,
+        label: formatSocialMediaNames(campaign.name),
       })),
     },
   ].filter((group) => group.options.length > 0);
@@ -416,10 +416,10 @@ export function Activity() {
                           <ActivityMark item={item} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                              {item.title}
+                              {formatSocialMediaNames(item.title)}
                             </p>
                             <p className="mt-0.5 truncate text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                              {item.detail}
+                              {formatSocialMediaNames(item.detail)}
                             </p>
                           </div>
                           <time

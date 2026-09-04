@@ -6,6 +6,7 @@ import { Check, ExternalLink, Loader2 } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
 import { apiFetch } from "@/lib/api";
 
 type ProspectDetail = {
@@ -54,7 +55,16 @@ export function ProspectDetails({ prospectId, presentation }: { prospectId: stri
     void apiFetch<{ lead: ProspectDetail }>(`/dashboard/prospects/${prospectId}`)
       .then((result) => {
         if (!cancelled) {
-          setProspect(result.lead);
+          setProspect({
+            ...result.lead,
+            campaigns: result.lead.campaigns.map((membership) => ({
+              ...membership,
+              campaign: {
+                ...membership.campaign,
+                name: formatSocialMediaNames(membership.campaign.name),
+              },
+            })),
+          });
           setError(null);
         }
       })
