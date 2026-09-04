@@ -1,6 +1,6 @@
 "use client"
 
-import { Toaster as Sonner, type ToasterProps } from "sonner"
+import { Toaster as Sonner, toast, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "@/components/ui/icons"
 
 const Toaster = ({ ...props }: ToasterProps) => {
@@ -48,4 +48,4 @@ const Toaster = ({ ...props }: ToasterProps) => {
   )
 }
 
-export { Toaster }
+export { Toaster, toast }
