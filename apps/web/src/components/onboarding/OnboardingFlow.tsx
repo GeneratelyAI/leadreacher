@@ -11,6 +11,7 @@ import Checkout from "@/components/onboarding/steps/Checkout";
 import CampaignContent from "@/components/onboarding/steps/CampaignContent";
 import Discovery from "@/components/onboarding/steps/Discovery";
 import HowItWorks from "@/components/onboarding/steps/HowItWorks";
+import PersonalizedVideoStyle from "@/components/onboarding/steps/PersonalizedVideoStyle";
 import Strategy from "@/components/onboarding/steps/Strategy";
 import VideoSetup from "@/components/onboarding/steps/VideoSetup";
 import {
@@ -140,6 +141,8 @@ export default function OnboardingFlow({
       : <Strategy substep={activeStrategySubstep} />;
   } else if (activeStep === "campaign-content") {
     activeStepContent = <CampaignContent />;
+  } else if (activeStep === "personalized-video-style") {
+    activeStepContent = <PersonalizedVideoStyle />;
   } else if (activeStep === "video-decision") {
     activeStepContent = <VideoSetup />;
   } else if (activeStep === "checkout") {
@@ -150,11 +153,11 @@ export default function OnboardingFlow({
 
   return (
     <>
-      {activeStep === "discovery" || activeStep === "campaign-content" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
+      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
       <StepMotion
         transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
         className="h-dvh min-h-0"
-        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
+        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
       >
         {activeStepContent}
       </StepMotion>

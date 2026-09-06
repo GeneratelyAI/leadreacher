@@ -10,6 +10,18 @@ type ResumeStrategy = {
   videoConfig: unknown;
 };
 
+function needsVideoStyle(videoConfig: unknown): boolean {
+  if (!videoConfig || typeof videoConfig !== "object" || Array.isArray(videoConfig)) {
+    return true;
+  }
+
+  const config = videoConfig as Record<string, unknown>;
+  if (config.enabled !== true) return false;
+
+  const tone = config.tone;
+  return tone !== "professional" && tone !== "casual" && tone !== "aggressive";
+}
+
 export type OnboardingResumeTarget = {
   step: OnboardingStepParam;
   strategySubstep?: StrategySubstepParam;
@@ -42,6 +54,13 @@ export function resolveOnboardingResumeTarget(input: {
     return { step: "campaign-content" };
   }
 
+
+  if (
+    input.strategy.campaignType === "personalized_outreach" &&
+    needsVideoStyle(input.strategy.videoConfig)
+  ) {
+    return { step: "personalized-video-style" };
+  }
 
   if (input.strategy.videoConfig === null || input.strategy.videoConfig === undefined) {
     return { step: "video-decision" };
