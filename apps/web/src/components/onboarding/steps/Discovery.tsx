@@ -1,13 +1,15 @@
 "use client";
 
-import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { BrowserBar } from "@/components/landing/hero/BrowserBar";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Pill, type PillData } from "@/components/onboarding/Pill";
+import { Pill, useCampaignConfirmation, type PillData } from "@/components/onboarding/Pill";
+import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { ArrowRight, Globe, Lock } from "@/components/ui/icons";
-import { Label } from "@/components/ui/label";
+import { ArrowRight, Lock, X } from "@/components/ui/icons";
+import ShimmerText from "@/components/ui/shimmer-text";
 import { type WebsiteScrapeStatus, useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
@@ -15,6 +17,8 @@ import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website"
 import { cleanWebsiteDomain } from "@/lib/website-url";
 import { navigateOnboarding, strategyHref } from "./steps";
 import { cn } from "@/lib/utils";
+import { ProspectDetailInput } from "../ProspectDetailInput";
+import { getDiscoveryOrgScope } from "@/lib/discovery-scrape-cache";
 
 type ProspectProfile = NonNullable<WebsiteScrapeStatus["prospectProfile"]>;
 
@@ -97,13 +101,23 @@ function DiscoveryFrame({
 
 export default function Discovery() {
   useLayoutEffect(() => applyStoredTheme(), []);
+  const confirmCampaign = useCampaignConfirmation();
 
   const [profile, setProfile] = useState<ProspectProfile>(EMPTY_PROFILE);
+  const [rowHeights, setRowHeights] = useState<Partial<Record<keyof ProspectProfile, number>>>({});
+  const [removingProspects, setRemovingProspects] = useState<Set<string>>(() => new Set());
+  const [highlightedRow, setHighlightedRow] = useState<keyof ProspectProfile | null>(null);
+  const [removalAnnouncement, setRemovalAnnouncement] = useState("");
   const [additionalContext, setAdditionalContext] = useState("");
+  const [submittingWebsite, setSubmittingWebsite] = useState(false);
+  const [materializeWebsiteIcon, setMaterializeWebsiteIcon] = useState(false);
+  const reduceMotion = useReducedMotion();
   const [websiteInput, setWebsiteInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const sourceUrlRef = useRef<string | null>(null);
+  const rowHighlightTimeoutRef = useRef<number | null>(null);
+  const actionRowRef = useRef<HTMLDivElement>(null);
   const { status, websiteUrl, loading, message, start, retry } = useWebsiteScrapeStatus({
     context: "authenticated",
   });
@@ -115,17 +129,96 @@ export default function Discovery() {
   useEffect(() => {
     if (status.status !== "completed" || !status.url || sourceUrlRef.current === status.url) return;
     sourceUrlRef.current = status.url;
-    setProfile(status.prospectProfile ?? EMPTY_PROFILE);
+    setRowHeights({});
+    let restored = status.prospectProfile ?? EMPTY_PROFILE;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`) ?? "null");
+      const savedProfile = saved?.profile ?? saved;
+      if (savedProfile && PROFILE_ROWS.every(({ key }) => Array.isArray(savedProfile[key]) && savedProfile[key].every((value: unknown) => typeof value === "string"))) {
+        restored = savedProfile;
+        if (saved?.rowHeights && saved.viewportWidth === window.innerWidth) setRowHeights(Object.fromEntries(PROFILE_ROWS.flatMap(({ key }) => Number.isFinite(saved.rowHeights[key]) && saved.rowHeights[key] > 0 ? [[key, saved.rowHeights[key]]] : [])));
+      }
+    } catch { /* Saved review state is optional when storage is unavailable. */ }
+    setProfile(restored);
     setAdditionalContext("");
   }, [status]);
 
-  const toggle = (key: keyof ProspectProfile, value: string) => {
+  useEffect(() => () => {
+    if (rowHighlightTimeoutRef.current !== null) window.clearTimeout(rowHighlightTimeoutRef.current);
+  }, []);
+
+  useLayoutEffect(() => {
+    const actionRow = actionRowRef.current;
+    const pill = document.querySelector<HTMLElement>(".signup-campaign-pill");
+    const desktop = window.matchMedia("(min-width: 63.0625rem)");
+    if (!actionRow || !pill) return;
+
+    const align = () => {
+      if (!desktop.matches) {
+        actionRow.style.removeProperty("--discovery-action-offset");
+        return;
+      }
+      const selectorNeedsSpace = Boolean(document.querySelector(".discovery-detail-selector"))
+        && (window.innerWidth < 96 * 16 || window.innerHeight < 56.25 * 16);
+      if (selectorNeedsSpace) {
+        actionRow.style.removeProperty("--discovery-action-offset");
+        return;
+      }
+      const currentOffset = Number.parseFloat(actionRow.style.getPropertyValue("--discovery-action-offset")) || 0;
+      const actionBottomWithoutOffset = actionRow.getBoundingClientRect().bottom - currentOffset;
+      const offset = pill.getBoundingClientRect().bottom - actionBottomWithoutOffset;
+      actionRow.style.setProperty("--discovery-action-offset", `${offset}px`);
+    };
+
+    align();
+    const resizeObserver = new ResizeObserver(align);
+    resizeObserver.observe(actionRow);
+    resizeObserver.observe(pill);
+    const mutationObserver = new MutationObserver(align);
+    mutationObserver.observe(actionRow.parentElement ?? actionRow, { childList: true, subtree: true });
+    window.addEventListener("resize", align);
+    pill.addEventListener("animationend", align);
+
+    let frame = 0;
+    let framesRemaining = 70;
+    const settleAfterPillEntrance = () => {
+      align();
+      if (framesRemaining-- > 0) frame = window.requestAnimationFrame(settleAfterPillEntrance);
+    };
+    frame = window.requestAnimationFrame(settleAfterPillEntrance);
+
+    return () => {
+      resizeObserver.disconnect();
+      mutationObserver.disconnect();
+      window.removeEventListener("resize", align);
+      pill.removeEventListener("animationend", align);
+      window.cancelAnimationFrame(frame);
+    };
+  }, [status.status, status.url]);
+
+  const prospectId = (key: keyof ProspectProfile, value: string) => `${key}:${value}`;
+
+  const queueProspectRemoval = (key: keyof ProspectProfile, value: string) => {
+    const id = prospectId(key, value);
+    setRemovingProspects((current) => current.has(id) ? current : new Set(current).add(id));
+  };
+
+  const finishProspectRemoval = (key: keyof ProspectProfile, value: string) => {
+    const id = prospectId(key, value);
+    setRemovingProspects((current) => {
+      if (!current.has(id)) return current;
+      const next = new Set(current);
+      next.delete(id);
+      return next;
+    });
     setProfile((current) => ({
       ...current,
-      [key]: current[key].includes(value)
-        ? current[key].filter((item) => item !== value)
-        : [...current[key], value],
+      [key]: current[key].filter((item) => item !== value),
     }));
+    setRemovalAnnouncement(`${value} removed from ${PROFILE_ROWS.find((row) => row.key === key)?.label ?? "prospects"}.`);
+    setHighlightedRow(key);
+    if (rowHighlightTimeoutRef.current !== null) window.clearTimeout(rowHighlightTimeoutRef.current);
+    rowHighlightTimeoutRef.current = window.setTimeout(() => setHighlightedRow(null), reduceMotion ? 0 : 460);
   };
 
   async function submitWebsite(event: FormEvent<HTMLFormElement>) {
@@ -137,10 +230,19 @@ export default function Discovery() {
     }
 
     setError(null);
+    setSubmittingWebsite(true);
+    setMaterializeWebsiteIcon(true);
     sourceUrlRef.current = null;
     window.localStorage.setItem("lr_website_url", normalized);
-    if (status.status === "failed") await retry();
-    else await start();
+    try {
+      if (!reduceMotion) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 460));
+      }
+      if (status.status === "failed") await retry();
+      else await start();
+    } finally {
+      setSubmittingWebsite(false);
+    }
   }
 
   async function handleNext() {
@@ -163,6 +265,14 @@ export default function Discovery() {
         }),
       });
       window.localStorage.setItem("lr_strategy_id", result.strategyId);
+      try {
+        const heights = Object.fromEntries(PROFILE_ROWS.map(({ key }) => [key, document.querySelector<HTMLElement>(`[data-prospect-row="${key}"]`)?.offsetHeight]));
+        window.sessionStorage.setItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`, JSON.stringify({ profile, rowHeights: heights, viewportWidth: window.innerWidth }));
+      } catch { /* The server already saved the audience. */ }
+      confirmCampaign?.({
+        ...createSemanticCampaignSummary({ ...status, prospectProfile: profile }, undefined, websiteUrl),
+        newlyCompletedSectionId: "targeting",
+      });
       navigateOnboarding(strategyHref("how-it-works"));
     } catch (caught) {
       setError(
@@ -188,58 +298,55 @@ export default function Discovery() {
         <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
       {showWebsiteForm ? (
-          <DiscoveryFrame
-            campaign={campaign}
-            className="signup-campaign-layout discovery-website-gate"
-          >
+          <section className="discovery-website-gate" aria-labelledby="discovery-website-title">
             <div className="signup-campaign-form-column">
               <div className="signup-campaign-copy login-campaign-copy">
-                <h1>
+                <h1 id="discovery-website-title">
                   {status.status === "failed" ? (
                     <>Let&apos;s try that again<span className="signup-campaign-period">.</span></>
                   ) : (
-                    <>What&apos;s your website?</>
+                    <>What&apos;s your <ShimmerText
+                      className="hero-business-shimmer"
+                      style={{
+                        "--lr-shimmer-base": "#4f46e5",
+                        "--lr-shimmer-core": "#58a6ff",
+                        "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
+                      } as CSSProperties}
+                    >website</ShimmerText>?</>
                   )}
                 </h1>
                 <p>We use it to build your first outreach audience.</p>
               </div>
 
-              <form className="signup-campaign-auth-actions space-y-3" onSubmit={submitWebsite}>
-                <div className="relative">
-                  <Label htmlFor="prospect-website" className="sr-only">Company website</Label>
-                  <Globe
-                    className="pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 text-[#737a96]"
-                    aria-hidden
-                  />
-                  <Input
-                    id="prospect-website"
-                    type="url"
-                    inputMode="url"
-                    autoComplete="url"
-                    value={websiteInput}
-                    onChange={(event) => {
-                      setWebsiteInput(event.target.value);
-                      setError(null);
-                    }}
-                    placeholder="Company website"
-                    className="signup-campaign-control h-15 rounded-xl border-neutral-200 bg-white pl-13 pr-4 text-[0.98rem] text-[#15192c] shadow-none placeholder:text-[#8a90a8] focus-visible:border-[#5b3ff0] focus-visible:ring-4 focus-visible:ring-[#5b3ff0]/10"
-                  />
-                </div>
-                {error || (status.status === "failed" ? message : null) ? (
-                  <p role="alert" className="signup-campaign-error">{error ?? message}</p>
-                ) : null}
-                <Button type="submit" disabled={loading} className="signup-campaign-submit">
-                  {loading ? "Analyzing your website..." : "Analyze website"}
-                  <ArrowRight className="size-5" aria-hidden />
+              <BrowserBar
+                id="prospect-website"
+                value={websiteInput}
+                onValueChange={(value) => {
+                  setWebsiteInput(value);
+                  setError(null);
+                  setMaterializeWebsiteIcon(false);
+                }}
+                onSubmit={submitWebsite}
+                formClassName="discovery-hero-browser-bar"
+                errorMessage={error ?? (status.status === "failed" ? message : null)}
+                disabled={loading || submittingWebsite}
+                showSubmit={false}
+                errorPosition="flow"
+                materializeIcon={materializeWebsiteIcon}
+                concealValueWhileDisabled={false}
+              >
+                <Button type="submit" disabled={loading || submittingWebsite} className="signup-campaign-submit">
+                  {loading || submittingWebsite ? "Analyzing your website..." : "Analyze website"}
+                  <ArrowRight className="size-4" aria-hidden />
                 </Button>
-              </form>
+              </BrowserBar>
 
-              <p className="mt-6 flex items-center justify-center gap-2 text-sm text-[#737a96]">
+              <p className="discovery-website-security">
                 <Lock className="size-4" aria-hidden />
                 Your information is secure and private
               </p>
             </div>
-          </DiscoveryFrame>
+          </section>
         ) : status.status !== "completed" ? (
           <DiscoveryFrame
             campaign={campaign}
@@ -269,20 +376,60 @@ export default function Discovery() {
 
               <div className="onboarding-campaign-profile">
                 {PROFILE_ROWS.map(({ key, label }) => (
-                  <div key={key} className="onboarding-campaign-profile-row">
+                  <div
+                    key={key}
+                    data-prospect-row={key}
+                    style={rowHeights[key] ? { height: rowHeights[key] } : undefined}
+                    className={cn("onboarding-campaign-profile-row", highlightedRow === key && "onboarding-campaign-profile-row-highlighted")}
+                  >
                     <p>{label}</p>
                     <div>
-                      {profile[key].length > 0 ? profile[key].map((value) => (
-                        <button
-                          type="button"
-                          key={value}
-                          aria-pressed="true"
-                          onClick={() => toggle(key, value)}
-                          className="onboarding-campaign-chip"
+                      {profile[key].length > 0 ? (
+                        <AnimatePresence
+                          initial={false}
+                          onExitComplete={() => {
+                            profile[key]
+                              .filter((value) => removingProspects.has(prospectId(key, value)))
+                              .forEach((value) => finishProspectRemoval(key, value));
+                          }}
                         >
-                          {value}
-                        </button>
-                      )) : (
+                          {profile[key].filter((value) => !removingProspects.has(prospectId(key, value))).map((value) => {
+                            const accessibleLabel = `Remove ${value} from ${label}`;
+                            return (
+                              <motion.div
+                                layout={!reduceMotion}
+                                key={value}
+                                className="onboarding-campaign-chip"
+                                initial={false}
+                                animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+                                exit={reduceMotion
+                                  ? { opacity: 0 }
+                                  : { opacity: 0, scale: 0.86, y: -3, filter: "blur(2px)" }}
+                                transition={reduceMotion
+                                  ? { duration: 0 }
+                                  : { duration: 0.21, ease: [0.22, 1, 0.36, 1] }}
+                              >
+                                <button
+                                  type="button"
+                                  className="onboarding-campaign-chip-label"
+                                  onClick={() => queueProspectRemoval(key, value)}
+                                  aria-label={accessibleLabel}
+                                >
+                                  {value}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="onboarding-campaign-chip-remove"
+                                  onClick={() => queueProspectRemoval(key, value)}
+                                  aria-label={accessibleLabel}
+                                >
+                                  <X className="size-3.5" aria-hidden />
+                                </button>
+                              </motion.div>
+                            );
+                          })}
+                        </AnimatePresence>
+                      ) : (
                         <span className="onboarding-campaign-empty">No suggestion yet</span>
                       )}
                     </div>
@@ -290,22 +437,13 @@ export default function Discovery() {
                 ))}
               </div>
 
-              <div className="onboarding-campaign-context">
-                <Label htmlFor="prospect-context">
-                  Did we miss anything?
-                </Label>
-                <textarea
-                  id="prospect-context"
-                  value={additionalContext}
-                  onChange={(event) => setAdditionalContext(event.target.value)}
-                  placeholder="Add any job titles or customer details we missed..."
-                  className="onboarding-campaign-context-input"
-                />
-              </div>
+              <ProspectDetailInput profile={profile} setProfile={setProfile} onContextChange={setAdditionalContext} disabled={saving} />
+
+              <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{removalAnnouncement}</p>
 
               {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
 
-              <div className="onboarding-campaign-actions">
+              <div ref={actionRowRef} className="onboarding-campaign-actions">
                 <Button
                   type="button"
                   disabled={saving}
