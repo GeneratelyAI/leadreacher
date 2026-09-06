@@ -3,22 +3,22 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loading } from "@/components/ui/Loading";
-import AuthForm from "@/components/auth/AuthForm";
-import AuthLayout from "@/components/auth/AuthLayout";
+import Form from "@/components/auth/Form";
+import Layout from "@/components/auth/Layout";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
 import {
   isOnboardingStep,
   isStrategySubstep,
   type OnboardingStepParam,
 } from "@/components/onboarding/steps/steps";
-import { DemoOnboardingProvider, useDemoOnboarding } from "./DemoOnboardingProvider";
+import { Provider, useDemoOnboarding } from "./Provider";
 
 function DemoSignup() {
   const { dispatch } = useDemoOnboarding();
 
   return (
-    <AuthLayout>
-      <AuthForm
+    <Layout>
+      <Form
         mode="signup"
         demo
         onDemoComplete={({ fullName, email }) => {
@@ -26,7 +26,7 @@ function DemoSignup() {
           window.history.replaceState(null, "", "/demo/onboarding?step=discovery");
         }}
       />
-    </AuthLayout>
+    </Layout>
   );
 }
 
@@ -60,8 +60,8 @@ function DemoFlow() {
 
 export default function DemoOnboarding({ defaultWebsite }: { defaultWebsite?: string }) {
   return (
-    <DemoOnboardingProvider defaultWebsite={defaultWebsite}>
+    <Provider defaultWebsite={defaultWebsite}>
       <Suspense fallback={<div className="min-h-dvh" />}><DemoFlow /></Suspense>
-    </DemoOnboardingProvider>
+    </Provider>
   );
 }

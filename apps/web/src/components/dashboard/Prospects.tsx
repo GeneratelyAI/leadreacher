@@ -24,8 +24,8 @@ import {
 } from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { TruncatedWithTooltip } from "@/components/dashboard/DashboardMenu";
-import { formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { TooltipText } from "@/components/dashboard/Menu";
+import { formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
@@ -62,16 +62,16 @@ import { apiFetch } from "@/lib/api";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { cn } from "@/lib/utils";
 
-const ImportProspects = dynamic(
-  () => import("@/components/dashboard/ImportProspects").then((module) => module.ImportProspects),
+const Importer = dynamic(
+  () => import("@/components/dashboard/Importer").then((module) => module.Importer),
   { ssr: false, loading: () => null },
 );
 const AddProspect = dynamic(
   () => import("@/components/dashboard/AddProspect").then((module) => module.AddProspect),
   { ssr: false, loading: () => null },
 );
-const FindProspects = dynamic(
-  () => import("@/components/dashboard/FindProspects").then((module) => module.FindProspects),
+const Finder = dynamic(
+  () => import("@/components/dashboard/Finder").then((module) => module.Finder),
   { ssr: false, loading: () => null },
 );
 
@@ -342,7 +342,7 @@ function SelectionActionBar({
             .filter((campaign) => ["draft", "review"].includes(campaign.status))
             .map((campaign) => (
               <DropdownMenuItem key={campaign.id} onClick={() => onEnrollmentCampaignChange(campaign.id)}>
-                <TruncatedWithTooltip text={formatSocialMediaNames(campaign.name)} />
+                <TooltipText text={formatSocialMediaNames(campaign.name)} />
                 {enrollmentCampaignId === campaign.id ? <Check className="ml-auto size-3.5 shrink-0" /> : null}
               </DropdownMenuItem>
             ))}
@@ -890,9 +890,9 @@ export function Prospects() {
         onClear={() => setSelected(new Set())}
       />
 
-      <ImportProspects open={importOpen} onOpenChange={setImportOpen} onImported={load} />
+      <Importer open={importOpen} onOpenChange={setImportOpen} onImported={load} />
       <AddProspect open={quickAddOpen} onOpenChange={setQuickAddOpen} onAdded={load} />
-      <FindProspects open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
+      <Finder open={scrapeOpen} onOpenChange={setScrapeOpen} onScraped={load} />
 
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
         <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">

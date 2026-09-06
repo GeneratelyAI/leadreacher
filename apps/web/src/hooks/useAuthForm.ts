@@ -10,10 +10,9 @@ import { promoteAnonymousDiscoveryCache } from "@/lib/discovery-scrape-cache";
 import { postLoginRedirectPath } from "@/lib/auth/post-login-redirect";
 import { authErrorMessage } from "@/lib/auth/auth-errors";
 import { validateNewPassword } from "@/lib/auth/password-policy";
-import { isCaptchaEnabled } from "@/components/auth/AuthCaptcha";
+import { isCaptchaEnabled } from "@/components/auth/Captcha";
 
 type AuthMode = "login" | "signup";
-type AccountType = "individual" | "company";
 type AuthFactor = { status: string };
 
 type DemoAuthResult = {
@@ -32,8 +31,6 @@ export function useAuthForm(
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [accountType, setAccountType] = useState<AccountType>("individual");
-  const [companyName, setCompanyName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -44,14 +41,10 @@ export function useAuthForm(
 
   async function ensureOrganizationBootstrapped(userEmail: string) {
     const anonScrapeId = window.localStorage.getItem("lr_anon_scrape_id")?.trim();
-    const orgName =
-      isSignup && accountType === "company" && companyName.trim()
-        ? companyName.trim()
-        : defaultOrgNameFromEmail(userEmail);
+    const orgName = defaultOrgNameFromEmail(userEmail);
     const bootstrap = await bootstrapOrganization(
       orgName,
       anonScrapeId || undefined,
-      isSignup ? accountType : undefined,
     );
     promoteAnonymousDiscoveryCache(
       bootstrap.orgId,
@@ -66,11 +59,6 @@ export function useAuthForm(
   async function handleEmailSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-
-    if (isSignup && accountType === "company" && !companyName.trim()) {
-      setError("Enter your company name to continue.");
-      return;
-    }
 
     if (isSignup) {
       const passwordError = validateNewPassword(password);
@@ -188,10 +176,6 @@ export function useAuthForm(
     setPassword,
     fullName,
     setFullName,
-    accountType,
-    setAccountType,
-    companyName,
-    setCompanyName,
     showPassword,
     setShowPassword,
     error,

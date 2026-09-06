@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { Channels } from "@/components/dashboard/Channels";
-import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Frame } from "@/components/dashboard/Frame";
 
 export default function ChannelsPage() {
   return (
-    <PageFrame>
+    <Frame>
       <Suspense fallback={<DashboardRouteSkeleton />}>
         <Channels />
       </Suspense>
-    </PageFrame>
+    </Frame>
   );
 }
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { type ReactNode } from "react";
-import LandingFooter from "@/components/landing/remainder/LandingFooter";
+import Footer from "@/components/landing/remainder/Footer";
 import Navbar from "@/components/layout/Navbar";
 import TermsNavigator from "./TermsNavigator";
 import { termsDocument, type TermsBlock } from "./terms-content";
@@ -78,7 +78,7 @@ export default function TermsPage() {
         <Navbar />
       </div>
 
-      <LandingFooter footerClassName="print:hidden">
+      <Footer footerClassName="print:hidden">
         <div className="relative z-10 rounded-b-[28px] bg-[#f7f7fb] sm:rounded-b-[40px]">
           <section data-navbar-theme="light" className="relative isolate border-b border-[#dfdceb] bg-white pt-16 print:pt-0">
         <div
@@ -156,7 +156,7 @@ export default function TermsPage() {
         </div>
           </div>
         </div>
-      </LandingFooter>
+      </Footer>
     </main>
   );
 }

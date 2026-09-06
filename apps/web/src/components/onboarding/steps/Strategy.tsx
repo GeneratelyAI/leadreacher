@@ -15,8 +15,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { LandingMotion } from "@/components/landing/LandingMotion";
-import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/AcquisitionShowcase";
+import { Motion } from "@/components/landing/Motion";
+import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/Showcase";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
@@ -342,9 +342,9 @@ function HowItWorksScreen() {
         title="How LeadReacher works"
         subtitle="We turn your insights into conversations and qualified opportunities."
       />
-      <LandingMotion>
+      <Motion>
         <AcquisitionWorkflowCarousel compact className="mt-3 w-full" />
-      </LandingMotion>
+      </Motion>
     </section>
   );
 }

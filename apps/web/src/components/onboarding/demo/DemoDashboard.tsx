@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, LayoutDashboard, RefreshCw, ShieldCheck, Sparkles } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
-import { ThemeToggleButton } from "@/components/onboarding/AccountControls";
+import { ThemeButton } from "@/components/onboarding/AccountControls";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import { Button } from "@/components/ui/Button";
@@ -42,7 +42,7 @@ export default function DemoDashboard() {
     <div className="min-h-dvh bg-background text-foreground">
       <header className="flex h-20 items-center justify-between border-b border-border px-5 sm:px-8">
         <Link href="/" aria-label="LeadReacher home"><OnboardingLogo className="h-7 w-auto" /></Link>
-        <div className="flex items-center gap-2"><StatusBadge tone="brand">Demo workspace</StatusBadge><ThemeToggleButton /></div>
+        <div className="flex items-center gap-2"><StatusBadge tone="brand">Demo workspace</StatusBadge><ThemeButton /></div>
       </header>
       <main className="mx-auto w-full max-w-6xl px-5 py-12 sm:px-8 sm:py-16">
         <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-end">

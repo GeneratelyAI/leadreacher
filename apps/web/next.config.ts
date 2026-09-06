@@ -5,7 +5,15 @@ import type { NextConfig } from "next";
 loadEnvConfig(path.resolve(__dirname, "../.."));
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.google.com",
+        pathname: "/s2/favicons",
+      },
+    ],
+  },
 };
 
 export default nextConfig;

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ThemeToggleButton } from "@/components/onboarding/AccountControls";
+import { ThemeButton } from "@/components/onboarding/AccountControls";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import { Stepper } from "@/components/onboarding/Stepper";
 import type { OnboardingStepParam } from "@/components/onboarding/steps/steps";
@@ -21,11 +21,11 @@ export function OnboardingChrome({ activeStep }: ChromeProps) {
       inert={!isVisible}
     >
       <Link href="/" aria-label="LeadReacher home" className="onboarding-chrome__logo inline-flex min-h-11 items-center">
-        <OnboardingLogo className="h-7 w-auto" />
+        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
       <Stepper activeStep={activeStep} className="onboarding-chrome__stepper" />
       <div className="onboarding-chrome__account">
-        <ThemeToggleButton />
+        <ThemeButton />
       </div>
     </header>
   );

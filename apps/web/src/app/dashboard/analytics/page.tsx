@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { Analytics } from "@/components/dashboard/Analytics";
-import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Frame } from "@/components/dashboard/Frame";
 
 export default function AnalyticsPage() {
   return (
-    <PageFrame>
+    <Frame>
       <Suspense fallback={<DashboardRouteSkeleton />}>
         <Analytics />
       </Suspense>
-    </PageFrame>
+    </Frame>
   );
 }
 

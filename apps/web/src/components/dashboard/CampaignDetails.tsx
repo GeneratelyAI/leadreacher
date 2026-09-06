@@ -24,7 +24,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { toast } from "sonner";
 import { CampaignVideo, type CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
 import { SequenceBuilder } from "@/components/dashboard/SequenceBuilder";
-import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, PlatformLogo, formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/badge";
@@ -39,7 +39,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
+import { useDashboardEvents } from "@/components/providers/DataProvider";
 import { ApiError, apiFetch } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -717,7 +717,7 @@ export function CampaignDetails({
                 </div>
                 {detail.channels.map((channel) => (
                   <div key={channel} className="mt-2 grid grid-cols-4 gap-2 border-t border-border pt-2 text-sm">
-                    <span className="flex items-center gap-1.5"><DashboardChannelLogo platform={channel} className="size-4" />{channelDisplayName(channel)}</span>
+                    <span className="flex items-center gap-1.5"><PlatformLogo platform={channel} className="size-4" />{channelDisplayName(channel)}</span>
                     <span className="text-right">{detail.metrics.sent}</span>
                     <span className="text-right">{detail.metrics.replyRate ?? 0}%</span>
                     <span className="text-right">{detail.metrics.replies}</span>
@@ -842,7 +842,7 @@ export function CampaignDetails({
                                     {isVideo ? (
                                       <Video weight="fill" className={cn("mt-4 size-4 shrink-0", index === 0 ? "text-onboarding-purple-700 dark:text-onboarding-purple-200" : "text-muted-foreground")} aria-hidden />
                                     ) : channel ? (
-                                      <DashboardChannelLogo platform={channel} className="mt-4 size-4 shrink-0" />
+                                      <PlatformLogo platform={channel} className="mt-4 size-4 shrink-0" />
                                     ) : (
                                       <MessageSquare weight="fill" className={cn("mt-4 size-4 shrink-0", index === 0 ? "text-onboarding-purple-700 dark:text-onboarding-purple-200" : "text-muted-foreground")} aria-hidden />
                                     )}
@@ -904,7 +904,7 @@ export function CampaignDetails({
                             <div className="min-w-0">
                               <p className="text-sm font-semibold">Sending through</p>
                               <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                                {detail.channels.slice(0, 2).map((channel) => <DashboardChannelLogo key={channel} platform={channel} className="size-4" />)}
+                                {detail.channels.slice(0, 2).map((channel) => <PlatformLogo key={channel} platform={channel} className="size-4" />)}
                                 {campaignChannelLabel(detail.channels)}
                               </p>
                             </div>
@@ -1040,7 +1040,7 @@ export function CampaignDetails({
                   <div className="mt-2 flex flex-wrap gap-2">
                     {detail.channels.map((channel) => (
                       <span key={channel} className="inline-flex items-center gap-1.5 text-xs font-medium">
-                        <DashboardChannelLogo platform={channel} className="size-5" />
+                        <PlatformLogo platform={channel} className="size-5" />
                         {channelDisplayName(channel)}
                       </span>
                     ))}

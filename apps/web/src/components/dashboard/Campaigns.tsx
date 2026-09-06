@@ -32,7 +32,7 @@ import { defaultSequenceDraft, SequenceBuilder, type SequenceStepDraft } from "@
 import { MetricCard } from "@/components/patterns/MetricCard";
 import { SelectionToolbar, SelectionToolbarAction } from "@/components/patterns/SelectionToolbar";
 import type { CampaignVideoSummary } from "@/components/dashboard/CampaignVideo";
-import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, PlatformLogo, formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/badge";
@@ -212,7 +212,7 @@ function ChannelMarks({ channels }: { channels: string[] }) {
     <div className="flex flex-wrap items-center gap-2 text-sm text-app-fg-muted">
       {channels.map((channel) => (
         <span key={channel} className="inline-flex items-center gap-1.5">
-          <DashboardChannelLogo platform={channel} className="size-5" />
+          <PlatformLogo platform={channel} className="size-5" />
           {channelDisplayName(channel)}
         </span>
       ))}
@@ -999,11 +999,11 @@ export function Campaigns() {
               groups={[{ label: "Channels", options: availableChannels.map((value) => ({
                 value,
                 label: channelLabel(value),
-                icon: <DashboardChannelLogo platform={value} className="size-5" />,
+                icon: <PlatformLogo platform={value} className="size-5" />,
               })) }] as FilterGroup[]}
               onValueChange={(value) => setChannel(value || "all")}
               allLabel="All channels"
-              allIcon={<DashboardChannelLogo platform="linkedin" className="size-5" />}
+              allIcon={<PlatformLogo platform="linkedin" className="size-5" />}
               className="h-9 min-w-36 text-sm font-normal"
               aria-label="Campaign channel filter"
             />

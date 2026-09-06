@@ -1,6 +1,6 @@
 import { Campaigns as CampaignsWorkspace } from "@/components/dashboard/Campaigns";
-import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Frame } from "@/components/dashboard/Frame";
 
 export default function Campaigns() {
-  return <PageFrame><CampaignsWorkspace /></PageFrame>;
+  return <Frame><CampaignsWorkspace /></Frame>;
 }

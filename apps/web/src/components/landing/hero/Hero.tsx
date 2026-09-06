@@ -9,7 +9,7 @@ import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { initializeDemoSession } from "@/lib/onboarding/demo-store";
 import ShimmerText from "@/components/ui/shimmer-text";
-import HeroBackground from "./HeroBackground";
+import Background from "./Background";
 import { BrowserBar } from "./BrowserBar";
 
 type AnalyzerPhase = "idle" | "running" | "failed";
@@ -194,7 +194,7 @@ export default function Hero({ demoEnabled = false }: { demoEnabled?: boolean })
 
   return (
     <section id="top" data-hydrated={hydrated} data-navbar-theme="light" className="relative isolate flex min-h-svh w-full scroll-mt-20 overflow-hidden bg-white text-[#090d1d] lg:min-h-[calc(100svh-2rem)]">
-      <HeroBackground />
+      <Background />
       <div className="hero-shell mx-auto flex min-h-svh w-full max-w-[1536px] flex-col px-4 pb-7 pt-28 min-[360px]:px-5 sm:px-8 sm:pt-28 lg:min-h-[calc(100svh-2rem)] lg:px-12 lg:pb-8 lg:pt-32 h-compact:lg:pb-3 h-compact:lg:pt-20 h-short:lg:pb-1 h-short:lg:pt-16">
         <main data-analysis-phase={phase} className="hero-composition flex flex-1 flex-col items-center text-center lg:grid lg:grid-cols-1 lg:grid-rows-[1fr_auto_1fr]">
           <div className="flex flex-col items-center lg:self-end lg:pb-[clamp(1.25rem,4vh,3rem)]">

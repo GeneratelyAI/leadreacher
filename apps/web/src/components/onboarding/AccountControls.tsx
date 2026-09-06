@@ -3,7 +3,7 @@
 import { Moon, Sun } from "@/components/ui/icons";
 import { useThemeMode } from "@/hooks/useThemeMode";
 
-export function ThemeToggleButton() {
+export function ThemeButton() {
   const { isDark, toggle } = useThemeMode();
 
   return (
@@ -14,9 +14,9 @@ export function ThemeToggleButton() {
       className="inline-flex size-11 shrink-0 items-center justify-center text-neutral-600 transition-colors duration-fast ease-brand hover:text-onboarding-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onboarding-purple-300 dark:text-onboarding-neutral-300 dark:hover:text-onboarding-neutral-0"
     >
       {isDark ? (
-        <Sun className="size-5" aria-hidden />
+        <Sun className="size-6" aria-hidden />
       ) : (
-        <Moon className="size-5" aria-hidden />
+        <Moon className="size-6" aria-hidden />
       )}
     </button>
   );

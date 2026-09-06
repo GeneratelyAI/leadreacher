@@ -1,4 +1,4 @@
-import { VideoToneGrid } from "./VideoToneGrid";
+import { Tone } from "./Tone";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
 export function GenerateVideo({
@@ -29,7 +29,7 @@ export function GenerateVideo({
         </p>
       </div>
       <div className="mt-9">
-        <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+        <Tone selectedTone={videoConfig.tone} onSelect={selectTone} />
       </div>
     </section>
   );

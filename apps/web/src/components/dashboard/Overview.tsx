@@ -20,10 +20,10 @@ import {
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { channelDisplayName, DashboardChannelLogo, groupEmailChannelMetrics } from "@/components/dashboard/ChannelIdentity";
-import { PageFrame } from "@/components/dashboard/PageFrame";
-import { useDashboardShell } from "@/components/dashboard/DashboardShell";
-import { AdvancedMetrics } from "@/components/dashboard/AdvancedMetrics";
+import { channelDisplayName, PlatformLogo, groupEmailChannelMetrics } from "@/components/dashboard/Channel";
+import { Frame } from "@/components/dashboard/Frame";
+import { useShell } from "@/components/dashboard/Shell";
+import { Metrics } from "@/components/dashboard/Metrics";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -349,7 +349,7 @@ function ChannelPerformanceCard({ analytics }: { analytics: AnalyticsResponse | 
                 return (
                   <TableBody key={row.channel} className={cn(expandable && "group/email")}>
                     <TableRow tabIndex={expandable ? 0 : undefined} className={cn(expandable && "cursor-default focus-visible:bg-muted/50 focus-visible:outline-none")}>
-                      <TableCell><span className="flex items-center gap-2 font-medium"><DashboardChannelLogo platform={row.channel} className="size-6" />{channelDisplayName(row.channel)}{expandable ? <ChevronDown className="ml-1 size-3.5 text-muted-foreground transition-transform duration-300 group-hover/email:rotate-180 group-focus-within/email:rotate-180" aria-hidden /> : null}</span></TableCell>
+                      <TableCell><span className="flex items-center gap-2 font-medium"><PlatformLogo platform={row.channel} className="size-6" />{channelDisplayName(row.channel)}{expandable ? <ChevronDown className="ml-1 size-3.5 text-muted-foreground transition-transform duration-300 group-hover/email:rotate-180 group-focus-within/email:rotate-180" aria-hidden /> : null}</span></TableCell>
                       <TableCell className="text-right">{formatNumber(row.messagesSent)}</TableCell><TableCell className="text-right">{row.replyRate}%</TableCell><TableCell className="text-right">{formatNumber(row.replies)}</TableCell>
                     </TableRow>
                     {expandable ? (
@@ -358,7 +358,7 @@ function ChannelPerformanceCard({ analytics }: { analytics: AnalyticsResponse | 
                           <div className="max-h-0 overflow-hidden bg-muted/20 opacity-0 transition-[max-height,opacity] duration-300 ease-out group-hover/email:max-h-28 group-hover/email:opacity-100 group-focus-within/email:max-h-28 group-focus-within/email:opacity-100">
                             {channelRows.emailProviders.map((provider) => (
                               <div key={provider.channel} className="grid grid-cols-[minmax(10rem,1fr)_4rem_5rem_4rem] items-center border-t border-app-border px-2 py-2 text-sm">
-                                <span className="flex items-center gap-2 pl-5 font-medium"><DashboardChannelLogo platform={provider.channel} className="size-5" />{channelDisplayName(provider.channel)}</span>
+                                <span className="flex items-center gap-2 pl-5 font-medium"><PlatformLogo platform={provider.channel} className="size-5" />{channelDisplayName(provider.channel)}</span>
                                 <span className="text-right">{formatNumber(provider.messagesSent)}</span><span className="text-right">{provider.replyRate}%</span><span className="text-right">{formatNumber(provider.replies)}</span>
                               </div>
                             ))}
@@ -439,11 +439,11 @@ function CasualOverview({ overview, analytics }: { overview: DashboardOverview; 
 }
 
 function AdvancedOverview({ overview, analytics }: { overview: DashboardOverview; analytics: AnalyticsResponse | null }) {
-  return <div className="space-y-4"><div className="grid items-stretch gap-4 2xl:grid-cols-[minmax(26rem,0.95fr)_minmax(0,1.35fr)]"><AutomationStatusCard overview={overview} />{analytics ? <AdvancedMetrics analytics={analytics} /> : <Skeleton className="h-full min-h-[20rem] rounded-lg" />}</div><div className="grid items-stretch gap-4 2xl:grid-cols-3"><RecentMessagesCard overview={overview} /><CampaignPerformanceCard analytics={analytics} /><ChannelPerformanceCard analytics={analytics} /></div><ConnectChannels overview={overview} /></div>;
+  return <div className="space-y-4"><div className="grid items-stretch gap-4 2xl:grid-cols-[minmax(26rem,0.95fr)_minmax(0,1.35fr)]"><AutomationStatusCard overview={overview} />{analytics ? <Metrics analytics={analytics} /> : <Skeleton className="h-full min-h-[20rem] rounded-lg" />}</div><div className="grid items-stretch gap-4 2xl:grid-cols-3"><RecentMessagesCard overview={overview} /><CampaignPerformanceCard analytics={analytics} /><ChannelPerformanceCard analytics={analytics} /></div><ConnectChannels overview={overview} /></div>;
 }
 
 export function Overview() {
-  const { memberName } = useDashboardShell();
+  const { memberName } = useShell();
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<OverviewMode>("casual");
   const rangeQuery = useMemo(() => {
@@ -472,7 +472,7 @@ export function Overview() {
   const error = requestError instanceof ApiError && requestError.status === 401 ? "Your session has expired. Please sign in again." : requestError instanceof Error ? requestError.message : null;
 
   return (
-    <PageFrame className="min-w-0">
+    <Frame className="min-w-0">
       <div className="relative mb-5 grid gap-4 lg:min-h-14 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
           <h1 className="text-[1.35rem] font-semibold leading-tight tracking-tight sm:text-[1.75rem]">{greeting()}, <span className="break-words">{accountFirstName(overview, memberName)}</span> <span aria-hidden>👋</span></h1>
@@ -486,6 +486,6 @@ export function Overview() {
       {!overview && overviewQuery.isLoading ? <OverviewSkeleton /> : overview ? mode === "casual" ? <CasualOverview overview={overview} analytics={analytics} /> : <AdvancedOverview overview={overview} analytics={analytics} /> : null}
 
       {overview ? <footer className="mt-4 flex flex-col gap-2 rounded-lg border border-app-border bg-app-chrome px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between"><span className="inline-flex items-center gap-2"><ShieldCheck className="size-4 text-onboarding-success-500" />{overview.engine.label}</span><span>{overviewQuery.isFetching || analyticsQuery.isFetching ? "Updating workspace data" : "Workspace data synchronized"}</span></footer> : null}
-    </PageFrame>
+    </Frame>
   );
 }

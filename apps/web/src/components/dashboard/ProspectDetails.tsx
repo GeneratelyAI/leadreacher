@@ -6,7 +6,7 @@ import { Check, ExternalLink, Loader2 } from "@/components/ui/icons";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { apiFetch } from "@/lib/api";
 
 type ProspectDetail = {

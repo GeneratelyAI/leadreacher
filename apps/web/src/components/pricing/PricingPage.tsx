@@ -8,7 +8,7 @@ import { ArrowRight, Check, Minus, Plus, Video } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
-import LandingFooter from "@/components/landing/remainder/LandingFooter";
+import Footer from "@/components/landing/remainder/Footer";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import { SUPPORT_EMAIL } from "@/lib/constants/brand";
@@ -314,7 +314,7 @@ export default function PricingPage() {
       </section>
 
     </main>
-    <LandingFooter>
+    <Footer>
       <div className="relative bg-[#111318] pt-px">
         <section data-navbar-theme="light" className="relative z-40 -mt-7 isolate overflow-hidden rounded-[28px] bg-white px-4 py-16 sm:-mt-9 sm:rounded-[40px] sm:px-6 sm:py-24 lg:py-28">
           <FaqSectionCentered
@@ -326,7 +326,7 @@ export default function PricingPage() {
           />
         </section>
       </div>
-    </LandingFooter>
+    </Footer>
     </>
   );
 }

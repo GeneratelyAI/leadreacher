@@ -1,6 +1,6 @@
-import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Frame } from "@/components/dashboard/Frame";
 import { Settings } from "@/components/dashboard/Settings";
 
 export default function SettingsPage() {
-  return <PageFrame><Settings /></PageFrame>;
+  return <Frame><Settings /></Frame>;
 }

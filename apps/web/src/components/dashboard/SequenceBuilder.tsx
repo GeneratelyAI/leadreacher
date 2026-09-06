@@ -4,7 +4,7 @@ import { Plus, Trash2 } from "@/components/ui/icons";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cn } from "@/lib/utils";
-import { channelDisplayName } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName } from "@/components/dashboard/Channel";
 
 export type SequenceStepDraft = {
   type: string;

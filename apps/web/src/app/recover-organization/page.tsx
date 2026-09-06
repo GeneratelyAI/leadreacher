@@ -1,4 +1,4 @@
-import { OrganizationRecoveryForm } from "@/components/auth/WorkspaceAccess";
+import { OrganizationRecoveryForm } from "@/components/auth/Access";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 

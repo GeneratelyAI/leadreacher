@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import LandingFooter from "@/components/landing/remainder/LandingFooter";
+import Footer from "@/components/landing/remainder/Footer";
 import Navbar from "@/components/layout/Navbar";
 import TermsNavigator from "../terms/TermsNavigator";
 
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
       </a>
       <div className="print:hidden"><Navbar /></div>
 
-      <LandingFooter footerClassName="print:hidden">
+      <Footer footerClassName="print:hidden">
         <div className="relative z-10 rounded-b-[28px] bg-[#f7f7fb] sm:rounded-b-[40px]">
           <section data-navbar-theme="light" className="relative isolate border-b border-[#dfdceb] bg-white pt-16 print:pt-0">
             <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_15%_15%,rgba(101,71,246,0.12),transparent_28%),radial-gradient(circle_at_88%_5%,rgba(71,157,255,0.10),transparent_26%)]" />
@@ -128,7 +128,7 @@ export default function PrivacyPage() {
             </div>
           </div>
         </div>
-      </LandingFooter>
+      </Footer>
     </main>
   );
 }

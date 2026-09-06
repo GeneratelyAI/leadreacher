@@ -168,7 +168,6 @@ export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob>
 export async function bootstrapOrganization(
   name: string,
   anonScrapeId?: string,
-  accountType?: "individual" | "company",
 ): Promise<{
   orgId: string;
   userId: string;
@@ -191,7 +190,6 @@ export async function bootstrapOrganization(
     body: JSON.stringify({
       name,
       ...(anonScrapeId ? { anonScrapeId } : {}),
-      ...(accountType ? { accountType } : {}),
     }),
   });
 }
@@ -203,13 +201,11 @@ export async function bootstrapOrganization(
  */
 export async function bootstrapCurrentOrganization(
   anonScrapeId?: string,
-  accountType?: "individual" | "company",
 ) {
   if (usesOnboardingFixtures()) return previewOrganization();
   const session = await getBrowserSession();
   return bootstrapOrganization(
     defaultOrgNameFromEmail(session?.user?.email ?? ""),
     anonScrapeId,
-    accountType,
   );
 }

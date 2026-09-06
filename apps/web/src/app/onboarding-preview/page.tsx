@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
-import { OnboardingPreviewToolbar } from "@/components/onboarding/OnboardingPreviewToolbar";
+import { Preview } from "@/components/onboarding/Preview";
 import {
   isOnboardingStep,
   isStrategySubstep,
@@ -37,7 +37,7 @@ export default async function OnboardingPreviewPage({ searchParams }: PreviewPag
         initialStep={initialStep}
         initialStrategySubstep={initialStrategySubstep}
       />
-      <OnboardingPreviewToolbar />
+      <Preview />
     </div>
   );
 }

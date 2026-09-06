@@ -19,7 +19,7 @@ import {
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, PlatformLogo, formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
@@ -211,7 +211,7 @@ function PlatformMark({
   providerType?: string | null;
 }) {
   return (
-    <DashboardChannelLogo
+    <PlatformLogo
       platform={providerType ?? platform}
       accountName={accountName}
       className="size-10"

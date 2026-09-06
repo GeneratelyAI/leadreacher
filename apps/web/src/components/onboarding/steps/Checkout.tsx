@@ -16,7 +16,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Loading } from "@/components/ui/Loading";
-import { EmbeddedCheckoutCard, PaymentTrustBar } from "@/components/onboarding/EmbeddedCheckoutCard";
+import { CheckoutCard, PaymentTrustBar } from "@/components/onboarding/Checkout";
 import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
@@ -337,7 +337,7 @@ export default function Checkout() {
             ) : null}
 
             {embeddedCheckout ? (
-              <EmbeddedCheckoutCard
+              <CheckoutCard
                 {...embeddedCheckout}
                 previewAmount={lineItems.reduce((total, item) => total + (item.unitAmount ?? 0), 0)}
                 previewCurrency={lineItems.find((item) => item.currency)?.currency ?? "usd"}

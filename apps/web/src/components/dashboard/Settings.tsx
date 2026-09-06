@@ -17,9 +17,9 @@ import {
 } from "@/components/ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { DashboardChannelLogo } from "@/components/dashboard/ChannelIdentity";
-import { useDashboardShell } from "@/components/dashboard/DashboardShell";
-import { MfaSecurityPanel } from "@/components/auth/MfaSecurityPanel";
+import { PlatformLogo } from "@/components/dashboard/Channel";
+import { useShell } from "@/components/dashboard/Shell";
+import { Security } from "@/components/auth/Security";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -192,7 +192,7 @@ function SettingsSectionCard({
 }
 
 export function Settings() {
-  const { canExportData: initialCanExportData } = useDashboardShell();
+  const { canExportData: initialCanExportData } = useShell();
   const [canExportData, setCanExportData] = useState(initialCanExportData);
   const [name, setName] = useState("");
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
@@ -427,7 +427,7 @@ export function Settings() {
 
           <div className="grid gap-5 lg:grid-cols-2">
             <SettingsSectionCard icon={<ShieldCheck className="size-5" strokeWidth={1.75} aria-hidden />} title="Security">
-              <MfaSecurityPanel
+              <Security
                 onStatusChange={setCanExportData}
                 recommendation={shouldRecommendMfa
                   ? "This workspace has connected channels or campaign activity. Add an authenticator app to protect channel connections, billing management, and data exports."
@@ -546,7 +546,7 @@ export function Settings() {
                       href="/dashboard/channels"
                       className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                     >
-                        <DashboardChannelLogo platform={row.platform} accountName={row.accountName} className="size-8" />
+                        <PlatformLogo platform={row.platform} accountName={row.accountName} className="size-8" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium">{row.label}</p>
                           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">

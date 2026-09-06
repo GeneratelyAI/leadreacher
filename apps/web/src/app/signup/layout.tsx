@@ -1,4 +1,4 @@
-import PageSurface from "@/components/layout/PageSurface";
+import Surface from "@/components/layout/Surface";
 
 export default function SignupLayout({
   children,
@@ -7,7 +7,7 @@ export default function SignupLayout({
 }>) {
   return (
     <>
-      <PageSurface surface="auth" />
+      <Surface surface="auth" />
       <div className="flex min-h-dvh flex-1 flex-col bg-white dark:bg-[#0a0e14]">
         {children}
       </div>

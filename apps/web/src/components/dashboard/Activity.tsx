@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/icons";
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, PlatformLogo, formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Filter, type FilterGroup } from "@/components/dashboard/Filter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/Button";
@@ -164,13 +164,13 @@ function ActivityMark({ item }: { item: ActivityItem }) {
           </AvatarFallback>
         </Avatar>
         {item.channel ? (
-          <DashboardChannelLogo platform={item.channel} className="absolute -right-0.5 -bottom-0.5 size-4 rounded-sm border-2 border-onboarding-neutral-0 dark:border-onboarding-neutral-900" />
+          <PlatformLogo platform={item.channel} className="absolute -right-0.5 -bottom-0.5 size-4 rounded-sm border-2 border-onboarding-neutral-0 dark:border-onboarding-neutral-900" />
         ) : null}
       </span>
     );
   }
 
-  if (item.channel) return <DashboardChannelLogo platform={item.channel} className="size-8" />;
+  if (item.channel) return <PlatformLogo platform={item.channel} className="size-8" />;
 
   if (item.kind === "campaign") {
     return <Trophy className="size-5 shrink-0 text-onboarding-purple-600 dark:text-onboarding-purple-200" aria-hidden />;
@@ -276,7 +276,7 @@ export function Activity() {
       options: channels.map((channel) => ({
         value: `channel:${channel}`,
         label: channelDisplayName(channel),
-        icon: <DashboardChannelLogo platform={channel} className="size-6" />,
+        icon: <PlatformLogo platform={channel} className="size-6" />,
       })),
     },
     {

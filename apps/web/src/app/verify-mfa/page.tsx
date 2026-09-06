@@ -1,4 +1,4 @@
-import { MfaChallenge } from "@/components/auth/MfaChallenge";
+import { Challenge } from "@/components/auth/Challenge";
 
 export default async function VerifyMfaPage({
   searchParams,
@@ -6,5 +6,5 @@ export default async function VerifyMfaPage({
   searchParams: Promise<{ next?: string }>;
 }) {
   const { next } = await searchParams;
-  return <MfaChallenge nextPath={next} />;
+  return <Challenge nextPath={next} />;
 }

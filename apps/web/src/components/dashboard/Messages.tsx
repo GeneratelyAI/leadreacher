@@ -21,9 +21,9 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Filter as VisualFilter, type FilterGroup } from "@/components/dashboard/Filter";
 import { DEFAULT_VIDEO_THUMBNAIL, VideoAttachment } from "@/components/dashboard/VideoAttachment";
-import { useDashboardEvents } from "@/components/providers/DashboardDataProvider";
+import { useDashboardEvents } from "@/components/providers/DataProvider";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
-import { channelDisplayName, DashboardChannelLogo, formatSocialMediaNames } from "@/components/dashboard/ChannelIdentity";
+import { channelDisplayName, PlatformLogo, formatSocialMediaNames } from "@/components/dashboard/Channel";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -353,7 +353,7 @@ function InboxNavigation({
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <DashboardChannelLogo platform={channel} className="size-5" />
+                  <PlatformLogo platform={channel} className="size-5" />
                   <span className="min-w-0 flex-1 truncate">{channelDisplayName(channel)}</span>
                 </button>
               );
@@ -824,7 +824,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
       options: availableChannels.map((channel) => ({
         value: channel,
         label: channelDisplayName(channel),
-        icon: <DashboardChannelLogo platform={channel} className="size-6" />,
+        icon: <PlatformLogo platform={channel} className="size-6" />,
       })),
     }]
     : [];
@@ -1020,7 +1020,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                               </time>
                             </span>
                             <span className="mt-0.5 block truncate text-xs text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                              <DashboardChannelLogo platform={conversation.channel} accountName={conversation.sender?.accountName} className="mr-1 inline-flex size-4.5 align-[-2px]" />
+                              <PlatformLogo platform={conversation.channel} accountName={conversation.sender?.accountName} className="mr-1 inline-flex size-4.5 align-[-2px]" />
                               {conversation.prospect.title || conversation.prospect.company || "Prospect"}
                               {conversation.campaign.name ? ` · ${formatSocialMediaNames(conversation.campaign.name)}` : ""}
                             </span>
@@ -1081,7 +1081,7 @@ export function Messages({ conversationId }: { conversationId?: string }) {
                         <div className="flex items-center gap-2">
                           <h2 className="truncate text-base font-semibold lg:text-lg">{detail.prospect.name}</h2>
                           <Badge variant="secondary" className="hidden gap-1.5 capitalize sm:inline-flex">
-                            <DashboardChannelLogo platform={detail.channel} accountName={detail.sender?.accountName} className="size-4.5" />
+                            <PlatformLogo platform={detail.channel} accountName={detail.sender?.accountName} className="size-4.5" />
                             {channelDisplayName(detail.channel, detail.sender?.accountName)}
                           </Badge>
                           <span className="hidden size-2 rounded-full bg-onboarding-success-500 lg:inline-flex" aria-hidden />

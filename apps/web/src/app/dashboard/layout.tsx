@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { DashboardDataProvider } from "@/components/providers/DashboardDataProvider";
+import { Shell } from "@/components/dashboard/Shell";
+import { DataProvider } from "@/components/providers/DataProvider";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
 import { createClient } from "@/lib/supabase/server";
@@ -72,14 +72,14 @@ export default async function DashboardLayout({
   }
 
   return (
-    <DashboardDataProvider scope={`${bootstrap.orgId}:${user.id}`}>
-      <DashboardShell
+    <DataProvider scope={`${bootstrap.orgId}:${user.id}`}>
+      <Shell
         memberName={bootstrap.memberName ?? displayName(user)}
         canExportData={assurance?.currentLevel === "aal2"}
         modal={modal ?? null}
       >
         {children}
-      </DashboardShell>
-    </DashboardDataProvider>
+      </Shell>
+    </DataProvider>
   );
 }

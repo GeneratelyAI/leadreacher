@@ -1,10 +1,10 @@
-import AuthForm from "@/components/auth/AuthForm";
-import AuthLayout from "@/components/auth/AuthLayout";
+import LoginCampaign from "@/components/auth/LoginCampaign";
+import Layout from "@/components/auth/Layout";
 
 export default function LoginPage() {
   return (
-    <AuthLayout>
-      <AuthForm mode="login" />
-    </AuthLayout>
+    <Layout campaign>
+      <LoginCampaign />
+    </Layout>
   );
 }

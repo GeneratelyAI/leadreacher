@@ -1,14 +1,14 @@
 import { Suspense } from "react";
 import { Activity } from "@/components/dashboard/Activity";
-import { PageFrame } from "@/components/dashboard/PageFrame";
+import { Frame } from "@/components/dashboard/Frame";
 
 export default function ActivityPage() {
   return (
-    <PageFrame>
+    <Frame>
       <Suspense fallback={<DashboardRouteSkeleton />}>
         <Activity />
       </Suspense>
-    </PageFrame>
+    </Frame>
   );
 }
 

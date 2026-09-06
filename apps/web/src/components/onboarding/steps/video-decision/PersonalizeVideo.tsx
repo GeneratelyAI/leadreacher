@@ -1,5 +1,5 @@
 import { Clapperboard } from "@/components/ui/icons";
-import { VideoToneGrid } from "./VideoToneGrid";
+import { Tone } from "./Tone";
 import type { SetVideoConfig, VideoConfig, VideoTone } from "./types";
 
 export function PersonalizeVideo({
@@ -32,7 +32,7 @@ export function PersonalizeVideo({
           Choose the style for videos personalized to each prospect.
         </p>
         <div className="mt-4">
-          <VideoToneGrid selectedTone={videoConfig.tone} onSelect={selectTone} />
+          <Tone selectedTone={videoConfig.tone} onSelect={selectTone} />
         </div>
       </section>
     </div>
