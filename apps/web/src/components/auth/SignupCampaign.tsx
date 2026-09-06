@@ -39,26 +39,18 @@ export default function SignupCampaign() {
 
   const campaign = useMemo<PillData>(() => {
     const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-    const fields = [
-      { label: "Market", value: status.market },
-      { label: "Offer", value: status.offer },
-      { label: "Customer", value: status.audience },
-      { label: "Value", value: status.value },
-      { label: "Goal", value: status.strategyStatus },
-    ].filter((field): field is { label: string; value: string } => Boolean(field.value?.trim()));
-
     return {
-      status: fields.length > 0 ? "ready" : "learning",
-      statusLabel: fields.length > 0 ? "Business understood" : "Building your campaign",
-      fields,
+      status: "learning",
+      statusLabel: "Building your campaign",
+      fields: [],
       site: website
         ? {
             label: website.hostname,
             iconUrl: getWebsiteFaviconUrl(website.hostname),
-          }
+        }
         : undefined,
     };
-  }, [status.audience, status.market, status.offer, status.strategyStatus, status.url, status.value, websiteUrl]);
+  }, [status.url, websiteUrl]);
 
   return (
     <div data-testid="signup-campaign-auth" className="signup-campaign-layout">

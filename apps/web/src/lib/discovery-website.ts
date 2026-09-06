@@ -15,7 +15,7 @@ export function containsWebsiteUrl(text: string): boolean {
 
 export function getWebsiteFaviconUrl(hostname: string): string {
   const normalizedHostname = hostname.trim().toLowerCase().replace(/^www\./, "");
-  if (normalizedHostname === "leadreacher.ai") {
+  if (normalizedHostname === "leadreacher.ai" || normalizedHostname.endsWith(".example")) {
     return "/logo/leadreacher_icon_colored.svg";
   }
   return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=128`;
