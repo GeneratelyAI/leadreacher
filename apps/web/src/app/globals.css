@@ -133,6 +133,40 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.onboarding-campaign-scene { min-height: 100dvh; }
+.onboarding-campaign-scene .onboarding-step-presence .signup-campaign-pill-column,
+.onboarding-campaign-scene .onboarding-step-presence .onboarding-brand-anchor,
+.onboarding-campaign-scene .onboarding-chrome__logo { display: none; }
+.onboarding-campaign-scene:has(.discovery-website-gate) .onboarding-persistent-pill { display: none; }
+.onboarding-campaign-scene .onboarding-persistent-logo { z-index: 30; }
+.onboarding-campaign-scene .onboarding-persistent-pill,
+.onboarding-campaign-scene .onboarding-persistent-pill::before,
+.onboarding-campaign-scene .campaign-pill,
+.onboarding-campaign-scene .campaign-pill::before,
+.onboarding-campaign-scene .campaign-pill-ambient,
+.onboarding-campaign-scene .campaign-pill-status-icon { animation: none; }
+.onboarding-campaign-scene .campaign-pill-section-new { animation-duration: 300ms; }
+.onboarding-campaign-scene .campaign-pill-status-icon .animate-spin { animation: none; }
+@media (min-width: 63.0625rem) {
+  .onboarding-campaign-scene .onboarding-chrome__stepper { grid-column: 2; }
+  .onboarding-campaign-scene .onboarding-chrome__account { grid-column: 3; }
+  .onboarding-campaign-scene .onboarding-video-screen,
+  .onboarding-campaign-scene .onboarding-connect-screen,
+  .onboarding-campaign-scene .checkout-page,
+  .onboarding-campaign-scene .strategy-targeting-screen,
+  .onboarding-campaign-scene .strategy-channels-screen {
+    width: auto;
+    max-width: none;
+    margin-left: calc(var(--campaign-reference-gutter) * var(--onboarding-fit-inverse, 1));
+    margin-right: calc((var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem)) * var(--onboarding-fit-inverse, 1));
+    padding-inline: 0;
+  }
+  .onboarding-campaign-scene .onboarding-actions {
+    left: var(--campaign-reference-gutter);
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  }
+}
+
 .landing-light-surface {
   background-color: var(--landing-light-bg);
 }
@@ -313,11 +347,22 @@
 .campaign-pill-field p { color: #b9c1d6; }
 .campaign-pill-field span { display: block; margin-top: 0.43rem; color: #f9faff; font-size: 0.82rem; font-weight: 400; line-height: 1.38; white-space: pre-line; }
 
-.campaign-pill-sections { min-height: 0; padding: 0 1.6rem 1.8rem; overflow: hidden; }
-.campaign-pill-section { padding: 1rem 0 0.9rem; border-top: 1px solid rgba(217, 223, 250, 0.18); }
-.campaign-pill-section p { display: flex; align-items: center; gap: 0.55rem; margin: 0; color: #f9faff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; line-height: 1.2; text-transform: uppercase; }
+.campaign-pill-semantic { display: flex; flex-direction: column; }
+.campaign-pill-semantic .campaign-pill-body { min-height: 0; flex: 1; }
+.campaign-pill-sections { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 0 1.6rem 1.55rem; overflow: hidden; }
+.campaign-pill-section-list {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.campaign-pill-section { padding: 1.15rem 0 1.1rem; border-top: 1px solid rgba(217, 223, 250, 0.18); }
+.campaign-pill-section p { display: flex; align-items: center; gap: 0.6rem; margin: 0; color: #f9faff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.2; text-transform: uppercase; }
 .campaign-pill-section p svg { flex: none; color: #21c782; }
-.campaign-pill-section > span { display: block; margin-top: 0.7rem; color: #d2d8e8; font-size: 0.92rem; line-height: 1.5; white-space: pre-line; }
+.campaign-pill-section > span { display: block; overflow-wrap: anywhere; margin-top: 0.72rem; color: #e0e5f2; font-size: 0.98rem; line-height: 1.48; white-space: pre-line; }
 .campaign-pill-section-new { animation: campaign-pill-section-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .campaign-pill:not(.campaign-pill-expanded) .campaign-pill-section { opacity: 0; transform: translateY(-0.35rem); transition: opacity 140ms ease, transform 200ms cubic-bezier(0.4, 0, 0.2, 1); }
 

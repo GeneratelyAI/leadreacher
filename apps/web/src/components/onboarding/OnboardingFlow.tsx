@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
+import { CampaignCanvas } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
 import AiVideoStyle from "@/components/onboarding/steps/AiVideoStyle";
@@ -158,7 +159,7 @@ export default function OnboardingFlow({
   }
 
   return (
-    <>
+    <CampaignCanvas>
       {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
       <StepMotion
         transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
@@ -167,6 +168,6 @@ export default function OnboardingFlow({
       >
         {activeStepContent}
       </StepMotion>
-    </>
+    </CampaignCanvas>
   );
 }
