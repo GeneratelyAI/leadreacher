@@ -1,42 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect, useMemo } from "react";
+import { useLayoutEffect, useMemo, type CSSProperties } from "react";
 import { Motion } from "@/components/landing/Motion";
+import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Pill, type PillData } from "@/components/onboarding/Pill";
+import { Pill } from "@/components/onboarding/Pill";
 import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/Showcase";
-import { SparklesIcon } from "@/components/ui/animated-highlight-text";
+import { Highlight, SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight } from "@/components/ui/icons";
+import ShimmerText from "@/components/ui/shimmer-text";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 export default function HowItWorks() {
   useLayoutEffect(() => applyStoredTheme(), []);
 
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
-  const campaign = useMemo<PillData>(() => {
-    const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-    const fields = [
-      { label: "Market", value: status.market },
-      { label: "Offer", value: status.offer },
-      { label: "Customer", value: status.audience },
-      { label: "Value", value: status.value },
-      { label: "Goal", value: status.strategyStatus },
-    ].filter((field): field is { label: string; value: string } => Boolean(field.value?.trim()));
-
-    return {
-      status: fields.length > 0 ? "ready" : "learning",
-      statusLabel: fields.length > 0 ? "Business understood" : "Building your campaign",
-      fields,
-      site: website
-        ? { label: website.hostname, iconUrl: getWebsiteFaviconUrl(website.hostname) }
-        : undefined,
-    };
-  }, [status.audience, status.market, status.offer, status.strategyStatus, status.url, status.value, websiteUrl]);
+  const campaign = useMemo(
+    () => createSemanticCampaignSummary(status, undefined, websiteUrl),
+    [status, websiteUrl],
+  );
 
   return (
     <section className="how-it-works-campaign-page">
@@ -47,8 +33,23 @@ export default function HowItWorks() {
       <main className="how-it-works-campaign-main" aria-labelledby="how-it-works-title">
         <header className="how-it-works-campaign-header">
           <h1 id="how-it-works-title">
-            <SparklesIcon className="mr-[0.2em] inline-block text-[#5b3ff0]" />
-            How LeadReacher works
+            <Highlight
+              autoPlay
+              autoPlayDuration={1400}
+              icon={<SparklesIcon animationDurationScale={1.6} className="mr-[0.2em] text-[#5b3ff0]" />}
+              className="!m-0 !inline !p-0 !font-inherit !text-inherit !transition-none !cursor-default hover:!bg-transparent focus-visible:!bg-transparent focus-visible:!outline-none"
+            >
+              How <ShimmerText
+                duration={3.6}
+                style={
+                  {
+                    "--lr-shimmer-base": "#4f46e5",
+                    "--lr-shimmer-core": "#58a6ff",
+                    "--lr-shimmer-edge": "rgba(125, 183, 255, 0.7)",
+                  } as CSSProperties
+                }
+              >LeadReacher</ShimmerText> works
+            </Highlight>
           </h1>
           <p>We turn your insights into conversations and qualified opportunities.</p>
         </header>
