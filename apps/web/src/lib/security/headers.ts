@@ -18,6 +18,7 @@ export function createContentSecurityPolicy(
     configuredApiOrigin(apiUrl),
     "https://*.unipile.com",
     "https://*.ingest.sentry.io",
+    "https://*.ingest.us.sentry.io",
     "https://challenges.cloudflare.com",
     "https://api.stripe.com",
     "https://checkout.stripe.com",
