@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Pill, type PillData } from "@/components/onboarding/Pill";
+import { Pill } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, ArrowRight, FileVideo, Loader2, Upload, X } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, FileVideo, Upload, X } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
-import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 const MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024;
@@ -65,27 +65,13 @@ export default function UploadYourVideo() {
   const [selectedVideo, setSelectedVideo] = useState<UploadedVideo | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
-  const campaign = useMemo<PillData>(() => {
-    const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-    const fields = [
-      { label: "Market", value: status.market },
-      { label: "Offer", value: status.offer },
-      { label: "Customer", value: status.audience },
-      { label: "Value", value: status.value },
-      { label: "Goal", value: status.strategyStatus },
-    ].filter((field): field is { label: string; value: string } => Boolean(field.value?.trim()));
-
-    return {
-      status: fields.length > 0 ? "ready" : "learning",
-      statusLabel: fields.length > 0 ? "Business understood" : "Building your campaign",
-      fields,
-      site: website
-        ? { label: website.hostname, iconUrl: getWebsiteFaviconUrl(website.hostname) }
-        : undefined,
-    };
-  }, [status.audience, status.market, status.offer, status.strategyStatus, status.url, status.value, websiteUrl]);
+  const campaign = useMemo(() => ({
+    ...createSemanticCampaignSummary(status, approved ? { type: "Your video" } : undefined, websiteUrl),
+    newlyCompletedSectionId: approved ? "content" as const : undefined,
+  }), [status, websiteUrl, approved]);
 
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -217,7 +203,7 @@ export default function UploadYourVideo() {
               aria-busy={isUploading}
             >
               <span className="upload-your-video-icon" aria-hidden>
-                {isUploading ? <Loader2 className="size-9 animate-spin" /> : <Upload className="size-10" weight="bold" />}
+                <Upload className="size-10" weight="bold" />
               </span>
               <p>{isUploading ? "Uploading your video" : "Drag and drop your video here"}</p>
               <span>or</span>
@@ -236,7 +222,10 @@ export default function UploadYourVideo() {
           <ArrowLeft className="size-5" aria-hidden />
           Back
         </Button>
-        <Button type="button" className="onboarding-campaign-next" disabled={!selectedVideo || isUploading} onClick={() => navigateOnboarding(onboardingHref("video-decision"))}>
+        <Button type="button" className="onboarding-campaign-next" disabled={!selectedVideo || isUploading || approved} onClick={() => {
+          setApproved(true);
+          window.requestAnimationFrame(() => navigateOnboarding(onboardingHref("video-decision")));
+        }}>
           Continue
           <ArrowRight className="size-5" aria-hidden />
         </Button>

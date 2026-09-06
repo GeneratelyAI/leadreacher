@@ -2,15 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Pill, type PillData } from "@/components/onboarding/Pill";
+import { Pill, useCampaignData } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, CheckCircle2, Play, Sparkles } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
-import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { cn } from "@/lib/utils";
 import { navigateOnboarding, onboardingHref } from "./steps";
 import type { VideoTone } from "./video-decision/types";
@@ -45,6 +45,13 @@ const STYLE_OPTIONS: readonly StyleOption[] = [
   },
 ];
 
+type ContentAnimationPhase = "generating" | "ready" | "select" | "approved";
+
+function reducedMotionPreferred(): boolean {
+  return typeof window !== "undefined"
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 export function VideoStyleSelection({
   mode,
   styleLabel,
@@ -53,33 +60,49 @@ export function VideoStyleSelection({
   styleLabel: string;
 }) {
   useLayoutEffect(() => applyStoredTheme(), []);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   const [selectedStyle, setSelectedStyle] = useState<VideoTone>("professional");
+  const hasChosenStyle = useRef(false);
+  const savedCampaign = useCampaignData();
+  const savedContent = savedCampaign?.sections?.find((section) => section.id === "content")?.value;
+  useEffect(() => {
+    if (hasChosenStyle.current || !savedContent) return;
+    const savedStyle = STYLE_OPTIONS.find((option) => savedContent.endsWith(` · ${option.title}`));
+    if (savedStyle) setSelectedStyle(savedStyle.id);
+  }, [savedContent]);
+  const [phase, setPhase] = useState<ContentAnimationPhase>("generating");
+  const [loadedPreviews, setLoadedPreviews] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
-  const campaign = useMemo<PillData>(() => {
-    const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-    const fields = [
-      { label: "Market", value: status.market },
-      { label: "Offer", value: status.offer },
-      { label: "Customer", value: status.audience },
-      { label: "Value", value: status.value },
-      { label: "Goal", value: status.strategyStatus },
-    ].filter((field): field is { label: string; value: string } => Boolean(field.value?.trim()));
+  const campaign = useMemo(() => {
+    const approvedContent = phase === "approved"
+      ? {
+          type: mode === "personalized" ? "Personalized video" : "AI video",
+          style: STYLE_OPTIONS.find((option) => option.id === selectedStyle)?.title,
+        }
+      : undefined;
+    const summary = createSemanticCampaignSummary(status, approvedContent, websiteUrl);
 
-    return {
-      status: fields.length > 0 ? "ready" : "learning",
-      statusLabel: fields.length > 0 ? "Business understood" : "Building your campaign",
-      fields,
-      site: website
-        ? { label: website.hostname, iconUrl: getWebsiteFaviconUrl(website.hostname) }
-        : undefined,
-    };
-  }, [status.audience, status.market, status.offer, status.strategyStatus, status.url, status.value, websiteUrl]);
+    return phase === "approved"
+      ? { ...summary, newlyCompletedSectionId: "content" as const }
+      : summary;
+  }, [mode, phase, selectedStyle, status, websiteUrl]);
+
+  useEffect(() => {
+    if (loadedPreviews.length !== STYLE_OPTIONS.length) return;
+    setPhase(reducedMotionPreferred() ? "select" : "ready");
+    const frame = window.requestAnimationFrame(() => setPhase("select"));
+    return () => window.cancelAnimationFrame(frame);
+  }, [loadedPreviews]);
 
   async function handleContinue() {
-    if (isSaving) return;
+    if (isSaving || phase === "generating") return;
 
     setIsSaving(true);
     setError(null);
@@ -95,13 +118,21 @@ export function VideoStyleSelection({
           uploadedVideoUrl: null,
         }),
       });
-      navigateOnboarding(onboardingHref("video-decision"));
+      if (!mounted.current) return;
+      setPhase("approved");
+      window.requestAnimationFrame(() => {
+        if (mounted.current) navigateOnboarding(onboardingHref("video-decision"));
+      });
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save your video style.");
     } finally {
       setIsSaving(false);
     }
   }
+
+  const isPreparing = phase === "generating";
+  const statusIsReady = phase !== "generating";
+  const contentTypeLabel = mode === "personalized" ? "personalized videos" : "AI video";
 
   return (
     <section className="personalized-video-style-page">
@@ -116,17 +147,39 @@ export function VideoStyleSelection({
           </h1>
         </header>
 
-        <div className="personalized-video-style-status" role="status">
-          <CheckCircle2 className="personalized-video-style-status-icon" weight="fill" aria-hidden />
-          <div>
-            <p>YOUR CONTENT IS READY</p>
-            <span>Created for your business and prospects.</span>
+        <div
+          className={cn(
+            "personalized-video-style-status",
+            `personalized-video-style-status-${statusIsReady ? "ready" : "generating"}`,
+          )}
+          role="status"
+          aria-live="polite"
+        >
+          {statusIsReady
+            ? <CheckCircle2 className="personalized-video-style-status-icon" weight="fill" aria-hidden />
+            : <Sparkles className="personalized-video-style-status-icon" weight="fill" aria-hidden />}
+          <div className="personalized-video-style-status-copy" key={statusIsReady ? "ready" : "generating"}>
+            <p>{statusIsReady ? "Your content is ready." : `Creating your ${contentTypeLabel}...`}</p>
+            <span>{statusIsReady ? "Created for your business and prospects." : "Building three directions for your business and prospects."}</span>
           </div>
         </div>
 
-        <section className="personalized-video-style-options" aria-labelledby="personalized-video-style-options-title">
+        <section
+          className={cn(
+            "personalized-video-style-options",
+            `personalized-video-style-options-${phase}`,
+          )}
+          aria-labelledby="personalized-video-style-options-title"
+        >
           <h2 id="personalized-video-style-options-title">Choose your favorite.</h2>
-          <div className="personalized-video-style-grid" role="radiogroup" aria-label={styleLabel}>
+          <div
+            className={cn(
+              "personalized-video-style-grid",
+              isPreparing && "personalized-video-style-grid-preparing",
+            )}
+            role="radiogroup"
+            aria-label={styleLabel}
+          >
             {STYLE_OPTIONS.map((option) => {
               const selected = option.id === selectedStyle;
               return (
@@ -135,11 +188,34 @@ export function VideoStyleSelection({
                   type="button"
                   role="radio"
                   aria-checked={selected}
-                  className={cn("personalized-video-style-card", selected && "personalized-video-style-card-selected")}
-                  onClick={() => setSelectedStyle(option.id)}
+                  aria-hidden={isPreparing}
+                  tabIndex={isPreparing ? -1 : undefined}
+                  disabled={isPreparing || isSaving || phase === "approved"}
+                  className={cn(
+                    "personalized-video-style-card",
+                    isPreparing && "personalized-video-style-card-preparing",
+                    selected && !isPreparing && "personalized-video-style-card-selected",
+                    selected && phase === "approved" && "personalized-video-style-card-approved",
+                  )}
+                  onClick={() => {
+                    hasChosenStyle.current = true;
+                    setSelectedStyle(option.id);
+                  }}
                 >
                   <span className="personalized-video-style-art" aria-hidden>
-                    <Image src={option.image} alt="" fill sizes="(min-width: 63rem) 16rem, 80vw" className="object-cover" />
+                    <Image
+                      src={option.image}
+                      alt=""
+                      fill
+                      loading="eager"
+                      sizes="(min-width: 63rem) 16rem, 80vw"
+                      className="object-cover"
+                      onLoad={() => setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id])}
+                      onError={() => {
+                        setError("A preview could not load. You can still select its style.");
+                        setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id]);
+                      }}
+                    />
                     <span className="personalized-video-style-play"><Play className="size-6" weight="fill" /></span>
                     <span className="personalized-video-style-duration">0:10</span>
                   </span>
@@ -164,8 +240,13 @@ export function VideoStyleSelection({
           <ArrowLeft className="size-5" aria-hidden />
           Back
         </Button>
-        <Button type="button" className="onboarding-campaign-next" disabled={isSaving} onClick={() => void handleContinue()}>
-          {isSaving ? "Saving..." : "Use this"}
+        <Button
+          type="button"
+          className="onboarding-campaign-next"
+          disabled={isSaving || isPreparing || phase === "approved"}
+          onClick={() => void handleContinue()}
+        >
+          {isPreparing ? "Creating..." : phase === "approved" ? "Approved" : isSaving ? "Saving..." : "Use this"}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
       </div>
