@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { m, useReducedMotion } from "framer-motion";
 import {
   Activity,
@@ -80,6 +80,94 @@ const ACQUISITION_FLOW_STEPS: readonly AcquisitionFlowStep[] = [
 
 function ChannelGlyph({ channel, className }: { channel: Channel; className?: string }) {
   return <ChannelLogo name={channel.logo} className={className} />;
+}
+
+function WorkflowCardIcon({
+  Icon,
+  isActive,
+  reducedMotion,
+}: {
+  Icon: AcquisitionFlowStep["icon"];
+  isActive: boolean;
+  reducedMotion: boolean;
+}) {
+  const wasActive = useRef(isActive);
+  const [activation, setActivation] = useState(isActive ? 1 : 0);
+
+  useEffect(() => {
+    if (isActive && !wasActive.current) {
+      setActivation((current) => current + 1);
+    }
+    wasActive.current = isActive;
+  }, [isActive]);
+
+  const activeAnimation = !reducedMotion && isActive;
+
+  return (
+    <m.span
+      key={activation}
+      className="relative inline-flex size-7 shrink-0 sm:size-9"
+      aria-hidden
+      initial={activeAnimation ? { opacity: 0, scale: 0.7, y: 3 } : false}
+      animate={activeAnimation
+        ? {
+            opacity: 1,
+            scale: 1,
+            y: 0,
+            filter: [
+              "drop-shadow(0 0 0 rgb(132 105 255 / 0))",
+              "drop-shadow(0 0 0.55rem rgb(151 124 255 / 0.72))",
+              "drop-shadow(0 0 0 rgb(132 105 255 / 0))",
+            ],
+          }
+        : { opacity: isActive ? 1 : 0.62, scale: 1, y: 0, filter: "drop-shadow(0 0 0 rgb(132 105 255 / 0))" }}
+      transition={activeAnimation
+        ? {
+            opacity: { duration: 0.32 },
+            scale: { duration: 0.42, ease: "easeOut" },
+            y: { duration: 0.42, ease: "easeOut" },
+            filter: { duration: 0.7, times: [0, 0.45, 1] },
+          }
+        : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <Icon
+        className={cn("size-7 sm:size-9", isActive ? "text-[#ad9bff]" : "text-[#a79be0]")}
+        strokeWidth={1.6}
+      />
+      {isActive ? (
+        <m.svg
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden
+          className="pointer-events-none absolute -right-2 -top-2 size-4 overflow-visible text-[#b49dff] sm:size-[1.1rem]"
+          initial={reducedMotion ? false : "hidden"}
+          animate={reducedMotion ? "visible" : "visible"}
+        >
+          <m.path
+            d="M11 8.5a1.35 1.35 0 0 0-.97-.97l-2.98-.77a.33.33 0 0 1 0-.64l2.98-.77A1.35 1.35 0 0 0 11 4.38l.77-2.98a.33.33 0 0 1 .64 0l.77 2.98a1.35 1.35 0 0 0 .97.97l2.98.77a.33.33 0 0 1 0 .64l-2.98.77a1.35 1.35 0 0 0-.97.97l-.77 2.98a.33.33 0 0 1-.64 0Z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            variants={{
+              hidden: { opacity: 0, pathLength: 0 },
+              visible: { opacity: 1, pathLength: 1, transition: { pathLength: { duration: 0.42, delay: 0.18, ease: "easeInOut" }, opacity: { duration: 0.12, delay: 0.18 } } },
+            }}
+          />
+          <m.path
+            d="M18.5 12.5v3M20 14h-3"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            variants={{
+              hidden: { opacity: 0, pathLength: 0 },
+              visible: { opacity: 1, pathLength: 1, transition: { pathLength: { duration: 0.2, delay: 0.53, ease: "easeInOut" }, opacity: { duration: 0.1, delay: 0.53 } } },
+            }}
+          />
+        </m.svg>
+      ) : null}
+    </m.span>
+  );
 }
 
 // Matches the cursor route: Instagram → LinkedIn → Outlook → WhatsApp.
@@ -440,7 +528,7 @@ export function AcquisitionWorkflowCarousel({
               >
               <m.div initial={reducedMotion ? false : { opacity: 0.72, y: 6 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
                 <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isVisuallyActive ? "text-[#a792ff]" : "text-[#6948e4] dark:text-[#a792ff]")}>0{index + 1}</span>
-                <Icon className={cn("size-7 sm:size-9", isVisuallyActive ? "text-[#ad9bff]" : "text-[#a79be0]")} strokeWidth={1.6} aria-hidden />
+                <WorkflowCardIcon Icon={Icon} isActive={isVisuallyActive} reducedMotion={reducedMotion} />
               </m.div>
               <m.div initial={reducedMotion ? false : { opacity: 0.62, y: 8 }} animate={{ opacity: isVisuallyActive ? 1 : 0.78, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.04, ease: [0.22, 1, 0.36, 1] }} className={compact ? "mt-2.5 sm:mt-3 h-short:mt-2" : "mt-2.5 sm:mt-4 h-short:mt-2"}>
                 <AcquisitionStepVisual index={index} isSelected={isVisuallyActive} />
