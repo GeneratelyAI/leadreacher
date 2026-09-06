@@ -6,9 +6,12 @@ import {
   type CSSProperties,
   type FormEvent,
   type MouseEvent,
+  type ReactNode,
   type Ref,
 } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Link2, LoaderCircle } from "@/components/ui/icons";
+import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
@@ -27,6 +30,13 @@ type BrowserBarProps = {
   errorMessage?: string | null;
   disabled?: boolean;
   spotlight?: boolean;
+  submitLabel?: string;
+  busyLabel?: string;
+  showSubmit?: boolean;
+  errorPosition?: "absolute" | "flow";
+  materializeIcon?: boolean;
+  concealValueWhileDisabled?: boolean;
+  children?: ReactNode;
 };
 
 export function BrowserBar({
@@ -42,10 +52,19 @@ export function BrowserBar({
   errorMessage,
   disabled = false,
   spotlight = false,
+  submitLabel = "Get Started",
+  busyLabel = "Analyzing website",
+  showSubmit = true,
+  errorPosition = "absolute",
+  materializeIcon = false,
+  concealValueWhileDisabled = true,
+  children,
 }: BrowserBarProps) {
   const [faviconHost, setFaviconHost] = useState<string | null>(null);
   const [faviconLoaded, setFaviconLoaded] = useState(false);
   const [faviconFailed, setFaviconFailed] = useState(false);
+  const [showSparkles, setShowSparkles] = useState(false);
+  const reduceMotion = useReducedMotion();
   const normalizedUrl = normalizeLandingWebsiteUrl(value);
 
   useEffect(() => {
@@ -56,6 +75,16 @@ export function BrowserBar({
     }, normalizedUrl ? 220 : 0);
     return () => window.clearTimeout(timer);
   }, [normalizedUrl]);
+
+  useEffect(() => {
+    if (!materializeIcon) {
+      setShowSparkles(false);
+      return;
+    }
+
+    const timer = window.setTimeout(() => setShowSparkles(true), reduceMotion ? 0 : 180);
+    return () => window.clearTimeout(timer);
+  }, [materializeIcon, reduceMotion]);
 
   function updateSpotlight(event: MouseEvent<HTMLDivElement>) {
     if (!spotlight) return;
@@ -89,30 +118,60 @@ export function BrowserBar({
         <div className="relative z-10 flex min-w-0 flex-1 items-center">
         <label htmlFor={id} className="sr-only">Company website</label>
           <span className="relative ml-2 size-5 shrink-0 sm:ml-4 sm:size-6" aria-hidden>
-            <Link2 className={cn("absolute inset-0 size-5 text-[#6b7280] transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none sm:size-6", faviconLoaded && !faviconFailed ? "-rotate-12 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100")} />
-            {faviconHost ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={faviconHost}
-                src={getWebsiteFaviconUrl(faviconHost)}
-                alt=""
-                onLoad={() => setFaviconLoaded(true)}
-                onError={() => { setFaviconFailed(true); setFaviconLoaded(false); }}
-                className={cn("absolute inset-0 size-5 rounded-md object-contain transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none sm:size-6", faviconLoaded && !faviconFailed ? "rotate-0 scale-100 opacity-100" : "rotate-12 scale-50 opacity-0")}
-              />
-            ) : null}
+            <AnimatePresence initial={false} mode="sync">
+              {showSparkles ? (
+                <motion.span
+                  key="submission-sparkles"
+                  className="absolute inset-0 grid place-items-center text-[#5b3ff0]"
+                  initial={reduceMotion ? false : { opacity: 0, scale: 0.72 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, scale: 0.72 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+                >
+                  <SparklesIcon draw className="size-5 align-baseline sm:size-6" />
+                </motion.span>
+              ) : (
+                <motion.span
+                  key="website-identity"
+                  className="absolute inset-0"
+                  exit={reduceMotion ? undefined : { opacity: 0, scale: 0.72 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.18, ease: "easeOut" }}
+                >
+                  <Link2 className={cn("absolute inset-0 size-5 text-[#6b7280] transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none sm:size-6", faviconLoaded && !faviconFailed ? "-rotate-12 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100")} />
+                  {faviconHost ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={faviconHost}
+                      src={getWebsiteFaviconUrl(faviconHost)}
+                      alt=""
+                      onLoad={() => setFaviconLoaded(true)}
+                      onError={() => { setFaviconFailed(true); setFaviconLoaded(false); }}
+                      className={cn("absolute inset-0 size-5 rounded-md object-contain transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none sm:size-6", faviconLoaded && !faviconFailed ? "rotate-0 scale-100 opacity-100" : "rotate-12 scale-50 opacity-0")}
+                    />
+                  ) : null}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </span>
           <div className="relative min-w-0 flex-1">
-            <input ref={inputRef} id={id} type="text" inputMode="url" autoComplete="url" value={value} onChange={(event) => onValueChange(event.target.value)} disabled={disabled} placeholder="https://yourwebsite.com" aria-invalid={Boolean(errorMessage)} aria-describedby={errorMessage ? `${id}-error` : undefined} className={cn("relative z-0 h-14 min-w-0 w-full bg-transparent px-2 text-base font-medium outline-none placeholder:text-[#8b91a3] disabled:opacity-70 sm:px-4 sm:text-lg", disabled && "text-transparent caret-transparent")} />
+            <input ref={inputRef} id={id} type="text" inputMode="url" autoComplete="url" value={value} onChange={(event) => onValueChange(event.target.value)} disabled={disabled} placeholder="https://yourwebsite.com" aria-invalid={Boolean(errorMessage)} aria-describedby={errorMessage ? `${id}-error` : undefined} className={cn("relative z-0 h-14 min-w-0 w-full bg-transparent px-2 text-base font-medium outline-none placeholder:text-[#8b91a3] disabled:opacity-70 sm:px-4 sm:text-lg", disabled && concealValueWhileDisabled && "text-transparent caret-transparent")} />
           </div>
         </div>
-        <button type="submit" disabled={disabled} className="relative z-10 inline-flex h-14 min-w-[6.75rem] shrink-0 items-center justify-center gap-1 border-l border-[#e6e4f1] px-0 text-sm font-semibold text-[#4e28df] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#8b7fd4]/45 active:translate-y-px disabled:pointer-events-none disabled:opacity-75 sm:min-w-[180px] sm:gap-3 sm:pl-6 sm:pr-1.5 sm:text-xl">
-          {disabled ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
-          {disabled ? "Analyzing website" : <ShimmerText duration={3.6} style={{ "--lr-shimmer-base": "#4e28df", "--lr-shimmer-core": "#ffffff", "--lr-shimmer-edge": "rgba(255,255,255,0.75)" } as CSSProperties}>Get Started</ShimmerText>}
-          {!disabled ? <ArrowRight className="size-5 sm:size-6" aria-hidden /> : null}
-        </button>
+        {showSubmit ? (
+          <button type="submit" disabled={disabled} className="relative z-10 inline-flex h-14 min-w-[6.75rem] shrink-0 items-center justify-center gap-1 border-l border-[#e6e4f1] px-0 text-sm font-semibold text-[#4e28df] transition-transform duration-200 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[#8b7fd4]/45 active:translate-y-px disabled:pointer-events-none disabled:opacity-75 sm:min-w-[180px] sm:gap-3 sm:pl-6 sm:pr-1.5 sm:text-xl">
+            {disabled ? <LoaderCircle className="size-5 animate-spin motion-reduce:animate-none" aria-hidden /> : null}
+            {disabled ? busyLabel : <ShimmerText duration={3.6} style={{ "--lr-shimmer-base": "#4e28df", "--lr-shimmer-core": "#ffffff", "--lr-shimmer-edge": "rgba(255,255,255,0.75)" } as CSSProperties}>{submitLabel}</ShimmerText>}
+            {!disabled ? <ArrowRight className="size-5 sm:size-6" aria-hidden /> : null}
+          </button>
+        ) : null}
       </div>
-      {errorMessage ? (
+      {errorMessage && errorPosition === "flow" ? (
+        <p id={`${id}-error`} role="alert" className="mt-2 w-full text-center text-sm font-medium text-[#dc2626]">
+          {errorMessage}
+        </p>
+      ) : null}
+      {children}
+      {errorMessage && errorPosition === "absolute" ? (
         <p
           id={`${id}-error`}
           role="alert"
