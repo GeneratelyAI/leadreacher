@@ -1292,48 +1292,6 @@ html {
   transform-origin: top left;
 }
 
-.onboarding-step-presence--transitioning {
-  pointer-events: none;
-}
-
-.onboarding-step-presence__pane--incoming {
-  z-index: 1;
-}
-
-.onboarding-step-presence--transitioning .onboarding-step-presence__pane {
-  will-change: transform;
-  backface-visibility: hidden;
-}
-
-.onboarding-step-presence--forward .onboarding-step-presence__pane--incoming {
-  transform: translate3d(var(--onboarding-slide-distance), 0, 0);
-}
-
-.onboarding-step-presence--backward .onboarding-step-presence__pane--incoming {
-  transform: translate3d(calc(-1 * var(--onboarding-slide-distance)), 0, 0);
-}
-
-.onboarding-step-presence--active .onboarding-step-presence__pane {
-  transition: transform 520ms cubic-bezier(0.76, 0, 0.24, 1);
-}
-
-.onboarding-step-presence--active .onboarding-step-presence__pane--incoming {
-  transform: translate3d(0, 0, 0);
-}
-
-.onboarding-step-presence--active.onboarding-step-presence--forward .onboarding-step-presence__pane--outgoing {
-  transform: translate3d(calc(-1 * var(--onboarding-slide-distance)), 0, 0);
-}
-
-.onboarding-step-presence--active.onboarding-step-presence--backward .onboarding-step-presence__pane--outgoing {
-  transform: translate3d(var(--onboarding-slide-distance), 0, 0);
-}
-
-@media (max-width: 640px) {
-  .onboarding-step-presence {
-    --onboarding-slide-distance: 100%;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .onboarding-chrome {
