@@ -71,13 +71,26 @@ export function HeartIcon({ className }: AnimatedIconProps) {
 }
 
 export function SparklesIcon({ className }: AnimatedIconProps) {
+  const reduce = useReducedMotion();
   return (
     <IconBase className={className}>
-      <DrawPath d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0Z" duration={0.6} />
-      <DrawPath d="M20 3v4" delay={0.45} duration={0.2} />
-      <DrawPath d="M22 5h-4" delay={0.5} duration={0.2} />
-      <DrawPath d="M4 17v2" delay={0.6} duration={0.2} />
-      <DrawPath d="M5 18H3" delay={0.65} duration={0.2} />
+      <motion.g
+        initial={reduce ? false : { opacity: 0, scale: 0.7, y: 3 }}
+        animate={reduce ? { opacity: 1, scale: 1, y: 0 } : {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          filter: ["drop-shadow(0 0 0 rgb(112 76 255 / 0))", "drop-shadow(0 0 0.45rem rgb(112 76 255 / 0.55))", "drop-shadow(0 0 0 rgb(112 76 255 / 0))"],
+        }}
+        transition={{ opacity: { duration: 0.32 }, scale: { duration: 0.42, ease: "easeOut" }, y: { duration: 0.42, ease: "easeOut" }, filter: { duration: 0.7, times: [0, 0.45, 1] } }}
+        style={{ transformOrigin: "50% 50%" }}
+      >
+        <DrawPath d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0Z" duration={0.6} />
+        <DrawPath d="M20 3v4" delay={0.45} duration={0.2} />
+        <DrawPath d="M22 5h-4" delay={0.5} duration={0.2} />
+        <DrawPath d="M4 17v2" delay={0.6} duration={0.2} />
+        <DrawPath d="M5 18H3" delay={0.65} duration={0.2} />
+      </motion.g>
     </IconBase>
   );
 }
