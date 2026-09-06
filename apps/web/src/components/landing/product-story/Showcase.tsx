@@ -386,11 +386,13 @@ export function ChannelFlow() {
 type AcquisitionWorkflowCarouselProps = {
   compact?: boolean;
   className?: string;
+  showPagination?: boolean;
 };
 
 export function AcquisitionWorkflowCarousel({
   compact = false,
   className,
+  showPagination,
 }: AcquisitionWorkflowCarouselProps) {
   const reducedMotion = Boolean(useReducedMotion());
 
@@ -405,6 +407,7 @@ export function AcquisitionWorkflowCarousel({
       finalSlideHold={2000}
       settleDuration={compact ? 190 : 260}
       showNavigation={compact}
+      showPagination={showPagination}
       className={cn(compact ? "acquisition-workflow--compact max-w-[92rem]" : "max-w-[100rem]", className)}
       cardClassName={cn(
         compact ? "aspect-[17/25] border border-[#e2deef]" : "aspect-[11/16] border border-[#e2deef]",
