@@ -168,6 +168,17 @@ function rememberDemoCampaignType(value: unknown): void {
   writeDemoState(window.sessionStorage, next);
 }
 
+function rememberDemoTone(value: unknown): void {
+  if (!isOnboardingDemo()) return;
+  if (value !== "professional" && value !== "casual" && value !== "aggressive") return;
+  const current = readDemoState(window.sessionStorage);
+  if (!current) return;
+  writeDemoState(window.sessionStorage, demoReducer(current, {
+    type: "select-tone",
+    tone: value === "casual" ? "friendly" : value === "aggressive" ? "direct" : "professional",
+  }));
+}
+
 function readDemoAccounts(): FixtureAccount[] {
   if (!isOnboardingDemo()) return [DEFAULT_LINKEDIN_ACCOUNT];
   try {
@@ -234,10 +245,39 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     } as T;
   }
   if (path.includes("/campaign-type")) {
-    rememberDemoCampaignType(parseRequestBody(options).campaignType);
+    const campaignType = parseRequestBody(options).campaignType;
+    rememberDemoCampaignType(campaignType);
+    if (
+      campaignType === "personalized_outreach" ||
+      campaignType === "ai_video_ad" ||
+      campaignType === "uploaded_video"
+    ) {
+      strategy.campaignType = campaignType;
+    }
     return strategy as T;
   }
-  if (path.includes("/video-decision") || path.endsWith("/channels")) return strategy as T;
+  if (path.includes("/video-upload")) {
+    const formData = options.body instanceof FormData ? options.body : null;
+    const video = formData?.get("video");
+    const fileName = video instanceof File ? video.name : "campaign-video.mp4";
+    Object.assign(strategy.videoConfig, {
+      enabled: true,
+      mode: null,
+      source: "uploaded",
+      tone: null,
+      uploadedVideoUrl: `https://preview.leadreacher.ai/uploads/${encodeURIComponent(fileName)}`,
+    });
+    return strategy as T;
+  }
+  if (path.includes("/video-decision")) {
+    if (method === "PATCH") {
+      const videoConfig = parseRequestBody(options);
+      Object.assign(strategy.videoConfig, videoConfig);
+      rememberDemoTone(videoConfig.tone);
+    }
+    return strategy as T;
+  }
+  if (path.endsWith("/channels")) return strategy as T;
   if (path === "/billing/pricing") {
     return {
       lineItems: [

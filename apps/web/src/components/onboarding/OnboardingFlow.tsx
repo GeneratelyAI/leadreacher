@@ -6,10 +6,11 @@ import { StepMotion } from "@/components/onboarding/StepMotion";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
-import CampaignGoal from "@/components/onboarding/steps/CampaignGoal";
 import Channels from "@/components/onboarding/steps/Channels";
 import Checkout from "@/components/onboarding/steps/Checkout";
+import CampaignContent from "@/components/onboarding/steps/CampaignContent";
 import Discovery from "@/components/onboarding/steps/Discovery";
+import HowItWorks from "@/components/onboarding/steps/HowItWorks";
 import Strategy from "@/components/onboarding/steps/Strategy";
 import VideoSetup from "@/components/onboarding/steps/VideoSetup";
 import {
@@ -134,13 +135,11 @@ export default function OnboardingFlow({
       ? <Discovery />
       : <DiscoveryBootstrapBridge />;
   } else if (activeStep === "strategy") {
-    activeStepContent = (
-      <Strategy
-        substep={activeStrategySubstep}
-      />
-    );
-  } else if (activeStep === "campaign-type") {
-    activeStepContent = <CampaignGoal />;
+    activeStepContent = activeStrategySubstep === "how-it-works"
+      ? <HowItWorks />
+      : <Strategy substep={activeStrategySubstep} />;
+  } else if (activeStep === "campaign-content") {
+    activeStepContent = <CampaignContent />;
   } else if (activeStep === "video-decision") {
     activeStepContent = <VideoSetup />;
   } else if (activeStep === "checkout") {
@@ -151,11 +150,11 @@ export default function OnboardingFlow({
 
   return (
     <>
-      {activeStep === "discovery" ? null : <OnboardingChrome activeStep={activeStep} />}
+      {activeStep === "discovery" || activeStep === "campaign-content" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
       <StepMotion
         transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
         className="h-dvh min-h-0"
-        fitViewport={activeStep !== "discovery"}
+        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
       >
         {activeStepContent}
       </StepMotion>

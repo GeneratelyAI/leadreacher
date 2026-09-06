@@ -15,8 +15,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { Motion } from "@/components/landing/Motion";
-import { AcquisitionWorkflowCarousel } from "@/components/landing/product-story/Showcase";
 import { ActionBar } from "@/components/ui/ActionBar";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
@@ -328,24 +326,6 @@ function ScreenHeader({
         {subtitle}
       </p>
     </div>
-  );
-}
-
-function HowItWorksScreen() {
-  return (
-    <section className="strategy-how-screen relative mx-auto flex w-full max-w-[92rem] flex-1 flex-col items-center justify-center overflow-hidden px-5 pt-36 pb-44 h-compact:justify-start h-compact:pt-32 lg:pt-32 lg:pb-28">
-      <div
-        className="pointer-events-none absolute top-[43%] left-1/2 -z-10 h-80 w-[min(72rem,90vw)] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse,rgba(111,76,255,.075),transparent_68%)] dark:bg-[radial-gradient(ellipse,rgba(124,92,255,.13),transparent_68%)]"
-        aria-hidden
-      />
-      <ScreenHeader
-        title="How LeadReacher works"
-        subtitle="We turn your insights into conversations and qualified opportunities."
-      />
-      <Motion>
-        <AcquisitionWorkflowCarousel compact className="mt-3 w-full" />
-      </Motion>
-    </section>
   );
 }
 
@@ -1082,7 +1062,7 @@ export default function Strategy({
       return;
     }
     if (substep === "targeting") {
-      navigateOnboarding(strategyHref("how-it-works"));
+      navigateOnboarding(onboardingHref("campaign-content"));
       return;
     }
     navigateOnboarding(strategyHref("targeting"));
@@ -1090,7 +1070,7 @@ export default function Strategy({
 
   async function handleContinue() {
     if (substep === "how-it-works") {
-      navigateOnboarding(strategyHref("targeting"));
+      navigateOnboarding(onboardingHref("campaign-content"));
       return;
     }
     if (substep === "targeting") {
@@ -1106,7 +1086,7 @@ export default function Strategy({
         body: JSON.stringify({ channels: selectedChannels }),
       });
       setStrategy(updated);
-      navigateOnboarding(onboardingHref("campaign-type"));
+      navigateOnboarding(onboardingHref("video-decision"));
     } catch (saveError) {
       setChannelSaveError(strategyErrorMessage(saveError));
     } finally {
@@ -1124,9 +1104,7 @@ export default function Strategy({
     Boolean(analysis?.status === "completed" && recommendations.length > 0);
 
   let activeSubstepContent: React.ReactNode;
-  if (substep === "how-it-works") {
-    activeSubstepContent = <HowItWorksScreen />;
-  } else if (substep === "targeting") {
+  if (substep === "targeting") {
     activeSubstepContent = (
       <TargetingScreen
         analysis={analysis}

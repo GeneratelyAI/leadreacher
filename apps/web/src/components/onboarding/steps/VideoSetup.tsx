@@ -172,7 +172,7 @@ export default function VideoSetup() {
         if (cancelled) return;
 
         if (!isCampaignGoal(strategy.campaignType)) {
-          navigateOnboarding(onboardingHref("campaign-type"));
+          navigateOnboarding(onboardingHref("campaign-content"));
           return;
         }
 
@@ -313,7 +313,7 @@ export default function VideoSetup() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigateOnboarding(onboardingHref("campaign-type"))}
+            onClick={() => navigateOnboarding(onboardingHref("campaign-content"))}
             className="h-13 px-7 text-base"
           >
             <ArrowLeft className="size-5" aria-hidden />

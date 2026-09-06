@@ -111,9 +111,7 @@ export function getSlideDirection(currentKey: string, nextKey: string): SlideDir
   const flowOrder = [
     "discovery",
     "strategy:how-it-works",
-    "strategy:targeting",
-    "strategy:channels",
-    "campaign-type",
+    "campaign-content",
     "video-decision",
     "checkout",
     "channels",

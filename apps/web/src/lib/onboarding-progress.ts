@@ -39,8 +39,9 @@ export function resolveOnboardingResumeTarget(input: {
   }
 
   if (!input.strategy.campaignType) {
-    return { step: "campaign-type" };
+    return { step: "campaign-content" };
   }
+
 
   if (input.strategy.videoConfig === null || input.strategy.videoConfig === undefined) {
     return { step: "video-decision" };

@@ -9,7 +9,7 @@ export const DEMO_SCENES = [
   "signup",
   "discovery",
   "strategy",
-  "campaign-type",
+  "campaign-content",
   "media",
   "checkout",
   "connect",
@@ -257,7 +257,7 @@ export function demoReducer(
         upload: action.campaignType === "uploaded_video" || action.campaignType === "build_from_file_demo"
           ? state.upload
           : null,
-        completedScenes: markComplete(state, "campaign-type"),
+        completedScenes: markComplete(state, "campaign-content"),
       };
     case "select-tone":
       return { ...state, mediaTone: action.tone, completedScenes: markComplete(state, "media") };
@@ -291,7 +291,7 @@ export function furthestAllowedDemoScene(state: DemoOnboardingState): DemoScene 
   if (!state.signup.complete) return "signup";
   if (state.scrapeStatus !== "completed") return "discovery";
   if (!state.completedScenes.includes("strategy")) return "strategy";
-  if (!state.campaignType) return "campaign-type";
+  if (!state.campaignType) return "campaign-content";
   if (!state.completedScenes.includes("media")) return "media";
   if (!state.checkoutComplete) return "checkout";
   if (!state.completed) return "connect";
