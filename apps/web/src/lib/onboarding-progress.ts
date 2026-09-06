@@ -62,6 +62,13 @@ export function resolveOnboardingResumeTarget(input: {
     return { step: "personalized-video-style" };
   }
 
+  if (
+    input.strategy.campaignType === "ai_video_ad" &&
+    needsVideoStyle(input.strategy.videoConfig)
+  ) {
+    return { step: "ai-video-style" };
+  }
+
   if (input.strategy.videoConfig === null || input.strategy.videoConfig === undefined) {
     return { step: "video-decision" };
   }
