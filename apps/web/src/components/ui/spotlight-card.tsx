@@ -53,10 +53,10 @@ export function SpotlightCard({ children, className, contentClassName, spotlight
     >
       <div
         aria-hidden
-        className={cn("pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100", spotlightClassName)}
+        className={cn("pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100", spotlightClassName)}
         style={{ background: `radial-gradient(280px circle at var(--spotlight-x) var(--spotlight-y), ${spotlightColor}, transparent 68%)` }}
       />
-      <div className={cn("relative h-full", contentClassName)}>{children}</div>
+      <div className={cn("relative z-10 h-full", contentClassName)}>{children}</div>
     </div>
   );
 }

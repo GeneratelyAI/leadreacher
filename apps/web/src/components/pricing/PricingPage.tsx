@@ -114,12 +114,7 @@ function SubscriptionBuilder({ billingCycle }: { billingCycle: BillingCycle }) {
       <p className="mx-auto mt-4 max-w-xl text-center text-sm leading-6 text-[#62697e] sm:text-base">Start with Pro, choose how many additional channels you need, then decide whether to add personalized video.</p>
 
       <div data-testid="subscription-builder" className="mt-10">
-      <SpotlightCard
-        spotlightColor="rgba(139, 99, 255, 0.28)"
-        spotlightClassName="z-10 motion-reduce:transition-none"
-        contentClassName="grid lg:grid-cols-[1.2fr_.8fr]"
-        className="cursor-default rounded-[30px] border border-[#e3def4] bg-white/88 p-2 shadow-[0_28px_80px_rgba(66,42,148,0.13)] backdrop-blur-xl"
-      >
+      <div className="grid cursor-default rounded-[30px] border border-[#e3def4] bg-white/88 p-2 shadow-[0_28px_80px_rgba(66,42,148,0.13)] backdrop-blur-xl lg:grid-cols-[1.2fr_.8fr]">
         <div className="grid h-full gap-3 p-3 sm:grid-rows-3 sm:p-5 lg:p-6">
           <div className="flex flex-col items-stretch gap-5 rounded-2xl border border-[#e7e2f5] bg-[#f8f6ff] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div className="flex min-w-0 items-start gap-4">
@@ -165,7 +160,13 @@ function SubscriptionBuilder({ billingCycle }: { billingCycle: BillingCycle }) {
           </div>
         </div>
 
-        <aside className="flex flex-col justify-between rounded-[24px] bg-[radial-gradient(circle_at_90%_0%,rgba(126,88,255,.38),transparent_42%),linear-gradient(145deg,#101321,#1a1246)] p-7 text-white shadow-[0_18px_45px_rgba(26,18,74,.22)] sm:p-9 lg:p-10">
+        <aside className="h-full">
+          <SpotlightCard
+            spotlightColor="rgba(139, 99, 255, 0.28)"
+            spotlightClassName="z-0 motion-reduce:transition-none"
+            contentClassName="flex h-full flex-col justify-between p-7 sm:p-9 lg:p-10"
+            className="h-full rounded-[24px] border-0 bg-[radial-gradient(circle_at_90%_0%,rgba(126,88,255,.38),transparent_42%),linear-gradient(145deg,#101321,#1a1246)] text-white shadow-[0_18px_45px_rgba(26,18,74,.22)]"
+          >
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b8a9ff]">Your subscription</p>
             <p className="mt-5 text-sm text-white/60">Estimated total</p>
@@ -182,8 +183,9 @@ function SubscriptionBuilder({ billingCycle }: { billingCycle: BillingCycle }) {
             <Link href="/signup" className="mt-7 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-[#211557] transition-[transform,background-color] hover:-translate-y-0.5 hover:bg-[#f2edff] motion-reduce:transform-none">Start setup <ArrowRight className="size-4" aria-hidden /></Link>
             <p className="mt-4 text-center text-xs text-white/48">Your final total is confirmed before purchase.</p>
           </div>
+          </SpotlightCard>
         </aside>
-      </SpotlightCard>
+      </div>
       </div>
     </div>
   );
@@ -241,7 +243,7 @@ export default function PricingPage() {
         </div>
 
         <div className="mx-auto mt-10 grid max-w-[1100px] gap-4 sm:mt-12 sm:gap-5 min-[1000px]:mt-16 min-[1000px]:grid-cols-3">
-          <SpotlightCard spotlightColor="rgba(151, 112, 255, 0.42)" spotlightClassName="z-10 mix-blend-screen motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-[#2e2860] bg-[linear-gradient(150deg,#111322_0%,#18133e_52%,#201257_100%)] px-6 pb-6 pt-14 text-white shadow-[0_24px_60px_rgba(66,42,148,0.18)] sm:px-8 sm:pb-8 sm:pt-14">
+          <SpotlightCard spotlightColor="rgba(151, 112, 255, 0.42)" spotlightClassName="z-0 mix-blend-screen motion-reduce:transition-none" contentClassName="flex h-full flex-col px-6 pb-6 pt-14 sm:px-8 sm:pb-8 sm:pt-14" className="h-full rounded-[22px] border border-[#2e2860] bg-[linear-gradient(150deg,#111322_0%,#18133e_52%,#201257_100%)] text-white shadow-[0_24px_60px_rgba(66,42,148,0.18)]">
             <span className="absolute right-0 top-0 rounded-bl-xl rounded-tr-[22px] bg-brand-purple px-4 py-2 text-sm font-semibold text-white">Base subscription</span>
             <h2 className="whitespace-nowrap text-[1.55rem] font-medium sm:text-[1.8rem]">LeadReacher Pro</h2>
             <p className="mt-2 text-sm text-white/60">Everything you need to launch outreach</p>
@@ -253,7 +255,7 @@ export default function PricingPage() {
             <Link href="/signup" className="mt-8 inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/40 px-5 text-sm font-medium transition-colors hover:bg-white hover:text-[#111]">Start with Pro <ArrowRight className="size-4" /></Link>
           </SpotlightCard>
 
-          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.22)" spotlightClassName="z-10 mix-blend-multiply motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-white/80 bg-white/72 px-6 pb-6 pt-14 text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl sm:px-8 sm:pb-8 sm:pt-14">
+          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.22)" spotlightClassName="z-0 mix-blend-multiply motion-reduce:transition-none" contentClassName="flex h-full flex-col px-6 pb-6 pt-14 sm:px-8 sm:pb-8 sm:pt-14" className="h-full rounded-[22px] border border-white/80 bg-white/72 text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl">
             <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-purple/35 to-transparent" />
             <h2 className="text-[1.55rem] font-medium sm:text-[1.8rem]">Additional channels</h2>
             <p className="mt-2 text-sm text-[#757575]">Reach people where they already respond</p>
@@ -276,7 +278,7 @@ export default function PricingPage() {
             </ul>
           </SpotlightCard>
 
-          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.24)" spotlightClassName="z-10 mix-blend-multiply motion-reduce:transition-none" contentClassName="contents" className="flex h-full flex-col rounded-[22px] border border-brand-purple/25 bg-[linear-gradient(150deg,rgba(255,255,255,.88),rgba(246,241,255,.88))] px-6 pb-6 pt-14 text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl sm:px-8 sm:pb-8 sm:pt-14">
+          <SpotlightCard spotlightColor="rgba(91, 47, 244, 0.24)" spotlightClassName="z-0 mix-blend-multiply motion-reduce:transition-none" contentClassName="flex h-full flex-col px-6 pb-6 pt-14 sm:px-8 sm:pb-8 sm:pt-14" className="h-full rounded-[22px] border border-brand-purple/25 bg-[linear-gradient(150deg,rgba(255,255,255,.88),rgba(246,241,255,.88))] text-[#111322] shadow-[0_18px_45px_rgba(66,42,148,0.08)] backdrop-blur-xl">
             <span aria-hidden className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-brand-purple/35 to-transparent" />
             <h2 className="text-[1.55rem] font-medium sm:text-[1.8rem]">Personalized video</h2>
             <p className="mt-2 text-sm text-[#757575]">Add prospect-level video personalization</p>
