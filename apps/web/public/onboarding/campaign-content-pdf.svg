@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 4 96 86" fill="none">
+  <defs>
+    <filter id="shadow" x="8" y="5" width="104" height="90" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="3" stdDeviation="2.5" flood-color="#52607A" flood-opacity="0.18"/>
+    </filter>
+    <linearGradient id="sheet" x1="39" y1="15" x2="82" y2="84" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F7F8FB"/>
+    </linearGradient>
+    <linearGradient id="label" x1="31" y1="54" x2="75" y2="75" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F0444F"/>
+      <stop offset="1" stop-color="#D92333"/>
+    </linearGradient>
+  </defs>
+
+  <g opacity="0.78">
+    <rect x="55" y="16" width="45" height="64" rx="5" fill="#DDE2EB" transform="rotate(7 55 16)"/>
+    <rect x="29" y="15" width="48" height="67" rx="5" fill="#E8EBF1" transform="rotate(-7 29 15)"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <path d="M34 10h38l15 15v57a5 5 0 0 1-5 5H34a5 5 0 0 1-5-5V15a5 5 0 0 1 5-5Z" fill="url(#sheet)"/>
+    <path d="M72 10v12a4 4 0 0 0 4 4h11L72 10Z" fill="#E2E6EE"/>
+    <path d="M72 10v11a5 5 0 0 0 5 5h10" stroke="#D1D6E0" stroke-width="1.5"/>
+    <rect x="47" y="34" width="29" height="3" rx="1.5" fill="#D5DAE4"/>
+    <rect x="47" y="41" width="24" height="3" rx="1.5" fill="#E0E4EB"/>
+    <rect x="47" y="48" width="27" height="3" rx="1.5" fill="#E0E4EB"/>
+    <path d="M23 55a4 4 0 0 1 4-4h46a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H27a4 4 0 0 1-4-4V55Z" fill="url(#label)"/>
+    <path d="m77 56 7 5-7 5V56Z" fill="#B51E2C" opacity="0.82"/>
+    <text x="50" y="69" fill="white" font-family="Arial, sans-serif" font-size="17" font-weight="700" letter-spacing="1" text-anchor="middle">PDF</text>
+  </g>
+</svg>
