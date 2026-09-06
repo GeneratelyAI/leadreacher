@@ -313,6 +313,14 @@
 .campaign-pill-field p { color: #b9c1d6; }
 .campaign-pill-field span { display: block; margin-top: 0.43rem; color: #f9faff; font-size: 0.82rem; font-weight: 400; line-height: 1.38; white-space: pre-line; }
 
+.campaign-pill-sections { min-height: 0; padding: 0 1.6rem 1.8rem; overflow: hidden; }
+.campaign-pill-section { padding: 1rem 0 0.9rem; border-top: 1px solid rgba(217, 223, 250, 0.18); }
+.campaign-pill-section p { display: flex; align-items: center; gap: 0.55rem; margin: 0; color: #f9faff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; line-height: 1.2; text-transform: uppercase; }
+.campaign-pill-section p svg { flex: none; color: #21c782; }
+.campaign-pill-section > span { display: block; margin-top: 0.7rem; color: #d2d8e8; font-size: 0.92rem; line-height: 1.5; white-space: pre-line; }
+.campaign-pill-section-new { animation: campaign-pill-section-enter 420ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.campaign-pill:not(.campaign-pill-expanded) .campaign-pill-section { opacity: 0; transform: translateY(-0.35rem); transition: opacity 140ms ease, transform 200ms cubic-bezier(0.4, 0, 0.2, 1); }
+
 .campaign-pill-preview {
   position: relative;
   padding: clamp(2rem, 5vw, 4.1rem);
@@ -354,6 +362,7 @@
 @keyframes campaign-pill-field-enter {
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes campaign-pill-section-enter { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: translateY(0); } }
 
 @keyframes campaign-pill-glow {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
@@ -381,8 +390,10 @@
   .campaign-pill::before,
   .campaign-pill-ambient,
   .campaign-pill-status-icon,
-  .campaign-pill-field { animation: none; }
-  .campaign-pill-field { opacity: 1; transform: none; }
+  .campaign-pill-field,
+  .campaign-pill-section { animation: none; }
+  .campaign-pill-field,
+  .campaign-pill-section { opacity: 1; transform: none; }
   .campaign-pill-toggle,
   .campaign-pill-toggle svg,
   .campaign-pill-body { transition-duration: 0ms; }
@@ -395,6 +406,11 @@
   --brand-wordmark-height: 1.625rem;
   --campaign-pill-width: 25rem;
   --campaign-pill-height: min(42rem, calc(100dvh - 12rem));
+  --campaign-original-reference-gutter: max(5.5rem, calc(50vw - 39.5rem));
+  --campaign-reference-gutter: max(4.4rem, calc(40vw - 31.6rem));
+  --campaign-discovery-reference-gutter: max(3.75rem, calc(50vw - 39.5rem));
+  --campaign-outer-gutter: var(--campaign-reference-gutter);
+  --campaign-pill-screen-right: var(--campaign-outer-gutter);
 }
 
 .onboarding-brand-anchor {
@@ -405,6 +421,246 @@
 }
 
 .onboarding-brand-wordmark { width: auto; height: var(--brand-wordmark-height); }
+
+.how-it-works-campaign-page {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #fdfdff;
+  color: #080e28;
+}
+
+.how-it-works-campaign-main {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  margin-left: var(--campaign-reference-gutter);
+  margin-right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  flex-direction: column;
+  justify-content: center;
+  padding: 5.75rem 0 2rem;
+}
+
+.how-it-works-campaign-header { flex: none; text-align: center; }
+.how-it-works-campaign-header h1 { margin: 0; font-size: clamp(2rem, 3vw, 3.25rem); font-weight: 700; letter-spacing: -0.045em; line-height: 1.05; }
+.how-it-works-campaign-header p { margin: 0.75rem 0 0; color: #737a96; font-size: clamp(0.9rem, 1.25vw, 1.1rem); line-height: 1.45; }
+.how-it-works-campaign-cards { min-width: 0; margin-top: clamp(1rem, 2.2vh, 1.6rem); }
+.how-it-works-campaign-cards > .relative > button[aria-label="Previous slide"] { left: calc(-2.75rem - 0.5rem); }
+.how-it-works-campaign-cards > .relative > button[aria-label="Next slide"] { right: calc(-2.75rem - 0.5rem); }
+.how-it-works-campaign-actions { display: grid; flex: none; align-items: center; gap: 1rem; margin-top: clamp(1rem, 2.2vh, 1.6rem); grid-template-columns: auto minmax(0, 1fr); }
+.how-it-works-campaign-back { height: 4.2rem; padding-inline: 1.5rem; font-size: 1rem; }
+
+.campaign-content-page {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #fdfdff;
+  color: #080e28;
+}
+
+.campaign-content-main {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  margin-left: var(--campaign-reference-gutter);
+  margin-right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  flex-direction: column;
+  justify-content: center;
+  padding: 4rem 0 2rem;
+}
+
+.campaign-content-header { flex: none; }
+.campaign-content-header h1 { margin: 0; color: #080e28; font-size: clamp(3rem, 5.2vw, 5.5rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.9; }
+.campaign-content-header p { margin: 1rem 0 0; color: #737a96; font-size: clamp(1.1rem, 1.55vw, 1.45rem); line-height: 1.4; }
+.campaign-content-options { margin-top: clamp(2.5rem, 6vh, 4.5rem); }
+.campaign-content-options-copy h2 { margin: 0; color: #11162b; font-size: clamp(1.3rem, 1.8vw, 1.75rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.15; }
+.campaign-content-options-copy p { margin: 0.55rem 0 0; color: #737a96; font-size: clamp(0.98rem, 1.3vw, 1.12rem); line-height: 1.4; }
+.campaign-content-options-grid { display: grid; gap: 0.85rem; margin-top: clamp(1.25rem, 2.5vh, 1.75rem); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.campaign-content-option {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: clamp(15.5rem, 36vh, 22rem);
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #e6e7ef;
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 1.25rem;
+  color: #11162b;
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.campaign-content-option:hover { border-color: rgb(91 63 240 / 44%); box-shadow: 0 0.8rem 1.8rem rgb(91 63 240 / 8%); transform: translateY(-0.1rem); }
+.campaign-content-option:focus-visible { outline: none; border-color: #5b3ff0; box-shadow: 0 0 0 3px rgb(91 63 240 / 18%); }
+.campaign-content-option-selected { border-color: #5b3ff0; box-shadow: inset 0 0 0 1px rgb(91 63 240 / 13%), 0 0.8rem 1.8rem rgb(91 63 240 / 7%); }
+.campaign-content-option-art { position: relative; display: grid; width: 100%; height: clamp(6.5rem, 12vh, 9rem); place-items: center; overflow: hidden; border-radius: 0.65rem; background: linear-gradient(135deg, #f1f3f8, #e4e8f0); }
+.campaign-content-option-icon { color: #48536d; width: clamp(2.6rem, 4.2vw, 3.65rem); height: clamp(2.6rem, 4.2vw, 3.65rem); }
+.campaign-content-option-play { position: absolute; right: 0.65rem; bottom: 0.65rem; display: grid; width: 2.35rem; height: 2.35rem; place-items: center; border-radius: 999px; background: rgb(7 15 38 / 86%); color: #fff; box-shadow: 0 0.4rem 1rem rgb(7 15 38 / 25%); }
+.campaign-content-option-check { position: absolute; top: 0.7rem; right: 0.7rem; display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 999px; background: #5538e7; color: #fff; box-shadow: 0 0.25rem 0.7rem rgb(84 55 229 / 34%); }
+.campaign-content-option-title { display: block; margin-top: 1rem; color: #101428; font-size: clamp(1rem, 1.25vw, 1.18rem); font-weight: 700; letter-spacing: -0.035em; line-height: 1.2; }
+.campaign-content-option-description,
+.campaign-content-option-detail { display: block; color: #66708a; font-size: clamp(0.84rem, 1.08vw, 1rem); line-height: 1.32; }
+.campaign-content-option-description { margin-top: 0.55rem; }
+.campaign-content-option-detail { margin-top: 0.65rem; }
+.campaign-content-option-recommended { margin-top: auto; border-radius: 999px; background: linear-gradient(105deg, #6043ef, #492edc); padding: 0.35rem 0.72rem; color: #fff; font-size: 0.78rem; font-weight: 650; line-height: 1; box-shadow: 0 0.45rem 1rem rgb(76 50 219 / 18%); }
+.campaign-content-actions { display: flex; align-items: center; justify-content: space-between; margin-top: clamp(1.75rem, 4.5vh, 3rem); }
+.campaign-content-back { width: 10.7rem; height: 4.2rem; font-size: 1rem; }
+.campaign-content-actions .onboarding-campaign-next { width: 13.2rem; flex: none; }
+
+.personalized-video-style-page {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #fdfdff;
+  color: #080e28;
+}
+.personalized-video-style-main {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  margin-left: var(--campaign-reference-gutter);
+  margin-right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  padding: clamp(5.5rem, 12vh, 7rem) 0 2rem;
+}
+.personalized-video-style-header h1 { margin: 0; color: #080e28; font-size: clamp(3rem, 5.2vw, 5.5rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.9; }
+.personalized-video-style-status { display: flex; align-items: center; gap: 0.9rem; margin-top: clamp(1.2rem, 2.3vh, 1.7rem); }
+.personalized-video-style-status-icon { width: 2rem; height: 2rem; flex: none; color: #43c99b; }
+.personalized-video-style-status p { margin: 0; color: #15192c; font-size: 0.78rem; font-weight: 750; letter-spacing: 0.14em; line-height: 1.2; }
+.personalized-video-style-status span { display: block; margin-top: 0.35rem; color: #737a96; font-size: clamp(0.96rem, 1.25vw, 1.1rem); line-height: 1.35; }
+.personalized-video-style-options { margin-top: clamp(2rem, 4.8vh, 3.25rem); }
+.personalized-video-style-options h2 { margin: 0; color: #11162b; font-size: clamp(1.4rem, 2vw, 1.85rem); font-weight: 700; letter-spacing: -0.045em; line-height: 1.15; }
+.personalized-video-style-grid { display: grid; gap: 0.85rem; margin-top: clamp(1rem, 2.2vh, 1.5rem); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.personalized-video-style-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  height: clamp(12.75rem, 25vh, 16rem);
+  flex-direction: column;
+  align-items: flex-start;
+  border: 1px solid #e6e7ef;
+  border-radius: 0.9rem;
+  background: #fff;
+  padding: 0.95rem;
+  color: #11162b;
+  text-align: left;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.personalized-video-style-card:hover { border-color: rgb(91 63 240 / 44%); box-shadow: 0 0.8rem 1.8rem rgb(91 63 240 / 8%); transform: translateY(-0.1rem); }
+.personalized-video-style-card:focus-visible { outline: none; border-color: #5b3ff0; box-shadow: 0 0 0 3px rgb(91 63 240 / 18%); }
+.personalized-video-style-card-selected { border-color: #5b3ff0; box-shadow: inset 0 0 0 1px rgb(91 63 240 / 13%), 0 0.8rem 1.8rem rgb(91 63 240 / 7%); }
+.personalized-video-style-art { position: relative; display: block; width: 100%; height: clamp(6.4rem, 14vh, 8rem); overflow: hidden; border-radius: 0.65rem; background: #e8ebf3; }
+.personalized-video-style-play { position: absolute; top: 50%; left: 50%; display: grid; width: 2.8rem; height: 2.8rem; place-items: center; border-radius: 999px; background: rgb(7 15 38 / 86%); color: #fff; box-shadow: 0 0.4rem 1rem rgb(7 15 38 / 25%); transform: translate(-50%, -50%); }
+.personalized-video-style-duration { position: absolute; right: 0.55rem; bottom: 0.55rem; border-radius: 0.35rem; background: rgb(7 15 38 / 88%); padding: 0.2rem 0.38rem; color: #fff; font-size: 0.76rem; font-weight: 650; line-height: 1; }
+.personalized-video-style-card-title { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.9rem; color: #101428; font-size: clamp(1rem, 1.35vw, 1.2rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.2; }
+.personalized-video-style-card-title span { color: #5538e7; font-size: 0.83rem; font-weight: 650; letter-spacing: -0.02em; }
+.personalized-video-style-card-description { display: block; margin-top: 0.5rem; color: #66708a; font-size: clamp(0.82rem, 1.05vw, 0.96rem); line-height: 1.32; }
+.personalized-video-style-card-description > span { display: block; }
+.personalized-video-style-error { margin: 0.9rem 0 0; color: #bd3341; font-size: 0.9rem; }
+.personalized-video-style-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem; }
+.personalized-video-style-actions .onboarding-campaign-next { width: 13.2rem; flex: none; }
+
+.upload-your-video-page {
+  position: relative;
+  height: 100dvh;
+  overflow: hidden;
+  background: #fdfdff;
+  color: #080e28;
+}
+.upload-your-video-main {
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  margin-left: var(--campaign-reference-gutter);
+  margin-right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  padding: clamp(7.5rem, 16vh, 10rem) 0 2rem;
+}
+.upload-your-video-header h1 { margin: 0; color: #080e28; font-size: clamp(3rem, 5.2vw, 5.5rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.9; }
+.upload-your-video-header p { margin: 1rem 0 0; color: #737a96; font-size: clamp(1.1rem, 1.55vw, 1.45rem); line-height: 1.4; }
+.upload-your-video-section { margin-top: clamp(2.2rem, 5.5vh, 3.6rem); }
+.upload-your-video-drop-zone,
+.upload-your-video-selected {
+  border: 1px solid #a993ff;
+  border-radius: 0.95rem;
+  background: rgb(255 255 255 / 78%);
+  padding: 1.35rem;
+  box-shadow: 0 0.85rem 2.4rem rgb(83 58 222 / 5%);
+}
+.upload-your-video-drop-zone {
+  display: flex;
+  height: clamp(17rem, 34vh, 22rem);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  border-color: #cfc5ff;
+  background: linear-gradient(135deg, rgb(250 250 255 / 90%), rgb(246 244 255 / 72%));
+  outline: 1px solid #a993ff;
+  outline-offset: 1.15rem;
+  text-align: center;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+.upload-your-video-drop-zone[data-dragging] { border-color: #5b3ff0; background: #f1eeff; box-shadow: inset 0 0 0 1px rgb(91 63 240 / 18%); }
+.upload-your-video-icon { display: grid; width: 5.6rem; height: 5.6rem; place-items: center; border-radius: 999px; background: linear-gradient(135deg, #e5e0ff, #d8d0ff); color: #4d2ce5; box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%); }
+.upload-your-video-drop-zone > p { margin: 1.45rem 0 0; color: #11162b; font-size: clamp(1.15rem, 1.8vw, 1.5rem); font-weight: 600; letter-spacing: -0.035em; line-height: 1.2; }
+.upload-your-video-drop-zone > span:not(.upload-your-video-icon) { margin-top: 0.85rem; color: #737a96; font-size: 1rem; line-height: 1; }
+.upload-your-video-browse { height: 3.55rem; margin-top: 1rem; border-color: #7056f2; color: #4d2ce5; font-size: 1rem; }
+.upload-your-video-helper { margin: 1.7rem 0 0; color: #68738e; font-size: clamp(0.9rem, 1.15vw, 1.05rem); line-height: 1.4; }
+.upload-your-video-error { margin: 0.8rem 0 0; color: #bd3341; font-size: 0.9rem; }
+.upload-your-video-selected { padding: 0; overflow: hidden; }
+.upload-your-video-preview { display: block; width: 100%; height: clamp(13rem, 27vh, 17rem); background: #080e28; object-fit: contain; }
+.upload-your-video-file-details { display: flex; align-items: center; gap: 0.85rem; padding: 1rem 1.25rem; }
+.upload-your-video-file-icon { width: 2rem; height: 2rem; flex: none; color: #5739e9; }
+.upload-your-video-file-details p { min-width: 0; margin: 0; overflow: hidden; color: #11162b; font-size: 1rem; font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.upload-your-video-file-details span { display: block; margin-top: 0.25rem; color: #737a96; font-size: 0.86rem; line-height: 1.25; }
+.upload-your-video-remove { height: 2.75rem; margin-left: auto; flex: none; color: #4d2ce5; }
+.upload-your-video-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 1.5rem; }
+.upload-your-video-actions .onboarding-campaign-next { width: 13.2rem; flex: none; }
+
+@media (max-width: 63rem) {
+  .how-it-works-campaign-page { min-height: 100dvh; height: auto; overflow: visible; padding: 7rem 1.5rem 3rem; }
+  .how-it-works-campaign-main { height: auto; margin: 0; padding: 0; }
+  .how-it-works-campaign-page .signup-campaign-pill-column { display: none; }
+  .campaign-content-page { min-height: 100dvh; height: auto; overflow: visible; padding: 7rem 1.5rem 3rem; }
+  .campaign-content-main { height: auto; margin: 0; padding: 0; }
+  .campaign-content-page .signup-campaign-pill-column { display: none; }
+  .campaign-content-options-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .personalized-video-style-page { min-height: 100dvh; height: auto; overflow: visible; padding: 7rem 1.5rem 3rem; }
+  .personalized-video-style-main { height: auto; margin: 0; padding: 0; }
+  .personalized-video-style-page .signup-campaign-pill-column { display: none; }
+  .personalized-video-style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .upload-your-video-page { min-height: 100dvh; height: auto; overflow: visible; padding: 7rem 1.5rem 3rem; }
+  .upload-your-video-main { height: auto; margin: 0; padding: 0; }
+  .upload-your-video-page .signup-campaign-pill-column { display: none; }
+}
+
+@media (max-width: 42rem) {
+  .how-it-works-campaign-actions { grid-template-columns: 1fr; }
+  .how-it-works-campaign-back { width: 100%; }
+  .campaign-content-options-grid { grid-template-columns: 1fr; }
+  .campaign-content-actions { gap: 0.85rem; flex-direction: column-reverse; }
+  .campaign-content-back,
+  .campaign-content-actions .onboarding-campaign-next { width: 100%; }
+  .personalized-video-style-grid { grid-template-columns: 1fr; }
+  .personalized-video-style-actions { gap: 0.85rem; flex-direction: column-reverse; }
+  .personalized-video-style-actions .campaign-content-back,
+  .personalized-video-style-actions .onboarding-campaign-next { width: 100%; }
+  .upload-your-video-actions { gap: 0.85rem; flex-direction: column-reverse; }
+  .upload-your-video-actions .campaign-content-back,
+  .upload-your-video-actions .onboarding-campaign-next { width: 100%; }
+  .upload-your-video-file-details { flex-wrap: wrap; }
+  .upload-your-video-remove { width: 100%; margin-left: 0; }
+}
+
+@media (min-width: 64rem) and (max-height: 56.25rem) {
+  .how-it-works-campaign-main { padding-top: 4.5rem; padding-bottom: 1rem; }
+  .how-it-works-campaign-header h1 { font-size: clamp(1.75rem, 3.8vh, 2rem); }
+  .how-it-works-campaign-header p { margin-top: 0.5rem; font-size: 0.875rem; line-height: 1.35rem; }
+  .how-it-works-campaign-cards { --coverflow-card: min(13rem, 28vh) !important; margin-top: 0.5rem; }
+  .how-it-works-campaign-cards [tabindex="0"].cursor-grab { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .how-it-works-campaign-actions { margin-top: 0.5rem; }
+  .how-it-works-campaign-page .how-it-works-campaign-main::after { margin-top: 0.5rem; }
+}
 
 /* Signup is the reference frame for campaign creation. */
 .signup-campaign-layout,
@@ -544,14 +800,28 @@
 
 @keyframes signup-campaign-rise { from { opacity: 0; transform: translateY(1.15rem); } to { opacity: 1; transform: translateY(0); } }
 @keyframes signup-campaign-pill-rise { from { opacity: 0; transform: translateY(1.4rem) scale(0.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes signup-campaign-pill-screen-rise { from { opacity: 0; transform: translateY(calc(-50% + 1.4rem)) scale(0.975); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
 @keyframes signup-campaign-period-beat { 0%, 52%, 100% { transform: scale(1); filter: brightness(1); } 8% { transform: scale(1.32); filter: brightness(1.25); } 18% { transform: scale(0.92); } 28% { transform: scale(1.12); } }
 @keyframes signup-campaign-halo { 0%, 100% { opacity: 0.56; transform: scale(0.94); } 50% { opacity: 0.95; transform: scale(1.06); } }
 
 @media (max-width: 70rem) {
-  :root { --campaign-pill-height: min(42rem, calc(100dvh - 6rem)); }
+  :root {
+    --campaign-pill-height: min(42rem, calc(100dvh - 6rem));
+    --campaign-original-reference-gutter: 4rem;
+    --campaign-reference-gutter: 3.2rem;
+    --campaign-discovery-reference-gutter: 2.5rem;
+  }
   .signup-campaign-layout,
   .onboarding-campaign-layout { gap: clamp(2rem, 6vw, 4rem); grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem); }
   .signup-campaign-copy h1 { font-size: clamp(3.2rem, 5.6vw, 4.8rem); }
+}
+
+@media (min-width: 63.0625rem) and (max-width: 79.9375rem) {
+  :root {
+    --campaign-original-reference-gutter: 4rem;
+    --campaign-reference-gutter: 3.2rem;
+    --campaign-discovery-reference-gutter: 2.5rem;
+  }
 }
 
 @media (min-width: 63.0625rem) and (max-height: 52rem) {
@@ -566,6 +836,158 @@
   .onboarding-campaign-profile-row { min-height: 4.35rem; }
   .onboarding-campaign-context { margin-top: 1.8rem; }
   .onboarding-campaign-task { min-height: calc(100dvh - 5rem); padding-top: 1rem; }
+}
+
+/* The campaign summary has one desktop viewport anchor across signup and onboarding. */
+@media (min-width: 63.0625rem) {
+  /* Safari's shorter visual viewport otherwise lifts this compact style stack
+     above the Campaign Content heading. Keep their headings aligned. */
+  .personalized-video-style-main { transform: translateY(1.875rem); }
+
+  .how-it-works-campaign-main { transform: translateY(-2.3625rem); }
+
+  /* Keep the workflow stack centered while the actions share the pill's fixed bottom edge. */
+  .how-it-works-campaign-main::after {
+    display: block;
+    height: 4.2rem;
+    flex: none;
+    margin-top: clamp(1rem, 2.2vh, 1.6rem);
+    content: "";
+  }
+
+  .how-it-works-campaign-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0;
+  }
+
+  .how-it-works-campaign-actions .onboarding-campaign-next {
+    width: 13.2rem;
+    flex: none;
+  }
+
+  /* Preserve the centered content stack while pinning only this row to the campaign pill's lower edge. */
+  .campaign-content-main::after {
+    display: block;
+    height: 4.2rem;
+    flex: none;
+    margin-top: clamp(1.75rem, 4.5vh, 3rem);
+    content: "";
+  }
+
+  .campaign-content-actions {
+    position: absolute;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  .campaign-content-options { transform: translateY(-1.625rem); }
+
+  .personalized-video-style-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  .upload-your-video-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  :root {
+    /* The content remains left-anchored and uses half of its prior pill gap. */
+    --campaign-content-width: min(
+      calc(100vw - var(--campaign-reference-gutter) - var(--campaign-pill-width) - var(--campaign-pill-screen-right) - 1.5rem),
+      calc(50vw - var(--campaign-reference-gutter) + 7.5rem)
+    );
+  }
+
+  [data-testid="signup-campaign-auth"] {
+    position: relative;
+    inset-inline-start: calc(var(--campaign-reference-gutter) - var(--campaign-original-reference-gutter));
+  }
+
+  [data-testid="signup-campaign-auth"] .signup-campaign-auth-actions,
+  .discovery-website-gate .signup-campaign-auth-actions,
+  .onboarding-campaign-layout .onboarding-campaign-profile,
+  .onboarding-campaign-layout .onboarding-campaign-context,
+  .onboarding-campaign-layout .onboarding-campaign-actions {
+    width: var(--campaign-content-width);
+  }
+
+  .onboarding-campaign-layout .onboarding-campaign-task {
+    position: relative;
+    inset-inline-start: calc(var(--campaign-reference-gutter) - var(--campaign-discovery-reference-gutter));
+  }
+
+  .signup-campaign-pill-column {
+    position: fixed;
+    z-index: 5;
+    top: 50%;
+    right: var(--campaign-pill-screen-right);
+    width: var(--campaign-pill-width);
+    height: var(--campaign-pill-height);
+    align-self: auto;
+    justify-self: auto;
+    transform: translateY(-50%);
+    animation: signup-campaign-pill-screen-rise 900ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+/* Fill the unused desktop space below the style cards without crossing the
+   fixed action row. Shorter desktop viewports retain the compact card size. */
+@media (min-width: 63.0625rem) and (min-height: 48rem) {
+  .personalized-video-style-card {
+    padding: 1rem;
+    height: clamp(15.375rem, calc(43vh - 5.25rem), 25.7rem);
+  }
+
+  .personalized-video-style-art {
+    height: min(48%, 10.5rem);
+  }
+
+  .personalized-video-style-card-title {
+    gap: 0.6rem;
+    margin-top: 1rem;
+    font-size: clamp(1.08rem, 1.4vw, 1.28rem);
+    line-height: 1.15;
+  }
+
+  .personalized-video-style-card-title span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    border-radius: 999px;
+    background: #f0edff;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .personalized-video-style-card-description {
+    max-width: 23ch;
+    margin-top: 0.7rem;
+    color: #66708a;
+    font-size: clamp(0.9rem, 1.08vw, 1rem);
+    line-height: 1.45;
+  }
+
+  .personalized-video-style-card-description > span + span { margin-top: 0.12rem; }
 }
 
 @media (max-width: 63rem) {

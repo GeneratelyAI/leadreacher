@@ -10,10 +10,18 @@ export type PillField = {
   value: string;
 };
 
+export type PillSection = {
+  id: "business" | "targeting" | "content" | "outreach" | "customers";
+  label: string;
+  value: string;
+};
+
 export type PillData = {
   status?: "learning" | "ready";
   statusLabel?: string;
   fields: PillField[];
+  sections?: PillSection[];
+  newlyCompletedSectionId?: PillSection["id"];
   site?: {
     label: string;
     iconUrl: string;
@@ -43,9 +51,16 @@ export function Pill({
   const contentId = useId();
   const serializedFields = JSON.stringify(campaign.fields);
   const fields = useMemo<PillField[]>(() => JSON.parse(serializedFields), [serializedFields]);
+  const serializedSections = JSON.stringify(campaign.sections ?? []);
+  const sections = useMemo<PillSection[]>(() => JSON.parse(serializedSections), [serializedSections]);
+  const isTimeline = sections.length > 0;
   const [reveal, setReveal] = useState(() => ({ signature: serializedFields, count: 0 }));
-  const visibleFieldCount = reveal.signature === serializedFields ? reveal.count : 0;
-  const isRevealing = visibleFieldCount < fields.length;
+  const visibleFieldCount = campaign.status === "ready"
+    ? fields.length
+    : reveal.signature === serializedFields
+      ? reveal.count
+      : 0;
+  const isRevealing = !isTimeline && campaign.status !== "ready" && visibleFieldCount < fields.length;
   const isLearning = campaign.status === "learning" || isRevealing;
   const site = campaign.site ?? {
     label: "leadreacher.ai",
@@ -116,25 +131,47 @@ export function Pill({
         </button>
       </header>
 
-      <div className="campaign-pill-status" aria-live="polite">
-        <span className={cn("campaign-pill-status-icon", isLearning && "campaign-pill-status-icon-learning")} aria-hidden>
-          {isLearning ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" weight="bold" />}
-        </span>
-        <span>{statusLabel}</span>
-      </div>
+      {!isTimeline ? (
+        <div className="campaign-pill-status" aria-live="polite">
+          <span className={cn("campaign-pill-status-icon", isLearning && "campaign-pill-status-icon-learning")} aria-hidden>
+            {isLearning ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" weight="bold" />}
+          </span>
+          <span>{statusLabel}</span>
+        </div>
+      ) : null}
 
       <div id={contentId} className="campaign-pill-body" aria-hidden={!expanded}>
-        <div className="campaign-pill-fields">
-          {visibleFields.map((field) => (
-            <div
-              className="campaign-pill-field"
-              key={`${field.label}:${field.value}`}
-            >
-              <p>{field.label}</p>
-              <span>{field.value}</span>
-            </div>
-          ))}
-        </div>
+        {isTimeline ? (
+          <div className="campaign-pill-sections">
+            {sections.map((section) => (
+              <div
+                className={cn(
+                  "campaign-pill-section",
+                  section.id === campaign.newlyCompletedSectionId && "campaign-pill-section-new",
+                )}
+                key={section.id}
+              >
+                <p>
+                  {section.label}
+                  <Check className="size-3" weight="bold" aria-hidden />
+                </p>
+                <span>{section.value}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="campaign-pill-fields">
+            {visibleFields.map((field) => (
+              <div
+                className="campaign-pill-field"
+                key={`${field.label}:${field.value}`}
+              >
+                <p>{field.label}</p>
+                <span>{field.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );
