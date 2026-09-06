@@ -79,7 +79,7 @@ const OutreachMessageBodySchema = z
       });
     }
   });
-const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 500 * 1024 * 1024;
 const STRATEGY_GENERATION_LOCK_TTL_MS = 10 * 60 * 1000;
 
 async function releaseOwnedLock(lockKey: string, ownerToken: string): Promise<void> {
@@ -488,7 +488,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     } catch (error) {
       if (isFileTooLargeError(error)) {
         throw new AppError(
-          "Video uploads must be 200MB or smaller",
+          "Video uploads must be 500MB or smaller",
           413,
           "PAYLOAD_TOO_LARGE",
         );

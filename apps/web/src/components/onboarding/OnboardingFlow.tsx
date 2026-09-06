@@ -14,6 +14,7 @@ import Discovery from "@/components/onboarding/steps/Discovery";
 import HowItWorks from "@/components/onboarding/steps/HowItWorks";
 import PersonalizedVideoStyle from "@/components/onboarding/steps/PersonalizedVideoStyle";
 import Strategy from "@/components/onboarding/steps/Strategy";
+import UploadYourVideo from "@/components/onboarding/steps/UploadYourVideo";
 import VideoSetup from "@/components/onboarding/steps/VideoSetup";
 import {
   isOnboardingStep,
@@ -146,6 +147,8 @@ export default function OnboardingFlow({
     activeStepContent = <PersonalizedVideoStyle />;
   } else if (activeStep === "ai-video-style") {
     activeStepContent = <AiVideoStyle />;
+  } else if (activeStep === "upload-video") {
+    activeStepContent = <UploadYourVideo />;
   } else if (activeStep === "video-decision") {
     activeStepContent = <VideoSetup />;
   } else if (activeStep === "checkout") {
@@ -156,11 +159,11 @@ export default function OnboardingFlow({
 
   return (
     <>
-      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
+      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
       <StepMotion
         transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
         className="h-dvh min-h-0"
-        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && activeStep !== "ai-video-style" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
+        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && activeStep !== "ai-video-style" && activeStep !== "upload-video" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
       >
         {activeStepContent}
       </StepMotion>

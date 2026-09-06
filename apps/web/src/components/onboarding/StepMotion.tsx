@@ -114,6 +114,7 @@ export function getSlideDirection(currentKey: string, nextKey: string): SlideDir
     "campaign-content",
     "personalized-video-style",
     "ai-video-style",
+    "upload-video",
     "video-decision",
     "checkout",
     "channels",
