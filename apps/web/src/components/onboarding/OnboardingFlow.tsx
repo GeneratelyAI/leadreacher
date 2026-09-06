@@ -151,10 +151,11 @@ export default function OnboardingFlow({
 
   return (
     <>
-      <OnboardingChrome activeStep={activeStep} />
+      {activeStep === "discovery" ? null : <OnboardingChrome activeStep={activeStep} />}
       <StepMotion
         transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
         className="h-dvh min-h-0"
+        fitViewport={activeStep !== "discovery"}
       >
         {activeStepContent}
       </StepMotion>

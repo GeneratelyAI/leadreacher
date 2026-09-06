@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   discoveryScrapeSourceKey,
   isDiscoveryScrapeCacheForOrg,
+  readActiveScopedWebsiteUrl,
   type DiscoveryScrapeCache,
 } from "../discovery-scrape-cache";
 
@@ -25,6 +26,27 @@ describe("isDiscoveryScrapeCacheForOrg", () => {
 
   it("does not hydrate cached data before an organization scope is known", () => {
     expect(isDiscoveryScrapeCacheForOrg(cache, null)).toBe(false);
+  });
+});
+
+describe("readActiveScopedWebsiteUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a completed website analysis available after anonymous signup data is promoted", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+
+    vi.stubGlobal("window", { localStorage: storage, sessionStorage: storage });
+    storage.setItem("lr_discovery_org_id", "org-a");
+    storage.setItem("lr_discovery_scrape", JSON.stringify(cache));
+
+    expect(readActiveScopedWebsiteUrl()).toBe("example.com");
   });
 });
 

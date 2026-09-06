@@ -12,6 +12,12 @@ export type DiscoveryScrapeCache = {
   audience: string;
   value: string;
   strategyStatus: string;
+  prospectProfile?: {
+    decisionMakers: string[];
+    companyTypes: string[];
+    industries: string[];
+    locations: string[];
+  };
   error: string | null;
 };
 
@@ -59,6 +65,9 @@ export function readDiscoveryScrapeCache(): DiscoveryScrapeCache | null {
       audience: value.audience ?? "",
       value: value.value ?? "",
       strategyStatus: value.strategyStatus ?? "",
+      prospectProfile: value.prospectProfile ?? {
+        decisionMakers: [], companyTypes: [], industries: [], locations: [],
+      },
       error: value.error ?? null,
     };
   } catch {
@@ -101,6 +110,9 @@ export function writeDiscoveryScrapeCache(
     audience: status.audience,
     value: status.value,
     strategyStatus: status.strategyStatus,
+    prospectProfile: status.prospectProfile ?? {
+      decisionMakers: [], companyTypes: [], industries: [], locations: [],
+    },
     error: status.error,
   };
   window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
@@ -130,8 +142,7 @@ export function readActiveScopedWebsiteUrl(): string | null {
   if (
     !orgId ||
     !cache ||
-    cache.scope !== `org:${orgId}` ||
-    cache.status !== "running"
+    cache.scope !== `org:${orgId}`
   ) {
     return null;
   }

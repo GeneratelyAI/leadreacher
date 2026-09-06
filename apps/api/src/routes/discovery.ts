@@ -52,6 +52,14 @@ export type DiscoveryScrapeFields = {
   audience: string;
   value: string;
   strategyStatus: string;
+  prospectProfile?: DiscoveryProspectProfile;
+};
+
+export type DiscoveryProspectProfile = {
+  decisionMakers: string[];
+  companyTypes: string[];
+  industries: string[];
+  locations: string[];
 };
 
 export type DiscoveryScrapeStatus = DiscoveryScrapeFields & {
@@ -139,6 +147,13 @@ const DiscoveryCompleteBodySchema = z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string(),
   })).min(1),
+  prospectProfile: z.object({
+    decisionMakers: z.array(z.string().trim().min(1)).max(6),
+    companyTypes: z.array(z.string().trim().min(1)).max(6),
+    industries: z.array(z.string().trim().min(1)).max(6),
+    locations: z.array(z.string().trim().min(1)).max(6),
+    additionalContext: z.string().trim().max(500),
+  }).optional(),
 });
 
 const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onboarding. Return ONLY valid JSON with no markdown:
@@ -147,7 +162,13 @@ const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onb
   "offer": string,
   "audience": string,
   "value": string,
-  "strategyStatus": string
+  "strategyStatus": string,
+  "prospectProfile": {
+    "decisionMakers": string[],
+    "companyTypes": string[],
+    "industries": string[],
+    "locations": string[]
+  }
 }
 
 Field guidance:
@@ -156,6 +177,7 @@ Field guidance:
 - audience: likely buyer/persona, concise phrase.
 - value: core value proposition or competitive advantage, concise phrase.
 - strategyStatus: one sentence describing the outreach strategy being built.
+- prospectProfile: conservative, editable suggestions for outreach targeting. Include 2-4 decisionMakers, companyTypes, and industries when supported by the website. Include locations only when the site clearly identifies a market. Use short labels, not sentences.
 
 Use polished business language. If context is weak, infer conservatively from the website URL/domain.`;
 
@@ -167,8 +189,19 @@ const SCRAPE_RESPONSE_JSON_SCHEMA = {
     audience: { type: "string" },
     value: { type: "string" },
     strategyStatus: { type: "string" },
+    prospectProfile: {
+      type: "object",
+      properties: {
+        decisionMakers: { type: "array", items: { type: "string" } },
+        companyTypes: { type: "array", items: { type: "string" } },
+        industries: { type: "array", items: { type: "string" } },
+        locations: { type: "array", items: { type: "string" } },
+      },
+      required: ["decisionMakers", "companyTypes", "industries", "locations"],
+      additionalProperties: false,
+    },
   },
-  required: ["market", "offer", "audience", "value", "strategyStatus"],
+  required: ["market", "offer", "audience", "value", "strategyStatus", "prospectProfile"],
   additionalProperties: false,
 } as const;
 
@@ -293,6 +326,7 @@ function emptyScrapeStatus(
     audience: "",
     value: "",
     strategyStatus: "",
+    prospectProfile: emptyProspectProfile(),
     error,
     updatedAt: new Date().toISOString(),
   };
@@ -377,6 +411,27 @@ function cleanScrapeField(value: unknown): string {
 
   const trimmed = value.trim();
   return trimmed ? trimmed.charAt(0).toUpperCase() + trimmed.slice(1) : "";
+}
+
+function emptyProspectProfile(): DiscoveryProspectProfile {
+  return { decisionMakers: [], companyTypes: [], industries: [], locations: [] };
+}
+
+function cleanProspectList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value
+    .map((item) => cleanScrapeField(item))
+    .filter((item) => item.length > 0 && item.length <= 80))].slice(0, 6);
+}
+
+function parseProspectProfile(value: unknown): DiscoveryProspectProfile {
+  const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    decisionMakers: cleanProspectList(record.decisionMakers),
+    companyTypes: cleanProspectList(record.companyTypes),
+    industries: cleanProspectList(record.industries),
+    locations: cleanProspectList(record.locations),
+  };
 }
 
 function tokenizeIndustryShortlistText(value: string): string[] {
@@ -502,6 +557,7 @@ function parseScrapeResponse(raw: string): DiscoveryScrapeFields {
     audience: cleanScrapeField(parsed.audience),
     value: cleanScrapeField(parsed.value),
     strategyStatus: cleanScrapeField(parsed.strategyStatus),
+    prospectProfile: parseProspectProfile(parsed.prospectProfile),
   };
 }
 
@@ -826,9 +882,10 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { summary, messages } = request.body as {
+    const { summary, messages, prospectProfile } = request.body as {
       summary: DiscoverySummary;
       messages: IncomingMessage[];
+      prospectProfile?: DiscoveryProspectProfile & { additionalContext: string };
     };
 
     parseMessages({ messages });
@@ -836,6 +893,10 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     const strategyData = {
       icpDefinition: {
         idealCustomer: summary.idealCustomer ?? "",
+        prospectProfile: prospectProfile ?? {
+          ...emptyProspectProfile(),
+          additionalContext: "",
+        },
       } as Prisma.InputJsonValue,
       positioning: {
         businessModel: summary.businessModel ?? "",

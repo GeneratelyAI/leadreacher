@@ -17,7 +17,13 @@ type RenderedStep = {
   children: ReactNode;
 };
 
-function ViewportFittedPane({ children }: { children: ReactNode }) {
+function ViewportFittedPane({
+  children,
+  fitViewport,
+}: {
+  children: ReactNode;
+  fitViewport: boolean;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -26,12 +32,21 @@ function ViewportFittedPane({ children }: { children: ReactNode }) {
     const canvas = canvasRef.current;
     if (!frame || !canvas) return;
 
+    if (!fitViewport) {
+      canvas.style.setProperty("--onboarding-fit-scale", "1");
+      canvas.style.setProperty("--onboarding-fit-inverse", "1");
+      canvas.style.width = "100%";
+      canvas.style.transform = "none";
+      return;
+    }
+
     let animationFrame = 0;
     let currentScale = 1;
 
     const applyScale = (scale: number) => {
       currentScale = scale;
       canvas.style.setProperty("--onboarding-fit-scale", String(scale));
+      canvas.style.setProperty("--onboarding-fit-inverse", String(1 / scale));
       canvas.style.width = `${100 / scale}%`;
       canvas.style.transform = `scale(${scale})`;
     };
@@ -45,6 +60,7 @@ function ViewportFittedPane({ children }: { children: ReactNode }) {
 
         if (reset) {
           currentScale = 1;
+          canvas.style.setProperty("--onboarding-fit-inverse", "1");
           canvas.style.width = "100%";
           canvas.style.transform = "none";
         }
@@ -74,10 +90,16 @@ function ViewportFittedPane({ children }: { children: ReactNode }) {
       frameResizeObserver.disconnect();
       contentResizeObserver.disconnect();
     };
-  }, [children]);
+  }, [children, fitViewport]);
 
   return (
-    <div ref={frameRef} className="onboarding-viewport-fit">
+    <div
+      ref={frameRef}
+      className={cn(
+        "onboarding-viewport-fit",
+        !fitViewport && "onboarding-viewport-fit--scroll",
+      )}
+    >
       <div ref={canvasRef} className="onboarding-viewport-fit__canvas">
         {children}
       </div>
@@ -121,10 +143,12 @@ export function StepMotion({
   transitionKey,
   children,
   className,
+  fitViewport = true,
 }: {
   transitionKey: string;
   children: ReactNode;
   className?: string;
+  fitViewport?: boolean;
 }) {
   const [current, setCurrent] = useState<RenderedStep>({ key: transitionKey, children });
   const [incoming, setIncoming] = useState<RenderedStep | null>(null);
@@ -223,7 +247,7 @@ export function StepMotion({
         aria-hidden={isTransitioning}
         inert={isTransitioning}
       >
-        <ViewportFittedPane>{visibleChildren}</ViewportFittedPane>
+        <ViewportFittedPane fitViewport={fitViewport}>{visibleChildren}</ViewportFittedPane>
       </div>
       {incoming ? (
         <div
@@ -231,7 +255,7 @@ export function StepMotion({
           className="onboarding-step-presence__pane onboarding-step-presence__pane--incoming"
           inert={!isAnimating}
         >
-          <ViewportFittedPane>{incoming.children}</ViewportFittedPane>
+          <ViewportFittedPane fitViewport={fitViewport}>{incoming.children}</ViewportFittedPane>
         </div>
       ) : null}
     </div>

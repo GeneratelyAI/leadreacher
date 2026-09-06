@@ -21,6 +21,12 @@ export type WebsiteScrapeStatus = {
   audience: string;
   value: string;
   strategyStatus: string;
+  prospectProfile?: {
+    decisionMakers: string[];
+    companyTypes: string[];
+    industries: string[];
+    locations: string[];
+  };
   error: string | null;
 };
 
@@ -56,6 +62,12 @@ const EMPTY_STATUS: WebsiteScrapeStatus = {
   audience: "",
   value: "",
   strategyStatus: "",
+  prospectProfile: {
+    decisionMakers: [],
+    companyTypes: [],
+    industries: [],
+    locations: [],
+  },
   error: null,
 };
 

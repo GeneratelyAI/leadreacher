@@ -1,426 +1,325 @@
 "use client";
 
-import { ArrowRight, Globe, Lock, PenLine } from "@/components/ui/icons";
-import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CampaignSummary } from "@/components/onboarding/CampaignSummary";
-import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
-import { AiRecommendation } from "@/components/onboarding/AiRecommendation";
+import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
+import { Pill, type PillData } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
-import { ActionInputBar } from "@/components/ui/action-input-bar";
 import { Input } from "@/components/ui/Input";
+import { ArrowRight, Globe, Lock } from "@/components/ui/icons";
 import { Label } from "@/components/ui/label";
-import { PageHeader } from "@/components/ui/PageHeader";
-import {
-  EMPTY_DISCOVERY_SUMMARY,
-  type ChatMessage,
-  type DiscoverySummary,
-} from "@/hooks/useDiscovery";
+import { type WebsiteScrapeStatus, useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import {
-  type WebsiteScrapeStatus,
-  useWebsiteScrapeStatus,
-} from "@/hooks/useWebsiteScrapeStatus";
 import { apiFetch } from "@/lib/api";
-import {
-  discoveryScrapeSourceKey,
-  getDiscoveryOrgScope,
-  isDiscoveryScrapeCacheForOrg,
-  readDiscoveryScrapeCache,
-} from "@/lib/discovery-scrape-cache";
+import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { cleanWebsiteDomain } from "@/lib/website-url";
 import { navigateOnboarding, strategyHref } from "./steps";
+import { cn } from "@/lib/utils";
 
-const SHOW_CAMPAIGN_PILL = false;
-const AI_RECOMMENDATION_TYPING_INTERVAL_MS = 18;
+type ProspectProfile = NonNullable<WebsiteScrapeStatus["prospectProfile"]>;
 
-function limitRecommendationWords(text: string, maximum = 20): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= maximum) {
-    return text.trim();
-  }
+const EMPTY_PROFILE: ProspectProfile = {
+  decisionMakers: [],
+  companyTypes: [],
+  industries: [],
+  locations: [],
+};
 
-  return `${words.slice(0, maximum).join(" ")}…`;
-}
+const PROFILE_ROWS: Array<{ key: keyof ProspectProfile; label: string }> = [
+  { key: "decisionMakers", label: "Decision makers" },
+  { key: "companyTypes", label: "Company types" },
+  { key: "industries", label: "Industries" },
+  { key: "locations", label: "Location" },
+];
 
-function buildAiRecommendation(summary: DiscoverySummary): string {
-  const audience = summary.idealCustomer.trim() || "your ideal customers";
-  const industry = summary.industry.trim();
-  const offer = summary.businessModel.trim() || "your solution";
-  const differentiator =
-    summary.strengths.trim() || "a differentiated approach";
-
-  return limitRecommendationWords(
-    `We use ${differentiator} to help ${audience}${industry ? ` in ${industry}` : ""} get more value from ${offer}.`,
-  );
-}
-
-function summaryFromStoredScrape(): DiscoverySummary {
-  if (typeof window === "undefined") {
-    return EMPTY_DISCOVERY_SUMMARY;
-  }
-
-  try {
-    const cached = readDiscoveryScrapeCache();
-    const orgId = getDiscoveryOrgScope();
-    if (!isDiscoveryScrapeCacheForOrg(cached, orgId)) {
-      return EMPTY_DISCOVERY_SUMMARY;
-    }
-
-    return {
-      ...EMPTY_DISCOVERY_SUMMARY,
-      businessModel: cached.offer ?? "",
-      industry: cached.market ?? "",
-      idealCustomer: cached.audience ?? "",
-      strengths: cached.value ?? "",
-      nextStep: cached.strategyStatus ?? "",
-      websiteEnriched: true,
-    };
-  } catch {
-    return EMPTY_DISCOVERY_SUMMARY;
-  }
-}
-
-function summaryFromScrapeStatus(status: WebsiteScrapeStatus): DiscoverySummary {
-  const websiteEnriched = Boolean(
-    status.offer ||
-      status.market ||
-      status.audience ||
-      status.value ||
-      status.strategyStatus,
-  );
-
+function campaignFromStatus(status: WebsiteScrapeStatus, websiteUrl: string | null): PillData {
+  const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
   return {
-    ...EMPTY_DISCOVERY_SUMMARY,
-    businessModel: status.offer,
-    industry: status.market,
-    idealCustomer: status.audience,
-    strengths: status.value,
-    nextStep: status.strategyStatus,
-    websiteEnriched,
+    status: status.status === "completed" ? "ready" : "learning",
+    statusLabel: status.status === "completed" ? "Business understood" : "Building your campaign",
+    fields: [
+      { label: "Market", value: status.market },
+      { label: "Offer", value: status.offer },
+      { label: "Customer", value: status.audience },
+      { label: "Value", value: status.value },
+      { label: "Goal", value: status.strategyStatus },
+    ].filter((field) => Boolean(field.value.trim())),
+    site: website
+      ? { label: website.hostname, iconUrl: getWebsiteFaviconUrl(website.hostname) }
+      : undefined,
   };
 }
 
+function summaryFrom(status: WebsiteScrapeStatus, profile: ProspectProfile) {
+  const target = [
+    profile.decisionMakers.join(", "),
+    profile.companyTypes.join(", "),
+    profile.locations.length ? `in ${profile.locations.join(", ")}` : "",
+  ]
+    .filter(Boolean)
+    .join(" at ");
+
+  return {
+    businessModel: status.offer || "Website-based outreach offer",
+    industry: profile.industries[0] || status.market || "Business services",
+    strengths: status.value || "Personalized outreach",
+    idealCustomer: target || status.audience || "Qualified prospects",
+    suggestedChannels: [],
+    nextStep: status.strategyStatus || "Prepare a personalized outreach strategy.",
+    websiteEnriched: true,
+    websiteImageUrl: null,
+  };
+}
+
+type DiscoveryFrameProps = {
+  children: ReactNode;
+  campaign: PillData;
+  className?: string;
+};
+
+function DiscoveryFrame({
+  children,
+  campaign,
+  className,
+}: DiscoveryFrameProps) {
+  return (
+    <div className={cn("onboarding-campaign-layout", className)}>
+      {children}
+      <aside className="signup-campaign-pill-column" aria-label="Live campaign summary">
+        <Pill
+          campaign={campaign}
+          className="signup-campaign-pill"
+        />
+      </aside>
+    </div>
+  );
+}
+
 export default function Discovery() {
-  useLayoutEffect(() => {
-    applyStoredTheme();
-  }, []);
+  useLayoutEffect(() => applyStoredTheme(), []);
 
-  const [input, setInput] = useState("");
-  const [isCompleting, setIsCompleting] = useState(false);
-  const [isTypingRecommendation, setIsTypingRecommendation] = useState(false);
-  const [completionError, setCompletionError] = useState<string | null>(null);
-  const [summary, setSummary] = useState<DiscoverySummary>(summaryFromStoredScrape);
+  const [profile, setProfile] = useState<ProspectProfile>(EMPTY_PROFILE);
+  const [additionalContext, setAdditionalContext] = useState("");
   const [websiteInput, setWebsiteInput] = useState("");
-  const [websiteInputError, setWebsiteInputError] = useState<string | null>(null);
-  const [isWebsiteStatusReady, setIsWebsiteStatusReady] = useState(false);
-  const previousScrapeSourceRef = useRef<string | null>(null);
-  const recommendationTypingTimerRef = useRef<number | null>(null);
-  const {
-    status: scrapeStatus,
-    hasStoredUrl,
-    loading: isScrapeLoading,
-    message: scrapeMessage,
-    websiteUrl,
-    start: startWebsiteScrape,
-    retry: retryWebsiteScrape,
-  } = useWebsiteScrapeStatus({ context: "authenticated" });
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const sourceUrlRef = useRef<string | null>(null);
+  const { status, websiteUrl, loading, message, start, retry } = useWebsiteScrapeStatus({
+    context: "authenticated",
+  });
 
   useEffect(() => {
-    if (websiteUrl && !websiteInput) {
-      setWebsiteInput(websiteUrl);
-    }
-  }, [websiteInput, websiteUrl]);
+    if (websiteUrl) setWebsiteInput(websiteUrl);
+  }, [websiteUrl]);
 
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setIsWebsiteStatusReady(true));
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
+    if (status.status !== "completed" || !status.url || sourceUrlRef.current === status.url) return;
+    sourceUrlRef.current = status.url;
+    setProfile(status.prospectProfile ?? EMPTY_PROFILE);
+    setAdditionalContext("");
+  }, [status]);
 
-  useEffect(() => {
-    return () => {
-      if (recommendationTypingTimerRef.current !== null) {
-        window.clearTimeout(recommendationTypingTimerRef.current);
-      }
-    };
-  }, []);
+  const toggle = (key: keyof ProspectProfile, value: string) => {
+    setProfile((current) => ({
+      ...current,
+      [key]: current[key].includes(value)
+        ? current[key].filter((item) => item !== value)
+        : [...current[key], value],
+    }));
+  };
 
-  useEffect(() => {
-    const nextSummary = summaryFromScrapeStatus(scrapeStatus);
-    const sourceKey = discoveryScrapeSourceKey(
-      getDiscoveryOrgScope(),
-      scrapeStatus.url,
-    );
-
-    setSummary((current) => {
-      // The authenticated controller is module-scoped. Until its current org
-      // scope is known, a snapshot may still belong to the last signed-in
-      // account and must not merge into this user's summary.
-      if (!sourceKey) {
-        return current;
-      }
-
-      if (sourceKey && sourceKey !== previousScrapeSourceRef.current) {
-        return nextSummary;
-      }
-
-      return {
-        ...current,
-        businessModel: current.businessModel || nextSummary.businessModel,
-        industry: current.industry || nextSummary.industry,
-        idealCustomer: current.idealCustomer || nextSummary.idealCustomer,
-        strengths: current.strengths || nextSummary.strengths,
-        nextStep: current.nextStep || nextSummary.nextStep,
-        websiteEnriched: current.websiteEnriched || nextSummary.websiteEnriched,
-      };
-    });
-
-    if (sourceKey) {
-      previousScrapeSourceRef.current = sourceKey;
-    }
-  }, [scrapeStatus]);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function submitWebsite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const value = input.trim();
-    if (!value || isCompleting) {
+    const normalized = cleanWebsiteDomain(websiteInput);
+    if (!normalized) {
+      setError("Enter a valid website URL.");
       return;
     }
 
-    setCompletionError(null);
-    setIsCompleting(true);
+    setError(null);
+    sourceUrlRef.current = null;
+    window.localStorage.setItem("lr_website_url", normalized);
+    if (status.status === "failed") await retry();
+    else await start();
+  }
 
+  async function handleNext() {
+    setError(null);
+    if (!Object.values(profile).some((values) => values.length > 0) && !additionalContext.trim()) {
+      setError("Select at least one prospect detail or add context for your audience.");
+      return;
+    }
+
+    setSaving(true);
     try {
-      const nextSummary: DiscoverySummary = {
-        ...summary,
-        strengths: value,
-        nextStep:
-          summary.nextStep ||
-          "Generate an outreach strategy based on the business differentiator.",
-      };
-      const messages: ChatMessage[] = [
-        {
-          role: "user",
-          content: `Competitive advantage: ${value}`,
-          timestamp: new Date(),
-        },
-      ];
       const result = await apiFetch<{ strategyId: string }>("/discovery/complete", {
         method: "POST",
         body: JSON.stringify({
-          summary: nextSummary,
-          messages: messages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          summary: summaryFrom(status, profile),
+          messages: [
+            { role: "user", content: additionalContext.trim() || "Reviewed suggested prospect audience." },
+          ],
+          prospectProfile: { ...profile, additionalContext: additionalContext.trim() },
         }),
       });
-
       window.localStorage.setItem("lr_strategy_id", result.strategyId);
-      setSummary(nextSummary);
       navigateOnboarding(strategyHref("how-it-works"));
-    } catch (error) {
-      setCompletionError(
-        error instanceof Error
-          ? error.message
-          : "Unable to save your discovery responses. Please try again.",
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Unable to save your prospect audience. Please try again.",
       );
     } finally {
-      setIsCompleting(false);
+      setSaving(false);
     }
   }
 
-  async function handleWebsiteSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const cleanedDomain = cleanWebsiteDomain(websiteInput);
-    if (!cleanedDomain) {
-      setWebsiteInputError("Enter your website URL to continue.");
-      return;
-    }
-
-    setWebsiteInputError(null);
-    window.localStorage.setItem("lr_website_url", cleanedDomain);
-    if (scrapeStatus.status === "failed") {
-      await retryWebsiteScrape();
-    } else {
-      await startWebsiteScrape();
-    }
-  }
-
-  function handleUseRecommendation() {
-    const recommendation = buildAiRecommendation(summary);
-    if (recommendationTypingTimerRef.current !== null) {
-      window.clearTimeout(recommendationTypingTimerRef.current);
-    }
-
-    setInput("");
-    setIsTypingRecommendation(true);
-    let characterIndex = 0;
-
-    const typeNextCharacter = () => {
-      characterIndex += 1;
-      setInput(recommendation.slice(0, characterIndex));
-
-      if (characterIndex < recommendation.length) {
-        recommendationTypingTimerRef.current = window.setTimeout(
-          typeNextCharacter,
-          AI_RECOMMENDATION_TYPING_INTERVAL_MS,
-        );
-        return;
-      }
-
-      recommendationTypingTimerRef.current = null;
-      setIsTypingRecommendation(false);
-      window.requestAnimationFrame(() => {
-        document.getElementById("competitive-advantage")?.focus();
-      });
-    };
-
-    typeNextCharacter();
-  }
-
-  function handleInputChange(value: string) {
-    if (recommendationTypingTimerRef.current !== null) {
-      window.clearTimeout(recommendationTypingTimerRef.current);
-      recommendationTypingTimerRef.current = null;
-      setIsTypingRecommendation(false);
-    }
-    setInput(value);
-  }
-
-  const hasCachedWebsiteSummary = summary.websiteEnriched;
-  const isWebsiteGatePending =
-    !hasCachedWebsiteSummary &&
-    (!isWebsiteStatusReady ||
-      isScrapeLoading ||
-      (hasStoredUrl &&
-        (scrapeStatus.status === "idle" || scrapeStatus.status === "running")));
-  const shouldShowWebsiteGate =
-    !isWebsiteGatePending &&
-    !hasCachedWebsiteSummary &&
-    (!hasStoredUrl || scrapeStatus.status === "failed");
+  const showWebsiteForm = status.status === "idle" || status.status === "failed";
+  const campaign = campaignFromStatus(status, websiteUrl);
 
   return (
-    <div className="onboarding-discovery-page onboarding-page relative min-h-dvh w-full overflow-y-auto">
-      {SHOW_CAMPAIGN_PILL ? (
-        <aside className="fixed top-24 right-6 z-20 hidden w-80 lg:block">
-          <OnboardingCard className="overflow-hidden" aria-live="polite">
-            <div className="border-b border-onboarding-neutral-150 px-4 py-3 dark:border-onboarding-neutral-750">
-              <p className="text-sm font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                Your Campaign
-              </p>
-              <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-                Built from the information you&apos;ve shared.
+    <div className="onboarding-page box-border h-dvh overflow-hidden bg-[#fdfdff] px-6 py-8 text-[#080e28] lg:px-10 xl:px-14">
+      <Link
+        href="/"
+        aria-label="LeadReacher home"
+        className="onboarding-brand-anchor inline-flex"
+      >
+        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
+      </Link>
+      {showWebsiteForm ? (
+          <DiscoveryFrame
+            campaign={campaign}
+            className="signup-campaign-layout discovery-website-gate"
+          >
+            <div className="signup-campaign-form-column">
+              <div className="signup-campaign-copy login-campaign-copy">
+                <h1>
+                  {status.status === "failed" ? (
+                    <>Let&apos;s try that again<span className="signup-campaign-period">.</span></>
+                  ) : (
+                    <>What&apos;s your website?</>
+                  )}
+                </h1>
+                <p>We use it to build your first outreach audience.</p>
+              </div>
+
+              <form className="signup-campaign-auth-actions space-y-3" onSubmit={submitWebsite}>
+                <div className="relative">
+                  <Label htmlFor="prospect-website" className="sr-only">Company website</Label>
+                  <Globe
+                    className="pointer-events-none absolute top-1/2 left-5 size-5 -translate-y-1/2 text-[#737a96]"
+                    aria-hidden
+                  />
+                  <Input
+                    id="prospect-website"
+                    type="url"
+                    inputMode="url"
+                    autoComplete="url"
+                    value={websiteInput}
+                    onChange={(event) => {
+                      setWebsiteInput(event.target.value);
+                      setError(null);
+                    }}
+                    placeholder="Company website"
+                    className="signup-campaign-control h-15 rounded-xl border-neutral-200 bg-white pl-13 pr-4 text-[0.98rem] text-[#15192c] shadow-none placeholder:text-[#8a90a8] focus-visible:border-[#5b3ff0] focus-visible:ring-4 focus-visible:ring-[#5b3ff0]/10"
+                  />
+                </div>
+                {error || (status.status === "failed" ? message : null) ? (
+                  <p role="alert" className="signup-campaign-error">{error ?? message}</p>
+                ) : null}
+                <Button type="submit" disabled={loading} className="signup-campaign-submit">
+                  {loading ? "Analyzing your website..." : "Analyze website"}
+                  <ArrowRight className="size-5" aria-hidden />
+                </Button>
+              </form>
+
+              <p className="mt-6 flex items-center justify-center gap-2 text-sm text-[#737a96]">
+                <Lock className="size-4" aria-hidden />
+                Your information is secure and private
               </p>
             </div>
-            <CampaignSummary summary={summary} />
-          </OnboardingCard>
-        </aside>
-      ) : null}
+          </DiscoveryFrame>
+        ) : status.status !== "completed" ? (
+          <DiscoveryFrame
+            campaign={campaign}
+          >
+            <section
+              className="onboarding-campaign-task flex min-h-[calc(100dvh-12rem)] items-center justify-center text-center"
+              role="status"
+              aria-live="polite"
+            >
+              <div>
+                <h1 className="text-4xl font-bold tracking-[-0.05em]">Analyzing your website</h1>
+                <p className="mt-4 text-lg text-[#737a96]">We’re building your acquisition brief.</p>
+              </div>
+            </section>
+          </DiscoveryFrame>
+        ) : (
+          <DiscoveryFrame
+            campaign={campaign}
+          >
+            <section className="onboarding-campaign-task" aria-labelledby="prospect-review-title">
+              <div className="onboarding-campaign-intro">
+                <h1 id="prospect-review-title" className="onboarding-campaign-heading">
+                  Your prospects<span className="signup-campaign-period">.</span>
+                </h1>
+                <p>Here’s who we’re targeting.</p>
+              </div>
 
-      <main>
-      {isWebsiteGatePending ? (
-        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
-          <OnboardingCard className="discovery-website-card flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10" role="status" aria-live="polite">
-            <h1 className="text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-              Analyzing your website
-            </h1>
-            <p className="mt-4 max-w-md text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              We&apos;re building your acquisition brief. This can take a minute.
-            </p>
-          </OnboardingCard>
-        </section>
-      ) : shouldShowWebsiteGate ? (
-        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
-          <OnboardingCard className="discovery-website-card flex w-full max-w-xl flex-col items-center px-8 py-10 text-center sm:px-10">
-            <h1 className="text-3xl font-bold tracking-tight text-onboarding-ink sm:text-4xl dark:text-onboarding-neutral-0">
-              What&apos;s your website?
-            </h1>
-            <p className="mt-4 max-w-md text-base leading-7 text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              {scrapeStatus.status === "failed"
-                ? "We couldn't analyze that website. Check the address and try again."
-                : "We'll use it to personalize your outreach strategy."}
-            </p>
-            <form onSubmit={handleWebsiteSubmit} className="mt-8 w-full">
-              <Label htmlFor="discovery-website-url" className="sr-only">
-                Company website
-              </Label>
-              <div className="relative">
-                <Globe
-                  className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-onboarding-purple-500"
-                  aria-hidden
+              <div className="onboarding-campaign-profile">
+                {PROFILE_ROWS.map(({ key, label }) => (
+                  <div key={key} className="onboarding-campaign-profile-row">
+                    <p>{label}</p>
+                    <div>
+                      {profile[key].length > 0 ? profile[key].map((value) => (
+                        <button
+                          type="button"
+                          key={value}
+                          aria-pressed="true"
+                          onClick={() => toggle(key, value)}
+                          className="onboarding-campaign-chip"
+                        >
+                          {value}
+                        </button>
+                      )) : (
+                        <span className="onboarding-campaign-empty">No suggestion yet</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="onboarding-campaign-context">
+                <Label htmlFor="prospect-context">
+                  Did we miss anything?
+                </Label>
+                <textarea
+                  id="prospect-context"
+                  value={additionalContext}
+                  onChange={(event) => setAdditionalContext(event.target.value)}
+                  placeholder="Add any job titles or customer details we missed..."
+                  className="onboarding-campaign-context-input"
                 />
-                <Input
-                  id="discovery-website-url"
-                  type="text"
-                  inputMode="url"
-                  autoComplete="url"
-                  placeholder="Company website"
-                  value={websiteInput}
-                  onChange={(event) => setWebsiteInput(event.target.value)}
-                  disabled={isScrapeLoading}
-                  aria-invalid={Boolean(websiteInputError)}
-                  aria-describedby={websiteInputError ? "discovery-website-url-error" : undefined}
-                  className="h-14 rounded-onboarding pr-14 pl-12 text-base shadow-onboarding-small"
-                />
+              </div>
+
+              {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
+
+              <div className="onboarding-campaign-actions">
                 <Button
-                  type="submit"
-                  variant="brand"
-                  size="icon"
-                  disabled={isScrapeLoading || !websiteInput.trim()}
-                  className="absolute top-1/2 right-2 -translate-y-1/2 rounded-onboarding-pill"
-                  aria-label="Analyze website"
+                  type="button"
+                  disabled={saving}
+                  className="onboarding-campaign-next"
+                  onClick={handleNext}
                 >
-                  <ArrowRight className="size-4" aria-hidden />
+                  {saving ? "Saving..." : "Next"}
+                  <ArrowRight className="size-5" aria-hidden />
                 </Button>
               </div>
-              {websiteInputError ? (
-                <p id="discovery-website-url-error" role="alert" className="mt-1.5 text-[0.8125rem] text-onboarding-error-700 dark:text-onboarding-error-200">{websiteInputError}</p>
-              ) : null}
-              {!websiteInputError && scrapeMessage ? (
-                <p className="mt-2 text-sm text-onboarding-error-700 dark:text-onboarding-error-200" role="alert">
-                  {scrapeMessage}
-                </p>
-              ) : null}
-            </form>
-            <p className="mt-8 flex items-center justify-center gap-2 text-sm text-onboarding-neutral-500 dark:text-onboarding-neutral-400">
-              <Lock className="size-4" aria-hidden />
-              Your information is secure and private
-            </p>
-          </OnboardingCard>
-        </section>
-      ) : (
-        <section className="onboarding-discovery-screen flex min-h-dvh flex-col items-center justify-center px-5 pt-40 pb-24 h-compact:justify-start h-compact:pt-36 lg:pt-28">
-          <div className="mx-auto flex w-full max-w-3xl flex-col items-center text-center">
-            <PageHeader
-              className="mx-auto"
-              title="Why do customers choose you?"
-              description="Tell us what makes your offer different from the alternatives."
-            />
-            <ActionInputBar
-              id="competitive-advantage"
-              value={input}
-              onValueChange={handleInputChange}
-              onSubmit={handleSubmit}
-              placeholder="What do you do better, faster, or differently?"
-              submitLabel="Submit competitive advantage"
-              disabled={isCompleting || isTypingRecommendation}
-              loading={isCompleting}
-              errorMessage={completionError}
-              className="mt-10 max-w-2xl"
-              leadingIcon={<PenLine className="size-5" aria-hidden />}
-            />
-            {!input.trim() && !isCompleting ? (
-              <AiRecommendation
-                recommendation={buildAiRecommendation(summary)}
-                onUse={handleUseRecommendation}
-                disabled={isCompleting || isTypingRecommendation}
-                className="w-full max-w-2xl"
-              />
-            ) : null}
-          </div>
-        </section>
-      )}
-      </main>
+            </section>
+
+          </DiscoveryFrame>
+        )}
     </div>
   );
 }

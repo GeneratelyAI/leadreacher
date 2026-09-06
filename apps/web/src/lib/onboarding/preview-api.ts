@@ -135,6 +135,12 @@ const scrapeStatus = {
   audience: "Founders, sales leaders, and growth teams",
   value: "More qualified conversations with less manual work",
   strategyStatus: "ready",
+  prospectProfile: {
+    decisionMakers: ["Founder", "VP of Sales", "Head of Growth"],
+    companyTypes: ["B2B SaaS", "Professional services", "Marketing agencies"],
+    industries: ["Technology", "Consulting", "Financial services"],
+    locations: ["Canada", "United States"],
+  },
   error: null,
 };
 
