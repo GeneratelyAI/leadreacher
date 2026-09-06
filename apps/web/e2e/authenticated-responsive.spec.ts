@@ -26,8 +26,12 @@ const dashboardRoutes = [
 const onboardingRoutes = [
   "/onboarding?step=discovery",
   "/onboarding?step=strategy&substep=how-it-works",
+  "/onboarding?step=campaign-content",
+  "/onboarding?step=personalized-video-style",
+  "/onboarding?step=ai-video-style",
+  "/onboarding?step=upload-video",
   "/onboarding?step=strategy&substep=targeting",
-  "/onboarding?step=campaign-type",
+  "/onboarding?step=strategy&substep=channels",
   "/onboarding?step=video-decision",
   "/onboarding?step=checkout",
   "/onboarding?step=channels",

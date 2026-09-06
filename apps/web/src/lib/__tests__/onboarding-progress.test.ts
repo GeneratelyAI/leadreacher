@@ -26,13 +26,25 @@ describe("resolveOnboardingResumeTarget", () => {
         strategy: { ...audienceComplete, campaignType: null },
         subscriptionStatus: null,
       }),
-    ).toEqual({ step: "campaign-type" });
+    ).toEqual({ step: "campaign-content" });
     expect(
       resolveOnboardingResumeTarget({
         strategy: { ...audienceComplete, videoConfig: null },
         subscriptionStatus: null,
       }),
-    ).toEqual({ step: "video-decision" });
+    ).toEqual({ step: "personalized-video-style" });
+    expect(
+      resolveOnboardingResumeTarget({
+        strategy: { ...audienceComplete, campaignType: "ai_video_ad", videoConfig: null },
+        subscriptionStatus: null,
+      }),
+    ).toEqual({ step: "ai-video-style" });
+    expect(
+      resolveOnboardingResumeTarget({
+        strategy: { ...audienceComplete, campaignType: "uploaded_video", videoConfig: null },
+        subscriptionStatus: null,
+      }),
+    ).toEqual({ step: "upload-video" });
     expect(
       resolveOnboardingResumeTarget({
         strategy: audienceComplete,
@@ -58,6 +70,6 @@ describe("resolveAllowedOnboardingStep", () => {
 
   it("prevents direct URL jumps past persisted progress", () => {
     expect(resolveAllowedOnboardingStep("channels", "strategy")).toBe("strategy");
-    expect(resolveAllowedOnboardingStep(null, "campaign-type")).toBe("campaign-type");
+    expect(resolveAllowedOnboardingStep(null, "campaign-content")).toBe("campaign-content");
   });
 });

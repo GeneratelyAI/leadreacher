@@ -34,9 +34,11 @@ describe("getSlideDirection", () => {
     const flow = [
       "discovery",
       "strategy:how-it-works",
-      "strategy:targeting",
-      "strategy:channels",
-      "campaign-type",
+      "campaign-content",
+      "personalized-video-style",
+      "ai-video-style",
+      "upload-video",
+      "video-decision",
     ];
 
     for (let index = 0; index < flow.length - 1; index += 1) {
