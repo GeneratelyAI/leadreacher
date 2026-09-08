@@ -18,12 +18,9 @@ const SOCIAL_PREVIEW_IMAGE = "/social/leadreacher-link-preview.png?v=20260812";
 // by URL, so changing this value is the reliable way to refresh existing tabs.
 const FAVICON_IMAGE = "/logo/leadreacher_icon_colored.svg?v=20260824";
 
-// theme-color is intentionally omitted here: useThemeMode owns that meta tag
-// directly and recreates it on every load and toggle. Letting Next's metadata
-// system also render it
-// gives two owners of the same DOM node - React's reconciler ends up
-// calling removeChild on a node our script already removed, throwing
-// "Cannot read properties of null (reading 'removeChild')".
+// The global theme color remains controlled by useThemeMode. Auth and
+// campaign-building segments export static white viewport metadata instead;
+// useThemeMode recognizes those routes and leaves their Next-owned tags alone.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,

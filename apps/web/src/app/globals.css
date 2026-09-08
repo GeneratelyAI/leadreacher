@@ -1542,6 +1542,20 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Auth and campaign-building routes are intentionally light, including the
+   root surfaces Safari exposes through safe areas and rubber-band overscroll. */
+html:has([data-light-campaign-route]) {
+  color-scheme: light;
+  background-color: #ffffff;
+}
+
+html:has([data-light-campaign-route]) body,
+html:has([data-light-campaign-route]) [data-light-campaign-route],
+html:has([data-light-campaign-route]) [data-light-campaign-route] .auth-page,
+html:has([data-light-campaign-route]) [data-light-campaign-route].onboarding-root {
+  background-color: #ffffff;
+}
+
 html {
   scroll-behavior: smooth;
 }

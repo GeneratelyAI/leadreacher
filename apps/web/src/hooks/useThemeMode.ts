@@ -6,6 +6,7 @@ import {
   THEME_COLOR_DARK,
   THEME_COLOR_LIGHT,
   THEME_STORAGE_KEY,
+  isLightCampaignRoute,
 } from "@/lib/theme-init-script";
 
 const LEGACY_THEME_STORAGE_KEY = "lr-theme";
@@ -16,6 +17,11 @@ export { THEME_STORAGE_KEY };
 
 export function applyStoredTheme(): void {
   if (typeof window === "undefined") {
+    return;
+  }
+
+  if (isLightCampaignRoute(window.location.pathname)) {
+    applyTheme(false);
     return;
   }
 
@@ -44,6 +50,7 @@ export function applyStoredTheme(): void {
 
 function applyTheme(isDark: boolean) {
   document.documentElement.classList.toggle("dark", isDark);
+  if (isLightCampaignRoute(window.location.pathname)) return;
   const metas = document.querySelectorAll('meta[name="theme-color"]');
   metas.forEach((meta) => meta.remove());
 
