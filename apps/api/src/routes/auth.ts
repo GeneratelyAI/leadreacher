@@ -193,11 +193,12 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       });
 
       if (existing?.orgId) {
-        const [scrapeStatus, onboardingProgress] = await Promise.all([
+        const [claimedScrapeStatus, existingScrapeStatus, onboardingProgress] = await Promise.all([
           claimCompletedAnonymousScrape({
             orgId: existing.orgId,
             anonScrapeId,
           }),
+          getScrapeStatus(orgScrapeStatusKey(existing.orgId)),
           getOrganizationOnboardingProgress(existing.orgId),
         ]);
         return reply.send({
@@ -208,7 +209,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
             existing.name?.trim() ||
             existing.org?.socialAccounts[0]?.accountName.trim() ||
             null,
-          scrapeStatus,
+          scrapeStatus: claimedScrapeStatus ?? existingScrapeStatus,
           ...onboardingProgress,
         });
       }

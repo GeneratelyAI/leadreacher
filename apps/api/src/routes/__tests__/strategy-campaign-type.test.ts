@@ -68,6 +68,20 @@ afterEach(async () => {
 });
 
 describe("PATCH /strategy/:orgId/campaign-type", () => {
+  it("preserves saved audience metadata while distinguishing document from video uploads", async () => {
+    findFirst.mockResolvedValue({ ...strategy, icpDefinition: { audience: "Revenue teams" } });
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/campaign-type",
+      payload: { campaignType: "uploaded_video", contentChoice: "document" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "strategy-1" },
+      data: { campaignType: "uploaded_video", icpDefinition: { audience: "Revenue teams", contentChoice: "document" } },
+    });
+  });
+
   it("saves a valid campaign type on the current organization strategy", async () => {
     const response = await app.inject({
       method: "PATCH",

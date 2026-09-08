@@ -133,6 +133,7 @@ const DiscoverySummaryBodySchema = z.object({
 }).passthrough();
 
 const DiscoveryCompleteBodySchema = z.object({
+  mode: z.enum(["introduction", "approval"]).optional(),
   summary: z.object({
     businessModel: z.string().trim().min(1),
     industry: z.string().trim().min(1),
@@ -154,6 +155,7 @@ const DiscoveryCompleteBodySchema = z.object({
     locations: z.array(z.string().trim().min(1)).max(6),
     additionalContext: z.string().trim().max(500),
   }).optional(),
+  websiteUrl: z.string().trim().min(1).optional(),
 });
 
 const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onboarding. Return ONLY valid JSON with no markdown:
@@ -172,11 +174,11 @@ const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onb
 }
 
 Field guidance:
-- market: the company's market or industry, concise phrase.
-- offer: what the company sells or provides, concise phrase.
-- audience: likely buyer/persona, concise phrase.
-- value: core value proposition or competitive advantage, concise phrase.
-- strategyStatus: one sentence describing the outreach strategy being built.
+- market: one concise market phrase, maximum five words.
+- offer: one natural, specific paragraph of 8-11 words. It must fit two campaign-summary lines without a forced line break.
+- audience: exactly four customer segments when evidence supports them. Each segment must be one or two words, comma separated, with no prose.
+- value: one natural, specific outcome paragraph of 9-12 words. It must fit two campaign-summary lines without a forced line break.
+- strategyStatus: one natural, specific outreach-goal paragraph of 13-18 words. It must fit three campaign-summary lines without a forced line break.
 - prospectProfile: conservative, editable suggestions for outreach targeting. Include 2-4 decisionMakers, companyTypes, and industries when supported by the website. Include locations only when the site clearly identifies a market. Use short labels, not sentences.
 
 Use polished business language. If context is weak, infer conservatively from the website URL/domain.`;
@@ -330,6 +332,120 @@ function emptyScrapeStatus(
     error,
     updatedAt: new Date().toISOString(),
   };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function readString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function readStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+    : [];
+}
+
+/**
+ * Redis keeps a short-lived scrape result for active analysis. The strategy is
+ * the durable recovery source after that cache expires or a session reloads.
+ */
+export function recoverScrapeStatusFromStrategy(strategy: {
+  icpDefinition: unknown;
+  positioning: unknown;
+  updatedAt: Date;
+}): DiscoveryScrapeStatus | null {
+  const icpDefinition = asRecord(strategy.icpDefinition);
+  const positioning = asRecord(strategy.positioning);
+  const discovery = asRecord(icpDefinition.discovery);
+  const url = readString(discovery.websiteUrl) || readString(icpDefinition.websiteUrl);
+  if (!url) return null;
+
+  const savedProfile = asRecord(icpDefinition.prospectProfile);
+  return {
+    status: "completed",
+    url,
+    market: readString(discovery.market) || readString(positioning.industry),
+    offer: readString(discovery.offer) || readString(positioning.businessModel),
+    audience: readString(discovery.audience) || readString(icpDefinition.idealCustomer),
+    value: readString(discovery.value) || readString(positioning.strengths),
+    strategyStatus: readString(discovery.strategyStatus),
+    prospectProfile: {
+      decisionMakers: readStringList(savedProfile.decisionMakers),
+      companyTypes: readStringList(savedProfile.companyTypes),
+      industries: readStringList(savedProfile.industries),
+      locations: readStringList(savedProfile.locations),
+    },
+    error: null,
+    updatedAt: strategy.updatedAt.toISOString(),
+  };
+}
+
+export function recoverScrapeStatusFromOnboardingData(
+  onboardingData: unknown,
+  updatedAt: Date,
+): DiscoveryScrapeStatus | null {
+  const discovery = asRecord(asRecord(onboardingData).discovery);
+  const url = readString(discovery.url);
+  const status = discovery.status;
+  if (!url || !["idle", "running", "completed", "failed"].includes(String(status))) {
+    return null;
+  }
+
+  const profile = asRecord(discovery.prospectProfile);
+  return {
+    status: status as DiscoveryScrapeStatus["status"],
+    url,
+    market: readString(discovery.market),
+    offer: readString(discovery.offer),
+    audience: readString(discovery.audience),
+    value: readString(discovery.value),
+    strategyStatus: readString(discovery.strategyStatus),
+    prospectProfile: {
+      decisionMakers: readStringList(profile.decisionMakers),
+      companyTypes: readStringList(profile.companyTypes),
+      industries: readStringList(profile.industries),
+      locations: readStringList(profile.locations),
+    },
+    error: readString(discovery.error) || null,
+    updatedAt: readString(discovery.updatedAt) || updatedAt.toISOString(),
+  };
+}
+
+async function persistOrganizationDiscoveryStatus(
+  orgId: string,
+  status: DiscoveryScrapeStatus,
+): Promise<void> {
+  const organization = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { onboardingData: true },
+  });
+  if (!organization) return;
+  await prisma.organization.update({
+    where: { id: orgId },
+    data: {
+      onboardingData: {
+        ...asRecord(organization.onboardingData),
+        discovery: status,
+      } as Prisma.InputJsonValue,
+    },
+  });
+}
+
+async function persistOrganizationDiscoveryStatusSafely(
+  orgId: string,
+  status: DiscoveryScrapeStatus,
+): Promise<void> {
+  await persistOrganizationDiscoveryStatus(orgId, status).catch((error) => {
+    console.error("[discovery] Failed to persist onboarding recovery state", {
+      orgId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 }
 
 export function orgScrapeStatusKey(orgId: string): string {
@@ -586,9 +702,13 @@ async function runDiscoveryScrape(
   ttlSeconds: number,
   anonymousScrapeId?: string,
   lock?: ScrapeLock,
+  organizationId?: string,
 ): Promise<void> {
   async function persist(status: DiscoveryScrapeStatus): Promise<void> {
     await setScrapeStatus(statusKey, status, ttlSeconds);
+    if (organizationId) {
+      await persistOrganizationDiscoveryStatusSafely(organizationId, status);
+    }
     if (!anonymousScrapeId) return;
 
     const claimedOrgId = await redis.get(anonScrapeClaimKey(anonymousScrapeId));
@@ -599,6 +719,7 @@ async function runDiscoveryScrape(
       status,
       SCRAPE_STATUS_TTL_SECONDS,
     );
+    await persistOrganizationDiscoveryStatusSafely(claimedOrgId, status);
     if (status.status === "completed" || status.status === "failed") {
       await Promise.all([
         redis.del(anonScrapeClaimKey(anonymousScrapeId)),
@@ -826,7 +947,8 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await setScrapeStatus(statusKey, runningStatus, SCRAPE_STATUS_TTL_SECONDS);
-      void runDiscoveryScrape(statusKey, url, SCRAPE_STATUS_TTL_SECONDS, undefined, lock);
+      await persistOrganizationDiscoveryStatusSafely(orgId, runningStatus);
+      void runDiscoveryScrape(statusKey, url, SCRAPE_STATUS_TTL_SECONDS, undefined, lock, orgId);
 
       return reply.send(runningStatus);
     },
@@ -838,8 +960,23 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
+    const cached = await getScrapeStatus(orgScrapeStatusKey(orgId));
+    if (cached) return reply.send(cached);
+
+    const [strategy, organization] = await Promise.all([
+      prisma.strategy.findFirst({
+        where: { orgId },
+        orderBy: { updatedAt: "desc" },
+        select: { icpDefinition: true, positioning: true, updatedAt: true },
+      }),
+      prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { onboardingData: true, updatedAt: true },
+      }),
+    ]);
     return reply.send(
-      (await getScrapeStatus(orgScrapeStatusKey(orgId))) ??
+      (strategy ? recoverScrapeStatusFromStrategy(strategy) : null) ??
+        (organization ? recoverScrapeStatusFromOnboardingData(organization.onboardingData, organization.updatedAt) : null) ??
         emptyScrapeStatus("idle", null),
     );
   });
@@ -882,20 +1019,46 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { summary, messages, prospectProfile } = request.body as {
+    const { summary, messages, prospectProfile, websiteUrl, mode } = request.body as {
+      mode?: "introduction" | "approval";
       summary: DiscoverySummary;
       messages: IncomingMessage[];
       prospectProfile?: DiscoveryProspectProfile & { additionalContext: string };
+      websiteUrl?: string;
     };
 
     parseMessages({ messages });
 
+    const existing = await prisma.strategy.findFirst({ where: { orgId }, orderBy: { updatedAt: "desc" } });
+    const previousIcp = asRecord(existing?.icpDefinition);
+    const previousJourney = asRecord(previousIcp.onboarding);
+    if (mode === "introduction" && existing) {
+      await prisma.strategy.update({ where: { id: existing.id }, data: {
+        icpDefinition: { ...previousIcp, onboarding: { ...previousJourney, introductionSeen: true, prospectsApproved: previousJourney.prospectsApproved ?? Boolean(previousIcp.prospectProfile && !previousIcp.onboarding) } } as Prisma.InputJsonValue,
+      } });
+      return reply.send({ strategyId: existing.id });
+    }
+
+    const cachedScrape = await getScrapeStatus(orgScrapeStatusKey(orgId));
+    const savedWebsiteUrl = websiteUrl
+      ? normalizeScrapeUrl(websiteUrl)
+      : cachedScrape?.url ?? asRecord(previousIcp.discovery).websiteUrl ?? null;
     const strategyData = {
       icpDefinition: {
+        ...previousIcp,
+        onboarding: { ...previousJourney, introductionSeen: true, prospectsApproved: mode !== "introduction" },
         idealCustomer: summary.idealCustomer ?? "",
-        prospectProfile: prospectProfile ?? {
+        prospectProfile: (mode === "introduction" ? previousIcp.prospectProfile : null) ?? prospectProfile ?? {
           ...emptyProspectProfile(),
           additionalContext: "",
+        },
+        discovery: {
+          websiteUrl: savedWebsiteUrl,
+          market: cachedScrape?.market || summary.industry || "",
+          offer: cachedScrape?.offer || summary.businessModel || "",
+          audience: cachedScrape?.audience || summary.idealCustomer || "",
+          value: cachedScrape?.value || summary.strengths || "",
+          strategyStatus: cachedScrape?.strategyStatus || summary.nextStep || "",
         },
       } as Prisma.InputJsonValue,
       positioning: {
@@ -904,18 +1067,11 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
         strengths: summary.strengths ?? "",
       } as Prisma.InputJsonValue,
       channels: {
+        ...asRecord(existing?.channels),
         suggestedChannels: summary.suggestedChannels ?? [],
       } as Prisma.InputJsonValue,
-      messagingAngles: {} as Prisma.InputJsonValue,
-      creativeAssets: {} as Prisma.InputJsonValue,
-      executionPlan: [] as Prisma.InputJsonValue,
-      completedSteps: [0],
+      completedSteps: mode === "introduction" ? (existing?.completedSteps ?? []) : [...new Set([...(existing?.completedSteps ?? []), 0])],
     };
-
-    const existing = await prisma.strategy.findFirst({
-      where: { orgId },
-      orderBy: { updatedAt: "desc" },
-    });
 
     const strategy = existing
       ? await prisma.strategy.update({
@@ -924,6 +1080,8 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
         })
       : await prisma.strategy.create({
           data: {
+            messagingAngles: {},
+            creativeAssets: {},
             orgId,
             ...strategyData,
           },

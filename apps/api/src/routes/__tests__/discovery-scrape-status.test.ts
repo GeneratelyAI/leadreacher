@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   AnonScrapeIdSchema,
   boundGroqWebsiteContext,
+  recoverScrapeStatusFromOnboardingData,
+  recoverScrapeStatusFromStrategy,
   resolveScrapeTerminalStatus,
 } from "../discovery.js";
 
@@ -58,6 +60,71 @@ describe("resolveScrapeTerminalStatus", () => {
 describe("AnonScrapeIdSchema", () => {
   it("rejects non-UUID anonymous scrape ids", () => {
     expect(AnonScrapeIdSchema.safeParse("not-a-uuid").success).toBe(false);
+  });
+});
+
+describe("recoverScrapeStatusFromStrategy", () => {
+  it("restores the durable website and saved prospect profile after the scrape cache expires", () => {
+    expect(recoverScrapeStatusFromStrategy({
+      icpDefinition: {
+        idealCustomer: "Revenue leaders at B2B software companies",
+        prospectProfile: {
+          decisionMakers: ["VP of Sales"],
+          companyTypes: ["B2B SaaS"],
+          industries: ["Technology"],
+          locations: ["Canada"],
+        },
+        discovery: {
+          websiteUrl: "https://example.com",
+          market: "B2B revenue teams",
+          offer: "Personalized outreach automation",
+          audience: "Revenue leaders",
+          value: "More qualified conversations",
+          strategyStatus: "Prepare the first outreach sequence.",
+        },
+      },
+      positioning: {},
+      updatedAt: new Date("2026-09-07T12:00:00.000Z"),
+    })).toMatchObject({
+      status: "completed",
+      url: "https://example.com",
+      market: "B2B revenue teams",
+      prospectProfile: { decisionMakers: ["VP of Sales"] },
+    });
+  });
+
+  it("does not invent a recoverable campaign when a legacy strategy has no website", () => {
+    expect(recoverScrapeStatusFromStrategy({
+      icpDefinition: { idealCustomer: "Revenue leaders" },
+      positioning: { industry: "Software" },
+      updatedAt: new Date("2026-09-07T12:00:00.000Z"),
+    })).toBeNull();
+  });
+});
+
+describe("recoverScrapeStatusFromOnboardingData", () => {
+  it("restores an analyzed website before Discovery has created a strategy", () => {
+    expect(recoverScrapeStatusFromOnboardingData({
+      discovery: {
+        status: "completed",
+        url: "https://example.com",
+        market: "B2B software",
+        offer: "Automated outreach",
+        audience: "Revenue leaders",
+        value: "More qualified conversations",
+        strategyStatus: "Build the first sequence.",
+        prospectProfile: {
+          decisionMakers: ["VP of Sales"],
+          companyTypes: ["B2B SaaS"],
+          industries: ["Technology"],
+          locations: ["Canada"],
+        },
+      },
+    }, new Date("2026-09-07T12:00:00.000Z"))).toMatchObject({
+      status: "completed",
+      url: "https://example.com",
+      prospectProfile: { companyTypes: ["B2B SaaS"] },
+    });
   });
 });
 

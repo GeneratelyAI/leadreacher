@@ -22,6 +22,7 @@ vi.mock("../../config/env.js", () => ({
 }));
 
 import { strategyRoutes } from "../strategy.js";
+import { discoveryRoutes } from "../discovery.js";
 
 const strategy = {
   id: "strategy-1",
@@ -48,6 +49,7 @@ async function buildTestApp() {
     throw error;
   });
   await app.register(strategyRoutes);
+  await app.register(discoveryRoutes);
   return app;
 }
 
@@ -63,6 +65,46 @@ beforeEach(async () => {
 
 afterEach(async () => {
   await app.close();
+});
+
+describe("confirmed onboarding state", () => {
+  it("visiting the introduction retains approved data without approving suggestions", async () => {
+    const icpDefinition = {
+      onboarding: { introductionSeen: false, prospectsApproved: false },
+      prospectProfile: { decisionMakers: ["Edited role"] },
+      approvedContent: { type: "Document", documentName: "Brief.pdf" },
+    };
+    findFirst.mockResolvedValue({ ...strategy, icpDefinition });
+    const response = await app.inject({
+      method: "POST", url: "/discovery/complete",
+      payload: {
+        mode: "introduction", websiteUrl: "https://acme.example",
+        summary: { businessModel: "Outreach", industry: "Software", strengths: "Automation", idealCustomer: "Sales teams" },
+        messages: [{ role: "user", content: "Continue to prospects" }],
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(findFirst).toHaveBeenCalledWith({ where: { orgId: "org-1" }, orderBy: { updatedAt: "desc" } });
+    expect(update).toHaveBeenCalledExactlyOnceWith({
+      where: { id: "strategy-1" },
+      data: { icpDefinition: { ...icpDefinition, onboarding: { introductionSeen: true, prospectsApproved: false } } },
+    });
+  });
+
+  it("saves the document descriptor without discarding audience metadata", async () => {
+    const icpDefinition = { prospectProfile: { locations: ["Canada"] } };
+    findFirst.mockResolvedValue({ ...strategy, icpDefinition });
+    const response = await app.inject({ method: "PATCH", url: "/strategy/org-1/content-approval", payload: { type: "Document", documentName: "Brief.pdf" } });
+    expect(response.statusCode).toBe(200);
+    expect(update).toHaveBeenCalledWith({ where: { id: "strategy-1" }, data: { icpDefinition: { ...icpDefinition, approvedContent: { type: "Document", documentName: "Brief.pdf" } } } });
+  });
+
+  it("rejects approval for another organization before reading or writing data", async () => {
+    const response = await app.inject({ method: "PATCH", url: "/strategy/org-2/content-approval", payload: { type: "Document", documentName: "Brief.pdf" } });
+    expect(response.statusCode).toBe(403);
+    expect(findFirst).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /strategy/:orgId/video-decision", () => {
@@ -85,7 +127,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(response.json()).toMatchObject({ videoConfig });
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { videoConfig },
+      data: { videoConfig, icpDefinition: { approvedContent: { type: "Personalized video", style: "professional" } } },
     });
   });
 
@@ -186,7 +228,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(response.statusCode).toBe(200);
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { videoConfig },
+      data: { videoConfig, icpDefinition: { approvedContent: { type: "AI video", style: "casual" } } },
     });
   });
 
@@ -209,7 +251,7 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(response.statusCode).toBe(200);
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { videoConfig },
+      data: { videoConfig, icpDefinition: { approvedContent: { type: "Your video", style: null } } },
     });
   });
 });

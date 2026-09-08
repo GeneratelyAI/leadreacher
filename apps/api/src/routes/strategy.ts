@@ -55,6 +55,7 @@ type CampaignType = (typeof CAMPAIGN_TYPES)[number];
 
 const CampaignTypeBodySchema = z.object({
   campaignType: z.string(),
+  contentChoice: z.enum(["personalized-video", "ai-video", "your-video", "document"]).optional(),
 });
 const ChannelSelectionBodySchema = z.object({
   channels: z.array(z.enum(OUTREACH_CHANNELS)).min(1),
@@ -233,7 +234,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw new ForbiddenError();
     }
 
-    const { campaignType } = request.body;
+    const { campaignType, contentChoice } = request.body;
     const validatedCampaignType = parseCampaignType(campaignType);
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
@@ -245,7 +246,13 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
 
     const updated = await prisma.strategy.update({
       where: { id: strategy.id },
-      data: { campaignType: validatedCampaignType },
+      data: {
+        campaignType: validatedCampaignType,
+        ...(contentChoice && { icpDefinition: {
+          ...(strategy.icpDefinition && typeof strategy.icpDefinition === "object" && !Array.isArray(strategy.icpDefinition) ? strategy.icpDefinition : {}),
+          contentChoice,
+        } }),
+      },
     });
 
     return reply.send(updated);
@@ -307,9 +314,30 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
 
     const updated = await prisma.strategy.update({
       where: { id: strategy.id },
-      data: { videoConfig },
+      data: { videoConfig, icpDefinition: toJson({
+        ...asRecord(strategy.icpDefinition),
+        approvedContent: { type: videoConfig.source === "uploaded" ? "Your video" : strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone },
+      }) },
     });
 
+    return reply.send(updated);
+  });
+
+  r.patch("/strategy/:orgId/content-approval", {
+    schema: {
+      ...authenticatedRoute("Strategy", "Approve campaign content selection"),
+      params: StrategyParamsSchema,
+      body: z.object({ type: z.enum(["Document", "Your video"]), documentName: z.string().trim().min(1).max(255).optional() }),
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    if (request.params.orgId !== orgId) throw new ForbiddenError();
+    const strategy = await prisma.strategy.findFirst({ where: { orgId }, orderBy: { updatedAt: "desc" } });
+    if (!strategy) throw new NotFoundError("Strategy");
+    const updated = await prisma.strategy.update({
+      where: { id: strategy.id },
+      data: { icpDefinition: toJson({ ...asRecord(strategy.icpDefinition), approvedContent: request.body }) },
+    });
     return reply.send(updated);
   });
 
