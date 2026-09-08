@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ChoiceCard } from "@/components/onboarding/ChoiceCard";
-import { Review } from "@/components/onboarding/Review";
+import { ChoiceCard } from "@/features/onboarding/public/choice-card";
+import { Review } from "@/features/onboarding/public/review";
 import { DataTable, type DataTableColumn } from "@/components/patterns/StatTable";
 import { ActionBar } from "../ActionBar";
 import { Alert } from "../Alert";

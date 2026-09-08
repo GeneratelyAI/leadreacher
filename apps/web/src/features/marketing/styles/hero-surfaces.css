@@ -1,0 +1,102 @@
+.hero-bottom-fade {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    #0d085459 38%,
+    #0d0854b3 62%,
+    #0d0854 100%
+  );
+}
+
+.hero-transition-base {
+  background: linear-gradient(180deg, transparent 0%, #0d0854cc 42%, #0d0854 100%);
+}
+
+.hero-transition-blur {
+  background: linear-gradient(
+    180deg,
+    #0d08541a 0%,
+    #0d085466 50%,
+    #0d0854e6 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    black 28%,
+    black 72%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    black 28%,
+    black 72%,
+    transparent 100%
+  );
+}
+
+.feature-section-gradient {
+  background: linear-gradient(
+    180deg,
+    #0d0854 0%,
+    #0d0854 10%,
+    #150d5e 18%,
+    #24106e 28%,
+    #3a2088 40%,
+    #5326b7 52%,
+    #7a58c4 66%,
+    #b39ae0 80%,
+    #d4c4ec 90%,
+    #e4d6f6 96%,
+    #ebe0f8 100%
+  );
+}
+
+.feature-top-fade {
+  background: linear-gradient(180deg, #0d085440 0%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, black 0%, transparent 100%);
+}
+
+.feature-bottom-blend {
+  pointer-events: none;
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  height: min(42%, 320px);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(235, 224, 248, 0.35) 38%,
+    rgba(240, 232, 252, 0.72) 68%,
+    rgba(245, 240, 255, 0.92) 88%,
+    #faf7ff 100%
+  );
+}
+
+@keyframes marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.animate-marquee {
+  width: max-content;
+  will-change: transform;
+  animation: marquee 32s linear infinite;
+}
+
+.stats-logo-marquee-mask {
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 10%,
+    black 90%,
+    transparent
+  );
+}

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Analytics } from "@/components/dashboard/Analytics";
+import { Analytics } from "@/features/analytics/public/Analytics";
 import { Frame } from "@/components/dashboard/Frame";
 
 export default function AnalyticsPage() {

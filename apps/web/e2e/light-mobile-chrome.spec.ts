@@ -17,6 +17,27 @@ test.describe("light auth and onboarding browser surfaces", () => {
   });
 
   for (const route of routes) {
+    test(`${route} keeps home navigation without speculative landing requests`, async ({ page }) => {
+      const landingPrefetches: string[] = [];
+      page.on("request", (request) => {
+        if (new URL(request.url()).pathname === "/" && request.headers()["next-router-prefetch"] === "1") {
+          landingPrefetches.push(request.url());
+        }
+      });
+      await page.goto(route);
+      const home = page.getByRole("link", { name: /leadreacher home/i }).filter({ visible: true });
+      await expect(home).toBeVisible();
+      await home.hover();
+      // Allow the production intersection and hover prefetch schedulers to run.
+      await page.waitForTimeout(500);
+      expect(landingPrefetches).toEqual([]);
+      await home.click();
+      await expect(page).toHaveURL(/\/$/);
+      await expect(page.locator("main").first()).toBeVisible();
+    });
+  }
+
+  for (const route of routes) {
     test(`${route} stays white when the system prefers dark`, async ({
       page,
     }) => {

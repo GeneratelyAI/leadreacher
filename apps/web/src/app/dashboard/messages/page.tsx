@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Messages } from "@/components/dashboard/Messages";
+import { Messages } from "@/features/messages/public/Messages";
 
 export default function MessagesPage() {
   return (

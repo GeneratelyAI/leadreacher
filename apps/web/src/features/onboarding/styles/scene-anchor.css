@@ -1,0 +1,39 @@
+.onboarding-campaign-scene {
+  --onboarding-motion-feedback: 160ms;
+  --onboarding-motion-state: 240ms;
+  --onboarding-motion-scene: 320ms;
+  --onboarding-motion-scene-back: 240ms;
+  --onboarding-motion-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  min-height: 100dvh;
+}
+.onboarding-campaign-scene .onboarding-step-presence .signup-campaign-pill-column,
+.onboarding-campaign-scene .onboarding-step-presence .onboarding-brand-anchor,
+.onboarding-campaign-scene .onboarding-chrome__logo { display: none; }
+.onboarding-campaign-scene:has(.discovery-website-gate) .onboarding-persistent-pill { display: none; }
+.onboarding-campaign-scene .onboarding-persistent-logo { z-index: 30; }
+.onboarding-campaign-scene .onboarding-persistent-pill,
+.onboarding-campaign-scene .onboarding-persistent-pill::before,
+.onboarding-campaign-scene .campaign-pill,
+.onboarding-campaign-scene .campaign-pill::before,
+.onboarding-campaign-scene .campaign-pill-ambient,
+.onboarding-campaign-scene .campaign-pill-status-icon { animation: none; }
+.onboarding-campaign-scene .campaign-pill-section-new { animation-duration: 300ms; }
+.onboarding-campaign-scene .campaign-pill-status-icon .animate-spin { animation: none; }
+@media (min-width: 63.0625rem) {
+  .onboarding-campaign-scene .onboarding-chrome__stepper { grid-column: 2; }
+  .onboarding-campaign-scene .onboarding-chrome__account { grid-column: 3; }
+  .onboarding-campaign-scene .onboarding-connect-screen,
+  .onboarding-campaign-scene .checkout-page,
+  .onboarding-campaign-scene .strategy-targeting-screen,
+  .onboarding-campaign-scene .strategy-channels-screen {
+    width: auto;
+    max-width: none;
+    margin-left: calc(var(--campaign-reference-gutter) * var(--onboarding-fit-inverse, 1));
+    margin-right: calc((var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem)) * var(--onboarding-fit-inverse, 1));
+    padding-inline: 0;
+  }
+  .onboarding-campaign-scene .onboarding-actions {
+    left: var(--campaign-reference-gutter);
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+  }
+}

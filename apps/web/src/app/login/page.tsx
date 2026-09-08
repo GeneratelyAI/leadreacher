@@ -1,5 +1,5 @@
-import LoginCampaign from "@/components/auth/LoginCampaign";
-import Layout from "@/components/auth/Layout";
+import LoginCampaign from "@/features/authentication/public/LoginCampaign";
+import Layout from "@/features/authentication/public/Layout";
 
 export default function LoginPage() {
   return (

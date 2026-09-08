@@ -1,4 +1,4 @@
-import { ForgotPasswordForm } from "@/components/auth/Recovery";
+import { ForgotPasswordForm } from "@/features/authentication/public/Recovery";
 
 export default function ForgotPasswordPage() {
   return <ForgotPasswordForm />;

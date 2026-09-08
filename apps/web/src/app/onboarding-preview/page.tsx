@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import type { Viewport } from "next";
-import { MobileReferencePreview } from "@/components/onboarding/MobileReferencePreview";
-import { Preview } from "@/components/onboarding/Preview";
+import { MobileReferencePreview } from "@/features/onboarding/public/mobile-reference-preview";
+import { Preview } from "@/features/onboarding/public/preview";
 import {
   isOnboardingStep,
   isStrategySubstep,
   type OnboardingStepParam,
-} from "@/components/onboarding/steps/steps";
+} from "@/features/onboarding/public/navigation";
 
 type PreviewPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

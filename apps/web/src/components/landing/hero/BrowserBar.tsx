@@ -13,7 +13,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Link2, LoaderCircle } from "@/components/ui/icons";
 import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import ShimmerText from "@/components/ui/shimmer-text";
-import { getWebsiteFaviconUrl } from "@/lib/discovery-website";
+import { getWebsiteFaviconUrl } from "@/features/onboarding/public/website";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { cn } from "@/lib/utils";
 

@@ -1,6 +1,6 @@
-import { OrganizationRecoveryForm } from "@/components/auth/Access";
+import { OrganizationRecoveryForm } from "@/features/authentication/public/Access";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/platform/auth/server";
 
 type AuthFactor = { status: string };
 import { bootstrapOrganizationServer } from "@/lib/api/server";

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiFetch, apiStream, clearAccessTokenCache } from "../api";
 
 const { getBrowserSession } = vi.hoisted(() => ({ getBrowserSession: vi.fn() }));
-vi.mock("@/lib/supabase/client", () => ({
+vi.mock("@/platform/auth/client", () => ({
   getBrowserSession,
 }));
 

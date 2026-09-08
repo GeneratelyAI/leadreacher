@@ -1,0 +1,242 @@
+/* The campaign summary has one desktop viewport anchor across signup and onboarding. */
+@media (min-width: 63.0625rem) {
+  /* Safari's shorter visual viewport otherwise lifts this compact style stack
+     above the Campaign Content heading. Keep their headings aligned. */
+  .personalized-video-style-main { transform: translateY(0.923rem); }
+
+  .how-it-works-campaign-main { transform: translateY(-2.3625rem); }
+
+  /* Keep the workflow stack centered while the actions share the pill's fixed bottom edge. */
+  .how-it-works-campaign-main::after {
+    display: block;
+    height: 4.2rem;
+    flex: none;
+    margin-top: clamp(1rem, 2.2vh, 1.6rem);
+    content: "";
+  }
+
+  .how-it-works-campaign-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0;
+  }
+
+  .how-it-works-campaign-actions .onboarding-campaign-next {
+    width: 13.2rem;
+    flex: none;
+  }
+
+  /* Preserve the centered content stack while pinning only this row to the campaign pill's lower edge. */
+  .campaign-content-main::after {
+    display: block;
+    height: 4.2rem;
+    flex: none;
+    margin-top: clamp(1.75rem, 4.5vh, 3rem);
+    content: "";
+  }
+
+  .campaign-content-actions {
+    position: absolute;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  .campaign-content-options { transform: translateY(-1.625rem); }
+
+  .personalized-video-style-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  .upload-your-video-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  .upload-document-actions {
+    position: fixed;
+    z-index: 4;
+    right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
+    bottom: calc(50% - (var(--campaign-pill-height) / 2));
+    left: var(--campaign-reference-gutter);
+    margin-top: 0;
+  }
+
+  :root {
+    /* The content remains left-anchored and uses half of its prior pill gap. */
+    --campaign-content-width: min(
+      calc(100vw - var(--campaign-reference-gutter) - var(--campaign-pill-width) - var(--campaign-pill-screen-right) - 1.5rem),
+      calc(50vw - var(--campaign-reference-gutter) + 7.5rem)
+    );
+  }
+
+  [data-testid="signup-campaign-auth"] {
+    position: relative;
+    inset-inline-start: calc(var(--campaign-reference-gutter) - var(--campaign-original-reference-gutter));
+  }
+
+  [data-testid="signup-campaign-auth"] .signup-campaign-auth-actions,
+  .discovery-website-gate .signup-campaign-auth-actions,
+  .onboarding-campaign-layout .onboarding-campaign-profile,
+  .onboarding-campaign-layout .onboarding-campaign-context,
+  .onboarding-campaign-layout .onboarding-campaign-actions {
+    width: var(--campaign-content-width);
+  }
+
+  .onboarding-campaign-layout .onboarding-campaign-task {
+    position: relative;
+    inset-inline-start: calc(var(--campaign-reference-gutter) - var(--campaign-discovery-reference-gutter));
+  }
+
+  .onboarding-discovery-task {
+    inset-block-start: var(--discovery-column-offset, 0px);
+    align-self: start;
+    justify-content: flex-start;
+  }
+
+  .onboarding-discovery-content {
+    position: relative;
+    inset-block-start: var(--discovery-content-offset, 0px);
+  }
+
+  .onboarding-discovery-task .onboarding-campaign-actions {
+    position: static;
+    z-index: auto;
+    inset: auto;
+    margin-top: 1.5rem;
+    will-change: auto;
+    transition: none;
+  }
+
+  .signup-campaign-pill-column {
+    position: fixed;
+    z-index: 5;
+    top: 50%;
+    right: var(--campaign-pill-screen-right);
+    width: var(--campaign-pill-width);
+    height: var(--campaign-pill-height);
+    align-self: auto;
+    justify-self: auto;
+    transform: translateY(-50%);
+    animation: signup-campaign-pill-screen-rise 900ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@media (min-width: 63.0625rem) and (max-width: 95.9375rem), (min-width: 63.0625rem) and (max-height: 56.1875rem) {
+  .onboarding-campaign-layout .onboarding-campaign-actions {
+    will-change: transform, margin-top;
+    transition: transform 320ms cubic-bezier(.16, 1, .3, 1), margin-top 320ms cubic-bezier(.16, 1, .3, 1);
+  }
+
+  .onboarding-campaign-task:not(.onboarding-discovery-task):has(.discovery-detail-selector) .onboarding-campaign-actions {
+    margin-top: 1rem;
+  }
+}
+
+/* Fill the unused desktop space below the style cards without crossing the
+   fixed action row. Shorter desktop viewports retain the compact card size. */
+@media (min-width: 63.0625rem) and (min-height: 48rem) {
+  .personalized-video-style-card {
+    padding: 1rem;
+    height: clamp(15.375rem, calc(43vh - 5.25rem), 25.7rem);
+  }
+
+  .personalized-video-style-art {
+    height: min(48%, 10.5rem);
+  }
+
+  .personalized-video-style-card-title {
+    gap: 0.6rem;
+    margin-top: 1rem;
+    font-size: clamp(1.08rem, 1.4vw, 1.28rem);
+    line-height: 1.15;
+  }
+
+  .personalized-video-style-card-title span {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.5rem;
+    border-radius: 999px;
+    background: #f0edff;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .personalized-video-style-card-description {
+    max-width: 23ch;
+    margin-top: 0.7rem;
+    color: #66708a;
+    font-size: clamp(0.9rem, 1.08vw, 1rem);
+    line-height: 1.45;
+  }
+
+  .personalized-video-style-card-description > span + span { margin-top: 0.12rem; }
+}
+
+@media (max-width: 63rem) {
+  .signup-campaign-layout,
+  .onboarding-campaign-layout { display: block; min-height: auto; padding: 8rem 1.5rem 3rem; }
+  .discovery-website-gate { min-height: calc(100dvh - 4rem); padding-inline: 0; }
+  .signup-campaign-form-column { min-height: auto; max-width: 40rem; margin: 0 auto; padding: 0; }
+  .signup-campaign-pill-column { display: none; }
+  .onboarding-campaign-task { min-height: auto; margin: 0 auto; padding-top: 0; }
+  .onboarding-campaign-pill-column { display: none; }
+}
+
+@media (max-width: 42rem) {
+  .onboarding-campaign-profile-row { grid-template-columns: 1fr; gap: 0.85rem; padding: 1.1rem 0; }
+  .onboarding-campaign-actions { justify-content: stretch; }
+  .onboarding-campaign-next { width: 100%; }
+  .discovery-detail-fallback { height: 5.45rem; }
+  .discovery-detail-selector { display: block; }
+  .discovery-detail-selector p { margin: 0 0 .35rem; }
+  .discovery-detail-selector > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .discovery-detail-selector button { width: 100%; }
+}
+
+@media (max-width: 38rem) {
+  .signup-campaign-layout,
+  .onboarding-campaign-layout { padding-right: 1.25rem; padding-left: 1.25rem; }
+  .signup-campaign-copy h1 { font-size: clamp(3rem, 14vw, 4.2rem); }
+  .signup-campaign-copy p { margin-top: 1.2rem; }
+  .signup-campaign-provider { height: 3.75rem; }
+  .signup-campaign-divider { margin: 1.3rem 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signup-campaign-copy,
+  .signup-campaign-auth-actions,
+  .signup-campaign-pill-column,
+  .signup-campaign-period,
+  .signup-campaign-pill-column::before,
+  .personalized-video-style-status-generating .personalized-video-style-status-icon,
+  .personalized-video-style-status-copy,
+  .personalized-video-style-options-select .personalized-video-style-card,
+  .personalized-video-style-card-approved,
+  .personalized-video-style-card-preparing .personalized-video-style-art::after { animation: none; }
+  .signup-campaign-provider,
+  .signup-campaign-submit,
+  .signup-campaign-control,
+  .campaign-content-options-copy,
+  .campaign-content-options-grid,
+  .personalized-video-style-options h2,
+  .personalized-video-style-card,
+  .personalized-video-style-art img { transition-duration: 0ms; }
+}

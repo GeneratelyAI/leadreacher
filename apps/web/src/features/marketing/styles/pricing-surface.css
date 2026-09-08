@@ -1,0 +1,11 @@
+.pricing-dots {
+  background-color: #f7f6ff;
+  background-image:
+    radial-gradient(circle at 50% -8%, rgba(153, 132, 255, 0.24), transparent 38rem),
+    radial-gradient(circle at 0% 48%, rgba(194, 173, 255, 0.16), transparent 28rem),
+    radial-gradient(circle at 100% 76%, rgba(143, 183, 255, 0.13), transparent 32rem),
+    radial-gradient(circle, rgba(83, 38, 183, 0.1) 1px, transparent 1.2px);
+  background-position: center top, left center, right bottom, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 20px 20px;
+}

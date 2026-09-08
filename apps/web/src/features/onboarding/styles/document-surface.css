@@ -1,0 +1,19 @@
+html[data-page="discovery"] {
+  --page-bg: #ffffff;
+  --background: #ffffff;
+}
+
+html[data-page="discovery"],
+html[data-page="discovery"] body {
+  background-color: #ffffff;
+}
+
+html[data-page="discovery"].dark {
+  --page-bg: var(--app-canvas);
+  --background: var(--app-canvas);
+}
+
+html[data-page="discovery"].dark,
+html[data-page="discovery"].dark body {
+  background-color: var(--app-canvas);
+}

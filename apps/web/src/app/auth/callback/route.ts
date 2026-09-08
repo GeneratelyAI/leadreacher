@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
-import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
-import { postLoginRedirectPath } from "@/lib/auth/post-login-redirect";
-import { createClient } from "@/lib/supabase/server";
+import { defaultOrgNameFromEmail } from "@/features/organizations/public/naming";
+import { postLoginRedirectPath } from "@/features/authentication/public/post-login-redirect";
+import { createClient } from "@/platform/auth/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);

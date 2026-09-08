@@ -1,0 +1,15 @@
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+
+  .auth-analysis-card,
+  .auth-analysis-card * {
+    transition-duration: 0.01ms !important;
+  }
+
+  .auth-typewriter::after {
+    animation: none;
+    opacity: 0;
+  }
+}

@@ -1,0 +1,67 @@
+.auth-analysis-card {
+  transition:
+    min-height var(--onboarding-motion-slow) var(--onboarding-ease-standard),
+    padding var(--onboarding-motion-slow) var(--onboarding-ease-standard);
+}
+
+.auth-typewriter::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+  animation: auth-typewriter-caret 900ms steps(2, start) infinite;
+  opacity: 0.7;
+}
+
+@keyframes auth-typewriter-caret {
+  0%,
+  45% {
+    opacity: 0.7;
+  }
+
+  46%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-analysis-card,
+  .auth-analysis-card * {
+    transition-duration: 0.01ms !important;
+  }
+
+  .auth-typewriter::after {
+    animation: none;
+    opacity: 0;
+  }
+}
+
+.auth-glass-control {
+  background: rgba(248, 250, 252, 0.96) !important;
+  border: 1px solid rgba(203, 213, 225, 0.95) !important;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+}
+
+.auth-glass-control:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 1) !important;
+  border-color: rgba(148, 163, 184, 0.72) !important;
+}
+
+.dark .auth-page .auth-glass-control {
+  background: rgba(15, 23, 42, 0.88) !important;
+  border-color: rgba(148, 163, 184, 0.32) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+.dark .auth-page .auth-glass-control:hover:not(:disabled) {
+  background: rgba(30, 41, 59, 0.98) !important;
+  border-color: rgba(196, 181, 240, 0.46) !important;
+}

@@ -1,0 +1,57 @@
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply text-foreground;
+    background-color: var(--page-bg);
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Theme toggle view transition - disable default crossfade so the circle reveal owns the motion */
+@supports (view-transition-name: none) {
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-old(root),
+  html:not(.route-transition-forward):not(.route-transition-backward)::view-transition-new(root) {
+    animation: none;
+    mix-blend-mode: normal;
+  }
+
+  /* The view-transition snapshot owns this surface's color change. Keep the
+     rest of the interface interactive and animated while the wipe runs. */
+  html.theme-transitioning .theme-transition-surface {
+    transition: none !important;
+  }
+
+  /* A theme snapshot must never capture a card halfway through its content
+     reveal. Card motion resumes naturally after the circular wipe completes. */
+  html.theme-transitioning [data-acquisition-card-content],
+  html.theme-transitioning [data-acquisition-card-content] > * {
+    opacity: 1 !important;
+  }
+
+  html.theme-transitioning [data-acquisition-card-content] {
+    transform: translateY(0) !important;
+  }
+
+  html.theme-transitioning [data-acquisition-card-content] > * {
+    transform: none !important;
+  }
+
+  /* The circular page wipe must not cut across five independently themed
+     inactive cards. Fade those related surfaces as one short pre-transition
+     beat while the active card remains as the carousel's visual anchor. */
+  html.theme-transitioning .acquisition-workflow-theme-layer
+    [aria-roledescription="slide"]:not([aria-current="true"]) {
+    opacity: 0 !important;
+    transition: opacity 90ms cubic-bezier(0.4, 0, 1, 1) !important;
+  }
+
+  html.theme-transition-recovering .acquisition-workflow-theme-layer
+    [aria-roledescription="slide"]:not([aria-current="true"]) {
+    animation: acquisition-card-return 180ms cubic-bezier(0, 0, 0.2, 1) both;
+  }
+
+}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { m } from "framer-motion";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import {
   Check,
   CheckCircle2,

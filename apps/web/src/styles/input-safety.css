@@ -1,0 +1,12 @@
+/* iOS Safari force-zooms the viewport whenever a focused form control renders
+   below 16px, and never zooms back out. Guarantee the 16px floor below `lg`
+   regardless of which utility classes a component applies; components remain
+   free to size down at `lg` and up, where no touch keyboard is involved.
+   Unlayered so it wins over Tailwind's utility layer. */
+@media (max-width: 1023px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

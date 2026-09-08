@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Activity } from "@/components/dashboard/Activity";
+import { Activity } from "@/features/analytics/public/Activity";
 import { Frame } from "@/components/dashboard/Frame";
 
 export default function ActivityPage() {

@@ -3,11 +3,11 @@
 import { FormEvent, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { DollarSign, ShieldCheck, SquarePlay, UserRound, Zap } from "@/components/ui/icons";
-import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
+import { useWebsiteScrapeStatus } from "@/features/onboarding/public/website-status";
 import { useLandingPerformanceTelemetry } from "@/hooks/useLandingPerformanceTelemetry";
 import { usePageVisibility } from "@/hooks/usePageVisibility";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
-import { initializeDemoSession } from "@/lib/onboarding/demo-store";
+import { initializeDemoSession } from "@/features/onboarding/public/demo-store";
 import ShimmerText from "@/components/ui/shimmer-text";
 import Background from "./Background";
 import { BrowserBar } from "./BrowserBar";

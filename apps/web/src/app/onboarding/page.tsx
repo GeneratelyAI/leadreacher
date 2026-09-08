@@ -1,17 +1,17 @@
 import { redirect } from "next/navigation";
-import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import OnboardingFlow from "@/features/onboarding/public/flow";
 import {
   isOnboardingStep,
   isStrategySubstep,
   type OnboardingStepParam,
-} from "@/components/onboarding/steps/steps";
+} from "@/features/onboarding/public/navigation";
 import { bootstrapOrganizationServer, getStrategyServer, hasAnalyzedWebsiteServer } from "@/lib/api/server";
-import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
+import { defaultOrgNameFromEmail } from "@/features/organizations/public/naming";
 import {
   resolveAllowedOnboardingStep,
   resolveOnboardingResumeTarget,
-} from "@/lib/onboarding-progress";
-import { createClient } from "@/lib/supabase/server";
+} from "@/features/onboarding/public/progress";
+import { createClient } from "@/platform/auth/server";
 
 type OnboardingPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

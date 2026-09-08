@@ -1,4 +1,4 @@
-import { ProspectDetails } from "@/components/dashboard/ProspectDetails";
+import { ProspectDetails } from "@/features/prospects/public/ProspectDetails";
 
 export default async function ProspectDetailPage({
   params,

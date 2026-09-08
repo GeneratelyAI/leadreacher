@@ -1,4 +1,4 @@
-import { Challenge } from "@/components/auth/Challenge";
+import { Challenge } from "@/features/authentication/public/Challenge";
 
 export default async function VerifyMfaPage({
   searchParams,

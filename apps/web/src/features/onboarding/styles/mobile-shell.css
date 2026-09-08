@@ -1,0 +1,206 @@
+/* Shared phone shell. Desktop keeps the fixed campaign canvas and its existing
+   page-specific composition. Mobile intentionally returns every task to normal
+   document flow, with one reusable campaign disclosure above the task scene. */
+@media (max-width: 63rem) {
+  .onboarding-campaign-scene {
+    min-height: 100svh;
+    overflow-x: clip;
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .onboarding-campaign-scene .onboarding-persistent-logo {
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + var(--brand-wordmark-top));
+    left: calc(env(safe-area-inset-left) + var(--brand-wordmark-left));
+  }
+
+  .onboarding-campaign-scene .onboarding-persistent-pill {
+    position: relative;
+    z-index: 8;
+    display: block;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    margin: calc(env(safe-area-inset-top) + 4.35rem) max(1rem, env(safe-area-inset-right)) 1rem max(1rem, env(safe-area-inset-left));
+    transform: none;
+    animation: none;
+  }
+
+  .onboarding-campaign-scene .onboarding-persistent-pill::before { display: none; }
+
+  .onboarding-campaign-scene .onboarding-persistent-pill .signup-campaign-pill,
+  .onboarding-campaign-scene .onboarding-persistent-pill .campaign-pill {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 0;
+    border-radius: 1rem;
+    animation: none;
+  }
+
+  /* This pre-hydration rule prevents a phone from briefly painting the desktop
+     expanded summary before the disclosure state is initialized. */
+  .onboarding-campaign-scene .campaign-pill-responsive-disclosure:not(.campaign-pill-responsive-disclosure-toggled) .campaign-pill-body {
+    grid-template-rows: 0fr;
+  }
+
+  .onboarding-campaign-scene .campaign-pill-site {
+    min-height: 3.25rem;
+    padding: 0.65rem 0.9rem;
+  }
+
+  .onboarding-campaign-scene .campaign-pill-site-icon { width: 1.7rem; height: 1.7rem; }
+  .onboarding-campaign-scene .campaign-pill-header { padding: 0.8rem 0.9rem 0.55rem; }
+  .onboarding-campaign-scene .campaign-pill-status { min-height: 2.2rem; margin: 0 0.9rem; }
+  .onboarding-campaign-scene .campaign-pill-fields { padding: 0 0.9rem 1rem; }
+  .onboarding-campaign-scene .campaign-pill-sections { padding: 0 0.9rem 1rem; overflow: visible; }
+  .onboarding-campaign-scene .campaign-pill-section-list { overflow: visible; }
+  .onboarding-campaign-scene .campaign-pill-field { min-height: 0; padding-block: 0.7rem; }
+
+  .onboarding-flow-step,
+  .onboarding-step-presence,
+  .onboarding-step-presence__pane,
+  .onboarding-viewport-fit,
+  .onboarding-viewport-fit--scroll,
+  .onboarding-viewport-fit__canvas {
+    width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    transform: none !important;
+  }
+
+  .onboarding-viewport-fit__canvas { --onboarding-fit-scale: 1; }
+
+  .signup-campaign-layout,
+  .onboarding-campaign-layout {
+    min-height: 0;
+    padding: 1.25rem max(1rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  }
+
+  .onboarding-campaign-task {
+    width: min(100%, 42rem);
+    min-height: 0;
+    margin-inline: auto;
+    padding-top: 0;
+  }
+
+  .how-it-works-campaign-page,
+  .campaign-content-page,
+  .personalized-video-style-page,
+  .upload-your-video-page,
+  .upload-document-page {
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+    padding: 1.25rem max(1rem, env(safe-area-inset-right)) max(2rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  }
+
+  .how-it-works-campaign-main,
+  .campaign-content-main,
+  .personalized-video-style-main,
+  .upload-your-video-main,
+  .upload-document-main {
+    width: min(100%, 42rem);
+    height: auto;
+    min-height: 0;
+    margin: 0 auto;
+    padding: 0;
+    transform: none;
+  }
+
+  .how-it-works-campaign-page .onboarding-brand-anchor,
+  .campaign-content-page .onboarding-brand-anchor,
+  .personalized-video-style-page .onboarding-brand-anchor,
+  .upload-your-video-page .onboarding-brand-anchor,
+  .upload-document-page .onboarding-brand-anchor { display: none; }
+
+  .how-it-works-campaign-actions,
+  .campaign-content-actions,
+  .personalized-video-style-actions,
+  .upload-your-video-actions,
+  .upload-document-actions,
+  .strategy-channels-actions,
+  .onboarding-actions {
+    position: static !important;
+    inset: auto !important;
+    display: flex;
+    width: min(100%, 42rem);
+    margin: 1.25rem auto 0;
+    padding: 0 0 max(0.5rem, env(safe-area-inset-bottom));
+    gap: 0.75rem;
+    transform: none !important;
+  }
+
+  .how-it-works-campaign-actions > *,
+  .campaign-content-actions > *,
+  .personalized-video-style-actions > *,
+  .upload-your-video-actions > *,
+  .upload-document-actions > *,
+  .strategy-channels-actions > *,
+  .onboarding-actions__item {
+    min-width: 0;
+    min-height: 2.75rem;
+  }
+
+  .how-it-works-campaign-actions .onboarding-campaign-next,
+  .campaign-content-actions .onboarding-campaign-next,
+  .personalized-video-style-actions .onboarding-campaign-next,
+  .upload-your-video-actions .onboarding-campaign-next,
+  .upload-document-actions .onboarding-campaign-next {
+    width: auto;
+    flex: 1 1 0;
+  }
+
+  .onboarding-campaign-next,
+  .campaign-content-back,
+  .how-it-works-campaign-back,
+  .upload-your-video-browse,
+  .upload-document-browse {
+    min-height: 2.75rem;
+  }
+
+  .onboarding-campaign-profile-row { min-height: 0; }
+  .onboarding-campaign-profile-rail { height: auto; min-height: 2.75rem; }
+  .discovery-detail-selector > div { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .discovery-detail-selector button { min-height: 2.75rem; }
+
+  .upload-your-video-drop-zone,
+  .upload-document-drop-zone { min-height: min(17rem, 48svh); }
+  .upload-your-video-file-details,
+  .upload-document-file-details { min-width: 0; flex-wrap: wrap; }
+  .upload-your-video-file-details > div,
+  .upload-document-file-details > div { min-width: 0; overflow-wrap: anywhere; }
+
+  .strategy-targeting-screen,
+  .strategy-channels-screen {
+    min-height: 0 !important;
+    padding-right: max(1rem, env(safe-area-inset-right)) !important;
+    padding-bottom: max(2rem, env(safe-area-inset-bottom)) !important;
+    padding-left: max(1rem, env(safe-area-inset-left)) !important;
+  }
+}
+
+@media (max-width: 42rem) {
+  .how-it-works-campaign-actions,
+  .campaign-content-actions,
+  .personalized-video-style-actions,
+  .upload-your-video-actions,
+  .upload-document-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .how-it-works-campaign-actions > *,
+  .campaign-content-actions > *,
+  .personalized-video-style-actions > *,
+  .upload-your-video-actions > *,
+  .upload-document-actions > * {
+    width: 100%;
+  }
+
+  .campaign-content-options-grid,
+  .personalized-video-style-grid { grid-template-columns: 1fr; }
+  .campaign-content-option,
+  .personalized-video-style-card { min-height: 0; }
+}

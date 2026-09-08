@@ -1,0 +1,43 @@
+.app-card,
+.metric-card {
+  border: 1px solid var(--app-card-border);
+  border-radius: var(--app-card-radius);
+  background-color: var(--app-card-background);
+  box-shadow: var(--app-card-shadow);
+}
+
+.app-card--muted {
+  background-color: var(--app-card-muted-background);
+}
+
+.app-card--selected {
+  border-color: var(--onboarding-purple-500);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--onboarding-purple-100), transparent 25%), var(--app-card-shadow);
+}
+
+.app-card--interactive {
+  transition:
+    transform var(--onboarding-motion-base) var(--onboarding-ease-standard),
+    box-shadow var(--onboarding-motion-base) var(--onboarding-ease-standard),
+    border-color var(--onboarding-motion-base) var(--onboarding-ease-standard);
+}
+
+.app-card--interactive:hover {
+  transform: translateY(-0.125rem);
+  box-shadow: var(--app-card-shadow-raised);
+}
+
+.app-card--interactive:focus-visible {
+  transform: translateY(-0.125rem);
+  box-shadow: var(--app-card-shadow-raised);
+}
+
+.dark .app-card--selected {
+  border-color: var(--onboarding-purple-400);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--onboarding-purple-700), transparent 25%), var(--app-card-shadow);
+}
+
+.dark .app-card--interactive:hover,
+.dark .app-card--interactive:focus-visible {
+  border-color: var(--app-border-strong);
+}

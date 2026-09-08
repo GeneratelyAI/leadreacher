@@ -1,0 +1,119 @@
+/* Signup is the reference frame for campaign creation. */
+.signup-campaign-layout,
+.onboarding-campaign-layout {
+  display: grid;
+  min-height: min(52rem, calc(100dvh - 4rem));
+  align-items: center;
+  justify-content: center;
+  gap: clamp(5rem, 15vw, 14rem);
+  grid-template-columns: minmax(0, 40rem) minmax(20rem, 25rem);
+}
+
+.signup-campaign-form-column {
+  position: relative;
+  display: flex;
+  min-height: min(47rem, calc(100dvh - 8rem));
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 3.5rem;
+}
+
+.signup-campaign-copy { animation: signup-campaign-rise 720ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.signup-campaign-copy h1 {
+  margin: 0;
+  color: #080e28;
+  font-size: clamp(3.4rem, 5.8vw, 6rem);
+  font-weight: 720;
+  letter-spacing: -0.075em;
+  line-height: 0.87;
+}
+.signup-campaign-copy p { margin: 1.65rem 0 0; color: #737a96; font-size: clamp(1rem, 1.55vw, 1.3rem); line-height: 1.45; }
+.signup-campaign-period {
+  display: inline-block;
+  margin-left: 0.015em;
+  color: #5b3ff0;
+  text-shadow: 0 0 1.25rem rgba(91, 63, 240, 0.48);
+  animation: signup-campaign-period-blink 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.signup-campaign-auth-actions { width: min(100%, 40rem); margin-top: clamp(2rem, 4.5vh, 3.3rem); animation: signup-campaign-rise 720ms 130ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.discovery-website-gate {
+  display: grid;
+  min-height: calc(100dvh - 4rem);
+  place-items: center;
+}
+.discovery-website-gate .signup-campaign-form-column {
+  width: min(100%, 40rem);
+  min-height: 0;
+  align-items: center;
+  padding: 0;
+  text-align: center;
+}
+.discovery-website-gate .signup-campaign-copy { width: 100%; }
+.discovery-website-gate .signup-campaign-copy h1 { max-width: 10ch; margin-inline: auto; }
+.discovery-website-gate .signup-campaign-copy p { margin-top: 1.25rem; }
+.discovery-hero-browser-bar { width: 100%; margin-top: clamp(2rem, 4.5vh, 3.3rem); animation: signup-campaign-rise 720ms 130ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.discovery-hero-browser-bar .signup-campaign-submit { margin-top: 0.75rem; }
+.discovery-website-security { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin: 1.3rem 0 0; color: #737a96; font-size: 0.875rem; }
+.signup-campaign-provider {
+  position: relative;
+  height: 4.1rem;
+  justify-content: center;
+  gap: 1.15rem;
+  border-color: #e4e6ee;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.76);
+  color: #141a30;
+  font-size: 0.98rem;
+  font-weight: 500;
+  box-shadow: 0 0.25rem 0.8rem rgba(32, 38, 68, 0.025);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+.signup-campaign-provider:hover { border-color: rgba(91, 63, 240, 0.42); background: #fff; box-shadow: 0 0.8rem 1.8rem rgba(91, 63, 240, 0.1); transform: translateY(-0.1rem); }
+.signup-campaign-divider { display: grid; align-items: center; gap: 1.75rem; margin: 1.65rem 0; grid-template-columns: 1fr auto 1fr; }
+.signup-campaign-divider span { height: 1px; background: #e4e6ee; }
+.signup-campaign-divider b { color: #858ba4; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.17em; text-transform: uppercase; }
+.signup-campaign-control { transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+.signup-campaign-error { margin: 0; border: 1px solid #fecaca; border-radius: 0.75rem; background: #fff1f2; color: #b42336; padding: 0.8rem 1rem; font-size: 0.875rem; }
+.signup-campaign-submit {
+  width: 100%;
+  height: 4.2rem;
+  margin-top: 0.35rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: linear-gradient(105deg, #6043ef 0%, #492edc 100%);
+  box-shadow: 0 1rem 2rem rgba(76, 50, 219, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 1.05rem;
+  font-weight: 500;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+.signup-campaign-submit:hover { filter: brightness(1.04); box-shadow: 0 1.2rem 2.5rem rgba(76, 50, 219, 0.32); transform: translateY(-0.1rem); }
+.signup-campaign-submit:active { transform: translateY(0.04rem) scale(0.995); }
+.signup-campaign-login { margin: 1.65rem 0 0; color: #7a819a; font-size: 0.98rem; text-align: center; }
+.signup-campaign-login a { color: #4d32dd; font-weight: 700; text-decoration: none; }
+.signup-campaign-login a:hover { text-decoration: underline; text-underline-offset: 0.18rem; }
+.login-campaign-forgot { display: flex; justify-content: flex-end; margin-top: -0.15rem; }
+.login-campaign-forgot a { color: #4d32dd; font-size: 0.86rem; font-weight: 600; text-decoration: none; }
+.login-campaign-forgot a:hover { text-decoration: underline; text-underline-offset: 0.18rem; }
+.login-campaign-layout {
+  width: min(100%, 40rem);
+  margin-inline: auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+.login-campaign-copy { text-align: center; }
+
+.signup-campaign-pill-column { position: relative; display: grid; align-self: center; justify-self: center; justify-items: center; animation: signup-campaign-pill-rise 900ms 120ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+.signup-campaign-pill-column::before { position: absolute; z-index: -1; width: 30rem; max-width: 115vw; aspect-ratio: 1; border-radius: 999px; background: rgba(100, 71, 247, 0.13); filter: blur(3.8rem); content: ""; animation: signup-campaign-halo 7s ease-in-out infinite; }
+.signup-campaign-pill {
+  width: var(--campaign-pill-width);
+  max-width: calc(100vw - 3rem);
+  height: var(--campaign-pill-height);
+  min-height: var(--campaign-pill-height);
+  border-radius: 1.45rem;
+}
+.signup-campaign-pill .campaign-pill-header { padding: 1.5rem 1.6rem 1rem; }
+.signup-campaign-pill .campaign-pill-status { margin: 0 1.6rem; }
+.signup-campaign-pill .campaign-pill-fields { padding: 0 1.6rem 1.8rem; }
+.signup-campaign-pill .campaign-pill-field { min-height: 0; padding: 0.7rem 0 0.62rem; }
+.signup-campaign-pill .campaign-pill-field span { font-size: 1.03rem; line-height: 1.42; }

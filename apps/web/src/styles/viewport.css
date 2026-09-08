@@ -1,0 +1,48 @@
+body {
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+html {
+  min-width: 20rem;
+  scroll-padding-top: calc(4.5rem + var(--safe-area-top));
+}
+
+.viewport-container {
+  width: min(100%, var(--content-max));
+  margin-inline: auto;
+  padding-inline: max(var(--viewport-gutter), var(--safe-area-left));
+}
+
+.safe-bottom {
+  padding-bottom: max(1rem, var(--safe-area-bottom));
+}
+
+.dashboard-page-frame {
+  padding-right: max(var(--dashboard-page-px, 1rem), var(--safe-area-right));
+  padding-bottom: max(var(--dashboard-page-py, 1.25rem), var(--safe-area-bottom));
+  padding-left: max(var(--dashboard-page-px, 1rem), var(--safe-area-left));
+}
+
+.dashboard-chat-composer {
+  padding-bottom: max(0.75rem, var(--safe-area-bottom));
+}
+
+.intentional-x-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 39.999rem) {
+  .viewport-container {
+    padding-inline: max(var(--viewport-gutter-compact), var(--safe-area-left));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 31rem) {
+  :root {
+    --viewport-gutter: 1rem;
+  }
+}

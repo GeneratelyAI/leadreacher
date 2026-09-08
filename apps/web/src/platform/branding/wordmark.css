@@ -1,0 +1,22 @@
+/* Landing-derived wordmark measurements shared by auth and onboarding screens. */
+:root {
+  --brand-wordmark-top: 1.1875rem;
+  --brand-wordmark-left: 1.25rem;
+  --brand-wordmark-height: 1.625rem;
+  --campaign-pill-width: 25rem;
+  --campaign-pill-height: min(42rem, calc(100dvh - 12rem));
+  --campaign-original-reference-gutter: max(5.5rem, calc(50vw - 39.5rem));
+  --campaign-reference-gutter: max(4.4rem, calc(40vw - 31.6rem));
+  --campaign-discovery-reference-gutter: max(3.75rem, calc(50vw - 39.5rem));
+  --campaign-outer-gutter: var(--campaign-reference-gutter);
+  --campaign-pill-screen-right: var(--campaign-outer-gutter);
+}
+
+.onboarding-brand-anchor {
+  position: absolute;
+  z-index: 10;
+  top: calc(var(--safe-area-top, 0px) + var(--brand-wordmark-top));
+  left: calc(var(--safe-area-left, 0px) + var(--brand-wordmark-left));
+}
+
+.onboarding-brand-wordmark { width: auto; height: var(--brand-wordmark-height); }

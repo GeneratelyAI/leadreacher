@@ -1,0 +1,32 @@
+@keyframes landing-risk-strike-reveal {
+  0%, 12% {
+    scale: 0 1;
+  }
+
+  28%, 82% {
+    scale: 1 1;
+  }
+
+  100% {
+    scale: 0 1;
+  }
+}
+
+.landing-risk-strike {
+  scale: 0 1;
+  animation: landing-risk-strike-reveal linear both;
+  animation-timeline: view();
+  animation-range: entry 0% exit 100%;
+}
+
+.landing-risk-strike--delayed {
+  animation-range: entry 8% exit 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-risk-strike,
+  .landing-risk-strike--delayed {
+    scale: 1 1;
+    animation: none;
+  }
+}

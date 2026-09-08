@@ -1,0 +1,19 @@
+html[data-page="auth"] {
+  --page-bg: #ffffff;
+  --background: #ffffff;
+}
+
+html[data-page="auth"],
+html[data-page="auth"] body {
+  background-color: #ffffff;
+}
+
+html[data-page="auth"].dark {
+  --page-bg: var(--app-canvas);
+  --background: var(--app-canvas);
+}
+
+html[data-page="auth"].dark,
+html[data-page="auth"].dark body {
+  background-color: var(--app-canvas);
+}

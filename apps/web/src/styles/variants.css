@@ -1,0 +1,8 @@
+@custom-variant dark (&:is(.dark *));
+@custom-variant compact-phone (@media (max-width: 359px));
+@custom-variant h-compact (@media (max-height: 999px) and (max-width: 1279px));
+@custom-variant h-short (@media (max-height: 680px));
+@custom-variant h-comfortable (@media (min-height: 1000px));
+@custom-variant h-spacious (@media (min-height: 1200px));
+@custom-variant large-desktop (@media (min-width: 96rem) and (min-height: 53.125rem));
+@config "../../tailwind.config.ts";

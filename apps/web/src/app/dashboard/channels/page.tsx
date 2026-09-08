@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Channels } from "@/components/dashboard/Channels";
+import { Channels } from "@/features/channels/public/Channels";
 import { Frame } from "@/components/dashboard/Frame";
 
 export default function ChannelsPage() {

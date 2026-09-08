@@ -1,0 +1,165 @@
+/* Content styles for campaign-building steps after signup. The frame geometry stays shared. */
+.onboarding-campaign-task {
+  display: flex;
+  width: min(100%, 40rem);
+  min-height: min(47rem, calc(100dvh - 8rem));
+  align-self: center;
+  justify-self: start;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 3.5rem;
+  animation: signup-campaign-rise 720ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.onboarding-discovery-task { animation: none; }
+.onboarding-campaign-intro { padding-top: 0; }
+.onboarding-campaign-heading { margin: 0; color: #080e28; font-size: clamp(3.4rem, 5.8vw, 6rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.87; }
+.onboarding-campaign-intro > p { margin: 1.4rem 0 0; color: #737a96; font-size: clamp(1rem, 1.55vw, 1.3rem); line-height: 1.45; }
+.onboarding-campaign-profile { margin-top: clamp(2.1rem, 3.5vh, 3rem); border-top: 1px solid #e5e7ef; }
+.onboarding-campaign-profile-row { display: grid; align-items: start; gap: 1.1rem; min-height: 4.5rem; border-bottom: 1px solid #e5e7ef; padding: 0.6rem 0; grid-template-columns: 12.5rem minmax(0, 1fr); }
+.onboarding-campaign-profile-row > p { margin: 0; padding-top: 0.62rem; color: #737a96; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.onboarding-campaign-profile-values { display: flex; flex-wrap: wrap; gap: 0.65rem; }
+.onboarding-campaign-profile-rail { box-sizing: border-box; min-width: 0; height: 100%; align-items: center; padding: .5rem .7rem; }
+.onboarding-campaign-chip-slot { display: inline-flex; flex: 0 0 auto; min-width: 0; }
+.onboarding-campaign-chip-slot-reserved { width: var(--prospect-chip-slot-width); margin-right: calc(var(--prospect-chip-collapsed-offset, 0px) * -1); transition: margin-right 200ms cubic-bezier(.16, 1, .3, 1); }
+.onboarding-campaign-chip-slot-reserved:has(.onboarding-campaign-chip:hover), .onboarding-campaign-chip-slot-reserved:has(.onboarding-campaign-chip:focus-within) { margin-right: 0; }
+.onboarding-campaign-chip, .onboarding-campaign-chip-measure-item { display: inline-flex; align-items: center; max-width: 100%; overflow: hidden; border: 1px solid transparent; border-radius: 999px; background: #f2efff; color: #3520a7; font-size: 0.9rem; font-weight: 600; line-height: 1.2; transition: background 210ms cubic-bezier(.22, 1, .36, 1), border-color 210ms cubic-bezier(.22, 1, .36, 1), box-shadow 210ms cubic-bezier(.22, 1, .36, 1); }
+.onboarding-campaign-chip:hover, .onboarding-campaign-chip:focus-within { border-color: #d1c2ff; background: #eee9ff; box-shadow: 0 .35rem .9rem rgb(88 58 202 / 14%); }
+.onboarding-campaign-chip-label { min-width: 0; overflow: hidden; border: 0; background: transparent; padding: 0.58rem .62rem 0.58rem 1.08rem; color: inherit; font: inherit; line-height: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.onboarding-campaign-chip-remove { display: inline-flex; width: 0; height: 1.75rem; flex: 0 0 0; align-items: center; justify-content: center; overflow: hidden; border: 0; border-radius: 999px; margin-right: 0; padding: 0; color: #6844ef; background: transparent; opacity: 0; pointer-events: none; transform: translateX(.25rem) scale(.7); transition: width 200ms cubic-bezier(.16,1,.3,1), flex-basis 200ms cubic-bezier(.16,1,.3,1), margin-right 200ms cubic-bezier(.16,1,.3,1), opacity 180ms cubic-bezier(.16,1,.3,1), transform 200ms cubic-bezier(.16,1,.3,1), color 180ms ease, background-color 160ms ease; }
+.onboarding-campaign-chip:hover .onboarding-campaign-chip-remove, .onboarding-campaign-chip:focus-within .onboarding-campaign-chip-remove { width: 1.75rem; flex-basis: 1.75rem; margin-right: .22rem; opacity: 1; pointer-events: auto; transform: translateX(0) scale(1); }
+.onboarding-campaign-chip-label:focus-visible { position: relative; z-index: 1; outline: 2px solid #4d2cbe; outline-offset: -2px; }
+.onboarding-campaign-chip-remove { position: relative; }
+.onboarding-campaign-chip-remove::before { position: absolute; top: 50%; left: 50%; width: 1.75rem; height: 1.75rem; border-radius: 50%; background: transparent; transform: translate(-50%, -50%); pointer-events: none; content: ""; transition: background-color 160ms ease; }
+.onboarding-campaign-chip-remove svg { position: relative; }
+.onboarding-campaign-chip-remove:hover { cursor: pointer; box-shadow: none; color: #3b218f; }
+.onboarding-campaign-chip-remove:hover::before { background: #e5ddff; }
+.onboarding-campaign-chip-remove:active { box-shadow: none; color: #2f187e; }
+.onboarding-campaign-chip-remove:active::before { background: #d9ccff; }
+.onboarding-campaign-chip-remove:focus-visible { position: relative; z-index: 1; outline: none; box-shadow: none; color: #3b218f; }
+.onboarding-campaign-chip-remove:focus-visible::before { background: #eee9ff; }
+.onboarding-campaign-profile-row-highlighted { animation: discovery-profile-row-acknowledge 460ms cubic-bezier(.22, 1, .36, 1) both; }
+.onboarding-campaign-profile-row-highlighted > div { border-radius: .75rem; }
+.onboarding-campaign-empty { color: #737a96; font-size: 0.98rem; }
+.onboarding-campaign-context { margin-top: clamp(1.65rem, 2.6vh, 2.25rem); }
+.onboarding-campaign-context > label { color: #141a30; font-size: 1rem; font-weight: 600; }
+.onboarding-campaign-context-input { display: block; width: 100%; height: 3.85rem; resize: none; margin-top: 0.55rem; border: 1px solid #dfe2eb; border-radius: 0.75rem; background: #fff; padding: 0.95rem 1.25rem; color: #15192c; font-size: 0.98rem; line-height: 1.35; outline: none; transition: border-color 180ms ease, box-shadow 180ms ease; }
+.onboarding-campaign-context-input::placeholder { color: #8a90a8; }
+.onboarding-campaign-context-input:focus { border-color: #5b3ff0; box-shadow: 0 0 0 4px rgb(91 63 240 / 10%); }
+.discovery-detail-entry { display: flex; gap: .65rem; margin-top: .55rem; }
+.discovery-detail-entry .onboarding-campaign-context-input { min-width: 0; flex: 1; margin: 0; }
+.discovery-detail-add { display: inline-flex; align-items: center; justify-content: center; flex: none; min-width: 5.5rem; border: 1px solid #6844ef; border-radius: .75rem; padding-inline: 1rem; color: white; background: linear-gradient(135deg,#7650f2,#5030cf); box-shadow: 0 4px 12px rgb(90 55 220 / 15%), inset 0 1px 0 rgb(255 255 255 / 20%); font-weight: 600; transition: opacity 180ms ease, box-shadow 180ms ease; }
+.discovery-detail-add:disabled { opacity: .45; cursor: default; box-shadow: none; }
+.discovery-detail-add:not(:disabled):hover { box-shadow: 0 5px 16px rgb(90 55 220 / 25%); }
+.discovery-detail-add:focus-visible, .discovery-detail-fallback button:focus-visible { outline: 2px solid #7049ee; outline-offset: 3px; }
+.discovery-detail-fallback { height: 0; min-width: 0; overflow: hidden; font-size: .72rem; color: #737a96; transition: height 260ms cubic-bezier(.16, 1, .3, 1); }
+.discovery-detail-selector { display: flex; min-height: 1.75rem; align-items: flex-start; gap: .5rem; overflow: hidden; }
+.discovery-detail-selector p { min-width: 0; margin: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.discovery-detail-selector[data-ready="true"] { animation: discovery-detail-selector-reveal 260ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-selector[data-ready="true"] p { animation: discovery-detail-selector-question 260ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-selector[data-ready="false"] { opacity: 0; }
+.discovery-detail-fallback strong { color: #5030b9; font-weight: 600; }
+.discovery-detail-selector > div { display: grid; flex: none; grid-template-columns: repeat(4, minmax(0, max-content)); gap: .3rem; }
+.onboarding-root .discovery-detail-selector button { display: inline-flex; min-width: 0; min-height: 0; height: auto; align-items: center; justify-content: center; gap: .28rem; border: 0; border-radius: 0; padding: .15rem .1rem; color: #5030b9; background: transparent; font-size: .66rem; line-height: 1.2; text-decoration: none; text-underline-offset: .24rem; white-space: nowrap; opacity: 0; transform: translateY(.25rem) scale(.96); transition: color 180ms cubic-bezier(.16, 1, .3, 1), transform 180ms cubic-bezier(.16, 1, .3, 1), text-decoration-color 180ms ease; }
+.discovery-detail-selector[data-ready="true"] button { animation: discovery-detail-category-enter 260ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-selector button::before { display: none; }
+.discovery-detail-selector[data-ready="false"] button { animation: none; }
+.discovery-detail-selector[data-closing] { animation: discovery-detail-selector-exit 220ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-selector[data-closing] p,
+.discovery-detail-selector[data-closing] button { animation: discovery-detail-selector-exit 220ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-selector button:not(:disabled):hover, .discovery-detail-selector button:focus-visible { outline: none; color: #4424bd; text-decoration: underline; text-decoration-color: currentcolor; transform: translateY(-1px) scale(1); }
+.discovery-detail-selector button:disabled { cursor: default; }
+.discovery-detail-selector button.discovery-detail-category-selected { border: 0; background: transparent; color: #4424bd; opacity: 1; text-decoration: underline; text-decoration-color: currentcolor; transform: translateY(-1px) scale(1); box-shadow: none; }
+.discovery-detail-selector button.discovery-detail-category-selected::before { display: none; }
+.discovery-detail-category-check { flex: none; animation: discovery-detail-category-check 180ms cubic-bezier(.16, 1, .3, 1) both; }
+.discovery-detail-editor ~ .onboarding-campaign-actions { margin-top: 0; }
+[data-prospect-row] { min-width: 0; }
+[data-prospect-row] > .onboarding-campaign-profile-values { min-width: 0; }
+[data-prospect-row] .onboarding-campaign-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.onboarding-campaign-chip-measure { position: fixed; z-index: -1; top: 0; left: -10000px; display: flex; width: max-content; gap: .65rem; visibility: hidden; pointer-events: none; }
+.onboarding-campaign-chip-measure-item .onboarding-campaign-chip-remove { opacity: 0; }
+.onboarding-campaign-chip-measure-expanded .onboarding-campaign-chip-remove { width: 1.75rem; flex-basis: 1.75rem; margin-right: .22rem; }
+.onboarding-campaign-chip-measure .onboarding-campaign-overflow-trigger { display: inline-flex; }
+.onboarding-campaign-overflow-trigger { display: inline-flex; flex: none; align-items: center; justify-content: center; min-height: 2.45rem; border: 1px solid #cdbdff; border-radius: .7rem; padding: .5rem .9rem; color: #4d2cbe; background: #faf8ff; font-size: .9rem; font-weight: 650; line-height: 1; white-space: nowrap; box-shadow: 0 .2rem .55rem rgb(88 58 202 / 8%); transition: background 180ms cubic-bezier(.16,1,.3,1), border-color 180ms cubic-bezier(.16,1,.3,1), transform 180ms cubic-bezier(.16,1,.3,1); }
+.onboarding-campaign-overflow-trigger:hover, .onboarding-campaign-overflow-trigger:focus-visible { border-color: #a98dff; background: #f2eeff; transform: translateY(-1px); outline: none; }
+.onboarding-campaign-overflow-popover { position: fixed; z-index: 120; width: min(23rem, calc(100vw - 2rem)); overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e0d9f5; border-radius: .9rem; padding: 1rem; color: #151a33; background: #fff; box-shadow: 0 .9rem 2.5rem rgb(28 20 67 / 20%), 0 .2rem .6rem rgb(28 20 67 / 10%); }
+.onboarding-campaign-overflow-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: .8rem; border-bottom: 1px solid #ebe8f2; }
+.onboarding-campaign-overflow-heading strong { display: block; font-size: 1rem; font-weight: 700; }
+.onboarding-campaign-overflow-heading span { display: block; margin-top: .2rem; color: #737a96; font-size: .8rem; }
+.onboarding-campaign-overflow-heading button { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border: 0; border-radius: 999px; color: #5e647d; background: transparent; }
+.onboarding-campaign-overflow-heading button:hover, .onboarding-campaign-overflow-heading button:focus-visible { color: #3520a7; background: #f1edff; outline: 2px solid #a98dff; outline-offset: 1px; }
+.onboarding-campaign-overflow-values { display: flex; flex-wrap: wrap; gap: .6rem; padding-top: .85rem; }
+.discovery-detail-traveler { position: fixed; z-index: 100; pointer-events: none; contain: layout paint; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border: 1px solid #d9cafa; border-radius: .6rem; padding: .5rem .85rem; color: #5a32ce; background: #f7f3ff; box-shadow: 0 4px 18px rgb(108 63 235 / 14%); font-size: .85rem; font-weight: 600; }
+@media (min-width: 63.0625rem) and (max-height: 50rem) {
+  .onboarding-discovery-task { justify-content: flex-start; }
+  .onboarding-campaign-layout .onboarding-campaign-profile { margin-top: 0; }
+  .onboarding-campaign-layout .onboarding-campaign-profile-row { height: 3.7rem; min-height: 3.7rem; padding-block: 0.45rem; }
+  .onboarding-campaign-layout .onboarding-campaign-profile-rail { padding-block: .3rem; }
+  .onboarding-campaign-layout .onboarding-campaign-profile-row > p { padding-top: 0.45rem; }
+  .onboarding-campaign-layout .discovery-detail-editor { margin-top: 0.45rem; }
+  .discovery-detail-entry .onboarding-campaign-context-input { height: 2.75rem; padding-block: .6rem; }
+  .discovery-detail-selector { align-items: center; }
+}
+@media (min-width: 63.0625rem) {
+  .onboarding-campaign-layout .onboarding-campaign-profile-row { height: 4.5rem; min-height: 4.5rem; }
+  .onboarding-campaign-layout .onboarding-campaign-profile-rail { flex-wrap: nowrap; overflow: hidden; }
+}
+@media (min-width: 63.0625rem) and (max-height: 50rem) {
+  .onboarding-campaign-layout .onboarding-campaign-profile-row { height: 3.7rem; min-height: 3.7rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .discovery-detail-add, .discovery-detail-fallback, .discovery-detail-selector button, .onboarding-campaign-chip, .onboarding-campaign-chip-remove, .onboarding-campaign-chip-remove::before { transition: none; }
+  .onboarding-campaign-layout .onboarding-discovery-task .onboarding-campaign-actions { transition: none; will-change: auto; }
+  .discovery-detail-selector, .discovery-detail-selector p, .discovery-detail-selector button, .discovery-detail-category-check { animation: none; }
+  .discovery-detail-selector button { opacity: 1; transform: none; border: 0; background: transparent; }
+  .onboarding-campaign-profile-row-highlighted { animation: none; }
+}
+.onboarding-campaign-actions { display: flex; justify-content: flex-end; margin-top: 1.35rem; }
+.onboarding-campaign-next { width: 100%; height: 4.2rem; border: 0; border-radius: 0.75rem; background: linear-gradient(105deg, #6043ef 0%, #492edc 100%); box-shadow: 0 1rem 2rem rgb(76 50 219 / 24%), inset 0 1px 0 rgb(255 255 255 / 18%); color: #fff; font-size: 1.05rem; font-weight: 500; transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease; }
+.onboarding-campaign-next:hover { filter: brightness(1.04); box-shadow: 0 1.2rem 2.5rem rgb(76 50 219 / 32%); transform: translateY(-0.1rem); }
+.onboarding-campaign-next:active { transform: translateY(0.04rem) scale(0.995); }
+
+@keyframes signup-campaign-rise { from { opacity: 0; transform: translateY(1.15rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes signup-campaign-pill-rise { from { opacity: 0; transform: translateY(1.4rem) scale(0.975); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes signup-campaign-pill-screen-rise { from { opacity: 0; transform: translateY(calc(-50% + 1.4rem)) scale(0.975); } to { opacity: 1; transform: translateY(-50%) scale(1); } }
+@keyframes signup-campaign-period-blink { 0%, 30%, 100% { opacity: 1; } 50%, 75% { opacity: 0; } }
+@keyframes signup-campaign-halo { 0%, 100% { opacity: 0.56; transform: scale(0.94); } 50% { opacity: 0.95; transform: scale(1.06); } }
+@keyframes discovery-profile-row-acknowledge { 0% { background: transparent; box-shadow: none; } 38% { background: rgb(118 85 236 / 8%); box-shadow: 0 0 0 .2rem rgb(118 85 236 / 5%); } 100% { background: transparent; box-shadow: none; } }
+@keyframes discovery-detail-selector-reveal { from { clip-path: inset(0 0 100% 0); opacity: .35; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+@keyframes discovery-detail-selector-question { from { opacity: 0; transform: translateY(.25rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes discovery-detail-category-enter { from { opacity: 0; transform: translateY(.25rem) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes discovery-detail-selector-exit { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-.2rem); } }
+@keyframes discovery-detail-category-check { from { opacity: 0; transform: scale(.65); } to { opacity: 1; transform: scale(1); } }
+
+@media (max-width: 70rem) {
+  :root {
+    --campaign-pill-height: min(42rem, calc(100dvh - 6rem));
+    --campaign-original-reference-gutter: 4rem;
+    --campaign-reference-gutter: 3.2rem;
+    --campaign-discovery-reference-gutter: 2.5rem;
+  }
+  .signup-campaign-layout,
+  .onboarding-campaign-layout { gap: clamp(2rem, 6vw, 4rem); grid-template-columns: minmax(0, 1fr) minmax(17rem, 20rem); }
+  .signup-campaign-copy h1 { font-size: clamp(3.2rem, 5.6vw, 4.8rem); }
+}
+
+@media (min-width: 63.0625rem) and (max-width: 79.9375rem) {
+  :root {
+    --campaign-original-reference-gutter: 4rem;
+    --campaign-reference-gutter: 3.2rem;
+    --campaign-discovery-reference-gutter: 2.5rem;
+  }
+}
+
+@media (min-width: 63.0625rem) and (max-height: 52rem) {
+  .signup-campaign-layout { min-height: calc(100dvh - 2rem); }
+  .signup-campaign-form-column { min-height: calc(100dvh - 5rem); padding-top: 1rem; }
+  :root { --campaign-pill-height: min(38rem, calc(100dvh - 12rem)); }
+  .signup-campaign-pill .campaign-pill-header { padding: 1.2rem 1.4rem 0.75rem; }
+  .signup-campaign-pill .campaign-pill-status { min-height: 2.25rem; margin: 0 1.4rem; }
+  .signup-campaign-pill .campaign-pill-fields { padding: 0 1.4rem 1.25rem; }
+  .signup-campaign-pill .campaign-pill-field { min-height: 3.8rem; padding: 0.65rem 0 0.55rem; }
+  .onboarding-campaign-profile { margin-top: 2.1rem; }
+  .onboarding-campaign-profile-row { min-height: 4.35rem; }
+  .onboarding-campaign-context { margin-top: 1.8rem; }
+  .onboarding-campaign-task { min-height: calc(100dvh - 5rem); padding-top: 1rem; }
+}

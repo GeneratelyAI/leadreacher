@@ -1,0 +1,124 @@
+@layer components {
+  /* Input Component System */
+  .input {
+    @apply w-full rounded-lg border-2 border-neutral-200 bg-white px-4 py-2.5 text-base font-normal text-neutral-900;
+    @apply transition-colors duration-300 focus:border-brand-purple focus:outline-none;
+    @apply disabled:bg-neutral-100 disabled:text-neutral-400 disabled:cursor-not-allowed;
+    @apply dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100 dark:placeholder:text-neutral-400;
+  }
+
+  .input-error {
+    @apply border-error-500 bg-error-50 focus:border-error-600 dark:bg-error-500/10 dark:border-error-600;
+  }
+
+  .input-success {
+    @apply border-success-500 bg-success-50 focus:border-success-600 dark:bg-success-500/10 dark:border-success-600;
+  }
+
+  /* Metric Card Component */
+  .metric-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  .metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #5326b7;
+  }
+
+  .metric-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--onboarding-neutral-600);
+  }
+
+  .metric-hint {
+    font-size: 0.75rem;
+    color: var(--onboarding-neutral-500);
+  }
+
+  /* Status Badge Component */
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: fit-content;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .status-available {
+    background-color: #d1fae5;
+    color: #047857;
+  }
+
+  .status-unavailable {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+
+  .status-processing {
+    background-color: #fef3c7;
+    color: #92400e;
+  }
+
+  .dark .metric-value,
+  .metric-card.dark .metric-value {
+    color: #ddd6fe;
+  }
+
+  .dark .metric-label,
+  .metric-card.dark .metric-label {
+    color: var(--onboarding-neutral-300);
+  }
+
+  .dark .metric-hint,
+  .metric-card.dark .metric-hint {
+    color: var(--onboarding-neutral-400);
+  }
+
+  .dark .status-available {
+    background-color: rgba(16, 185, 129, 0.2);
+    color: #a7f3d0;
+  }
+
+  .dark .status-unavailable {
+    background-color: rgba(239, 68, 68, 0.2);
+    color: #fecaca;
+  }
+
+  .dark .status-processing {
+    background-color: rgba(245, 158, 11, 0.2);
+    color: #fde68a;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply bg-success-50 text-success-600 dark:bg-success-500/20 dark:text-success-50;
+  }
+
+  .badge-warning {
+    @apply bg-warning-50 text-warning-600 dark:bg-warning-500/20 dark:text-warning-50;
+  }
+
+  .badge-error {
+    @apply bg-error-50 text-error-600 dark:bg-error-500/20 dark:text-error-50;
+  }
+
+  .badge-info {
+    @apply bg-info-50 text-info-600 dark:bg-info-500/20 dark:text-info-50;
+  }
+
+  .badge-default {
+    @apply bg-neutral-100 text-neutral-700 dark:bg-neutral-700 dark:text-neutral-200;
+  }
+}

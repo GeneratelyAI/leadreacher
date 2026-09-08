@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import type { Viewport } from "next";
-import DemoOnboarding from "@/components/onboarding/demo/DemoOnboarding";
+import DemoOnboarding from "@/features/onboarding/public/demo-flow";
 import { isDemoOnboardingEnabled } from "@/lib/features/demo-onboarding";
 
 export const viewport: Viewport = {

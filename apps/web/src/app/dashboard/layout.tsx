@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { Shell } from "@/components/dashboard/Shell";
 import { DataProvider } from "@/components/providers/DataProvider";
-import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
+import { defaultOrgNameFromEmail } from "@/features/organizations/public/naming";
 import { bootstrapOrganizationServer } from "@/lib/api/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/platform/auth/server";
 
 type AuthFactor = { status: string };
 

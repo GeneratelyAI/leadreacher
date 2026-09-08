@@ -1,0 +1,17 @@
+/* Expands a control's touch area to the 44x44 minimum (Apple HIG) without
+   changing its visual size or disturbing surrounding layout. Apply to controls
+   whose icon must stay visually small, e.g. an in-field password reveal.
+   Requires the element to already be a positioning context (`relative`,
+   `absolute`, etc.) - deliberately does not set `position` itself, since this
+   rule is unlayered and would otherwise beat Tailwind's layered `absolute`/
+   `relative` utilities regardless of source order, breaking any element that
+   relies on Tailwind for its own positioning. */
+.tap-target::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  translate: -50% -50%;
+}

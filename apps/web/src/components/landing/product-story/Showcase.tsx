@@ -16,7 +16,7 @@ import {
   UsersRound,
   WandSparkles,
 } from "@/components/ui/icons";
-import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo, type ChannelLogoName } from "@/platform/branding/ChannelLogo";
 import { CoverflowCarousel, type CoverflowSlide } from "@/components/ui/coverflow-carousel";
 import { MarkerHighlight } from "@/components/ui/marker-highlight";
 import { SpotlightCard } from "@/components/ui/spotlight-card";

@@ -1,0 +1,64 @@
+:root {
+  /* Keep the landing hero and curved transition on one continuous white canvas. */
+  --landing-light-bg: var(--theme-marketing-canvas);
+  --hero-break-bg: var(--theme-marketing-canvas);
+  --hero-break-surface: var(--color-surface-muted);
+  --viewport-gutter: clamp(1rem, 3vw, 2.5rem);
+  --viewport-gutter-compact: clamp(0.75rem, 4vw, 1rem);
+  --content-max: 100rem;
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+  --glass-blur: 24px;
+  --glass-saturate: 180%;
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-bg-hover: rgba(255, 255, 255, 0.16);
+  --glass-bg-active: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.22);
+  --glass-border-hover: rgba(255, 255, 255, 0.34);
+  --glass-highlight: rgba(255, 255, 255, 0.2);
+  --glass-shadow-outer: 0 8px 32px rgba(0, 0, 0, 0.14);
+  --glass-shadow-inset:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 0 24px rgba(255, 255, 255, 0.03);
+  --glass-accent-top: rgba(122, 88, 196, 0.58);
+  --glass-accent-bottom: rgba(83, 38, 183, 0.68);
+  --glass-accent-top-hover: rgba(138, 104, 210, 0.62);
+  --glass-accent-bottom-hover: rgba(96, 52, 200, 0.72);
+  --glass-on-light-bg: rgba(255, 255, 255, 0.62);
+  --glass-on-light-border: rgba(83, 38, 183, 0.16);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}

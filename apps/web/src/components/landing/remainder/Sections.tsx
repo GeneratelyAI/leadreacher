@@ -31,7 +31,7 @@ import {
   Video,
   Zap,
 } from "@/components/ui/icons";
-import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import { SocialMediaIcon } from "@/components/ui/SocialMediaIcon";
 import type { TestimonialPreview } from "@/components/ui/3d-testimonials";
 import { MorphingCardStack } from "@/components/ui/morphing-card-stack";

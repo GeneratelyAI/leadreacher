@@ -1,0 +1,46 @@
+@keyframes lr-text-shimmer {
+  from {
+    background-position: 100% 50%;
+  }
+  to {
+    background-position: 0% 50%;
+  }
+}
+
+.lr-shimmer-text {
+  isolation: isolate;
+}
+
+.lr-shimmer-text__base,
+.lr-shimmer-text__shine {
+  grid-area: 1 / 1;
+}
+
+.lr-shimmer-text__base {
+  color: var(--lr-shimmer-base, #4e28df);
+}
+
+.lr-shimmer-text__shine {
+  color: transparent;
+  background-image: linear-gradient(
+    108deg,
+    transparent 42%,
+    var(--lr-shimmer-edge, rgba(147, 190, 253, 0.55)) 47%,
+    var(--lr-shimmer-core, #3884ff) 50%,
+    var(--lr-shimmer-edge, rgba(133, 163, 250, 0.55)) 53%,
+    transparent 58%
+  );
+  background-position: 100% 50%;
+  background-repeat: no-repeat;
+  background-size: 260% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: lr-text-shimmer var(--lr-shimmer-duration, 2.8s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lr-shimmer-text__shine {
+    animation: none;
+    opacity: 0;
+  }
+}

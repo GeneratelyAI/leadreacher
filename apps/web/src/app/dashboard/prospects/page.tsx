@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { Frame } from "@/components/dashboard/Frame";
-import { Prospects } from "@/components/dashboard/Prospects";
+import { Prospects } from "@/features/prospects/public/Prospects";
 
 export default function ProspectsPage() {
   return (

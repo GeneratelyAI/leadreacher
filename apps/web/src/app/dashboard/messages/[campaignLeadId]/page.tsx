@@ -1,4 +1,4 @@
-import { Messages } from "@/components/dashboard/Messages";
+import { Messages } from "@/features/messages/public/Messages";
 
 export default async function ConversationPage({
   params,

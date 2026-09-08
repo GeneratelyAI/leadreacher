@@ -1,4 +1,4 @@
-import { Campaigns as CampaignsWorkspace } from "@/components/dashboard/Campaigns";
+import { Campaigns as CampaignsWorkspace } from "@/features/campaigns/public/Campaigns";
 import { Frame } from "@/components/dashboard/Frame";
 
 export default function Campaigns() {

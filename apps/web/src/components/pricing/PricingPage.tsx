@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { FaqSectionCentered } from "@/components/ui/faq-section-centered";
 import Footer from "@/components/landing/remainder/Footer";
-import { ChannelLogo, type ChannelLogoName } from "@/components/onboarding/ChannelLogo";
+import { ChannelLogo, type ChannelLogoName } from "@/platform/branding/ChannelLogo";
 import { SpotlightCard } from "@/components/ui/spotlight-card";
 import { SUPPORT_EMAIL } from "@/lib/constants/brand";
 

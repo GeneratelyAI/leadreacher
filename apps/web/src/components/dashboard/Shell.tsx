@@ -30,8 +30,8 @@ import {
 } from "@/components/ui/icons";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { formatSocialMediaNames } from "@/components/dashboard/Channel";
+import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
+import { formatSocialMediaNames } from "@/features/channels/public/Channel";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +41,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Filter } from "@/components/dashboard/Filter";
+import { Filter } from "@/components/patterns/Filter";
 import {
   Sheet,
   SheetContent,
@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/tooltip";
 import { CommandPalette, type CommandPaletteGroup } from "@/components/ui/command-palette";
 import { apiFetch, clearAccessTokenCache } from "@/lib/api";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/platform/auth/client";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
