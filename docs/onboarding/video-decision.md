@@ -1,9 +1,10 @@
-# Video Decision
+# Video Style Configuration
 
 ## Purpose
 
-Video is required for every campaign type. This step collects the video-specific
-decision needed for billing and generation.
+The content and style screens collect the video-specific configuration needed
+for billing and generation. This document describes the persisted API contract,
+not a standalone onboarding route.
 
 ## Variants
 
@@ -29,7 +30,7 @@ decision needed for billing and generation.
 
 ## Implementation notes
 
-- The UI persists configuration with `PATCH /strategy/:orgId/video-decision`.
+- The video-style UI persists configuration with `PATCH /strategy/:orgId/video-decision`.
 - The backend rejects `enabled: false`; direct API callers cannot avoid the
   mandatory-video decision or video billing line item.
 - Personalized message generation is idempotent. Existing Strategy messaging

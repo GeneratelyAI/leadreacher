@@ -9,12 +9,11 @@ that have not completed onboarding.
 
 1. [Discovery](discovery.md)
 2. [Strategy](strategy.md)
-3. [Campaign type](campaign-type.md)
-4. [Video decision](video-decision.md)
-5. [Checkout](checkout.md)
-6. [Channels](channels.md)
-7. [Onboarding system design](system-design.md)
-8. [Implementation map for AI agents](implementation-map.md)
+3. Campaign content and video style configuration ([API contract](video-decision.md))
+4. [Checkout](checkout.md)
+5. [Channels](channels.md)
+6. [Onboarding system design](system-design.md)
+7. [Implementation map for AI agents](implementation-map.md)
 
 ## Completion and resume behavior
 

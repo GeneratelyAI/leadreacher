@@ -54,18 +54,21 @@ with a prohibited-request list.
 /onboarding?step=strategy&substep=how-it-works
 /onboarding?step=strategy&substep=targeting
 /onboarding?step=strategy&substep=channels
-/onboarding?step=campaign-type
-/onboarding?step=video-decision
+/onboarding?step=campaign-content
+/onboarding?step=personalized-video-style
+/onboarding?step=ai-video-style
+/onboarding?step=upload-video
+/onboarding?step=upload-document
 /onboarding?step=checkout
 /onboarding?step=channels
 ```
 
 Allowed top-level steps, in display and progression order:
 
-1. `discovery`
-2. `strategy`
-3. `campaign-type`
-4. `video-decision`
+1. `strategy` (How LeadReacher works)
+2. `discovery` (audience approval)
+3. `campaign-content`
+4. `personalized-video-style`, `ai-video-style`, `upload-video`, or `upload-document`
 5. `checkout`
 6. `channels`
 
@@ -78,9 +81,10 @@ The server will redirect malformed or stale URLs to a canonical safe location.
 | Persisted state | Canonical location |
 | --- | --- |
 | No Strategy record | Discovery |
-| Strategy exists, audience analysis incomplete | Strategy / `how-it-works` |
-| Audience analysis complete, no campaign type | Campaign Type |
-| Campaign type set, no video config | Video Decision |
+| Strategy exists, introduction not seen and prospects not approved | Strategy / `how-it-works` |
+| Introduction seen, prospects not approved | Discovery |
+| Audience analysis complete, no campaign content | Campaign Content |
+| Campaign content set, missing style or uploaded video | Matching style or video upload screen |
 | Video config set, subscription not active | Checkout |
 | Subscription active | Channels |
 | `Organization.onboardedAt` set | `/dashboard`, never onboarding |
@@ -93,10 +97,9 @@ when a new persisted completion requirement is introduced.
 
 | Step | Frontend owner | Current API surface | Durable outputs | Required next transition |
 | --- | --- | --- | --- | --- |
-| Discovery | `steps/Discovery.tsx` | `/discovery/scrape`, `/discovery/scrape-status`, `/discovery/summary`, `/discovery/complete` | Website-derived Discovery context and initial Strategy record | `strategyHref("how-it-works")` |
-| Strategy | `steps/Strategy.tsx` | `GET /strategy/:orgId`, `POST /strategy/generate` | ICP, positioning, audience analysis, channel recommendations | Campaign Type |
-| Campaign Type | `steps/CampaignType.tsx` | `PATCH /strategy/:orgId/campaign-type` | `Strategy.campaignType` | Video Decision |
-| Video Decision | `steps/VideoDecision.tsx` plus `steps/video-decision/*` | `PATCH /strategy/:orgId/video-decision`, outreach-message and upload endpoints | `Strategy.videoConfig`, message/CTA, and generated or uploaded-media selection | Checkout |
+| Discovery | `steps/Discovery.tsx` | `/discovery/scrape`, `/discovery/scrape-status`, `/discovery/summary`, `/discovery/complete` | Website-derived context, Strategy record, and approved prospects | How It Works after initial analysis; Campaign Content after prospect approval |
+| Strategy | `steps/Strategy.tsx` | `GET /strategy/:orgId`, `POST /strategy/generate` | ICP, positioning, audience analysis, channel recommendations | Campaign Content |
+| Campaign Content | `steps/CampaignContent.tsx`, style and upload steps | `PATCH /strategy/:orgId/campaign-type`, `/video-decision`, `/content-approval`, and upload endpoints | Content choice, approved content metadata, and video configuration | Checkout |
 | Checkout | `steps/Checkout.tsx` | `GET /billing/pricing`, `POST /billing/checkout-session` | Stripe checkout session. Entitlement is finalized by webhook. | Channels after verified active state |
 | Channels | `steps/Channels.tsx` | `GET /social-accounts`, `POST /social-accounts/connect`, `POST /social-accounts/sync`, `POST /onboarding/complete` | Active `SocialAccount`, enrolled strategy prospects, one Strategy-linked review campaign, then `Organization.onboardedAt` | `/dashboard/prospects?reviewStatus=pending` |
 
@@ -130,29 +133,15 @@ not authorization by itself.
 - Company and profile data can be partial. Preserve unavailable/skipped states
   instead of converting them into plausible counts.
 
-### Campaign Type
+### Campaign Content
 
-- Supported campaign types are controlled by the backend billing/Strategy
-  schema. Do not hardcode a divergent list in the UI.
-- Selection persists through `PATCH /strategy/:orgId/campaign-type` before
-  navigation. The UI should stay on the step and surface the API error if that
-  write fails.
-
-### Video Decision
-
-- Video is mandatory for every campaign type. The UI must not reintroduce an
-  “include video” toggle.
-- `personalized_outreach` uses `mode: "personalized"`, generated source, and a
-  selected tone. It renders `MessageReview`, `PersonalizedVideo`, and `ToneGrid`.
-- `ai_video_ad` uses `mode: "standardized"`, generated source, and a selected
-  tone. It renders `MessageReview`, `AiCampaignVideo`, and `ToneGrid`.
-- `uploaded_video` renders `MessageReview` plus `UploadedVideo`. Its upload
-  validation remains independent from generated-video rules.
-- Generated outreach copy comes from the persisted Strategy and must retain
-  exactly one `{{FirstName}}` and one `{{Company}}` placeholder. User edits are
-  saved via `PATCH /strategy/:orgId/outreach-message`.
-- A missing video thumbnail is an intentional neutral gray media area, not a
-  fake preview image or a collapsed card.
+- Content selection leads to personalized-video style, AI-video style, a video
+  upload, or a document upload. There is no separate video-decision route.
+- Video-style selections persist through `PATCH /strategy/:orgId/video-decision`.
+- Document approval currently saves a file descriptor through `/content-approval`,
+  not the file bytes. Document storage and delivery remain a follow-up.
+- A missing generated-video thumbnail is an intentional neutral gray media
+  area, not a fake preview image or a collapsed card.
 
 ### Checkout
 

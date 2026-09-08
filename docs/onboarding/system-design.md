@@ -4,7 +4,7 @@
 
 Onboarding is one protected route, `/onboarding`, driven by query parameters:
 
-- `step=discovery|strategy|campaign-type|video-decision|checkout|channels`
+- `step=discovery|strategy|campaign-content|personalized-video-style|ai-video-style|upload-video|upload-document|checkout|channels`
 - `substep=how-it-works|targeting|channels` when `step=strategy`
 
 The server validates requested values, computes a safe fallback from persisted
@@ -25,7 +25,7 @@ organization is redirected to `/dashboard`; an incomplete one can resume setup.
 | Website URL before signup | Browser storage plus anonymous scrape context |
 | Scrape progress and outcome | API-backed scrape status, scoped by anonymous ID or organization |
 | Discovery and Strategy output | Postgres Strategy records |
-| Campaign type and video decision | Postgres Strategy fields |
+| Campaign content and video style | Postgres Strategy fields |
 | Subscription entitlement | Verified Stripe webhook state on Organization |
 | Channel account state | Postgres SocialAccount records backed by Unipile |
 | Setup completion | `Organization.onboardedAt` |

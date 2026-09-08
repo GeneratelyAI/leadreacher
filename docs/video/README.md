@@ -8,4 +8,4 @@ Unipile pipeline and related media-delivery verification.
 - [Runbook](live-e2e-runbook.md)
 - [Execution results](live-e2e-results.md)
 
-For onboarding product behavior, see [Video Decision](../onboarding/video-decision.md).
+For onboarding video configuration, see [Video Style Configuration](../onboarding/video-decision.md).
