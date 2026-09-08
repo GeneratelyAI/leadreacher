@@ -2,6 +2,9 @@ import Link from "next/link";
 import Theme from "@/components/auth/Theme";
 import { ASSETS } from "@/lib/constants/brand";
 import { cn } from "@/lib/utils";
+import MobileOnboardingHeader from "@/components/onboarding/MobileOnboardingHeader";
+import styles from "./AuthMobile.module.css";
+import mobileStyles from "@/components/onboarding/MobileOnboarding.module.css";
 
 type LayoutProps = {
   children: React.ReactNode;
@@ -17,12 +20,16 @@ export default function Layout({ children, campaign = false }: LayoutProps) {
         "overflow-x-hidden lg:overflow-hidden",
         campaign ? "bg-[#fdfdff] dark:bg-[var(--app-canvas)]" : "bg-white dark:bg-[var(--app-canvas)]",
         "px-0 py-0 lg:flex lg:h-dvh lg:max-h-dvh lg:items-center lg:justify-center lg:px-6 lg:py-6 xl:px-8 xl:py-8",
+        campaign && styles.shell,
+        campaign && mobileStyles.shell,
       )}
     >
+      {campaign ? <MobileOnboardingHeader /> : null}
       <Link
         href="/"
         className={cn(
           "absolute z-10 shrink-0",
+          campaign && styles.desktopLogo,
           campaign
             ? "onboarding-brand-anchor inline-flex"
             : "onboarding-brand-anchor hidden lg:inline-flex",
@@ -58,6 +65,7 @@ export default function Layout({ children, campaign = false }: LayoutProps) {
       <div
         className={cn(
           "relative z-1 w-full",
+          campaign && styles.content,
           campaign
             ? "mx-auto max-w-[96rem] px-6 lg:px-10 xl:px-14"
             : "lg:max-w-6xl lg:px-8 xl:max-w-7xl xl:px-12",

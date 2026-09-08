@@ -1,0 +1,264 @@
+.mobileOnly,
+.legal {
+  display: none;
+}
+
+.reveal {
+  transform: translateY(-50%);
+}
+
+@media (max-width: 63rem) {
+  .shell.shell {
+    display: block;
+    height: auto;
+    max-height: none;
+    min-height: 100svh;
+    overflow: visible;
+    padding: 0 0 max(32px, env(safe-area-inset-bottom));
+    background: #fff;
+  }
+
+  .desktopLogo,
+  .desktopOnly,
+  .fieldIcon,
+  .submitIcon {
+    display: none;
+  }
+
+  .mobileOnly {
+    display: inline;
+  }
+
+  .content.content {
+    padding: 0 20px;
+    max-width: 42rem;
+  }
+
+  .layout.layout {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    gap: 0;
+  }
+
+  .layout .summary {
+    position: static;
+    display: block;
+    order: -1;
+    align-self: stretch;
+    width: calc(100% + 40px);
+    margin: 0 -20px 28px;
+    padding: 0;
+    transform: none;
+    animation: none;
+  }
+
+  .summary::before {
+    display: none;
+  }
+
+  .layout .column {
+    width: 100%;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .layout .copy {
+    text-align: left;
+    animation: none;
+  }
+
+  .layout .copy h1 {
+    max-width: 290px;
+    color: #090c27;
+    font-size: 29px;
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.12;
+  }
+
+  .layout .copy p {
+    margin: 12px 0 0;
+    color: #505671;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .layout .copy :global(.signup-campaign-period) {
+    color: inherit;
+    text-shadow: none;
+    animation: none;
+  }
+
+  .layout .actions {
+    width: 100%;
+    margin: 22px 0 0;
+    animation: none;
+  }
+
+  .layout .providers {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .layout .provider {
+    height: 48px;
+    min-width: 0;
+    gap: 12px;
+    border: 1px solid #d7d9e3;
+    border-radius: 7px;
+    background: #fff;
+    color: #10132c;
+    box-shadow: none;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  .provider svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .layout .divider {
+    gap: 18px;
+    margin: 21px 0 18px;
+  }
+
+  .layout .divider b {
+    color: #11152e;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1;
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .form > * {
+    margin-block: 0;
+  }
+
+  .layout .fieldLabel {
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    margin: 0 0 8px;
+    overflow: visible;
+    clip: auto;
+    clip-path: none;
+    white-space: normal;
+    color: #151830;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .controlWrap {
+    position: relative;
+  }
+
+  .layout .control {
+    width: 100%;
+    height: 48px;
+    min-height: 48px;
+    padding: 0 14px;
+    border: 1px solid #d7d9e3;
+    border-radius: 7px;
+    color: #13172f;
+    background: #fff;
+    font-size: 16px;
+    line-height: 1.5;
+    box-shadow: none;
+  }
+
+  .layout .passwordControl {
+    padding-right: 48px;
+  }
+
+  .layout .reveal {
+    position: absolute;
+    inset: 2px 3px 2px auto;
+    width: 44px;
+    height: 44px;
+    padding: 12px;
+    color: #14182e;
+    transform: none;
+    translate: none;
+  }
+
+  .layout .submit {
+    height: 49px;
+    margin: 0;
+    border-radius: 7px;
+    background: linear-gradient(110deg, #5130ed, #5029ef);
+    box-shadow: none;
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .layout .legal {
+    display: block;
+    max-width: 300px;
+    margin: 20px auto 0;
+    color: #505671;
+    font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
+  }
+
+  .legal a,
+  .layout .switchAccount a,
+  .layout .forgot a {
+    color: #5326f5;
+    font-weight: 500;
+  }
+
+  .layout .switchAccount {
+    margin: 33px 0 0;
+    color: #505671;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .layout .forgot {
+    justify-content: flex-start;
+    margin-top: -9px;
+  }
+
+  .layout .forgot a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    font-size: 14px;
+  }
+
+  .login .actions {
+    margin-top: 34px;
+  }
+
+  .login .switchAccount {
+    margin-top: 32px;
+  }
+
+  .layout a:focus-visible,
+  .layout button:focus-visible {
+    outline: 2px solid #6543ef;
+    outline-offset: 3px;
+  }
+
+  .layout .control:focus-visible {
+    border-color: #6743ed;
+    box-shadow: 0 0 0 3px #eee9ff;
+  }
+}
