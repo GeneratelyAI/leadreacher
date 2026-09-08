@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "postinstall": "npm --prefix packages/shared run build",
+    "check:architecture": "node tools/architecture/audit.mjs --check",
+    "test:architecture": "node --test tools/architecture/graph.test.mjs",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",

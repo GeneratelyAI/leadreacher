@@ -71,6 +71,8 @@ jobs:
       - run: pnpm --filter @leadreacher/shared build
       - run: pnpm --filter @leadreacher/shared lint
       - run: pnpm --filter @leadreacher/shared test
+      - run: pnpm test:architecture
+      - run: pnpm check:architecture
       - run: pnpm --dir apps/api exec prisma validate
       - run: pnpm --dir apps/api exec prisma generate
       - run: pnpm --dir apps/api exec prisma migrate deploy
