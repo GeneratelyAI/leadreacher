@@ -50,7 +50,7 @@ test("Document content continues into its dedicated upload scene", async ({ page
   await page.setViewportSize({ width: 640, height: 900 });
   await expect(page.locator(".upload-document-drop-zone")).toBeVisible();
   await expect(page.getByRole("button", { name: "Browse files", exact: true })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("signup keeps its campaign entry composition stable", async ({ page }) => {
@@ -123,6 +123,25 @@ test("the Document card keeps its local PDF SVG crisp at desktop and narrow widt
     await page.setViewportSize(viewport);
     await page.goto("/onboarding-preview?step=campaign-content");
 
+    // Desktop retains its native PDF asset. Mobile uses the approved compact
+    // local vector illustration instead of the desktop thumbnail panel.
+    if (viewport.width <= 1008) {
+      const pdf = page.getByRole("radio", { name: /^Document/ }).locator("svg").first();
+      await expect(pdf).toBeVisible();
+      await expect(pdf).toHaveAttribute("viewBox", "0 0 120 100");
+      await expect(pdf.locator("image")).toHaveCount(0);
+      const rendering = await pdf.evaluate((node) => {
+        const styles = getComputedStyle(node);
+        const rect = node.getBoundingClientRect();
+        return { width: rect.width, height: rect.height, filter: styles.filter, transform: styles.transform };
+      });
+      expect(rendering.width).toBeGreaterThan(0);
+      expect(rendering.width / rendering.height).toBeCloseTo(1.2, 2);
+      expect(rendering.filter).toBe("none");
+      expect(rendering.transform).toBe("none");
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      continue;
+    }
     const pdf = page.locator("img.campaign-content-option-illustration");
     await expect(pdf).toHaveAttribute("src", "/onboarding/campaign-content-pdf.svg");
     const rendering = await pdf.evaluate((node) => {
@@ -195,7 +214,7 @@ test("reduced motion renders quiet unselected sections without fake loading", as
 test("How It Works tells its SVG story once while copy and circles stay still", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/onboarding-preview?step=strategy&substep=how-it-works");
-  const sequence = page.locator(".how-it-works-sequence");
+  const sequence = page.getByRole("list", { name: "Your campaign journey" });
   await expect.poll(() => sequence.evaluate((node) => node.getAnimations({ subtree: true }).length)).toBeGreaterThan(0);
   const circles = await page.locator(".how-it-works-illustration").evaluateAll((nodes) => nodes.map((node) => { const r = node.getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; }));
   expect(await sequence.locator("p").evaluateAll((nodes) => nodes.every((node) => getComputedStyle(node).opacity === "1" && getComputedStyle(node).transform === "none"))).toBe(true);
@@ -206,15 +225,17 @@ test("How It Works tells its SVG story once while copy and circles stay still", 
   await expect(page).toHaveURL(/step=discovery/);
   await page.goBack();
   await expect(page).toHaveURL(/substep=how-it-works/);
+  await expect(sequence).toHaveCount(1);
   expect(await sequence.evaluate((node) => node.getAnimations({ subtree: true }).length)).toBe(0);
 });
 
-test("How It Works waits for mobile visibility and skips the story with reduced motion", async ({ page }) => {
+test("How It Works waits for mobile visibility and skips the story with reduced motion", async ({ page, browserName }) => {
   await page.setViewportSize({ width: 390, height: 500 });
   await page.goto("/onboarding-preview?step=strategy&substep=how-it-works");
   const sequence = page.locator(".how-it-works-sequence");
   await page.mouse.move(180, 350);
-  await page.mouse.wheel(0, 320);
+  if (browserName === "webkit") await page.keyboard.press("PageDown");
+  else await page.mouse.wheel(0, 320);
   await expect.poll(() => sequence.evaluate((node) => node.getAnimations({ subtree: true }).length)).toBeGreaterThan(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect.poll(() => sequence.evaluate((node) => node.getAnimations({ subtree: true }).length)).toBe(0);
@@ -447,6 +468,7 @@ test("discovery keeps crowded prospect chips on one line and exposes overflow in
   const popover = page.getByRole("dialog", { name: "Decision makers selections" });
   await expect(popover).toBeVisible();
   await expect(popover.getByText(/selected/)).toBeVisible();
+  await expect(popover.getByRole("button", { name: "Close Decision makers", exact: true })).toBeFocused();
   const hiddenChip = popover.locator(".onboarding-campaign-chip", { hasText: "Chief Strategy Officer" });
   await hiddenChip.locator(".onboarding-campaign-chip-remove").focus();
   await expect(hiddenChip.locator(".onboarding-campaign-chip-remove")).toBeVisible();

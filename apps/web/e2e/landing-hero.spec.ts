@@ -164,7 +164,7 @@ test("advances the mobile product story as the page scrolls", async ({ page }, t
     window.scrollTo(0, top + (height - window.innerHeight) * 0.64);
   }, metrics);
   await expect(page.getByRole("tab", { name: "Outreach, step 4" })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-outreach");
+  await expect(story.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-outreach");
 });
 
 test("moves through the product story without layout overflow", async ({ page }, testInfo) => {
@@ -356,18 +356,18 @@ test("keeps acquisition carousel navigation interruptible", async ({ page }, tes
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("uses natural workflow chapters on mobile", async ({ page }, testInfo) => {
+test("uses accessible workflow stages on mobile", async ({ page }, testInfo) => {
   test.skip(!phoneProjects.has(testInfo.project.name), "Phone workflow only");
   await page.setViewportSize({ width: 390, height: 844 });
   await openLanding(page, "/#how-it-works");
 
   await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
-  await expect(page.locator('[id^="mobile-story-"]')).toHaveCount(5);
-  await expect(page.getByRole("tablist", { name: "LeadReacher workflow stages" })).toBeHidden();
   const progress = page.getByRole("navigation", { name: "Workflow progress" });
-  await progress.getByRole("link", { name: "2, Prospects" }).click();
-  await expect(progress.getByRole("link", { name: "2, Prospects" })).toHaveAttribute("aria-current", "step");
-  await expect(page.locator("#mobile-story-strategy")).toBeInViewport();
+  await expect(progress.getByRole("tab")).toHaveCount(5);
+  await progress.getByRole("tab", { name: "Prospects, step 2" }).click();
+  await expect(progress.getByRole("tab", { name: "Prospects, step 2" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#mobile-story-panel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-strategy");
+  await expect(page.locator("#mobile-story-panel")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

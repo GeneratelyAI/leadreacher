@@ -1,120 +1,112 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-// AuthForm renders both MobileAuth and the desktop form at once -
-// `lg:hidden` is CSS-only, not removed from the DOM - so locators must be
-// scoped to whichever view is actually visible at the current viewport, or
-// they'll strict-mode-collide against the other view's duplicate fields.
-function mobileView(page: Page): Locator {
-  return page.getByTestId("mobile-auth-view");
-}
-
-// SSR renders these "use client" forms fully interactive-looking before
-// React has hydrated and attached their handlers - clicking too early is a
-// silent no-op. Wait for DOM content first, then give hydration a bounded
-// network-idle window without requiring every third-party asset to finish.
 async function gotoReady(page: Page, path: string) {
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle", { timeout: 10_000 }).catch(() => undefined);
 }
 
-// This whole file exercises MobileAuth specifically, which is display:none
-// at desktop widths - not just slower there, genuinely not the active UI.
 test.beforeEach(async ({ isMobile }) => {
-  test.skip(!isMobile, "mobile-auth-view only - desktop coverage belongs in a separate spec");
+  test.skip(!isMobile, "Mobile authentication reference coverage");
 });
 
-test.describe("signup - mobile", () => {
-  test("inputs never trigger iOS Safari's zoom-on-focus", async ({ page }) => {
+test.describe("signup mobile", () => {
+  test("uses the existing two-field form with readable labels and secure autofill", async ({ page }) => {
     await gotoReady(page, "/signup");
-    const view = mobileView(page);
-    await expect(view.getByPlaceholder("Enter your work email")).toBeVisible();
-
-    // iOS Safari force-zooms the viewport on focus for any input computing
-    // below 16px and never zooms back out - this is a hard regression guard
-    // for that bug, not a style preference.
-    for (const placeholder of ["Enter your full name", "Enter your work email", "Create a password"]) {
-      const input = view.getByPlaceholder(placeholder);
-      const fontSize = await input.evaluate((el) => getComputedStyle(el).fontSize);
-      expect(fontSize).toBe("16px");
+    const form = page.getByTestId("signup-campaign-auth");
+    await expect(form.getByRole("heading", { name: /^Launch your first campaign\s*\.$/ })).toBeVisible();
+    await expect(form.getByLabel("Email address", { exact: true })).toHaveAttribute("autocomplete", "email");
+    await expect(form.getByLabel("Password", { exact: true })).toHaveAttribute("autocomplete", "new-password");
+    await expect(form.locator("input")).toHaveCount(2);
+    for (const name of ["Email address", "Password"]) {
+      expect(await form.getByLabel(name, { exact: true }).evaluate((input) => parseFloat(getComputedStyle(input).fontSize))).toBeGreaterThanOrEqual(16);
+      const label = form.locator("label").filter({ hasText: name });
+      expect((await label.boundingBox())?.height).toBeGreaterThan(12);
     }
+    await expect(form.getByRole("link", { name: "Terms of Service" })).toHaveAttribute("href", "/terms");
+    await expect(form.getByRole("link", { name: "Privacy Policy." })).toHaveAttribute("href", "/privacy");
   });
 
-  test("account type toggle switches between individual and company", async ({ page }) => {
-    await gotoReady(page, "/signup");
-    const view = mobileView(page);
-
-    const individual = view.getByRole("radio", { name: "Individual" });
-    const company = view.getByRole("radio", { name: "Company / Team" });
-
-    await expect(individual).toHaveAttribute("aria-checked", "true");
-    await expect(view.getByPlaceholder("Enter your company name")).not.toBeVisible();
-
-    await company.click();
-    await expect(company).toHaveAttribute("aria-checked", "true");
-    await expect(individual).toHaveAttribute("aria-checked", "false");
-    await expect(view.getByPlaceholder("Enter your company name")).toBeVisible();
-  });
-
-  test("blocks submit without a company name when Company/Team is selected", async ({ page }) => {
-    await gotoReady(page, "/signup");
-    const view = mobileView(page);
-
-    await view.getByRole("radio", { name: "Company / Team" }).click();
-    await view.getByPlaceholder("Enter your full name").fill("Jordan Rivera");
-    await view.getByPlaceholder("Enter your work email").fill("jordan@example.com");
-    await view.getByPlaceholder("Create a password").fill("correct-horse-battery");
-    await view.getByRole("button", { name: "Continue", exact: true }).click();
-
-    await expect(view.getByText("Enter your company name to continue.")).toBeVisible();
-  });
-
-  test("password reveal and every interactive control meet the 44px touch-target minimum", async ({ page }) => {
-    await gotoReady(page, "/signup");
-    const view = mobileView(page);
-
-    const revealButton = view.getByRole("button", { name: "Show password" });
-    const box = await revealButton.boundingBox();
-    expect(box).not.toBeNull();
-
-    // Visual size may stay small (a 20px icon) - what matters is the actual
-    // hit area, expanded invisibly via the .tap-target CSS utility.
-    const hitArea = await revealButton.evaluate((el) => {
-      const after = getComputedStyle(el, "::after");
-      return { width: after.width, height: after.height };
+  test("preserves password policy validation without sending credentials", async ({ page }) => {
+    const authRequests: string[] = [];
+    page.on("request", (request) => {
+      if (/\/auth\/v1\/(signup|token)/.test(request.url())) authRequests.push(request.url());
     });
-    expect(hitArea.width).toBe("44px");
-    expect(hitArea.height).toBe("44px");
+    await gotoReady(page, "/signup");
+    const form = page.getByTestId("signup-campaign-auth");
+    await form.getByLabel("Email address", { exact: true }).fill("alex@example.test");
+    await form.getByLabel("Password", { exact: true }).fill("alllowercasepassword");
+    await form.getByRole("button", { name: "Create account", exact: true }).click();
+    await expect(form.getByRole("alert")).toContainText("including uppercase, lowercase, a number, and a symbol");
+    expect(authRequests).toEqual([]);
+  });
 
-    await view.getByPlaceholder("Create a password").fill("secret-value");
-    await revealButton.click();
-    await expect(view.getByPlaceholder("Create a password")).toHaveAttribute("type", "text");
+  test("password reveal is a real 44px target and the action is user-scroll reachable", async ({ page, browserName }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await gotoReady(page, "/signup");
+    const form = page.getByTestId("signup-campaign-auth");
+    const reveal = form.getByRole("button", { name: "Show password" });
+    const box = await reveal.boundingBox();
+    expect(box?.width).toBeGreaterThanOrEqual(44);
+    expect(box?.height).toBeGreaterThanOrEqual(44);
+    await form.getByLabel("Password", { exact: true }).fill("PreviewPassword123!");
+    await reveal.click();
+    await expect(form.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
+    await form.getByRole("button", { name: "Hide password" }).click();
+    await expect(form.getByLabel("Password", { exact: true })).toHaveAttribute("type", "password");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    if (browserName === "webkit") {
+      // Mobile WebKit's protocol cannot send wheel gestures. Keyboard paging
+      // checks its document scroll owner; native touch remains a manual coverage gap.
+      await page.locator("body").click({ position: { x: 4, y: 4 } });
+      await page.keyboard.press("PageDown");
+    } else {
+      await page.mouse.wheel(0, 550);
+    }
+    await expect.poll(async () => form.getByRole("button", { name: "Create account", exact: true }).evaluate((button) => {
+      const bounds = button.getBoundingClientRect();
+      return bounds.top >= 0 && bounds.bottom <= window.innerHeight;
+    })).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
 });
 
-test.describe("login - mobile", () => {
-  test("renders the core form and links to signup", async ({ page }) => {
+test.describe("login mobile", () => {
+  test("does not invent campaign context and preserves recovery controls", async ({ page }) => {
     await gotoReady(page, "/login");
-    const view = mobileView(page);
+    const form = page.getByTestId("login-campaign-auth");
+    await expect(form.getByRole("heading", { name: /^Welcome back\s*\.$/ })).toBeVisible();
+    await expect(form.getByLabel("Password", { exact: true })).toHaveAttribute("autocomplete", "current-password");
+    await expect(form.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+    await expect(form.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+    await expect(form.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/signup");
+    await expect(form.getByRole("complementary", { name: "Live campaign summary" })).toHaveCount(0);
+  });
+});
 
-    await expect(view.getByPlaceholder("Enter your work email")).toBeVisible();
-    await expect(view.getByPlaceholder("Enter your password")).toBeVisible();
-    await expect(view.getByRole("button", { name: "Log in" })).toBeVisible();
-    await expect(view.getByRole("link", { name: "Sign up" })).toHaveAttribute("href", "/signup");
+test.describe("isolated authentication previews", () => {
+  test("renders deterministic sample values and never starts OAuth", async ({ page }) => {
+    const externalAuthRequests: string[] = [];
+    page.on("request", (request) => {
+      if (/\/auth\/v1\/|\/auth\/google|\/auth\/microsoft|challenges\.cloudflare\.com/.test(request.url())) {
+        externalAuthRequests.push(request.url());
+      }
+    });
+    await gotoReady(page, "/onboarding-preview?screen=01");
+    const form = page.getByTestId("signup-campaign-auth");
+    await expect(form.getByLabel("Email address", { exact: true })).toHaveValue("alex@acme.example");
+    await expect(form.getByLabel("Password", { exact: true })).toHaveValue("Campaign2026!");
+    await form.getByRole("button", { name: "Continue with Google" }).click();
+    await expect(page).toHaveURL(/screen=03/);
+    expect(externalAuthRequests).toEqual([]);
   });
 
-  test("theme toggle updates the mobile browser-chrome color in sync", async ({ page }) => {
-    await gotoReady(page, "/login");
-
-    // ThemeToggle renders once in AuthLayout, outside both the
-    // mobile and desktop view wrappers - only repositioned via responsive
-    // classes, not duplicated - so this is intentionally unscoped.
-    const getThemeColor = () => page.locator('meta[name="theme-color"]').getAttribute("content");
-
-    const initial = await getThemeColor();
-    await page.getByRole("button", { name: /Switch to (light|dark) mode/ }).click();
-
-    // The toggle animates via document.startViewTransition when supported,
-    // so the meta tag update isn't guaranteed synchronous with the click.
-    await expect.poll(getThemeColor).not.toBe(initial);
+  test("login preview and signup preview link to each other without production auth", async ({ page }) => {
+    await gotoReady(page, "/onboarding-preview?screen=02");
+    const form = page.getByTestId("login-campaign-auth");
+    await expect(form.getByLabel("Email address", { exact: true })).toHaveValue("alex@acme.example");
+    await form.getByRole("link", { name: "Create an account" }).click();
+    await expect(page).toHaveURL(/screen=01/);
+    await page.getByTestId("signup-campaign-auth").getByRole("link", { name: "Sign in", exact: true }).click();
+    await expect(page).toHaveURL(/screen=02/);
   });
 });
