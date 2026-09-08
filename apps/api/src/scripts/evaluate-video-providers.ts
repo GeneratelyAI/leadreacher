@@ -5,13 +5,13 @@ import {
   pollVideoJobStatus,
   submitVideoJobForProvider,
   type VideoProvider,
-} from "../adapters/video-provider.js";
+} from "../platform/providers/video-provider.js";
 import {
   assertPersonalizedMasterVideo,
   extractRepresentativeFrames,
   inspectVideoMedia,
   normalizeVideoDuration,
-} from "../lib/video-frames.js";
+} from "../platform/media/video-frames.js";
 import { runVideoOutputCritic } from "../modules/critics/video-output-critic.js";
 
 type Fixture = {

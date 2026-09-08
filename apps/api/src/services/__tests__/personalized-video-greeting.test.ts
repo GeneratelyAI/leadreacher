@@ -5,12 +5,12 @@ import path from "node:path";
 import { promisify } from "node:util";
 import ffmpegPath from "ffmpeg-static";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inspectAudioDurationMs } from "../../lib/video-frames.js";
+import { inspectAudioDurationMs } from "../../platform/media/video-frames.js";
 import { createPersonalizedTemplateManifest } from "../../lib/personalized-video-manifest.js";
 import {
   createPersonalizedGreetingAudio,
   templateUsesNativeOmniEndCard,
-} from "../campaign-video.js";
+} from "../../features/content/public/campaign-video.js";
 
 const execFileAsync = promisify(execFile);
 const tempDirs: string[] = [];

@@ -15,7 +15,7 @@ import {
   speedUpAudio,
   TARGET_VIDEO_DURATION_MS,
   validatePersonalizedAudioTiming,
-} from "../video-frames.js";
+} from "../../platform/media/video-frames.js";
 
 const execFileAsync = promisify(execFile);
 const tempDirs: string[] = [];

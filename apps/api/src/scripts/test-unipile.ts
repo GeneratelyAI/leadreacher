@@ -22,7 +22,7 @@
  */
 import path from "node:path";
 import { config } from "dotenv";
-import { UnipileAdapter, isAccountHealthy } from "../adapters/unipile.js";
+import { UnipileAdapter, isAccountHealthy } from "../platform/providers/unipile.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
 

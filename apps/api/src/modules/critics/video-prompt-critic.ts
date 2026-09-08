@@ -3,7 +3,7 @@ import {
   StoryboardSceneSchema,
   type StoryboardScene,
 } from "../agents/video-prompt-agent.js";
-import { callGroq } from "../../lib/groq.js";
+import { callGroq } from "../../platform/providers/groq.js";
 import { extractJsonObject } from "../../lib/llm-json.js";
 import { prisma } from "../../platform/persistence/prisma.js";
 

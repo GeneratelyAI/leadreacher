@@ -15,17 +15,17 @@ import { captureException } from "./platform/observability/sentry.js";
 import { openapiPlugin } from "./platform/http/openapi-plugin.js";
 import { prismaPlugin } from "./platform/persistence/plugin.js";
 import { protectedRoutes } from "./plugins/protected-routes.js";
-import { authRoutes } from "./routes/auth.js";
-import { anonymousDiscoveryRoutes } from "./routes/discovery.js";
+import { authRoutes } from "./features/authentication/public/routes.js";
+import { anonymousDiscoveryRoutes } from "./features/onboarding/public/discovery-routes.js";
 import { healthRoutes } from "./routes/health.js";
-import { webhookRoutes } from "./routes/webhooks.js";
-import { stripeWebhookRoutes } from "./routes/stripe-webhook.js";
-import { publicPricingRoutes } from "./routes/public-pricing.js";
-import { startCampaignSequenceWorker } from "./workers/campaign-sequence.js";
+import { webhookRoutes } from "./features/channels/public/webhooks-routes.js";
+import { stripeWebhookRoutes } from "./features/billing/public/webhook.js";
+import { publicPricingRoutes } from "./features/billing/public/catalog.js";
+import { startCampaignSequenceWorker } from "./features/campaigns/public/campaign-sequence-worker.js";
 import { startReconciliationMaintenanceWorker } from "./workers/reconcile-maintenance.js";
-import { startVideoGenerationWorker } from "./workers/video-generation.js";
-import { startAnalyticsInsightsWorker } from "./workers/analytics-insights.js";
-import { startOnboardingProspectDiscoveryWorker } from "./workers/onboarding-prospect-discovery.js";
+import { startVideoGenerationWorker } from "./features/content/public/video-generation-worker.js";
+import { startAnalyticsInsightsWorker } from "./features/analytics/public/analytics-insights-worker.js";
+import { startOnboardingProspectDiscoveryWorker } from "./features/prospects/public/onboarding-prospect-discovery-worker.js";
 import {
   recordWorkerActivity,
   startWorkerLeaseRenewal,

@@ -1,6 +1,6 @@
 import { env } from "../platform/config/env.js";
-import { normalizeWebsiteUrl, scrapeWebsiteMarkdown } from "./firecrawl.js";
-import { resolvePublicUrl } from "./public-url.js";
+import { normalizeWebsiteUrl, scrapeWebsiteMarkdown } from "../platform/providers/firecrawl.js";
+import { resolvePublicUrl } from "../platform/providers/public-url.js";
 
 const APIFY_BASE_URL = "https://api.apify.com/v2";
 const POLL_INTERVAL_MS = 3000;

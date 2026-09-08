@@ -1,14 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { requireOrg, verifySupabaseJwt } from "../platform/auth/hooks.js";
-import { campaignRoutes } from "../routes/campaigns.js";
-import { discoveryRoutes } from "../routes/discovery.js";
-import { leadsRoutes } from "../routes/leads.js";
-import { socialAccountRoutes } from "../routes/social-accounts.js";
-import { strategyRoutes } from "../routes/strategy.js";
-import { billingRoutes } from "../routes/billing.js";
-import { onboardingRoutes } from "../routes/onboarding.js";
+import { campaignRoutes } from "../features/campaigns/public/campaigns-routes.js";
+import { discoveryRoutes } from "../features/onboarding/public/discovery-routes.js";
+import { leadsRoutes } from "../features/prospects/public/leads-routes.js";
+import { socialAccountRoutes } from "../features/channels/public/social-accounts-routes.js";
+import { strategyRoutes } from "../features/onboarding/public/strategy-routes.js";
+import { billingRoutes } from "../features/billing/public/routes.js";
+import { onboardingRoutes } from "../features/onboarding/public/onboarding-routes.js";
 import { dashboardRoutes } from "../routes/dashboard.js";
-import { dataRightsRoutes } from "../routes/data-rights.js";
+import { dataRightsRoutes } from "../features/organizations/public/data-rights.js";
 
 export async function protectedRoutes(app: FastifyInstance): Promise<void> {
   app.addHook("preHandler", verifySupabaseJwt);

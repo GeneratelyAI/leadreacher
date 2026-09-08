@@ -33,21 +33,21 @@ vi.mock("../../lib/queue.js", () => ({
   scheduleReconciliationMaintenance: vi.fn(),
 }));
 vi.mock("../../platform/redis/connection.js", () => ({ redisSubscriber: {} }));
-vi.mock("../reconcile-campaign-enrollments.js", () => ({
+vi.mock("../../features/campaigns/public/reconcile-campaign-enrollments-worker.js", () => ({
   reconcileCampaignStepZeroJobs,
 }));
-vi.mock("../reconcile-delivery-attempts.js", () => ({
+vi.mock("../../features/messages/public/reconcile-delivery-attempts-worker.js", () => ({
   reconcileDeliveryAttempts,
 }));
-vi.mock("../reconcile-relations.js", () => ({ reconcilePendingConnections }));
-vi.mock("../reconcile-social-accounts.js", () => ({ reconcileSocialAccountStatuses }));
-vi.mock("../video-generation.js", () => ({
+vi.mock("../../features/channels/public/reconcile-relations-worker.js", () => ({ reconcilePendingConnections }));
+vi.mock("../../features/channels/public/reconcile-social-accounts-worker.js", () => ({ reconcileSocialAccountStatuses }));
+vi.mock("../../features/content/public/video-generation-worker.js", () => ({
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
 }));
-vi.mock("../../services/product-email-outbox.js", () => ({ processProductEmailOutbox: vi.fn() }));
-vi.mock("../../services/organization-export.js", () => ({ processOrganizationExports: vi.fn() }));
-vi.mock("../../services/organization-lifecycle.js", () => ({ purgeExpiredOrganizations: vi.fn() }));
+vi.mock("../../features/messages/public/product-email-outbox.js", () => ({ processProductEmailOutbox: vi.fn() }));
+vi.mock("../../features/organizations/public/export.js", () => ({ processOrganizationExports: vi.fn() }));
+vi.mock("../../features/organizations/public/lifecycle.js", () => ({ purgeExpiredOrganizations: vi.fn() }));
 
 import {
   isMaintenanceTaskDue,

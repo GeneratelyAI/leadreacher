@@ -6,17 +6,17 @@ import {
   scheduleReconciliationMaintenance,
 } from "../lib/queue.js";
 import { redisSubscriber } from "../platform/redis/connection.js";
-import { reconcileCampaignStepZeroJobs } from "./reconcile-campaign-enrollments.js";
-import { reconcileDeliveryAttempts } from "./reconcile-delivery-attempts.js";
-import { reconcilePendingConnections } from "./reconcile-relations.js";
-import { reconcileSocialAccountStatuses } from "./reconcile-social-accounts.js";
+import { reconcileCampaignStepZeroJobs } from "../features/campaigns/public/reconcile-campaign-enrollments-worker.js";
+import { reconcileDeliveryAttempts } from "../features/messages/public/reconcile-delivery-attempts-worker.js";
+import { reconcilePendingConnections } from "../features/channels/public/reconcile-relations-worker.js";
+import { reconcileSocialAccountStatuses } from "../features/channels/public/reconcile-social-accounts-worker.js";
 import {
   reconcileUnknownTemplateVeoOperations,
   reconcileUnknownVeoOperations,
-} from "./video-generation.js";
-import { processProductEmailOutbox } from "../services/product-email-outbox.js";
-import { processOrganizationExports } from "../services/organization-export.js";
-import { purgeExpiredOrganizations } from "../services/organization-lifecycle.js";
+} from "../features/content/public/video-generation-worker.js";
+import { processProductEmailOutbox } from "../features/messages/public/product-email-outbox.js";
+import { processOrganizationExports } from "../features/organizations/public/export.js";
+import { purgeExpiredOrganizations } from "../features/organizations/public/lifecycle.js";
 
 const DELIVERY_ATTEMPT_INTERVAL_MS = 5 * 60 * 1000;
 const RELATION_INTERVAL_MS = 10 * 60 * 1000;

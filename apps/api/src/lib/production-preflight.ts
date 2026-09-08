@@ -1,7 +1,7 @@
-import { UnipileAdapter } from "../adapters/unipile.js";
+import { UnipileAdapter } from "../platform/providers/unipile.js";
 import { env, type Env } from "../platform/config/env.js";
-import { CAMPAIGN_PRICE_CONFIG } from "./billing/pricing.js";
-import { getStripePrice } from "./stripe.js";
+import { CAMPAIGN_PRICE_CONFIG } from "../features/billing/public/pricing.js";
+import { getStripePrice } from "../platform/providers/stripe.js";
 
 type FetchLike = typeof fetch;
 

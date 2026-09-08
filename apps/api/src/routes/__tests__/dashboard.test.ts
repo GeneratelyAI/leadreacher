@@ -123,33 +123,29 @@ vi.mock("../../lib/dashboard-cache.js", () => ({
   cacheDashboardChrome,
   invalidateDashboardChrome,
 }));
-vi.mock("../../services/analytics-insights.js", () => ({
+vi.mock("../../features/analytics/public/analytics-insights.js", () => ({
   readCachedAnalyticsInsights,
 }));
 vi.mock("../../lib/rate-limiter.js", () => ({ checkAndIncrementDailySendLimit, getDailySendLimitStatus }));
-vi.mock("../../services/operator-message-delivery.js", () => ({
+vi.mock("../../features/messages/public/operator-message-delivery.js", () => ({
   deliverOperatorMessage,
   startOperatorLinkedInConversation,
   resolveExistingOperatorDelivery: vi.fn((existing: { id: string }) => ({ messageId: existing.id })),
 }));
-vi.mock("../../services/entitlements.js", () => ({
+vi.mock("../../features/billing/public/entitlements.js", () => ({
   requireOrganizationEntitlement: vi.fn(async () => undefined),
 }));
-vi.mock("../../services/campaign-channel-accounts.js", () => ({ getCampaignSenderForChannel }));
+vi.mock("../../features/campaigns/public/campaign-channel-accounts.js", () => ({ getCampaignSenderForChannel }));
 vi.mock("../../modules/agents/reply-draft-agent.js", () => ({ runReplyDraftAgent }));
-vi.mock("../../adapters/unipile.js", () => ({ UnipileAdapter: class {} }));
+vi.mock("../../platform/providers/unipile.js", () => ({ UnipileAdapter: class {} }));
 
-import {
-  dashboardRoutes,
-  overviewMetricTrend,
-  buildOverviewActivityTrend,
-  resolveDashboardEngine,
-  resolveOverviewDateRange,
-  sortDashboardActivity,
-  campaignMetricRate,
-  campaignStatusFilter,
-  leadSearchWhere,
-} from "../dashboard.js";
+import { dashboardRoutes } from "../dashboard.js";
+import { overviewMetricTrend, resolveOverviewDateRange } from "../../features/analytics/public/date-range.js";
+import { buildOverviewActivityTrend } from "../../features/analytics/public/dashboard-overview-routes.js";
+import { sortDashboardActivity } from "../../features/analytics/public/dashboard-activity-routes.js";
+import { resolveDashboardEngine } from "../../features/organizations/public/workspace-status.js";
+import { campaignMetricRate, campaignStatusFilter } from "../../features/campaigns/public/dashboard-list-routes.js";
+import { leadSearchWhere } from "../../features/prospects/public/presentation.js";
 import { buildPrimaryCampaignVideoSummary } from "../../lib/campaign-video-summary.js";
 
 async function buildTestApp() {

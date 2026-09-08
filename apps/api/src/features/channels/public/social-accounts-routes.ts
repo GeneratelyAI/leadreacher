@@ -1,0 +1,506 @@
+import type { FastifyInstance } from "fastify";
+import type { ZodTypeProvider } from "fastify-type-provider-zod";
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import {
+  isAccountHealthy,
+  UnipileAdapter,
+} from "../../../platform/providers/unipile.js";
+import { env } from "../../../platform/config/env.js";
+import { UNIPILE_CONNECT_PROVIDERS, normalizeUnipilePlatform } from "../../../lib/channels.js";
+import { ConflictError, SubscriptionRequiredError, ValidationError } from "../../../platform/http/errors.js";
+import {
+  ErrorResponseSchema,
+  authenticatedRoute,
+  errorResponses
+} from "../../../platform/http/openapi.js";
+import { prisma } from "../../../platform/persistence/prisma.js";
+import { invalidateDashboardChrome } from "../../../lib/dashboard-cache.js";
+import { publishDashboardEvent } from "../../../lib/dashboard-events.js";
+import { requireOrgId } from "../../../platform/auth/request-org.js";
+import { requireMfaForEstablishedOrganization } from "../../../platform/auth/hooks.js";
+import { redis } from "../../../platform/redis/connection.js";
+import { getDailySendLimitStatus } from "../../../lib/rate-limiter.js";
+import { overviewMetricTrend, resolveOverviewDateRange } from "../../analytics/public/date-range.js";
+
+const ConnectSocialAccountBodySchema = z.object({
+  provider: z.enum(UNIPILE_CONNECT_PROVIDERS).default("LINKEDIN"),
+  returnTo: z.enum(["onboarding", "home", "dashboard", "preview"]).default("onboarding"),
+});
+
+const ConfirmSocialAccountBodySchema = z.object({
+  accountId: z.string().min(1),
+  connectionToken: z.string().uuid().optional(),
+});
+
+const PendingConnectionSchema = z.object({
+  orgId: z.string().min(1),
+  provider: z.enum(UNIPILE_CONNECT_PROVIDERS),
+  returnTo: z.enum(["onboarding", "home", "dashboard", "preview"]).optional(),
+});
+
+const CONNECTION_CONFIRMATION_TTL_SECONDS = 20 * 60;
+
+function pendingConnectionKey(token: string): string {
+  return `social-account:connection:${token}`;
+}
+
+function parsePendingConnection(raw: string | null) {
+  if (!raw) return PendingConnectionSchema.safeParse(null);
+  try {
+    return PendingConnectionSchema.safeParse(JSON.parse(raw));
+  } catch {
+    return PendingConnectionSchema.safeParse(null);
+  }
+}
+
+const SocialAccountsQuerySchema = z.object({
+  startDate: z.string().date().optional(),
+  endDate: z.string().date().optional(),
+});
+
+type ChannelMetricBucket = {
+  messagesSent: number;
+  prospectsReached: number;
+  leadIds: Set<string>;
+};
+
+function emptyBucket(): ChannelMetricBucket {
+  return { messagesSent: 0, prospectsReached: 0, leadIds: new Set() };
+}
+
+function metricsForCampaigns(
+  messages: Array<{ campaignId: string; channel: string; leadId: string }>,
+  campaignIds: Set<string>,
+  platform: string,
+): ChannelMetricBucket {
+  const bucket = emptyBucket();
+  for (const message of messages) {
+    if (!campaignIds.has(message.campaignId) || message.channel.toLowerCase() !== platform) continue;
+    bucket.messagesSent += 1;
+    bucket.leadIds.add(message.leadId);
+  }
+  bucket.prospectsReached = bucket.leadIds.size;
+  return bucket;
+}
+
+async function resolveAccountStatus(
+  adapter: UnipileAdapter,
+  accountId: string,
+): Promise<"active" | "error"> {
+  try {
+    const status = await adapter.getAccountStatus(accountId);
+    return isAccountHealthy(status) ? "active" : "error";
+  } catch {
+    return "error";
+  }
+}
+
+type ConnectionReturnTo = "onboarding" | "home" | "dashboard" | "preview";
+
+function channelsRedirect(returnTo: ConnectionReturnTo, status: "connected" | "failed"): string {
+  if (returnTo === "preview") {
+    return `${env.APP_URL}/onboarding-preview?step=channels&status=${status}`;
+  }
+  if (returnTo === "onboarding") {
+    return `${env.APP_URL}/onboarding?step=channels&status=${status}`;
+  }
+  return `${env.APP_URL}/dashboard/channels?status=${status}`;
+}
+
+function isLocalPreviewConnection(returnTo: ConnectionReturnTo | undefined): boolean {
+  if (returnTo !== "preview" || process.env.NODE_ENV === "production") return false;
+
+  try {
+    const hostname = new URL(env.APP_URL).hostname;
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+function entitlementForProvider(provider: string): string {
+  const normalized = provider.toLowerCase();
+  if (normalized === "google" || normalized === "gmail" || normalized === "outlook" || normalized === "microsoft") {
+    return "email";
+  }
+  return normalizeUnipilePlatform(provider);
+}
+
+function selectedChannels(value: unknown): Set<string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return new Set();
+  const selected = (value as { selected?: unknown }).selected;
+  if (!Array.isArray(selected)) return new Set();
+  return new Set(selected.filter((channel): channel is string => typeof channel === "string"));
+}
+
+async function requirePurchasedChannel(orgId: string, provider: string): Promise<void> {
+  const [organization, strategy] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { subscriptionStatus: true },
+    }),
+    prisma.strategy.findFirst({
+      where: { orgId },
+      orderBy: { updatedAt: "desc" },
+      select: { channels: true },
+    }),
+  ]);
+
+  if (organization?.subscriptionStatus !== "active") {
+    throw new SubscriptionRequiredError("An active subscription is required to connect channels");
+  }
+
+  const entitlement = entitlementForProvider(provider);
+  if (!selectedChannels(strategy?.channels).has(entitlement)) {
+    throw new ValidationError(`${entitlement} is not included in your current plan`);
+  }
+}
+
+export async function socialAccountRoutes(app: FastifyInstance): Promise<void> {
+  const r = app.withTypeProvider<ZodTypeProvider>();
+
+  r.get("/social-accounts", {
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "List connected social accounts with channel metrics"),
+      querystring: SocialAccountsQuerySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const query = request.query;
+    const range = resolveOverviewDateRange({
+      startDate: query.startDate,
+      endDate: query.endDate,
+      activityKind: "all",
+    });
+    const currentDateWhere = { gte: range.start, lte: range.end };
+    const previousDateWhere = { gte: range.previousStart, lte: range.previousEnd };
+
+    const [accounts, currentOutbound, previousOutbound] = await Promise.all([
+      prisma.socialAccount.findMany({
+        where: { orgId },
+        select: {
+          id: true,
+          platform: true,
+          accountName: true,
+          avatarUrl: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          unipileId: true,
+          metadata: true,
+          campaignChannelAccounts: {
+            select: {
+              channel: true,
+              campaign: { select: { id: true, name: true, status: true } },
+            },
+          },
+          senderCampaigns: {
+            select: { id: true, name: true, status: true },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      prisma.message.findMany({
+        where: {
+          orgId,
+          direction: "outbound",
+          createdAt: currentDateWhere,
+        },
+        select: { campaignId: true, channel: true, leadId: true },
+      }),
+      prisma.message.findMany({
+        where: {
+          orgId,
+          direction: "outbound",
+          createdAt: previousDateWhere,
+        },
+        select: { campaignId: true, channel: true, leadId: true },
+      }),
+    ]);
+
+    const enrichedAccounts = await Promise.all(accounts.map(async (account) => {
+      const platform = account.platform.toLowerCase();
+      const explicitCampaigns = (account.campaignChannelAccounts ?? [])
+        .filter((assignment) => assignment.channel.toLowerCase() === platform)
+        .map((assignment) => assignment.campaign);
+      const legacyCampaigns = platform === "linkedin" ? (account.senderCampaigns ?? []) : [];
+      const assignedCampaigns = Array.from(
+        new Map([...explicitCampaigns, ...legacyCampaigns].map((campaign) => [campaign.id, campaign])).values(),
+      );
+      const campaignIds = new Set(assignedCampaigns.map((campaign) => campaign.id));
+      const metrics = metricsForCampaigns(currentOutbound, campaignIds, platform);
+      const health = account.status === "active" ? "healthy" : account.status === "disconnected" ? "disconnected" : "needs_attention";
+      const capacity = platform === "linkedin" && account.unipileId
+        ? await Promise.all([
+            getDailySendLimitStatus(account.unipileId, "invite"),
+            getDailySendLimitStatus(account.unipileId, "message"),
+          ]).then(([invites, messages]) => ({ invites, messages }))
+        : null;
+      return {
+        id: account.id,
+        platform: account.platform,
+        accountName: account.accountName,
+        avatarUrl: account.avatarUrl,
+        status: account.status,
+        providerType:
+          typeof account.metadata === "object" &&
+          account.metadata !== null &&
+          !Array.isArray(account.metadata) &&
+          typeof (account.metadata as Record<string, unknown>).providerType === "string"
+            ? (account.metadata as Record<string, unknown>).providerType
+            : null,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt,
+        health,
+        messagesSent: metrics.messagesSent,
+        prospectsReached: metrics.prospectsReached,
+        assignedCampaigns: assignedCampaigns.map((campaign) => ({
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+        })),
+        capacity,
+      };
+    }));
+
+    const connectedAccounts = accounts.filter((account) => account.status !== "disconnected");
+    const monitoredAccounts = accounts.filter((account) => account.status !== "disconnected");
+    const healthyAccounts = accounts.filter((account) => account.status === "active");
+    const healthyPercent = monitoredAccounts.length === 0
+      ? 100
+      : Math.round((healthyAccounts.length / monitoredAccounts.length) * 100);
+
+    const messagesSent = currentOutbound.length;
+    const previousMessagesSent = previousOutbound.length;
+    const prospectsReached = new Set(currentOutbound.map((message) => message.leadId)).size;
+    const previousProspectsReached = new Set(previousOutbound.map((message) => message.leadId)).size;
+    const previousConnected = previousOutbound.length > 0 ? connectedAccounts.length : 0;
+
+    const summary = {
+      connectedChannels: connectedAccounts.length,
+      healthyPercent,
+      messagesSent,
+      prospectsReached,
+      trends: {
+        connectedChannels: overviewMetricTrend(connectedAccounts.length, previousConnected),
+        healthyPercent: overviewMetricTrend(healthyPercent, monitoredAccounts.length === 0 ? 100 : healthyPercent),
+        messagesSent: overviewMetricTrend(messagesSent, previousMessagesSent),
+        prospectsReached: overviewMetricTrend(prospectsReached, previousProspectsReached),
+      },
+    };
+
+    return reply.send({
+      accounts: enrichedAccounts,
+      summary,
+      range: {
+        startDate: range.start.toISOString().slice(0, 10),
+        endDate: range.end.toISOString().slice(0, 10),
+      },
+    });
+  });
+
+  r.post("/social-accounts/connect", {
+    preHandler: [requireMfaForEstablishedOrganization],
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Create Unipile hosted-auth connect link"),
+      body: ConnectSocialAccountBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { provider, returnTo } = request.body;
+    if (!isLocalPreviewConnection(returnTo)) {
+      await requirePurchasedChannel(orgId, provider);
+    }
+    const adapter = new UnipileAdapter({
+      apiKey: env.UNIPILE_API_KEY,
+    });
+    const resolvedReturnTo = returnTo === "home" ? "dashboard" : returnTo;
+    const connectionToken = randomUUID();
+    const key = pendingConnectionKey(connectionToken);
+    await redis.set(
+      key,
+      JSON.stringify({ orgId, provider, returnTo }),
+      "EX",
+      CONNECTION_CONFIRMATION_TTL_SECONDS,
+    );
+
+    try {
+      const link = await adapter.createHostedAuthLink({
+        providers: [provider.toLowerCase()],
+        redirectUri: channelsRedirect(resolvedReturnTo, "connected"),
+        state: connectionToken,
+        expiresOn: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      });
+
+      return reply.send({ url: link.url, connectionToken });
+    } catch (error) {
+      await redis.del(key);
+      throw error;
+    }
+  });
+
+  r.post("/social-accounts/connect/confirm", {
+    preHandler: [requireMfaForEstablishedOrganization],
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 minute",
+      },
+    },
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Confirm a returned Unipile hosted-auth account"),
+      body: ConfirmSocialAccountBodySchema,
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+    const { accountId, connectionToken } = request.body;
+    const key = connectionToken ? pendingConnectionKey(connectionToken) : null;
+    const pending = key
+      ? parsePendingConnection(await redis.get(key))
+      : null;
+
+    if (pending && (!pending.success || pending.data.orgId !== orgId)) {
+      throw new ValidationError("This connection confirmation has expired. Connect the account again.");
+    }
+
+    const adapter = new UnipileAdapter({
+      apiKey: env.UNIPILE_API_KEY,
+    });
+    const account = await adapter.getAccountStatus(accountId);
+    if (!isLocalPreviewConnection(pending?.success ? pending.data.returnTo : undefined)) {
+      await requirePurchasedChannel(orgId, pending?.success ? pending.data.provider : account.type);
+    }
+    const platform = normalizeUnipilePlatform(account.type);
+    const expectedPlatform = pending?.success
+      ? normalizeUnipilePlatform(pending.data.provider)
+      : null;
+    if (expectedPlatform && platform !== expectedPlatform) {
+      throw new ValidationError("The returned account does not match the channel being connected.");
+    }
+
+    const claimed = await prisma.socialAccount.findFirst({
+      where: { unipileId: account.id, orgId: { not: orgId } },
+      select: { id: true },
+    });
+    if (claimed) {
+      throw new ConflictError("This provider account is already connected to another workspace.");
+    }
+
+    const status = isAccountHealthy(account) ? "active" : "reconnecting";
+    await prisma.socialAccount.upsert({
+      where: {
+        orgId_platform_platformUserId: {
+          orgId,
+          platform,
+          platformUserId: account.id,
+        },
+      },
+      create: {
+        orgId,
+        platform,
+        platformUserId: account.id,
+        unipileId: account.id,
+        accountName: account.name,
+        status,
+        metadata: { providerType: account.type.toLowerCase() },
+      },
+      update: {
+        unipileId: account.id,
+        accountName: account.name,
+        status,
+        metadata: { providerType: account.type.toLowerCase() },
+      },
+    });
+
+    await Promise.all([
+      ...(key ? [redis.del(key)] : []),
+      invalidateDashboardChrome(orgId),
+    ]);
+    await publishDashboardEvent({ orgId, type: "channel.updated", resources: {} });
+    return reply.send({ connected: status === "active", status, platform });
+  });
+
+  r.post("/social-accounts/sync", {
+    schema: {
+      ...authenticatedRoute("SocialAccounts", "Sync Unipile accounts into SocialAccount rows"),
+    },
+  }, async (request, reply) => {
+    const orgId = requireOrgId(request);
+
+    const adapter = new UnipileAdapter({
+      apiKey: env.UNIPILE_API_KEY,
+    });
+
+    const result = await adapter.listAccounts();
+    const items = result.items ?? [];
+    const accountsByExternalId = new Map(
+      (await prisma.socialAccount.findMany({
+        where: { orgId },
+        select: { id: true, platform: true, platformUserId: true, unipileId: true, status: true },
+      })).flatMap((account) => {
+        const keys = [account.platformUserId, account.unipileId].filter(
+          (value): value is string => Boolean(value),
+        );
+        return keys.map((key) => [key, account] as const);
+      }),
+    );
+    let synced = 0;
+
+    for (const account of items) {
+      if (!account.id || !account.type) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id ?? null,
+            unipileAccountType: account.type ?? null,
+            reason: "malformed-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
+        continue;
+      }
+
+      const platform = normalizeUnipilePlatform(account.type);
+      const legacyId = account.metadata?.v1_account_id;
+      const ownedAccount = accountsByExternalId.get(account.id)
+        ?? (legacyId ? accountsByExternalId.get(legacyId) : undefined);
+      // Unipile's account list is shared by the API key. Never create or
+      // mutate an organization row from an unowned external account.
+      if (!ownedAccount || ownedAccount.platform !== platform) {
+        request.log.warn(
+          {
+            orgId,
+            unipileAccountId: account.id,
+            platform,
+            reason: ownedAccount ? "platform-mismatch" : "unknown-account",
+          },
+          "Skipped unattributable Unipile account during organization sync",
+        );
+        continue;
+      }
+      const accountStatus = await resolveAccountStatus(adapter, account.id);
+
+      await prisma.socialAccount.update({
+        where: { id: ownedAccount.id },
+        data: {
+          unipileId: account.id,
+          platformUserId: account.id,
+          accountName: account.name ?? account.id,
+          status: accountStatus,
+          metadata: {
+            providerType: account.type.toLowerCase(),
+            ...(legacyId ? { v1AccountId: legacyId } : {}),
+            unipileVersion: "v2",
+          },
+        },
+      });
+
+      synced += 1;
+    }
+
+    await invalidateDashboardChrome(orgId);
+    await publishDashboardEvent({ orgId, type: "channel.updated", resources: {} });
+    return reply.send({ synced });
+  });
+}
