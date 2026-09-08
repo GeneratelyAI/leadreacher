@@ -133,6 +133,22 @@ The three external heartbeats cover campaign, video, and reconciliation work;
 lifecycle is part of reconciliation maintenance. Analytics has no separate
 heartbeat because its Redis lease is required by the API readiness check.
 
+## Redis service source
+
+Redis is an image-backed service, not another application deployment. Keep its
+source set to `redis:7`, with no GitHub repository or branch deployment trigger.
+An application image can build successfully and still fail immediately with
+`exec: redis-server: not found` when used by the Redis service.
+
+When repairing this source mismatch, preserve the existing volume mounted at
+`/data`, environment variables, password, and persistence startup command.
+Disconnect the stale repository source, reconnect the Redis image, and deploy
+from the configured source rather than redeploying the failed application image.
+Do not recreate the service or volume. Verify the deployment uses the Redis
+image, reports readiness, and loads the existing data before checking API
+`/ready` and worker health. Confirm a later application push does not redeploy
+Redis from the repository again.
+
 ## Video prerequisites
 
 Before enabling the video worker, provide the selected provider credential,
