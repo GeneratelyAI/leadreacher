@@ -1,18 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
 import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail } from "@/components/ui/icons";
 import { Captcha } from "@/components/auth/Captcha";
 import { GoogleIcon, MicrosoftIcon } from "@/components/auth/Providers";
-import { Pill, type PillData } from "@/components/onboarding/Pill";
+import { Pill } from "@/components/onboarding/Pill";
+import { createLiveCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/label";
 import { useAuthForm } from "@/hooks/useAuthForm";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/password-policy";
-import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { cn } from "@/lib/utils";
 
 const inputClassName = cn(
@@ -37,20 +36,7 @@ export default function SignupCampaign() {
   } = useAuthForm("signup");
   const { status, websiteUrl } = useWebsiteScrapeStatus();
 
-  const campaign = useMemo<PillData>(() => {
-    const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-    return {
-      status: "learning",
-      statusLabel: "Building your campaign",
-      fields: [],
-      site: website
-        ? {
-            label: website.hostname,
-            iconUrl: getWebsiteFaviconUrl(website.hostname),
-        }
-        : undefined,
-    };
-  }, [status.url, websiteUrl]);
+  const campaign = createLiveCampaignSummary(status, "signup", undefined, websiteUrl);
 
   return (
     <div data-testid="signup-campaign-auth" className="signup-campaign-layout">
