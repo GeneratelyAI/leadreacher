@@ -32,7 +32,6 @@ const onboardingRoutes = [
   "/onboarding?step=upload-video",
   "/onboarding?step=strategy&substep=targeting",
   "/onboarding?step=strategy&substep=channels",
-  "/onboarding?step=video-decision",
   "/onboarding?step=checkout",
   "/onboarding?step=channels",
 ] as const;

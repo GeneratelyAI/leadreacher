@@ -23,30 +23,25 @@ test("completes the demo without production side effects", async ({ page }, test
   await signup.getByLabel("Password", { exact: true }).fill("Demo-password-2026!");
   await signup.getByRole("button", { name: "Continue", exact: true }).click();
 
-  await expect(page.getByRole("heading", { name: "Why do customers choose you?" })).toBeVisible({ timeout: 5_000 });
-  await page.getByPlaceholder("What do you do better, faster, or differently?").fill("We coordinate personalized outreach without manual prospecting.");
-  await page.getByRole("button", { name: "Submit competitive advantage" }).click();
-
-  await expect(page.getByRole("heading", { name: "How LeadReacher works" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue to next step" }).click();
-  await expect(page.getByRole("heading", { name: "Your target audience" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue to next step" }).click();
-  await expect(page.getByRole("heading", { name: "Choose your channels" })).toBeVisible();
-  await page.getByRole("button", { name: /Continue with \d+ channels?/ }).click();
-
-  await expect(page.getByRole("heading", { name: "Choose your campaign type" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue to next step" }).click();
-  await expect(page.getByRole("heading", { name: "Choose your video tone" })).toBeVisible();
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
+  await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
+  await page.getByRole("button", { name: "Continue to prospects", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /Your prospects/ })).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^Campaign Content\s*\.$/ })).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.locator(".personalized-video-style-page")).toBeVisible();
+  await page.getByRole("button", { name: "Use this", exact: true }).click();
 
   const subscribe = page.getByRole("button", { name: "Subscribe to LeadReacher Pro" });
   await expect(subscribe).toBeVisible({ timeout: 10_000 });
   await subscribe.click();
   await expect(page.getByRole("heading", { name: "Connect your channels" })).toBeVisible();
   const whatsapp = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "WhatsApp" }) });
-  await whatsapp.getByRole("button", { name: "Connect" }).click();
-  await expect(whatsapp.getByText("Demo WhatsApp account")).toBeVisible();
-  await expect(whatsapp.getByText("Connected", { exact: true })).toBeVisible();
+  await expect(whatsapp.getByText("Not in plan", { exact: true })).toBeVisible();
+  const linkedin = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "LinkedIn", exact: true }) });
+  await expect(linkedin.getByText("Connected", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(linkedin.getByText("Connected", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Finish setup and review" }).click();
 
   await expect(page).toHaveURL(/\/demo\/dashboard$/);
@@ -63,9 +58,9 @@ test("restores a demo session after refresh", async ({ page }, testInfo) => {
   await signup.getByLabel("Work email").fill("sam@example.com");
   await signup.getByLabel("Password", { exact: true }).fill("Demo-password-2026!");
   await signup.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Why do customers choose you?" })).toBeVisible({ timeout: 5_000 });
+  await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Why do customers choose you?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
   const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem("lr_demo_onboarding_v1") ?? "null"));
   expect(stored.signup).toEqual({ name: "Sam Demo", email: "sam@example.com", complete: true });
 });
