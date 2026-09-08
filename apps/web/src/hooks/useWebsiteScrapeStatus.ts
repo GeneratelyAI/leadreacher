@@ -33,6 +33,7 @@ export type WebsiteScrapeStatus = {
 type WebsiteScrapeStore = {
   status: WebsiteScrapeStatus;
   loading: boolean;
+  ready: boolean;
   message: string | null;
   websiteUrl: string | null;
   hasStoredUrl: boolean;
@@ -174,6 +175,7 @@ function createScrapeController(context: ScrapeContext) {
   let store: WebsiteScrapeStore = {
     status: EMPTY_STATUS,
     loading: false,
+    ready: false,
     message: null,
     websiteUrl: null,
     hasStoredUrl: false,
@@ -221,6 +223,7 @@ function createScrapeController(context: ScrapeContext) {
       updateStore({
         status: EMPTY_STATUS,
         loading: false,
+        ready: false,
         message: NO_WEBSITE_MESSAGE,
         websiteUrl: null,
         hasStoredUrl: false,
@@ -239,6 +242,7 @@ function createScrapeController(context: ScrapeContext) {
       updateStore({
         status: { ...EMPTY_STATUS, url: websiteUrl },
         loading: false,
+        ready: false,
         message: null,
         websiteUrl,
         hasStoredUrl: true,
@@ -326,7 +330,8 @@ function createScrapeController(context: ScrapeContext) {
     forceStart = false,
   ): Promise<WebsiteScrapeStatus> {
     const websiteUrl = syncStoredWebsiteUrl();
-    if (!websiteUrl) {
+    if (!websiteUrl && context === "anonymous") {
+      updateStore({ ready: true });
       return store.status;
     }
 
@@ -335,6 +340,35 @@ function createScrapeController(context: ScrapeContext) {
 
     try {
       let nextStatus = await getStatus(anonId);
+
+      if (!websiteUrl) {
+        if (nextStatus.url) {
+          const orgId = getDiscoveryOrgScope();
+          activeWebsiteUrl = nextStatus.url;
+          activeScope = orgId ? `org:${orgId}` : null;
+          updateStore({
+            status: nextStatus,
+            loading: false,
+            ready: true,
+            message: nextStatus.status === "failed" ? nextStatus.error : null,
+            websiteUrl: nextStatus.url,
+            hasStoredUrl: true,
+          });
+          persistScrapeStatus(nextStatus, anonId);
+          if (nextStatus.status === "running") schedulePoll();
+          return nextStatus;
+        }
+
+        updateStore({
+          status: nextStatus,
+          loading: false,
+          ready: true,
+          message: nextStatus.status === "failed" ? nextStatus.error : NO_WEBSITE_MESSAGE,
+          websiteUrl: null,
+          hasStoredUrl: false,
+        });
+        return nextStatus;
+      }
 
       if (
         forceStart &&
@@ -353,6 +387,7 @@ function createScrapeController(context: ScrapeContext) {
       updateStore({
         status: nextStatus,
         loading: false,
+        ready: true,
         message: nextStatus.status === "failed" ? nextStatus.error : null,
         websiteUrl,
         hasStoredUrl: true,
@@ -387,6 +422,7 @@ function createScrapeController(context: ScrapeContext) {
               error: message,
             },
         loading: false,
+        ready: true,
         message,
         websiteUrl,
         hasStoredUrl: true,
@@ -532,6 +568,7 @@ export function useWebsiteScrapeStatus({
   return {
     status: snapshot.status,
     loading: snapshot.loading,
+    ready: snapshot.ready,
     message: snapshot.message,
     websiteUrl: snapshot.websiteUrl,
     hasStoredUrl: snapshot.hasStoredUrl,

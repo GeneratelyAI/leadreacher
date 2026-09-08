@@ -68,6 +68,15 @@ export async function bootstrapOrganizationServer(
   };
 }
 
+export async function hasAnalyzedWebsiteServer(accessToken: string): Promise<boolean> {
+  const response = await fetch(`${getApiBaseUrl()}/discovery/scrape-status`, {
+    headers: { Authorization: `Bearer ${accessToken}` }, cache: "no-store",
+  });
+  if (!response.ok) return false;
+  const saved = await response.json() as { status?: string; url?: string };
+  return saved.status === "completed" && Boolean(saved.url);
+}
+
 export async function getStrategyServer(
   accessToken: string,
   orgId: string,

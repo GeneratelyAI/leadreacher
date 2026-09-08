@@ -8,6 +8,7 @@ import {
 
 const cache: DiscoveryScrapeCache = {
   urlKey: "example.com",
+  url: "https://example.com",
   scope: "org:org-a",
   status: "completed",
   market: "Software",
@@ -45,6 +46,21 @@ describe("readActiveScopedWebsiteUrl", () => {
     vi.stubGlobal("window", { localStorage: storage, sessionStorage: storage });
     storage.setItem("lr_discovery_org_id", "org-a");
     storage.setItem("lr_discovery_scrape", JSON.stringify(cache));
+
+    expect(readActiveScopedWebsiteUrl()).toBe("https://example.com");
+  });
+
+  it("keeps legacy scoped caches recoverable when they only stored a hostname", () => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    };
+
+    vi.stubGlobal("window", { localStorage: storage, sessionStorage: storage });
+    storage.setItem("lr_discovery_org_id", "org-a");
+    storage.setItem("lr_discovery_scrape", JSON.stringify({ ...cache, url: undefined }));
 
     expect(readActiveScopedWebsiteUrl()).toBe("example.com");
   });

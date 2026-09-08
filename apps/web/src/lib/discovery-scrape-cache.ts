@@ -5,6 +5,7 @@ const ORG_KEY = "lr_discovery_org_id";
 
 export type DiscoveryScrapeCache = {
   urlKey: string;
+  url: string;
   scope: string;
   status: "idle" | "running" | "completed" | "failed";
   market: string;
@@ -21,7 +22,7 @@ export type DiscoveryScrapeCache = {
   error: string | null;
 };
 
-type ScrapeStatusLike = Omit<DiscoveryScrapeCache, "urlKey" | "scope"> & {
+type ScrapeStatusLike = Omit<DiscoveryScrapeCache, "urlKey" | "url" | "scope"> & {
   url: string | null;
 };
 
@@ -58,6 +59,7 @@ export function readDiscoveryScrapeCache(): DiscoveryScrapeCache | null {
     }
     return {
       urlKey: value.urlKey,
+      url: typeof value.url === "string" && value.url.trim() ? value.url.trim() : value.urlKey,
       scope: value.scope,
       status: value.status,
       market: value.market ?? "",
@@ -103,6 +105,7 @@ export function writeDiscoveryScrapeCache(
   if (!urlKey) return;
   const cache: DiscoveryScrapeCache = {
     urlKey,
+    url: status.url,
     scope,
     status: status.status,
     market: status.market,
@@ -146,5 +149,5 @@ export function readActiveScopedWebsiteUrl(): string | null {
   ) {
     return null;
   }
-  return cache.urlKey;
+  return cache.url;
 }
