@@ -3,23 +3,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
+import { createLiveCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import { Pill, useCampaignData } from "@/components/onboarding/Pill";
+import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, ArrowRight, CheckCircle2, Play, Sparkles } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { navigateOnboarding, onboardingHref } from "./steps";
-import type { VideoTone } from "./video-decision/types";
+import type { VideoTone } from "./video-style-types";
+import {
+  resolveVideoStylePreview,
+  type GeneratedVideoPreview,
+} from "./video-style-preview";
 
 type StyleOption = {
   id: VideoTone;
   title: string;
   qualities: readonly string[];
-  image: string;
+  sampleImage: string;
   recommended?: boolean;
 };
 
@@ -28,20 +33,20 @@ const STYLE_OPTIONS: readonly StyleOption[] = [
     id: "professional",
     title: "Professional",
     qualities: ["Polished", "Credible", "Decision-maker focused"],
-    image: "/landing/product-story/content-professional.webp",
+    sampleImage: "/landing/product-story/content-professional.webp",
     recommended: true,
   },
   {
     id: "casual",
     title: "Casual",
     qualities: ["Natural", "Approachable", "Conversational"],
-    image: "/landing/product-story/content-casual.webp",
+    sampleImage: "/landing/product-story/content-casual.webp",
   },
   {
     id: "aggressive",
     title: "Aggressive",
     qualities: ["Direct", "High-energy", "Action-focused"],
-    image: "/landing/product-story/content-aggressive.webp",
+    sampleImage: "/landing/product-story/content-aggressive.webp",
   },
 ];
 
@@ -55,9 +60,13 @@ function reducedMotionPreferred(): boolean {
 export function VideoStyleSelection({
   mode,
   styleLabel,
+  preview: isPreviewMode = false,
+  generatedPreviews,
 }: {
   mode: "personalized" | "standardized";
   styleLabel: string;
+  preview?: boolean;
+  generatedPreviews?: Partial<Record<VideoTone, GeneratedVideoPreview>>;
 }) {
   useLayoutEffect(() => applyStoredTheme(), []);
   const mounted = useRef(true);
@@ -67,7 +76,35 @@ export function VideoStyleSelection({
   }, []);
 
   const [selectedStyle, setSelectedStyle] = useState<VideoTone>("professional");
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railIndex, setRailIndex] = useState(0);
+  function showStyle(index: number) {
+    const rail = railRef.current;
+    const card = rail?.children[index] as HTMLElement | undefined;
+    if (!rail || !card) return;
+    rail.scrollTo({ left: card.offsetLeft - (rail.children[0] as HTMLElement).offsetLeft, behavior: reducedMotionPreferred() ? "instant" : "smooth" });
+    setRailIndex(index);
+  }
   const hasChosenStyle = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { orgId } = await bootstrapCurrentOrganization();
+        const saved = await apiFetch<{ videoConfig?: { tone?: string } }>(`/strategy/${orgId}`);
+        const index = STYLE_OPTIONS.findIndex((option) => option.id === saved.videoConfig?.tone);
+        if (cancelled || hasChosenStyle.current || index < 0) return;
+        setSelectedStyle(STYLE_OPTIONS[index].id);
+        const rail = railRef.current;
+        const card = rail?.children[index] as HTMLElement | undefined;
+        if (rail && card && window.matchMedia("(max-width: 63rem)").matches) {
+          rail.scrollTo({ left: card.offsetLeft - (rail.children[0] as HTMLElement).offsetLeft, behavior: "instant" });
+          setRailIndex(index);
+        }
+      } catch { /* Keep the default when there is no saved style. */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const savedCampaign = useCampaignData();
   const savedContent = savedCampaign?.sections?.find((section) => section.id === "content")?.value;
   useEffect(() => {
@@ -75,31 +112,62 @@ export function VideoStyleSelection({
     const savedStyle = STYLE_OPTIONS.find((option) => savedContent.endsWith(` · ${option.title}`));
     if (savedStyle) setSelectedStyle(savedStyle.id);
   }, [savedContent]);
-  const [phase, setPhase] = useState<ContentAnimationPhase>("generating");
+  const [unavailablePreviewIds, setUnavailablePreviewIds] = useState<Set<VideoTone>>(() => new Set());
+  const hasGeneratedPreview = STYLE_OPTIONS.some((option) => {
+    const asset = generatedPreviews?.[option.id];
+    return !unavailablePreviewIds.has(option.id) && Boolean(asset?.videoUrl || asset?.posterUrl);
+  });
+  const [phase, setPhase] = useState<ContentAnimationPhase>(() => (
+    isPreviewMode || hasGeneratedPreview ? "generating" : "select"
+  ));
   const [loadedPreviews, setLoadedPreviews] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
   const campaign = useMemo(() => {
-    const approvedContent = phase === "approved"
-      ? {
-          type: mode === "personalized" ? "Personalized video" : "AI video",
-          style: STYLE_OPTIONS.find((option) => option.id === selectedStyle)?.title,
-        }
-      : undefined;
-    const summary = createSemanticCampaignSummary(status, approvedContent, websiteUrl);
-
-    return phase === "approved"
-      ? { ...summary, newlyCompletedSectionId: "content" as const }
-      : summary;
+    const approvedContent = {
+      type: mode === "personalized" ? "Personalized video" : "AI video",
+      ...(phase === "approved" && { style: STYLE_OPTIONS.find((option) => option.id === selectedStyle)?.title }),
+    };
+    return createLiveCampaignSummary(
+      status,
+      "chosen-content",
+      approvedContent,
+      websiteUrl,
+    );
   }, [mode, phase, selectedStyle, status, websiteUrl]);
 
+  const previewSignature = JSON.stringify(generatedPreviews ?? {});
+  const resolvedPreviews = useMemo(() => STYLE_OPTIONS.map((option) => {
+    return {
+      option,
+      preview: resolveVideoStylePreview({
+        sampleImage: option.sampleImage,
+        previewMode: isPreviewMode,
+        generatedPreview: generatedPreviews?.[option.id],
+        unavailable: unavailablePreviewIds.has(option.id),
+      }),
+    };
+  }), [generatedPreviews, isPreviewMode, unavailablePreviewIds]);
+
+  const previewsAreReady = resolvedPreviews.every(({ option, preview }) => (
+    preview.kind === "placeholder" || loadedPreviews.includes(option.id)
+  ));
+
+  const previousPreviewSignature = useRef(`${isPreviewMode}:${previewSignature}`);
   useEffect(() => {
-    if (loadedPreviews.length !== STYLE_OPTIONS.length) return;
+    const signature = `${isPreviewMode}:${previewSignature}`;
+    if (previousPreviewSignature.current === signature) return;
+    previousPreviewSignature.current = signature;
+    setLoadedPreviews([]);
+  }, [isPreviewMode, previewSignature]);
+
+  useEffect(() => {
+    if (phase !== "generating" || !previewsAreReady) return;
     setPhase(reducedMotionPreferred() ? "select" : "ready");
     const frame = window.requestAnimationFrame(() => setPhase("select"));
     return () => window.cancelAnimationFrame(frame);
-  }, [loadedPreviews]);
+  }, [phase, previewsAreReady]);
 
   async function handleContinue() {
     if (isSaving || phase === "generating") return;
@@ -120,9 +188,9 @@ export function VideoStyleSelection({
       });
       if (!mounted.current) return;
       setPhase("approved");
-      window.requestAnimationFrame(() => {
-        if (mounted.current) navigateOnboarding(onboardingHref("video-decision"));
-      });
+      window.setTimeout(() => {
+        if (mounted.current) navigateOnboarding(onboardingHref("checkout"));
+      }, reducedMotionPreferred() ? 0 : 40);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save your video style.");
     } finally {
@@ -131,7 +199,12 @@ export function VideoStyleSelection({
   }
 
   const isPreparing = phase === "generating";
-  const statusIsReady = phase !== "generating";
+  const isWaitingForGeneratedPreview = !isPreviewMode && !hasGeneratedPreview;
+  const statusState = isWaitingForGeneratedPreview
+    ? "awaiting"
+    : phase === "generating"
+      ? "generating"
+      : "ready";
   const contentTypeLabel = mode === "personalized" ? "personalized videos" : "AI video";
 
   return (
@@ -150,17 +223,17 @@ export function VideoStyleSelection({
         <div
           className={cn(
             "personalized-video-style-status",
-            `personalized-video-style-status-${statusIsReady ? "ready" : "generating"}`,
+            `personalized-video-style-status-${statusState}`,
           )}
           role="status"
           aria-live="polite"
         >
-          {statusIsReady
+          {statusState === "ready"
             ? <CheckCircle2 className="personalized-video-style-status-icon" weight="fill" aria-hidden />
-            : <Sparkles className="personalized-video-style-status-icon" weight="fill" aria-hidden />}
-          <div className="personalized-video-style-status-copy" key={statusIsReady ? "ready" : "generating"}>
-            <p>{statusIsReady ? "Your content is ready." : `Creating your ${contentTypeLabel}...`}</p>
-            <span>{statusIsReady ? "Created for your business and prospects." : "Building three directions for your business and prospects."}</span>
+            : <SparklesIcon draw={false} animationDurationScale={1.6} className="personalized-video-style-status-icon" />}
+          <div className="personalized-video-style-status-copy" key={statusState}>
+            <p>{statusState === "awaiting" ? "Choose your video style." : statusState === "ready" ? "Your content is ready." : `Creating your ${contentTypeLabel}...`}</p>
+            <span>{statusState === "awaiting" ? "Generated previews will appear when video generation is available." : statusState === "ready" ? "Created for your business and prospects." : "Building three directions for your business and prospects."}</span>
           </div>
         </div>
 
@@ -173,6 +246,14 @@ export function VideoStyleSelection({
         >
           <h2 id="personalized-video-style-options-title">Choose your favorite.</h2>
           <div
+            ref={railRef}
+            onScroll={(event) => {
+              const rail = event.currentTarget;
+              const first = rail.children[0] as HTMLElement;
+              if (!first) return;
+              const index = Array.from(rail.children).findIndex((node) => Math.abs((node as HTMLElement).offsetLeft - first.offsetLeft - rail.scrollLeft) < first.offsetWidth / 2);
+              if (index >= 0) setRailIndex(index);
+            }}
             className={cn(
               "personalized-video-style-grid",
               isPreparing && "personalized-video-style-grid-preparing",
@@ -180,7 +261,7 @@ export function VideoStyleSelection({
             role="radiogroup"
             aria-label={styleLabel}
           >
-            {STYLE_OPTIONS.map((option) => {
+            {resolvedPreviews.map(({ option, preview }) => {
               const selected = option.id === selectedStyle;
               return (
                 <button
@@ -201,21 +282,61 @@ export function VideoStyleSelection({
                     hasChosenStyle.current = true;
                     setSelectedStyle(option.id);
                   }}
+                  onFocus={() => {
+                    if (window.matchMedia("(max-width: 63rem)").matches) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
+                  }}
                 >
-                  <span className="personalized-video-style-art" aria-hidden>
-                    <Image
-                      src={option.image}
-                      alt=""
-                      fill
-                      loading="eager"
-                      sizes="(min-width: 63rem) 16rem, 80vw"
-                      className="object-cover"
-                      onLoad={() => setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id])}
-                      onError={() => {
-                        setError("A preview could not load. You can still select its style.");
-                        setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id]);
-                      }}
-                    />
+                  <span
+                    className={cn(
+                      "personalized-video-style-art",
+                      preview.kind === "placeholder" && "personalized-video-style-art-placeholder",
+                    )}
+                    data-preview-kind={preview.kind}
+                    aria-hidden
+                  >
+                    {preview.kind === "sample" ? (
+                      <Image
+                        src={preview.src}
+                        alt=""
+                        fill
+                        loading="eager"
+                        sizes="(min-width: 63rem) 16rem, 80vw"
+                        className="object-cover"
+                        onLoad={() => setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id])}
+                        onError={() => {
+                          setUnavailablePreviewIds((current) => new Set(current).add(option.id));
+                          setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id]);
+                        }}
+                      />
+                    ) : preview.kind === "generated-video" ? (
+                      <video
+                        src={preview.src}
+                        poster={preview.posterUrl}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        tabIndex={-1}
+                        className="size-full object-cover"
+                        onLoadedData={() => setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id])}
+                        onError={() => {
+                          setUnavailablePreviewIds((current) => new Set(current).add(option.id));
+                          setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id]);
+                        }}
+                      />
+                    ) : preview.kind === "generated-poster" ? (
+                      <Image
+                        src={preview.src}
+                        alt=""
+                        fill
+                        unoptimized
+                        className="size-full object-cover"
+                        onLoad={() => setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id])}
+                        onError={() => {
+                          setUnavailablePreviewIds((current) => new Set(current).add(option.id));
+                          setLoadedPreviews((loaded) => loaded.includes(option.id) ? loaded : [...loaded, option.id]);
+                        }}
+                      />
+                    ) : null}
                     <span className="personalized-video-style-play"><Play className="size-6" weight="fill" /></span>
                     <span className="personalized-video-style-duration">0:10</span>
                   </span>
@@ -229,6 +350,11 @@ export function VideoStyleSelection({
                 </button>
               );
             })}
+          </div>
+          <div className="video-style-rail-controls">
+            <button type="button" aria-label="Previous video style" disabled={railIndex === 0} onClick={() => showStyle(railIndex - 1)}>Previous</button>
+            <span aria-live="polite">{railIndex + 1} of {STYLE_OPTIONS.length}</span>
+            <button type="button" aria-label="Next video style" disabled={railIndex === STYLE_OPTIONS.length - 1} onClick={() => showStyle(railIndex + 1)}>Next</button>
           </div>
         </section>
 
@@ -258,6 +384,6 @@ export function VideoStyleSelection({
   );
 }
 
-export default function PersonalizedVideoStyle() {
-  return <VideoStyleSelection mode="personalized" styleLabel="Personalized video style" />;
+export default function PersonalizedVideoStyle({ preview = false }: { preview?: boolean }) {
+  return <VideoStyleSelection mode="personalized" styleLabel="Personalized video style" preview={preview} />;
 }

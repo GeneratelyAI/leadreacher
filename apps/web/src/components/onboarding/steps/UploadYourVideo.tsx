@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
+import { createLiveCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import { Pill } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
@@ -68,10 +68,15 @@ export default function UploadYourVideo() {
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
-  const campaign = useMemo(() => ({
-    ...createSemanticCampaignSummary(status, approved ? { type: "Your video" } : undefined, websiteUrl),
-    newlyCompletedSectionId: approved ? "content" as const : undefined,
-  }), [status, websiteUrl, approved]);
+  const campaign = useMemo(
+    () => createLiveCampaignSummary(
+      status,
+      "chosen-content",
+      { type: "Your video" },
+      websiteUrl,
+    ),
+    [status, websiteUrl],
+  );
 
   useEffect(() => () => {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -222,9 +227,16 @@ export default function UploadYourVideo() {
           <ArrowLeft className="size-5" aria-hidden />
           Back
         </Button>
-        <Button type="button" className="onboarding-campaign-next" disabled={!selectedVideo || isUploading || approved} onClick={() => {
+        <Button type="button" className="onboarding-campaign-next" disabled={!selectedVideo || isUploading || approved} onClick={async () => {
           setApproved(true);
-          window.requestAnimationFrame(() => navigateOnboarding(onboardingHref("video-decision")));
+          try {
+            const { orgId } = await bootstrapCurrentOrganization();
+            await apiFetch(`/strategy/${orgId}/content-approval`, { method: "PATCH", body: JSON.stringify({ type: "Your video" }) });
+            navigateOnboarding(onboardingHref("checkout"));
+          } catch (caught) {
+            setApproved(false);
+            setError(caught instanceof Error ? caught.message : "Unable to save your content selection. Please try again.");
+          }
         }}>
           Continue
           <ArrowRight className="size-5" aria-hidden />

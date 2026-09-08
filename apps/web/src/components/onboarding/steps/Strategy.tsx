@@ -12,7 +12,6 @@ import {
   UserRound,
 } from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { StepMotion } from "@/components/onboarding/StepMotion";
 import { ChannelLogo } from "@/components/onboarding/ChannelLogo";
 import { OnboardingCard } from "@/components/onboarding/OnboardingCard";
 import { ActionBar } from "@/components/ui/ActionBar";
@@ -1086,7 +1085,7 @@ export default function Strategy({
         body: JSON.stringify({ channels: selectedChannels }),
       });
       setStrategy(updated);
-      navigateOnboarding(onboardingHref("video-decision"));
+      navigateOnboarding(onboardingHref("campaign-content"));
     } catch (saveError) {
       setChannelSaveError(strategyErrorMessage(saveError));
     } finally {
@@ -1133,9 +1132,9 @@ export default function Strategy({
   return (
     <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
 
-      <StepMotion transitionKey={substep} className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         {activeSubstepContent}
-      </StepMotion>
+      </div>
 
       <ShellActions
         className={substep === "channels" ? "strategy-channels-actions" : undefined}

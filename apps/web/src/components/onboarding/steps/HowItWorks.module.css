@@ -1,0 +1,43 @@
+.title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  width: 100%;
+  text-align: center;
+}
+
+.title > span {
+  min-width: 0;
+}
+
+.title .sparkle {
+  flex: 0 0 auto;
+  width: 0.85em;
+  height: 0.85em;
+  color: #6035ee;
+  overflow: visible;
+}
+
+.materializingWord[data-materialize="true"] {
+  mask-image: linear-gradient(90deg, #000 40%, transparent 60%);
+  mask-size: 250% 100%;
+  mask-repeat: no-repeat;
+  animation: materializeWord 2s cubic-bezier(0.45, 0, 0.2, 1) 120ms both;
+}
+
+.materializingWord[data-materialize="true"] :global(.lr-shimmer-text__shine) {
+  animation-delay: 2.12s;
+}
+
+@keyframes materializeWord {
+  from { mask-position: 100% 0; opacity: 0; }
+  to { mask-position: 0 0; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .materializingWord[data-materialize="true"] {
+    animation: none;
+    mask-image: none;
+  }
+}

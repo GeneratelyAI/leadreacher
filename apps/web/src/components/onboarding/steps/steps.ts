@@ -1,11 +1,13 @@
+import { requestOnboardingNavigation } from "@/components/onboarding/OnboardingTransitionController";
+
 export const ONBOARDING_STEPS = [
-  { value: "discovery", label: "Discovery" },
   { value: "strategy", label: "Strategy" },
+  { value: "discovery", label: "Discovery" },
   { value: "campaign-content", label: "Campaign Content" },
   { value: "personalized-video-style", label: "Personalized Video Style" },
   { value: "ai-video-style", label: "AI Video Style" },
   { value: "upload-video", label: "Upload Your Video" },
-  { value: "video-decision", label: "Video Decision" },
+  { value: "upload-document", label: "Upload Document" },
   { value: "checkout", label: "Checkout" },
   { value: "channels", label: "Channels" },
 ] as const;
@@ -52,6 +54,8 @@ export function navigateOnboarding(href: string, replace = false): void {
     : pathname === "/demo/onboarding"
       ? href.replace(/^\/onboarding/, "/demo/onboarding")
       : href;
+
+  if (requestOnboardingNavigation(destination, replace)) return;
 
   if (replace) {
     window.history.replaceState(null, "", destination);

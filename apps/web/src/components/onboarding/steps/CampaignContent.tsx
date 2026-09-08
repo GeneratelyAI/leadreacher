@@ -3,18 +3,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
+import { createLiveCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Pill } from "@/components/onboarding/Pill";
+import { Pill, useCampaignConfirmation } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, Check, Play, Upload, type AppIcon } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { navigateOnboarding, onboardingHref, strategyHref } from "./steps";
+import { recoverContentChoice, type ContentChoice } from "@/lib/onboarding/content-choice";
+import { navigateOnboarding, onboardingHref } from "./steps";
 
-type ContentOptionId = "personalized-video" | "ai-video" | "your-video" | "document";
+type ContentOptionId = ContentChoice;
 type PersistedCampaignType = "personalized_outreach" | "ai_video_ad" | "uploaded_video";
 
 type ContentOption = {
@@ -76,12 +77,25 @@ export default function CampaignContent() {
   }, []);
 
   const [selectedId, setSelectedId] = useState<ContentOptionId>("personalized-video");
+  const choiceTouched = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { orgId } = await bootstrapCurrentOrganization();
+        const saved = await apiFetch<Parameters<typeof recoverContentChoice>[0]>(`/strategy/${orgId}`);
+        if (!cancelled && !choiceTouched.current) setSelectedId(recoverContentChoice(saved));
+      } catch { /* The submit path reports recovery or authentication failures. */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
+  const confirmCampaign = useCampaignConfirmation();
   const campaign = useMemo(
-    () => createSemanticCampaignSummary(status, undefined, websiteUrl),
+    () => createLiveCampaignSummary(status, "campaign-content", undefined, websiteUrl),
     [status, websiteUrl],
   );
 
@@ -96,18 +110,27 @@ export default function CampaignContent() {
       const bootstrap = await bootstrapCurrentOrganization();
       await apiFetch(`/strategy/${bootstrap.orgId}/campaign-type`, {
         method: "PATCH",
-        body: JSON.stringify({ campaignType: PERSISTED_CAMPAIGN_TYPES[selectedId] }),
+        body: JSON.stringify({ campaignType: PERSISTED_CAMPAIGN_TYPES[selectedId], contentChoice: selectedId }),
       });
       if (!mounted.current) return;
       didNavigate = true;
+      const selectedOption = CONTENT_OPTIONS.find((option) => option.id === selectedId);
+      confirmCampaign?.(createLiveCampaignSummary(
+        status,
+        "chosen-content",
+        { type: selectedOption?.title ?? "Campaign content" },
+        websiteUrl,
+      ));
       navigateOnboarding(onboardingHref(
         selectedId === "personalized-video"
           ? "personalized-video-style"
           : selectedId === "ai-video"
             ? "ai-video-style"
-          : selectedId === "your-video"
-            ? "upload-video"
-            : "video-decision",
+            : selectedId === "your-video"
+              ? "upload-video"
+            : selectedId === "document"
+              ? "upload-document"
+              : "checkout",
       ));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save your content choice.");
@@ -155,8 +178,12 @@ export default function CampaignContent() {
                   role="radio"
                   aria-checked={selected}
                   disabled={isSaving}
-                  className={cn("campaign-content-option", selected && "campaign-content-option-selected")}
-                  onClick={() => setSelectedId(option.id)}
+                  className={cn(
+                    "campaign-content-option",
+                    selected && "campaign-content-option-selected",
+                    isTransitioning && selected && "campaign-content-option-approving",
+                  )}
+                  onClick={() => { choiceTouched.current = true; setSelectedId(option.id); }}
                 >
                   <span className="campaign-content-option-art" aria-hidden>
                     {option.image ? (
@@ -192,7 +219,7 @@ export default function CampaignContent() {
 
         {error ? <p role="alert">{error}</p> : null}
         <div className="campaign-content-actions">
-          <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => navigateOnboarding(strategyHref("how-it-works"))}>
+          <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => navigateOnboarding(onboardingHref("discovery"))}>
             <ArrowLeft className="size-5" aria-hidden />
             Back
           </Button>

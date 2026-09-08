@@ -133,7 +133,13 @@ export default function CampaignGoal() {
         method: "PATCH",
         body: JSON.stringify({ campaignType: selectedType }),
       });
-      navigateOnboarding(onboardingHref("video-decision"));
+      navigateOnboarding(onboardingHref(
+        selectedType === "personalized_outreach"
+          ? "personalized-video-style"
+          : selectedType === "ai_video_ad"
+            ? "ai-video-style"
+            : "upload-video",
+      ));
     } catch (saveError) {
       setError(
         saveError instanceof Error

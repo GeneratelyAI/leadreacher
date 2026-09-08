@@ -452,7 +452,7 @@ export default function Checkout() {
       </main>
 
       <ActionBar
-        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("video-decision"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
+        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("campaign-content"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
         trailing={checkoutSucceeded || returnedFromCheckout ? (
           <Button
             type="button"

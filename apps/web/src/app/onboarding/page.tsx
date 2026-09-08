@@ -5,7 +5,7 @@ import {
   isStrategySubstep,
   type OnboardingStepParam,
 } from "@/components/onboarding/steps/steps";
-import { bootstrapOrganizationServer, getStrategyServer } from "@/lib/api/server";
+import { bootstrapOrganizationServer, getStrategyServer, hasAnalyzedWebsiteServer } from "@/lib/api/server";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import {
   resolveAllowedOnboardingStep,
@@ -74,16 +74,27 @@ export default async function OnboardingPage({
     // The client-side Discovery bridge renders a retryable workspace error if
     // the API remains unavailable after hydration.
   }
+  const journey = (strategy?.icpDefinition as { onboarding?: { introductionSeen?: boolean; prospectsApproved?: boolean } } | null)?.onboarding;
   const progressDefault = resolveOnboardingResumeTarget({
     strategy: strategy
       ? {
           audienceAnalysisComplete: hasAudienceAnalysis(strategy),
           campaignType: strategy.campaignType,
           videoConfig: strategy.videoConfig,
+          introductionSeen: journey?.introductionSeen,
+          prospectsApproved: journey?.prospectsApproved,
         }
       : null,
     subscriptionStatus: workspaceAccess.subscriptionStatus,
   });
+  if (!strategy) {
+    try {
+      if (await hasAnalyzedWebsiteServer(accessToken)) {
+        progressDefault.step = "strategy";
+        progressDefault.strategySubstep = "how-it-works";
+      }
+    } catch { /* Discovery retains the retryable recovery path. */ }
+  }
 
   const params = searchParams ? await searchParams : {};
   const requestedStep = firstParam(params.step);
@@ -91,7 +102,8 @@ export default async function OnboardingPage({
   const requestedOnboardingStep = isOnboardingStep(requestedStep)
     ? requestedStep
     : null;
-  const initialStep: OnboardingStepParam = resolveAllowedOnboardingStep(
+  const initialStep: OnboardingStepParam = requestedOnboardingStep === "discovery"
+    ? "discovery" : resolveAllowedOnboardingStep(
     requestedOnboardingStep,
     progressDefault.step,
   );

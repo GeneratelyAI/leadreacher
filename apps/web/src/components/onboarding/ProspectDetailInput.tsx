@@ -13,8 +13,12 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
   const [input, setInput] = useState("");
   const [pending, setPending] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<ProspectCategory | null>(null);
+  const [selectorHeight, setSelectorHeight] = useState(0);
+  const [selectorReady, setSelectorReady] = useState(false);
+  const [selectorClosing, setSelectorClosing] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const selectorRef = useRef<HTMLDivElement>(null);
   const arrivals = useRef<Array<{ category: ProspectCategory; value: string; source: DOMRect }>>([]);
   const cleanup = useRef<Set<() => void>>(new Set());
   const selectorTimers = useRef<Set<number>>(new Set());
@@ -26,14 +30,38 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
     cleanup.current.forEach((dispose) => dispose());
     selectorTimers.current.forEach((timer) => window.clearTimeout(timer));
   }, []);
-  useEffect(() => {
-    const resize = () => {
-      inputRef.current?.closest(".onboarding-campaign-task")?.querySelectorAll<HTMLElement>("[data-prospect-row]").forEach((row) => { row.style.height = ""; });
-    };
-    window.addEventListener("resize", resize);
-    return () => window.removeEventListener("resize", resize);
-  }, []);
+  useLayoutEffect(() => {
+    let measureFrame = 0;
+    let readyFrame = 0;
 
+    if (!pending[0]) {
+      setSelectorReady(false);
+      setSelectorClosing(false);
+      setSelectorHeight(0);
+      return;
+    }
+
+    setSelectorReady(false);
+    setSelectorClosing(false);
+    const measure = () => {
+      const height = Math.ceil(selectorRef.current?.getBoundingClientRect().height ?? 0);
+      setSelectorHeight(height);
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setSelectorReady(true);
+        return;
+      }
+      readyFrame = window.requestAnimationFrame(() => setSelectorReady(true));
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      measure();
+      return;
+    }
+    measureFrame = window.requestAnimationFrame(measure);
+    return () => {
+      window.cancelAnimationFrame(measureFrame);
+      window.cancelAnimationFrame(readyFrame);
+    };
+  }, [pending]);
   function place(entries: Array<{ category: ProspectCategory; value: string }>) {
     let next = profile;
     const added: typeof entries = [];
@@ -43,11 +71,6 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
       next = updated;
     }
     const source = inputRef.current?.getBoundingClientRect();
-    const task = inputRef.current?.closest(".onboarding-campaign-task");
-    // Reserve the current rows before inserting chips so controls and focus stay put.
-    task?.querySelectorAll<HTMLElement>("[data-prospect-row]").forEach((row) => {
-      if (!row.style.height) row.style.height = `${row.offsetHeight}px`;
-    });
     if (source) arrivals.current = added.map((entry) => ({ ...entry, source }));
     setProfile(next);
     setAnnouncement(added.length ? added.map(({ category, value }) => `${value} added to ${PROSPECT_CATEGORIES.find((item) => item.key === category)!.label}.`).join(" ") : "Those details are already in your audience.");
@@ -59,11 +82,14 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
     arrivals.current = [];
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const task = inputRef.current?.closest(".onboarding-campaign-task");
-    entries.forEach(({ category, value, source }, index) => {
+    const frames = new Set<number>();
+    const beginTravel = ({ category, value, source }: typeof entries[number], index: number) => {
       const row = task?.querySelector<HTMLElement>(`[data-prospect-row="${category}"]`);
-      const chip = Array.from(row?.querySelectorAll<HTMLElement>("button") ?? []).find((node) => node.textContent === value);
-      if (!row || !chip) return;
-      const destination = chip.getBoundingClientRect();
+      const chip = Array.from(row?.querySelectorAll<HTMLElement>(".onboarding-campaign-chip-label") ?? []).find((node) => node.textContent === value);
+      const overflowTrigger = row?.querySelector<HTMLElement>(`[data-prospect-overflow-trigger="${category}"]`);
+      const destinationTarget = chip ?? overflowTrigger;
+      if (!row || !destinationTarget) return;
+      const destination = destinationTarget.getBoundingClientRect();
       const travel = document.createElement("span");
       travel.className = "discovery-detail-traveler";
       travel.textContent = value;
@@ -78,13 +104,32 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
           { opacity: .9, offset: .2 },
           { opacity: 0, transform: `translate(${destination.left - source.left - 16}px,${destination.top - source.top}px) scale(.85)` },
         ], travelTiming),
-        chip.animate([{ opacity: 0, transform: "translateY(5px) scale(.85)", filter: "blur(3px)" }, { opacity: 1, transform: "none", filter: "blur(0)" }], { ...travelTiming, duration: 280, delay: delay + 340 }),
         row.animate([{ backgroundColor: "rgba(111,75,241,0)", boxShadow: "inset 0 0 0 1px transparent" }, { backgroundColor: "rgba(111,75,241,.07)", boxShadow: "inset 0 0 0 1px rgba(111,75,241,.22)", offset: .45 }, { backgroundColor: "rgba(111,75,241,0)", boxShadow: "inset 0 0 0 1px transparent" }], travelTiming),
       ];
+      if (!chip && overflowTrigger) {
+        animations.push(overflowTrigger.animate([
+          { backgroundColor: "#faf8ff", borderColor: "#cdbdff" },
+          { backgroundColor: "#eee9ff", borderColor: "#8d70ee", offset: .48 },
+          { backgroundColor: "#faf8ff", borderColor: "#cdbdff" },
+        ], { duration: 260, delay: delay + 360, easing: "cubic-bezier(.16,1,.3,1)", fill: "both" }));
+      }
       const dispose = () => { animations.forEach((animation) => animation.cancel()); travel.remove(); cleanup.current.delete(dispose); };
       cleanup.current.add(dispose);
       void Promise.all(animations.map((animation) => animation.finished)).then(dispose, dispose);
+    };
+
+    entries.forEach((entry, index) => {
+      const firstFrame = window.requestAnimationFrame(() => {
+        frames.delete(firstFrame);
+        const secondFrame = window.requestAnimationFrame(() => {
+          frames.delete(secondFrame);
+          beginTravel(entry, index);
+        });
+        frames.add(secondFrame);
+      });
+      frames.add(firstFrame);
     });
+    return () => frames.forEach((frame) => window.cancelAnimationFrame(frame));
   }, [profile]);
 
   function submit(raw = input) {
@@ -102,6 +147,14 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
     if (!value || selectedCategory) return;
     setSelectedCategory(category);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      place([{ category, value }]);
+      setSelectorClosing(true);
+      setSelectorHeight(0);
+      setPending((current) => current[0] === value ? current.slice(1) : current);
+      setSelectedCategory(null);
+      return;
+    }
     const schedule = (callback: () => void, delay: number) => {
       const timer = window.setTimeout(() => {
         selectorTimers.current.delete(timer);
@@ -112,11 +165,15 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
 
     schedule(() => {
       place([{ category, value }]);
+      setSelectorClosing(true);
+      schedule(() => {
+        setSelectorHeight(0);
+      }, 220);
       schedule(() => {
         setPending((current) => current[0] === value ? current.slice(1) : current);
         setSelectedCategory(null);
-      }, reducedMotion ? 0 : 660);
-    }, reducedMotion ? 0 : 180);
+      }, 660);
+    }, 180);
   }
 
   return (
@@ -128,9 +185,15 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
           onPaste={(event) => { const text = event.clipboardData.getData("text"); if (/[\r\n]/.test(text)) { event.preventDefault(); setInput((current) => current + text.replace(/[\r\n]+/g, "; ")); } }} />
         <button className="discovery-detail-add" type="submit" disabled={disabled || !input.trim()}>Add</button>
       </div>
-      <div className="discovery-detail-fallback" aria-live="polite">
+      <div className="discovery-detail-fallback" aria-live="polite" style={{ height: `${selectorHeight}px` }}>
         {pending[0] ? <>
-          <div className="discovery-detail-selector" key={pending[0]}>
+          <div
+            ref={selectorRef}
+            className="discovery-detail-selector"
+            data-ready={selectorReady}
+            data-closing={selectorClosing || undefined}
+            key={pending[0]}
+          >
             <p title={pending[0]}>Where does <strong>{pending[0]}</strong> belong?</p>
             <div role="group" aria-label={`Choose a category for ${pending[0]}`}>
               {PROSPECT_CATEGORIES.map(({ key, label }) => {

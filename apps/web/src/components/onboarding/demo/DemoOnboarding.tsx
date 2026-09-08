@@ -23,7 +23,7 @@ function DemoSignup() {
         demo
         onDemoComplete={({ fullName, email }) => {
           dispatch({ type: "complete-signup", name: fullName, email });
-          window.history.replaceState(null, "", "/demo/onboarding?step=discovery");
+          window.history.replaceState(null, "", "/demo/onboarding?step=strategy&substep=how-it-works");
         }}
       />
     </Layout>

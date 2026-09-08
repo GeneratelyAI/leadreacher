@@ -17,7 +17,7 @@ describe("resolveOnboardingResumeTarget", () => {
     ).toEqual({ step: "discovery" });
     expect(
       resolveOnboardingResumeTarget({
-        strategy: { ...audienceComplete, audienceAnalysisComplete: false },
+        strategy: { ...audienceComplete, audienceAnalysisComplete: false, campaignType: null },
         subscriptionStatus: null,
       }),
     ).toEqual({ step: "strategy", strategySubstep: "how-it-works" });
@@ -60,6 +60,11 @@ describe("resolveOnboardingResumeTarget", () => {
         subscriptionStatus: "active",
       }),
     ).toEqual({ step: "channels" });
+  });
+  it("resumes audience review after the introduction and advances only after approval", () => {
+    const strategy = { audienceAnalysisComplete: false, campaignType: null, videoConfig: null, introductionSeen: true, prospectsApproved: false };
+    expect(resolveOnboardingResumeTarget({ strategy, subscriptionStatus: null })).toEqual({ step: "discovery" });
+    expect(resolveOnboardingResumeTarget({ strategy: { ...strategy, prospectsApproved: true }, subscriptionStatus: null })).toEqual({ step: "campaign-content" });
   });
 });
 

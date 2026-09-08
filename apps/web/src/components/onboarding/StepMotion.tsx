@@ -1,14 +1,17 @@
 "use client";
 
 import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useOnboardingSceneMotion } from "@/components/onboarding/OnboardingTransitionController";
 import { cn } from "@/lib/utils";
 
 function ViewportFittedPane({
   children,
   fitViewport,
+  contentKey,
 }: {
   children: ReactNode;
   fitViewport: boolean;
+  contentKey: string;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -37,9 +40,14 @@ function ViewportFittedPane({
       canvas.style.transform = `scale(${scale})`;
     };
 
-    const fit = (reset = false) => {
+    const fit = (reset = false, immediately = false) => {
       window.cancelAnimationFrame(animationFrame);
-      animationFrame = window.requestAnimationFrame(() => {
+      const measure = () => {
+        if (window.matchMedia("(max-width: 63rem)").matches) {
+          applyScale(1);
+          canvas.style.transform = "none";
+          return;
+        }
         const availableWidth = frame.clientWidth;
         const availableHeight = frame.clientHeight;
         if (!availableWidth || !availableHeight) return;
@@ -62,21 +70,28 @@ function ViewportFittedPane({
         if (reset || nextScale < currentScale - 0.002) {
           applyScale(nextScale);
         }
-      });
+      };
+      if (immediately) {
+        measure();
+      } else {
+        animationFrame = window.requestAnimationFrame(measure);
+      }
     };
 
     const frameResizeObserver = new ResizeObserver(() => fit(true));
     const contentResizeObserver = new ResizeObserver(() => fit());
     frameResizeObserver.observe(frame);
     contentResizeObserver.observe(canvas);
-    fit(true);
+    // Apply the first fit in the layout phase so direct route loads do not
+    // paint at one size and settle to another on the next animation frame.
+    fit(true, true);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       frameResizeObserver.disconnect();
       contentResizeObserver.disconnect();
     };
-  }, [children, fitViewport]);
+  }, [contentKey, fitViewport]);
 
   return (
     <div
@@ -106,7 +121,7 @@ export function StepMotion({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const previousKey = useRef(transitionKey);
-  const headingAnchor = useRef<{ text: string; top: number } | null>(null);
+  const sceneMotion = useOnboardingSceneMotion();
 
   useLayoutEffect(() => {
     const changed = previousKey.current !== transitionKey;
@@ -115,34 +130,22 @@ export function StepMotion({
     if (!container) return;
 
     const heading = container.querySelector<HTMLElement>("h1, [data-onboarding-focus]");
-    if (heading) {
-      const text = heading.textContent ?? "";
-      if (changed && headingAnchor.current?.text === text) {
-        const delta = headingAnchor.current.top - heading.getBoundingClientRect().top;
-        heading.style.translate = `0 ${delta}px`;
-      }
-      headingAnchor.current = { text, top: heading.getBoundingClientRect().top };
-    }
     if (!changed) return;
     if (heading && (document.activeElement === document.body || container.contains(document.activeElement))) {
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
     }
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const animations = Array.from(container.querySelectorAll<HTMLElement>(
-      ".campaign-content-options, .personalized-video-style-status, .personalized-video-style-options, .how-it-works-campaign-cards, .onboarding-campaign-profile, .onboarding-campaign-context, .upload-your-video-section, .onboarding-video-content, .onboarding-connect-card",
-    )).map((element) => element.animate(
-      [{ opacity: 0 }, { opacity: 1 }],
-      { duration: 450, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
-    ));
-    return () => animations.forEach((animation) => animation.cancel());
   }, [transitionKey]);
 
   return (
-    <div ref={containerRef} className={cn("onboarding-step-presence onboarding-continuous-scene", className)}>
+    <div
+      ref={containerRef}
+      className={cn("onboarding-step-presence onboarding-continuous-scene", className)}
+      data-scene-direction={sceneMotion.direction}
+      data-scene-phase={sceneMotion.phase}
+    >
       <div className="onboarding-step-presence__pane">
-        <ViewportFittedPane fitViewport={fitViewport}>{children}</ViewportFittedPane>
+        <ViewportFittedPane fitViewport={fitViewport} contentKey={transitionKey}>{children}</ViewportFittedPane>
       </div>
     </div>
   );

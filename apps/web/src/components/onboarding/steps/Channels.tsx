@@ -216,6 +216,7 @@ export default function Channels() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    if (isOnboardingDemo() || isOnboardingPreview()) return;
     const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
     if (pendingKey && CHANNELS.some((channel) => channel.key === pendingKey)) {
       setActivationPendingChannelKey(pendingKey);
@@ -223,6 +224,7 @@ export default function Channels() {
   }, []);
 
   useEffect(() => {
+    if (isOnboardingDemo() || isOnboardingPreview()) return;
     if (!activationPendingChannelKey) return;
 
     let cancelled = false;
@@ -257,6 +259,7 @@ export default function Channels() {
   }, [activationPendingChannelKey, loadAccounts]);
 
   useEffect(() => {
+    if (isOnboardingDemo() || isOnboardingPreview()) return;
     if (!connectionReturned) return;
     let cancelled = false;
     const pendingKey = window.localStorage.getItem("lr_pending_channel_key");
@@ -385,7 +388,7 @@ export default function Channels() {
           returnTo: isOnboardingPreview() ? "preview" : "onboarding",
         }),
       });
-      if (isOnboardingDemo()) {
+      if (isOnboardingDemo() || isOnboardingPreview()) {
         setActivationPendingChannelKey(channelKey);
         await loadAccounts(false, false);
         setActivationPendingChannelKey(null);

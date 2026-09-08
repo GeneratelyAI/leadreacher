@@ -118,7 +118,7 @@ export function CheckoutCard({
   previewCurrency?: string;
   onMockSubmit?: () => void;
 }) {
-  if (mockMode && !showStripePreview) return <MockCheckout onSubmit={onMockSubmit} />;
+  if (mockMode) return <MockCheckout onSubmit={onMockSubmit} />;
 
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()) {
     return (

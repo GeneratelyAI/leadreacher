@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { StepMotion } from "@/components/onboarding/StepMotion";
+import { OnboardingTransitionController } from "@/components/onboarding/OnboardingTransitionController";
 import { OnboardingChrome } from "@/components/onboarding/OnboardingChrome";
 import { CampaignCanvas } from "@/components/onboarding/Pill";
 import { Button } from "@/components/ui/Button";
@@ -16,7 +17,7 @@ import HowItWorks from "@/components/onboarding/steps/HowItWorks";
 import PersonalizedVideoStyle from "@/components/onboarding/steps/PersonalizedVideoStyle";
 import Strategy from "@/components/onboarding/steps/Strategy";
 import UploadYourVideo from "@/components/onboarding/steps/UploadYourVideo";
-import VideoSetup from "@/components/onboarding/steps/VideoSetup";
+import UploadDocument from "@/components/onboarding/steps/UploadDocument";
 import {
   isOnboardingStep,
   isStrategySubstep,
@@ -31,7 +32,7 @@ import {
 } from "@/lib/discovery-scrape-cache";
 import { getBrowserSession } from "@/lib/supabase/client";
 
-function DiscoveryBootstrapBridge() {
+function OnboardingBootstrapBridge({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
@@ -113,7 +114,7 @@ function DiscoveryBootstrapBridge() {
     );
   }
 
-  return <Discovery />;
+  return <>{children}</>;
 }
 
 export default function OnboardingFlow({
@@ -135,9 +136,7 @@ export default function OnboardingFlow({
 
   let activeStepContent: ReactNode;
   if (activeStep === "discovery") {
-    activeStepContent = preview
-      ? <Discovery />
-      : <DiscoveryBootstrapBridge />;
+    activeStepContent = <Discovery />;
   } else if (activeStep === "strategy") {
     activeStepContent = activeStrategySubstep === "how-it-works"
       ? <HowItWorks />
@@ -145,29 +144,35 @@ export default function OnboardingFlow({
   } else if (activeStep === "campaign-content") {
     activeStepContent = <CampaignContent />;
   } else if (activeStep === "personalized-video-style") {
-    activeStepContent = <PersonalizedVideoStyle />;
+    activeStepContent = <PersonalizedVideoStyle preview={preview} />;
   } else if (activeStep === "ai-video-style") {
-    activeStepContent = <AiVideoStyle />;
+    activeStepContent = <AiVideoStyle preview={preview} />;
   } else if (activeStep === "upload-video") {
     activeStepContent = <UploadYourVideo />;
-  } else if (activeStep === "video-decision") {
-    activeStepContent = <VideoSetup />;
+  } else if (activeStep === "upload-document") {
+    activeStepContent = <UploadDocument />;
   } else if (activeStep === "checkout") {
     activeStepContent = <Checkout />;
   } else {
     activeStepContent = <Channels />;
   }
 
-  return (
+  const sceneKey = activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep === "discovery" && searchParams.get("view") === "website" ? "website" : activeStep;
+
+  const scene = (
     <CampaignCanvas>
-      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome activeStep={activeStep} />}
-      <StepMotion
-        transitionKey={activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep}
-        className="h-dvh min-h-0"
-        fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && activeStep !== "ai-video-style" && activeStep !== "upload-video" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
-      >
-        {activeStepContent}
-      </StepMotion>
+      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || activeStep === "upload-document" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome />}
+      <OnboardingTransitionController sceneKey={sceneKey}>
+        <StepMotion
+          transitionKey={sceneKey}
+          className="onboarding-flow-step h-dvh min-h-0"
+          fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && activeStep !== "ai-video-style" && activeStep !== "upload-video" && activeStep !== "upload-document" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
+        >
+          {activeStepContent}
+        </StepMotion>
+      </OnboardingTransitionController>
     </CampaignCanvas>
   );
+
+  return preview ? scene : <OnboardingBootstrapBridge>{scene}</OnboardingBootstrapBridge>;
 }

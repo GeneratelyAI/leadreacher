@@ -3,16 +3,10 @@
 import Link from "next/link";
 import { ThemeButton } from "@/components/onboarding/AccountControls";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
-import { Stepper } from "@/components/onboarding/Stepper";
-import type { OnboardingStepParam } from "@/components/onboarding/steps/steps";
 import { useNavbarTheme } from "@/hooks/useNavbarTheme";
 import { cn } from "@/lib/utils";
 
-type ChromeProps = {
-  activeStep: OnboardingStepParam;
-};
-
-export function OnboardingChrome({ activeStep }: ChromeProps) {
+export function OnboardingChrome() {
   const { isVisible } = useNavbarTheme();
 
   return (
@@ -23,7 +17,6 @@ export function OnboardingChrome({ activeStep }: ChromeProps) {
       <Link href="/" aria-label="LeadReacher home" className="onboarding-chrome__logo inline-flex min-h-11 items-center">
         <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
-      <Stepper activeStep={activeStep} className="onboarding-chrome__stepper" />
       <div className="onboarding-chrome__account">
         <ThemeButton />
       </div>

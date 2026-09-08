@@ -1,21 +1,22 @@
 "use client";
 
 import { type CSSProperties, type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { BrowserBar } from "@/components/landing/hero/BrowserBar";
 import { OnboardingLogo } from "@/components/onboarding/OnboardingLogo";
 import { Pill, useCampaignConfirmation, type PillData } from "@/components/onboarding/Pill";
-import { createSemanticCampaignSummary } from "@/components/onboarding/campaign-summary";
+import { createLiveCampaignSummary } from "@/components/onboarding/campaign-summary";
 import { Button } from "@/components/ui/Button";
-import { ArrowRight, Lock, X } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, Lock, X } from "@/components/ui/icons";
 import ShimmerText from "@/components/ui/shimmer-text";
 import { type WebsiteScrapeStatus, useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
-import { getWebsiteFaviconUrl, parseWebsiteLink } from "@/lib/discovery-website";
 import { cleanWebsiteDomain } from "@/lib/website-url";
-import { navigateOnboarding, strategyHref } from "./steps";
+import { navigateOnboarding, onboardingHref, strategyHref } from "./steps";
 import { cn } from "@/lib/utils";
 import { ProspectDetailInput } from "../ProspectDetailInput";
 import { getDiscoveryOrgScope } from "@/lib/discovery-scrape-cache";
@@ -36,22 +37,10 @@ const PROFILE_ROWS: Array<{ key: keyof ProspectProfile; label: string }> = [
   { key: "locations", label: "Location" },
 ];
 
+const CHIP_GAP = 10.4;
+
 function campaignFromStatus(status: WebsiteScrapeStatus, websiteUrl: string | null): PillData {
-  const website = parseWebsiteLink(websiteUrl ?? status.url ?? "");
-  return {
-    status: status.status === "completed" ? "ready" : "learning",
-    statusLabel: status.status === "completed" ? "Business understood" : "Building your campaign",
-    fields: [
-      { label: "Market", value: status.market },
-      { label: "Offer", value: status.offer },
-      { label: "Customer", value: status.audience },
-      { label: "Value", value: status.value },
-      { label: "Goal", value: status.strategyStatus },
-    ].filter((field) => Boolean(field.value.trim())),
-    site: website
-      ? { label: website.hostname, iconUrl: getWebsiteFaviconUrl(website.hostname) }
-      : undefined,
-  };
+  return createLiveCampaignSummary(status, "discovery", undefined, websiteUrl);
 }
 
 function summaryFrom(status: WebsiteScrapeStatus, profile: ProspectProfile) {
@@ -99,12 +88,203 @@ function DiscoveryFrame({
   );
 }
 
+type ProspectCategoryValuesProps = {
+  category: keyof ProspectProfile;
+  label: string;
+  values: string[];
+  removing: Set<string>;
+  onRemove: (category: keyof ProspectProfile, value: string) => void;
+  onExitComplete: (category: keyof ProspectProfile) => void;
+  prospectId: (category: keyof ProspectProfile, value: string) => string;
+  reduceMotion: boolean | null;
+};
+
+function ProspectCategoryValues({ category, label, values, removing, onRemove, onExitComplete, prospectId, reduceMotion }: ProspectCategoryValuesProps) {
+  const railRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const suppressTriggerFocusRef = useRef(false);
+  const [visibleIndexes, setVisibleIndexes] = useState<number[] | null>(null);
+  const [reservedWidths, setReservedWidths] = useState<number[]>([]);
+  const [collapsedWidths, setCollapsedWidths] = useState<number[]>([]);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
+  const overflowValues = visibleIndexes === null ? [] : values.filter((_, index) => !visibleIndexes.includes(index));
+  const popoverId = `prospect-overflow-${category}`;
+
+  useEffect(() => {
+    if (!open || overflowValues.length) return;
+    setOpen(false);
+    railRef.current?.querySelector<HTMLButtonElement>(".onboarding-campaign-chip-remove")?.focus({ preventScroll: true });
+  }, [open, overflowValues.length]);
+
+  useLayoutEffect(() => {
+    const rail = railRef.current;
+    const measure = measureRef.current;
+    if (!rail || !measure) return;
+    let frame = 0;
+    const recalculate = () => {
+      const railStyle = window.getComputedStyle(rail);
+      const available = rail.clientWidth - Number.parseFloat(railStyle.paddingLeft) - Number.parseFloat(railStyle.paddingRight);
+      const chips = Array.from(measure.querySelectorAll<HTMLElement>("[data-chip-measure]"));
+      const expandedChips = Array.from(measure.querySelectorAll<HTMLElement>("[data-chip-expanded-measure]"));
+      const triggers = new Map(Array.from(measure.querySelectorAll<HTMLElement>("[data-trigger-measure]")).map((node) => [Number(node.dataset.triggerMeasure), node.offsetWidth]));
+      // offsetWidth rounds to an integer. Round the untransformed CSS width up
+      // instead so subpixel text metrics cannot lose their final glyph.
+      const nextReservedWidths = expandedChips.map((chip) => Math.ceil(Number.parseFloat(getComputedStyle(chip).width)));
+      let next = values.map((_, index) => index);
+      for (let count = values.length; count >= 0; count -= 1) {
+        const candidate = [...Array(count).keys()];
+        const hidden = values.length - candidate.length;
+        const width = candidate.reduce((sum, index) => sum + (nextReservedWidths[index] ?? 0), 0)
+          + Math.max(0, candidate.length - 1) * CHIP_GAP
+          + (hidden ? (candidate.length ? CHIP_GAP : 0) + (triggers.get(hidden) ?? 0) : 0);
+        if (width <= available) {
+          next = candidate;
+          break;
+        }
+      }
+      setVisibleIndexes(next);
+      setReservedWidths(nextReservedWidths);
+      setCollapsedWidths(chips.map((chip) => chip.offsetWidth));
+    };
+    const schedule = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(recalculate);
+    };
+    const observer = new ResizeObserver(schedule);
+    observer.observe(rail);
+    void document.fonts?.ready?.then(schedule);
+    window.addEventListener("resize", schedule);
+    schedule();
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", schedule);
+      window.cancelAnimationFrame(frame);
+    };
+  }, [values]);
+
+  useEffect(() => {
+    if (!open || !overflowValues.length) return;
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const popoverWidth = popoverRef.current?.offsetWidth ?? 368;
+      const popoverHeight = popoverRef.current?.offsetHeight ?? 240;
+      const horizontalInset = 16;
+      const verticalInset = 16;
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const left = Math.max(viewportLeft + horizontalInset, Math.min(rect.left, viewportLeft + viewportWidth - popoverWidth - horizontalInset));
+      const preferredTop = rect.bottom + 8;
+      const top = preferredTop + popoverHeight <= viewportTop + viewportHeight - verticalInset
+        ? preferredTop
+        : Math.max(viewportTop + verticalInset, rect.top - popoverHeight - 8);
+      if (popoverRef.current) popoverRef.current.style.maxHeight = `${Math.max(44, viewportHeight - 2 * verticalInset)}px`;
+      setPosition({ left, top });
+    };
+    const closeOnOutside = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (popoverRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      setOpen(false);
+      suppressTriggerFocusRef.current = true;
+      triggerRef.current?.focus({ preventScroll: true });
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setOpen(false);
+      suppressTriggerFocusRef.current = true;
+      triggerRef.current?.focus({ preventScroll: true });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
+    document.addEventListener("pointerdown", closeOnOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    const observer = new ResizeObserver(updatePosition);
+    const frame = window.requestAnimationFrame(() => {
+      updatePosition();
+      if (popoverRef.current) observer.observe(popoverRef.current);
+      closeRef.current?.focus({ preventScroll: true });
+    });
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
+      document.removeEventListener("pointerdown", closeOnOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [open, overflowValues.length]);
+
+  const renderChip = (value: string, index: number, reserveWidth = false) => {
+    const accessibleLabel = `Remove ${value} from ${label}`;
+    return (
+      <motion.div
+        layout={reduceMotion ? false : "position"}
+        key={value}
+        className={cn("onboarding-campaign-chip-slot", reserveWidth && "onboarding-campaign-chip-slot-reserved")}
+        style={reserveWidth && reservedWidths[index] ? {
+          "--prospect-chip-slot-width": `${reservedWidths[index]}px`,
+          "--prospect-chip-collapsed-offset": `${Math.max(0, reservedWidths[index] - (collapsedWidths[index] ?? reservedWidths[index]))}px`,
+        } as CSSProperties : undefined}
+        initial={false}
+        animate={{ opacity: 1 }}
+        exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.86, y: -3, filter: "blur(2px)" }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.21, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <motion.div
+          className="onboarding-campaign-chip"
+          whileHover={reduceMotion ? undefined : { y: -1, scale: 1.03 }}
+          whileFocus={reduceMotion ? undefined : { y: -1, scale: 1.03 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span className="onboarding-campaign-chip-label">{value}</span>
+          <button type="button" className="onboarding-campaign-chip-remove" onClick={() => onRemove(category, value)} aria-label={accessibleLabel}><X className="size-3.5" aria-hidden /></button>
+        </motion.div>
+      </motion.div>
+    );
+  };
+
+  const finishExits = () => onExitComplete(category);
+  return <>
+    <div ref={railRef} className="onboarding-campaign-profile-values onboarding-campaign-profile-rail" data-measured={visibleIndexes === null ? undefined : "true"}>
+      {values.length ? <AnimatePresence initial={false} mode="popLayout" onExitComplete={finishExits}>
+        {visibleIndexes === null
+          ? values.filter((value) => !removing.has(prospectId(category, value))).map((value, index) => renderChip(value, index))
+          : visibleIndexes.filter((index) => !removing.has(prospectId(category, values[index]))).map((index) => renderChip(values[index], index, true))}
+      </AnimatePresence> : <span className="onboarding-campaign-empty">No suggestion yet</span>}
+      {overflowValues.length ? <button ref={triggerRef} data-prospect-overflow-trigger={category} type="button" className="onboarding-campaign-overflow-trigger" aria-label={`Show ${overflowValues.length} more ${label.toLowerCase()}`} aria-expanded={open} aria-controls={popoverId} onClick={() => setOpen(true)} onFocus={() => { if (suppressTriggerFocusRef.current) { suppressTriggerFocusRef.current = false; return; } setOpen(true); }}>+{overflowValues.length} more</button> : null}
+    </div>
+    <div ref={measureRef} className="onboarding-campaign-chip-measure" aria-hidden="true">
+      {values.map((value) => <span key={value} data-chip-measure className="onboarding-campaign-chip-measure-item"><span className="onboarding-campaign-chip-label">{value}</span></span>)}
+      {values.map((value) => <span key={value} data-chip-expanded-measure className="onboarding-campaign-chip-measure-item onboarding-campaign-chip-measure-expanded"><span className="onboarding-campaign-chip-label">{value}</span><span className="onboarding-campaign-chip-remove"><X className="size-3.5" /></span></span>)}
+      {values.map((_, index) => <span key={index} data-trigger-measure={values.length - index} className="onboarding-campaign-overflow-trigger">+{values.length - index} more</span>)}
+    </div>
+    {typeof document !== "undefined" && createPortal(<AnimatePresence>{open && position && overflowValues.length ? <motion.div id={popoverId} ref={popoverRef} role="dialog" aria-label={`${label} selections`} className="onboarding-campaign-overflow-popover" style={{ left: position.left, top: position.top }} initial={reduceMotion ? false : { opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }} transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.16, 1, 0.3, 1] }}>
+      <div className="onboarding-campaign-overflow-heading"><div><strong>{label}</strong><span>{values.length} selected</span></div><button ref={closeRef} type="button" aria-label={`Close ${label}`} onClick={() => { setOpen(false); suppressTriggerFocusRef.current = true; triggerRef.current?.focus({ preventScroll: true }); }}><X className="size-4" aria-hidden /></button></div>
+      <div className="onboarding-campaign-overflow-values"><AnimatePresence initial={false} mode="popLayout" onExitComplete={finishExits}>{values.map((value, index) => ({ value, index })).filter(({ index }) => !visibleIndexes?.includes(index) && !removing.has(prospectId(category, values[index]))).map(({ value, index }) => renderChip(value, index))}</AnimatePresence></div>
+    </motion.div> : null}</AnimatePresence>, document.body)}
+  </>;
+}
+
 export default function Discovery() {
+  const searchParams = useSearchParams();
+  const submittedWebsite = useRef(false);
   useLayoutEffect(() => applyStoredTheme(), []);
   const confirmCampaign = useCampaignConfirmation();
 
   const [profile, setProfile] = useState<ProspectProfile>(EMPTY_PROFILE);
-  const [rowHeights, setRowHeights] = useState<Partial<Record<keyof ProspectProfile, number>>>({});
   const [removingProspects, setRemovingProspects] = useState<Set<string>>(() => new Set());
   const [highlightedRow, setHighlightedRow] = useState<keyof ProspectProfile | null>(null);
   const [removalAnnouncement, setRemovalAnnouncement] = useState("");
@@ -117,26 +297,37 @@ export default function Discovery() {
   const [saving, setSaving] = useState(false);
   const sourceUrlRef = useRef<string | null>(null);
   const rowHighlightTimeoutRef = useRef<number | null>(null);
-  const actionRowRef = useRef<HTMLDivElement>(null);
-  const { status, websiteUrl, loading, message, start, retry } = useWebsiteScrapeStatus({
+  const { status, websiteUrl, loading, ready, message, start, retry } = useWebsiteScrapeStatus({
     context: "authenticated",
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (websiteUrl) setWebsiteInput(websiteUrl);
   }, [websiteUrl]);
 
   useEffect(() => {
+    if (submittedWebsite.current && status.status === "completed") {
+      submittedWebsite.current = false;
+      navigateOnboarding(strategyHref("how-it-works"));
+    }
+  }, [status.status]);
+
+  useEffect(() => {
+    if (!sourceUrlRef.current || !status.url) return;
+    try {
+      window.sessionStorage.setItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`, JSON.stringify({ profile }));
+    } catch { /* The saved campaign remains authoritative; drafts are optional. */ }
+  }, [profile, status.url]);
+
+  useEffect(() => {
     if (status.status !== "completed" || !status.url || sourceUrlRef.current === status.url) return;
     sourceUrlRef.current = status.url;
-    setRowHeights({});
     let restored = status.prospectProfile ?? EMPTY_PROFILE;
     try {
       const saved = JSON.parse(window.sessionStorage.getItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`) ?? "null");
       const savedProfile = saved?.profile ?? saved;
       if (savedProfile && PROFILE_ROWS.every(({ key }) => Array.isArray(savedProfile[key]) && savedProfile[key].every((value: unknown) => typeof value === "string"))) {
         restored = savedProfile;
-        if (saved?.rowHeights && saved.viewportWidth === window.innerWidth) setRowHeights(Object.fromEntries(PROFILE_ROWS.flatMap(({ key }) => Number.isFinite(saved.rowHeights[key]) && saved.rowHeights[key] > 0 ? [[key, saved.rowHeights[key]]] : [])));
       }
     } catch { /* Saved review state is optional when storage is unavailable. */ }
     setProfile(restored);
@@ -148,53 +339,50 @@ export default function Discovery() {
   }, []);
 
   useLayoutEffect(() => {
-    const actionRow = actionRowRef.current;
+    const task = document.querySelector<HTMLElement>(".onboarding-discovery-task");
+    const detailEntry = task?.querySelector<HTMLElement>(".discovery-detail-entry");
+    const actionRow = task?.querySelector<HTMLElement>(".onboarding-campaign-actions");
     const pill = document.querySelector<HTMLElement>(".signup-campaign-pill");
     const desktop = window.matchMedia("(min-width: 63.0625rem)");
-    if (!actionRow || !pill) return;
+    if (!task || !detailEntry || !actionRow || !pill) return;
 
-    const align = () => {
+    const alignColumn = () => {
       if (!desktop.matches) {
-        actionRow.style.removeProperty("--discovery-action-offset");
+        task.style.removeProperty("--discovery-column-offset");
+        task.style.removeProperty("--discovery-content-offset");
         return;
       }
-      const selectorNeedsSpace = Boolean(document.querySelector(".discovery-detail-selector"))
-        && (window.innerWidth < 96 * 16 || window.innerHeight < 56.25 * 16);
-      if (selectorNeedsSpace) {
-        actionRow.style.removeProperty("--discovery-action-offset");
-        return;
-      }
-      const currentOffset = Number.parseFloat(actionRow.style.getPropertyValue("--discovery-action-offset")) || 0;
-      const actionBottomWithoutOffset = actionRow.getBoundingClientRect().bottom - currentOffset;
-      const offset = pill.getBoundingClientRect().bottom - actionBottomWithoutOffset;
-      actionRow.style.setProperty("--discovery-action-offset", `${offset}px`);
+
+      // The selector reserves its own space in normal flow. Keeping the parent
+      // fixed while it is present prevents measuring a translated action row.
+      if (task.querySelector(".discovery-detail-selector")) return;
+
+      const currentColumnOffset = Number.parseFloat(task.style.getPropertyValue("--discovery-column-offset")) || 0;
+      const currentContentOffset = Number.parseFloat(task.style.getPropertyValue("--discovery-content-offset")) || 0;
+      const pillBottom = pill.getBoundingClientRect().bottom;
+      const columnDelta = pillBottom - actionRow.getBoundingClientRect().bottom;
+      const gap = actionRow.getBoundingClientRect().top - detailEntry.getBoundingClientRect().bottom;
+
+      task.style.setProperty("--discovery-column-offset", `${currentColumnOffset + columnDelta}px`);
+      task.style.setProperty("--discovery-content-offset", `${Math.max(0, currentContentOffset + gap - 24)}px`);
+      window.dispatchEvent(new Event("discovery-layout-change"));
     };
 
-    align();
-    const resizeObserver = new ResizeObserver(align);
-    resizeObserver.observe(actionRow);
-    resizeObserver.observe(pill);
-    const mutationObserver = new MutationObserver(align);
-    mutationObserver.observe(actionRow.parentElement ?? actionRow, { childList: true, subtree: true });
-    window.addEventListener("resize", align);
-    pill.addEventListener("animationend", align);
-
-    let frame = 0;
-    let framesRemaining = 70;
-    const settleAfterPillEntrance = () => {
-      align();
-      if (framesRemaining-- > 0) frame = window.requestAnimationFrame(settleAfterPillEntrance);
-    };
-    frame = window.requestAnimationFrame(settleAfterPillEntrance);
+    alignColumn();
+    const resizeObserver = new ResizeObserver(alignColumn);
+    resizeObserver.observe(task);
+    const detailObserver = new MutationObserver(() => {
+      window.requestAnimationFrame(alignColumn);
+    });
+    detailObserver.observe(detailEntry.parentElement ?? task, { childList: true, subtree: true });
+    window.addEventListener("resize", alignColumn);
 
     return () => {
       resizeObserver.disconnect();
-      mutationObserver.disconnect();
-      window.removeEventListener("resize", align);
-      pill.removeEventListener("animationend", align);
-      window.cancelAnimationFrame(frame);
+      detailObserver.disconnect();
+      window.removeEventListener("resize", alignColumn);
     };
-  }, [status.status, status.url]);
+  }, [profile, status.status]);
 
   const prospectId = (key: keyof ProspectProfile, value: string) => `${key}:${value}`;
 
@@ -216,9 +404,11 @@ export default function Discovery() {
       [key]: current[key].filter((item) => item !== value),
     }));
     setRemovalAnnouncement(`${value} removed from ${PROFILE_ROWS.find((row) => row.key === key)?.label ?? "prospects"}.`);
-    setHighlightedRow(key);
     if (rowHighlightTimeoutRef.current !== null) window.clearTimeout(rowHighlightTimeoutRef.current);
-    rowHighlightTimeoutRef.current = window.setTimeout(() => setHighlightedRow(null), reduceMotion ? 0 : 460);
+    rowHighlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedRow(key);
+      rowHighlightTimeoutRef.current = window.setTimeout(() => setHighlightedRow(null), reduceMotion ? 0 : 460);
+    }, reduceMotion ? 0 : 210);
   };
 
   async function submitWebsite(event: FormEvent<HTMLFormElement>) {
@@ -229,8 +419,14 @@ export default function Discovery() {
       return;
     }
 
+    if (status.status === "completed" && normalized === cleanWebsiteDomain(websiteUrl ?? status.url ?? "")) {
+      navigateOnboarding(strategyHref("how-it-works"));
+      return;
+    }
+
     setError(null);
     setSubmittingWebsite(true);
+    submittedWebsite.current = true;
     setMaterializeWebsiteIcon(true);
     sourceUrlRef.current = null;
     window.localStorage.setItem("lr_website_url", normalized);
@@ -262,18 +458,20 @@ export default function Discovery() {
             { role: "user", content: additionalContext.trim() || "Reviewed suggested prospect audience." },
           ],
           prospectProfile: { ...profile, additionalContext: additionalContext.trim() },
+          websiteUrl: websiteUrl ?? status.url ?? undefined,
         }),
       });
       window.localStorage.setItem("lr_strategy_id", result.strategyId);
       try {
-        const heights = Object.fromEntries(PROFILE_ROWS.map(({ key }) => [key, document.querySelector<HTMLElement>(`[data-prospect-row="${key}"]`)?.offsetHeight]));
-        window.sessionStorage.setItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`, JSON.stringify({ profile, rowHeights: heights, viewportWidth: window.innerWidth }));
+        window.sessionStorage.setItem(`lr_prospect_review:${getDiscoveryOrgScope() ?? "preview"}:${status.url}`, JSON.stringify({ profile }));
       } catch { /* The server already saved the audience. */ }
-      confirmCampaign?.({
-        ...createSemanticCampaignSummary({ ...status, prospectProfile: profile }, undefined, websiteUrl),
-        newlyCompletedSectionId: "targeting",
-      });
-      navigateOnboarding(strategyHref("how-it-works"));
+      confirmCampaign?.(createLiveCampaignSummary(
+        { ...status, prospectProfile: profile },
+        "campaign-content",
+        undefined,
+        websiteUrl,
+      ));
+      navigateOnboarding(onboardingHref("campaign-content"));
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -285,7 +483,11 @@ export default function Discovery() {
     }
   }
 
-  const showWebsiteForm = status.status === "idle" || status.status === "failed";
+  const showWebsiteForm = ready && (
+    searchParams.get("view") === "website" ||
+    status.status === "failed" ||
+    (!websiteUrl && status.status === "idle")
+  );
   const campaign = campaignFromStatus(status, websiteUrl);
 
   return (
@@ -366,84 +568,55 @@ export default function Discovery() {
           <DiscoveryFrame
             campaign={campaign}
           >
-            <section className="onboarding-campaign-task" aria-labelledby="prospect-review-title">
-              <div className="onboarding-campaign-intro">
-                <h1 id="prospect-review-title" className="onboarding-campaign-heading">
-                  Your prospects<span className="signup-campaign-period">.</span>
-                </h1>
-                <p>Here’s who we’re targeting.</p>
-              </div>
+            <section
+              className="onboarding-campaign-task onboarding-discovery-task"
+              aria-labelledby="prospect-review-title"
+            >
+              <div className="onboarding-discovery-content">
+                <div className="onboarding-campaign-intro">
+                  <h1 id="prospect-review-title" className="onboarding-campaign-heading">
+                    Your <span className="whitespace-nowrap">prospects<span className="signup-campaign-period">.</span></span>
+                  </h1>
+                  <p>Here’s who we’re targeting.</p>
+                </div>
 
-              <div className="onboarding-campaign-profile">
-                {PROFILE_ROWS.map(({ key, label }) => (
-                  <div
-                    key={key}
-                    data-prospect-row={key}
-                    style={rowHeights[key] ? { height: rowHeights[key] } : undefined}
-                    className={cn("onboarding-campaign-profile-row", highlightedRow === key && "onboarding-campaign-profile-row-highlighted")}
-                  >
-                    <p>{label}</p>
-                    <div>
-                      {profile[key].length > 0 ? (
-                        <AnimatePresence
-                          initial={false}
-                          onExitComplete={() => {
-                            profile[key]
-                              .filter((value) => removingProspects.has(prospectId(key, value)))
-                              .forEach((value) => finishProspectRemoval(key, value));
-                          }}
-                        >
-                          {profile[key].filter((value) => !removingProspects.has(prospectId(key, value))).map((value) => {
-                            const accessibleLabel = `Remove ${value} from ${label}`;
-                            return (
-                              <motion.div
-                                layout={!reduceMotion}
-                                key={value}
-                                className="onboarding-campaign-chip"
-                                initial={false}
-                                animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-                                exit={reduceMotion
-                                  ? { opacity: 0 }
-                                  : { opacity: 0, scale: 0.86, y: -3, filter: "blur(2px)" }}
-                                transition={reduceMotion
-                                  ? { duration: 0 }
-                                  : { duration: 0.21, ease: [0.22, 1, 0.36, 1] }}
-                              >
-                                <button
-                                  type="button"
-                                  className="onboarding-campaign-chip-label"
-                                  onClick={() => queueProspectRemoval(key, value)}
-                                  aria-label={accessibleLabel}
-                                >
-                                  {value}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="onboarding-campaign-chip-remove"
-                                  onClick={() => queueProspectRemoval(key, value)}
-                                  aria-label={accessibleLabel}
-                                >
-                                  <X className="size-3.5" aria-hidden />
-                                </button>
-                              </motion.div>
-                            );
-                          })}
-                        </AnimatePresence>
-                      ) : (
-                        <span className="onboarding-campaign-empty">No suggestion yet</span>
-                      )}
+                <div className="onboarding-campaign-profile">
+                  {PROFILE_ROWS.map(({ key, label }) => (
+                    <div
+                      key={key}
+                      data-prospect-row={key}
+                      className={cn("onboarding-campaign-profile-row", highlightedRow === key && "onboarding-campaign-profile-row-highlighted")}
+                    >
+                      <p>{label}</p>
+                      <ProspectCategoryValues
+                        category={key}
+                        label={label}
+                        values={profile[key]}
+                        removing={removingProspects}
+                        onRemove={queueProspectRemoval}
+                        onExitComplete={(category) => {
+                          profile[category]
+                            .filter((value) => removingProspects.has(prospectId(category, value)))
+                            .forEach((value) => finishProspectRemoval(category, value));
+                        }}
+                        prospectId={prospectId}
+                        reduceMotion={reduceMotion}
+                      />
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+
+                <ProspectDetailInput profile={profile} setProfile={setProfile} onContextChange={setAdditionalContext} disabled={saving} />
+
+                <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{removalAnnouncement}</p>
+
+                {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
               </div>
 
-              <ProspectDetailInput profile={profile} setProfile={setProfile} onContextChange={setAdditionalContext} disabled={saving} />
-
-              <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{removalAnnouncement}</p>
-
-              {error ? <p role="alert" className="mt-3 text-sm text-red-700">{error}</p> : null}
-
-              <div ref={actionRowRef} className="onboarding-campaign-actions">
+              <div className="onboarding-campaign-actions">
+                <Button type="button" variant="secondary" className="campaign-content-back discovery-back" onClick={() => navigateOnboarding(strategyHref("how-it-works"))}>
+                  <ArrowLeft className="size-5" aria-hidden />Back
+                </Button>
                 <Button
                   type="button"
                   disabled={saving}

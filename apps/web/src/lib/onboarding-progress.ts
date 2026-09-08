@@ -8,6 +8,8 @@ type ResumeStrategy = {
   audienceAnalysisComplete: boolean;
   campaignType: string | null;
   videoConfig: unknown;
+  introductionSeen?: boolean;
+  prospectsApproved?: boolean;
 };
 
 function needsVideoStyle(videoConfig: unknown): boolean {
@@ -55,9 +57,13 @@ export function resolveOnboardingResumeTarget(input: {
     return { step: "discovery" };
   }
 
-  if (!input.strategy.audienceAnalysisComplete) {
+  if (!input.strategy.audienceAnalysisComplete && input.strategy.prospectsApproved !== true && !input.strategy.campaignType) {
+    if (input.strategy.introductionSeen) return { step: "discovery" };
     return { step: "strategy", strategySubstep: "how-it-works" };
   }
+
+  if (input.strategy.prospectsApproved === false) return input.strategy.introductionSeen
+    ? { step: "discovery" } : { step: "strategy", strategySubstep: "how-it-works" };
 
   if (!input.strategy.campaignType) {
     return { step: "campaign-content" };
@@ -85,7 +91,7 @@ export function resolveOnboardingResumeTarget(input: {
   }
 
   if (input.strategy.videoConfig === null || input.strategy.videoConfig === undefined) {
-    return { step: "video-decision" };
+    return { step: "campaign-content" };
   }
 
   if (input.subscriptionStatus !== "active") {
