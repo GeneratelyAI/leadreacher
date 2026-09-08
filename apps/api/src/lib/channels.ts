@@ -1,24 +1,5 @@
-/** Outreach channels supported end-to-end via Unipile. */
-export const OUTREACH_CHANNELS = [
-  "linkedin",
-  "whatsapp",
-  "facebook",
-  "instagram",
-  "email",
-] as const;
-
-export type OutreachChannel = (typeof OUTREACH_CHANNELS)[number];
-
-export const SEQUENCE_STEP_TYPES = [
-  "linkedin_invite",
-  "linkedin_message",
-  "whatsapp_message",
-  "facebook_message",
-  "instagram_message",
-  "email",
-] as const;
-
-export type SequenceStepType = (typeof SEQUENCE_STEP_TYPES)[number];
+import { OUTREACH_CHANNELS, SEQUENCE_STEP_TYPES, type OutreachChannel, type SequenceStepType } from "@leadreacher/shared/delivery";
+export { OUTREACH_CHANNELS, SEQUENCE_STEP_TYPES, type OutreachChannel, type SequenceStepType } from "@leadreacher/shared/delivery";
 
 /** Unipile hosted-auth provider tokens we pass to createHostedAuthLink. */
 export const UNIPILE_CONNECT_PROVIDERS = [

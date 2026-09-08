@@ -1,3 +1,6 @@
+import type { ApiErrorResponse } from "@leadreacher/shared/http";
+export type { ApiErrorResponse } from "@leadreacher/shared/http";
+
 export class AppError extends Error {
   readonly statusCode: number;
   readonly code: string;
@@ -19,14 +22,6 @@ export class AppError extends Error {
     this.publicMessage = publicMessage;
   }
 }
-
-export type ApiErrorResponse = {
-  status: number;
-  code: string;
-  message: string;
-  requestId: string;
-  details?: Record<string, unknown>;
-};
 
 export function apiErrorResponse(
   requestId: string,

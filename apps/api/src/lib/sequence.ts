@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { SequenceStep } from "@leadreacher/shared/delivery";
+export type { SequenceStep } from "@leadreacher/shared/delivery";
 import {
   channelForStepType,
   isSequenceStepType,
@@ -30,8 +32,6 @@ const SequenceStepSchema = z
       });
     }
   });
-
-export type SequenceStep = z.infer<typeof SequenceStepSchema>;
 
 const SequenceSchema = z.array(SequenceStepSchema).min(1);
 

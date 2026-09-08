@@ -45,17 +45,12 @@ const StrategyParamsSchema = z.object({
   orgId: z.string().min(1),
 });
 
-export const CAMPAIGN_TYPES = [
-  "personalized_outreach",
-  "ai_video_ad",
-  "uploaded_video",
-] as const;
-
-type CampaignType = (typeof CAMPAIGN_TYPES)[number];
+export { CAMPAIGN_TYPES } from "@leadreacher/shared/campaign";
+import { CAMPAIGN_TYPES, CONTENT_CHOICES, type CampaignType } from "@leadreacher/shared/campaign";
 
 const CampaignTypeBodySchema = z.object({
   campaignType: z.string(),
-  contentChoice: z.enum(["personalized-video", "ai-video", "your-video", "document"]).optional(),
+  contentChoice: z.enum(CONTENT_CHOICES).optional(),
 });
 const ChannelSelectionBodySchema = z.object({
   channels: z.array(z.enum(OUTREACH_CHANNELS)).min(1),

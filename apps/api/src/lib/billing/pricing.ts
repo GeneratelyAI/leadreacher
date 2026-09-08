@@ -1,11 +1,8 @@
 import { z } from "zod";
 import { env } from "../../platform/config/env.js";
+import { CAMPAIGN_TYPES as CAMPAIGN_TYPE_VALUES } from "@leadreacher/shared/campaign";
 
-const CampaignTypeSchema = z.enum([
-  "personalized_outreach",
-  "ai_video_ad",
-  "uploaded_video",
-]);
+const CampaignTypeSchema = z.enum(CAMPAIGN_TYPE_VALUES);
 
 export const VideoConfigSchema = z
   .object({
