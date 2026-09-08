@@ -1,0 +1,321 @@
+.header,
+.disclosure {
+  display: none;
+}
+.sheet {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px max(28px, env(safe-area-inset-bottom));
+  border-radius: 20px 20px 0 0;
+  gap: 16px;
+  background: white;
+  color: #100d30;
+  font-family: var(--font-inter), Arial, sans-serif;
+}
+.handle {
+  display: block;
+  width: 44px;
+  height: 5px;
+  border-radius: 10px;
+  margin: 0 auto 4px;
+  background: #dcdbe7;
+  flex-shrink: 0;
+}
+.primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  width: 100%;
+  padding: 12px 16px;
+  color: #fff;
+  background: linear-gradient(115deg, #5832f5, #4c22e8);
+  border: 1px solid #5a30f6;
+  border-radius: 7px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.primary:focus-visible,
+.header button:focus-visible,
+.disclosure:focus-visible {
+  outline: 3px solid #aa95ff;
+  outline-offset: 3px;
+}
+.helpContent {
+  display: grid;
+  gap: 8px;
+  line-height: 1.55;
+  font-size: 15px;
+}
+.helpContent h3 {
+  font-weight: 650;
+  margin-top: 12px;
+}
+.helpContent p {
+  color: #57546e;
+}
+.summarySheet {
+  background: #fff;
+  color: #100d30;
+}
+.summarySheet h2 {
+  color: #100d30;
+  font-size: 20px;
+  font-weight: 650;
+}
+.summarySheet > button:not(.primary) {
+  color: #57546e;
+}
+.summarySheet .handle {
+  background: #dcdbe7;
+}
+.summarySite {
+  color: #57546e;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+  margin-top: -10px;
+}
+.summarySection {
+  border-bottom: 1px solid #e5e3ee;
+  padding: 5px 0;
+}
+.summarySection[data-business] {
+  padding-bottom: 18px;
+}
+.summarySection:first-of-type {
+  padding-top: 10px;
+}
+.summarySection > button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  font-size: 15px;
+  font-weight: 550;
+}
+.summarySection > button svg {
+  flex-shrink: 0;
+}
+.summarySection > button > svg:last-child {
+  margin-left: auto;
+}
+.summarySection > button:focus-visible {
+  outline: 2px solid #bbaaee;
+  outline-offset: 3px;
+}
+.summaryCheck {
+  color: #11864b;
+}
+.summaryPrimaryCheck {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  color: white;
+  border-radius: 50%;
+  background: #12bc53;
+}
+.summarySectionIcon {
+  color: #7253b5;
+}
+.sheetBackdrop {
+  background: rgb(24 20 47 / 25%);
+  backdrop-filter: none;
+}
+.summarySheet h2:focus {
+  outline: none;
+}
+.summaryPending {
+  width: 8px;
+  height: 8px;
+  margin-inline: 8px;
+  border-radius: 50%;
+  background: #9674f8;
+  flex: 0 0 8px;
+}
+.summaryDetail {
+  padding-top: 12px;
+}
+.summaryDetail :global(.campaign-pill-section-fields) {
+  display: grid;
+  gap: 8px;
+}
+.summaryDetail :global(.campaign-pill-section-field) {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.summaryDetail :global(.campaign-pill-section-field b) {
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: #100d30;
+}
+.summaryDetail :global(.campaign-pill-section-field span) {
+  color: #57546e;
+  overflow-wrap: anywhere;
+}
+.summaryDetail :global(.campaign-pill-customer-values) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.summaryDetail :global(.campaign-pill-customer-values span) {
+  color: #25145a;
+  background: #f0eaff;
+  border: 1px solid #d6c8ff;
+  border-radius: 5px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+@media (max-width: 63rem) {
+  .shell {
+    --mobile-gutter: 20px;
+    --mobile-ink: #100d30;
+    --mobile-muted: #53526b;
+    --mobile-purple: #5529f2;
+    --mobile-lavender: #f1edff;
+    --mobile-border: #dbdbe6;
+    --mobile-control-height: 48px;
+    color: var(--mobile-ink);
+    background: #fff;
+    font-family: var(--font-inter), Arial, sans-serif;
+  }
+  .shell:global(.onboarding-campaign-scene) {
+    overflow: visible;
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 62px;
+    padding: 9px max(var(--mobile-gutter, 20px), env(safe-area-inset-right)) 9px
+      max(var(--mobile-gutter, 20px), env(safe-area-inset-left));
+    width: 100%;
+    background: #fff;
+    flex: 0 0 auto;
+  }
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    width: 154px;
+    min-height: 44px;
+  }
+  .brand img {
+    width: 154px;
+    height: 30px;
+    object-fit: contain;
+  }
+  .header > button {
+    min-width: 44px;
+    min-height: 44px;
+    border: 0;
+    background: transparent;
+    color: #5426f7;
+    font-size: 14px;
+    font-weight: 550;
+    text-align: right;
+  }
+  .shell :global(.onboarding-persistent-logo),
+  .shell :global(.onboarding-chrome) {
+    display: none;
+  }
+  .shell :global(.onboarding-persistent-pill) {
+    margin: 0;
+    width: 100%;
+  }
+  .shell:has(:global(.discovery-website-gate))
+    :global(.onboarding-persistent-pill)[data-campaign-site] {
+    display: block;
+  }
+  .shell[data-mobile-checkout] :global(.onboarding-persistent-pill) {
+    display: none;
+  }
+  .shell :global(.campaign-pill-responsive-disclosure) {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+    animation: none;
+    transform: none;
+  }
+  .shell :global(.campaign-pill-responsive-disclosure)::before,
+  .shell :global(.campaign-pill-responsive-disclosure)::after {
+    display: none;
+  }
+  .shell :global(.campaign-pill-responsive-disclosure) > :not(.disclosure) {
+    display: none;
+  }
+  .disclosure {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 8px var(--mobile-gutter, 20px);
+    background: #f1ecff;
+    border: 0;
+    border-radius: 0;
+    color: #221450;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: left;
+  }
+  .disclosure strong {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .disclosure svg {
+    flex: 0 0 16px;
+    margin-left: auto;
+  }
+  .shell :global(.onboarding-campaign-layout) {
+    padding: 24px var(--mobile-gutter) 0;
+    background: #fff;
+  }
+  .shell :global(.onboarding-campaign-intro) {
+    margin-bottom: 24px;
+  }
+  .shell :global(.onboarding-campaign-heading) {
+    font-size: 24px;
+    line-height: 1.25;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+  }
+  .shell :global(.onboarding-campaign-intro > p) {
+    margin-top: 8px;
+    color: var(--mobile-muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .shell :global(.signup-campaign-period) {
+    color: inherit;
+    text-shadow: none;
+    animation: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheetBackdrop {
+    transition: none;
+    transform: none;
+    translate: none;
+    animation: none;
+  }
+}

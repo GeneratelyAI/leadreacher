@@ -1,16 +1,23 @@
 "use client";
 
-import { Check, CheckCircle2, ChevronDown } from "@/components/ui/icons";
+import { Check, CheckCircle2, ChevronDown, ChevronRight, Users, Video } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { createContext, useContext, useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { OnboardingLogo } from "./OnboardingLogo";
 import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { createConfirmedCampaignSummary, type SavedCampaignSummary } from "./campaign-summary";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { CAMPAIGN_SAVED_EVENT } from "@/lib/onboarding/campaign-events";
+import { Sheet, SheetContent, SheetTitle, SheetClose, SheetDescription } from "@/components/ui/sheet";
+import { useStableReducedMotion } from "@/hooks/useStableReducedMotion";
+import { isOnboardingPreview } from "@/lib/onboarding/preview-api";
+import MobileOnboardingHeader from "./MobileOnboardingHeader";
+import mobileStyles from "./MobileOnboarding.module.css";
+import { mobileCampaignSections, shortSavedCustomerSegments } from "./mobile-campaign-summary";
 
 export type PillField = {
   label: string;
@@ -56,6 +63,10 @@ type DetailPresentation = {
 const CampaignHost = createContext<((campaign: PillData) => void) | null>(null);
 const CampaignData = createContext<PillData | null>(null);
 
+function CampaignStyleIcon({ className }: { className?: string }) {
+  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden><path d="m12 2 3 6.5 7 .9-5.2 5 1.4 7-6.2-3.5L5.8 21l1.4-6.6L2 9.4l7-.9Z" /></svg>;
+}
+
 export function useCampaignData() {
   return useContext(CampaignData);
 }
@@ -65,7 +76,8 @@ export function useCampaignConfirmation() {
 }
 
 /** The host remains mounted while route-owned content changes. */
-export function CampaignCanvas({ children }: { children: ReactNode }) {
+export function CampaignCanvas({ children, initialWebsiteUrl }: { children: ReactNode; initialWebsiteUrl?: string }) {
+  const routeParams = useSearchParams();
   const [saved, setSaved] = useState<{ websiteUrl: string; campaign: SavedCampaignSummary } | null>(null);
   const [revision, setRevision] = useState(0);
   const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
@@ -86,18 +98,19 @@ export function CampaignCanvas({ children }: { children: ReactNode }) {
     window.addEventListener(CAMPAIGN_SAVED_EVENT, refresh);
     return () => window.removeEventListener(CAMPAIGN_SAVED_EVENT, refresh);
   }, []);
-  const campaign = useMemo(() => createConfirmedCampaignSummary(status, saved?.websiteUrl === websiteUrl ? saved.campaign : null, websiteUrl), [status, saved, websiteUrl]);
+  const campaign = useMemo(() => createConfirmedCampaignSummary(status, saved?.websiteUrl === websiteUrl ? saved.campaign : null, websiteUrl ?? initialWebsiteUrl), [status, saved, websiteUrl, initialWebsiteUrl]);
   // Legacy task publishers remain supported without deriving approval from a route.
   const publish = useMemo(() => () => {}, []);
 
   return (
     <CampaignHost.Provider value={publish}>
       <CampaignData.Provider value={campaign}>
-      <div className="onboarding-campaign-scene">
+      <div className={cn("onboarding-campaign-scene", mobileStyles.shell)} data-mobile-checkout={routeParams.get("step") === "checkout" || routeParams.get("screen") === "13" || undefined}>
+        <MobileOnboardingHeader />
         <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor onboarding-persistent-logo inline-flex">
           <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
         </Link>
-        <aside className="signup-campaign-pill-column onboarding-persistent-pill" aria-label="Live campaign summary">
+        <aside className="signup-campaign-pill-column onboarding-persistent-pill" data-campaign-site={campaign.site?.label || undefined} aria-label="Live campaign summary">
           <PillView
             campaign={campaign}
             className="signup-campaign-pill"
@@ -120,12 +133,6 @@ export function Pill(props: PillProps) {
   return publish ? null : <PillView {...props} />;
 }
 
-function reducedMotionPreferred() {
-  return typeof window !== "undefined"
-    && typeof window.matchMedia === "function"
-    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 /** A compact, progressively populated campaign brief for onboarding. */
 function PillView({
   campaign,
@@ -134,9 +141,15 @@ function PillView({
   responsiveDefaultCollapsed = false,
 }: PillProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
+  const [mobileSection, setMobileSection] = useState("business");
   const [mobile, setMobile] = useState(false);
   const [hasToggledResponsiveDisclosure, setHasToggledResponsiveDisclosure] = useState(false);
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(reducedMotionPreferred);
+  const prefersReducedMotion = useStableReducedMotion();
+  const params = useSearchParams();
+  const summaryTriggerRef = useRef<HTMLButtonElement>(null);
+  const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
+  const referenceOpened = useRef(false);
   const contentId = useId();
   const serializedFields = JSON.stringify(campaign.fields);
   const fields = useMemo<PillField[]>(() => JSON.parse(serializedFields), [serializedFields]);
@@ -180,14 +193,13 @@ function PillView({
     label: "leadreacher.ai",
     iconUrl: "/logo/leadreacher_icon_colored.svg",
   };
+  const mobileSections = mobileCampaignSections(campaign);
 
   useEffect(() => {
-    if (typeof window.matchMedia !== "function") return;
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const syncPreference = () => setPrefersReducedMotion(query.matches);
-    query.addEventListener("change", syncPreference);
-    return () => query.removeEventListener("change", syncPreference);
-  }, []);
+    if (!mobile || referenceOpened.current || !isOnboardingPreview() || params.get("screen") !== "15") return;
+    referenceOpened.current = true;
+    setMobileSummaryOpen(true);
+  }, [mobile, params]);
 
   useLayoutEffect(() => {
     if (!responsiveDefaultCollapsed || typeof window.matchMedia !== "function") return;
@@ -195,6 +207,7 @@ function PillView({
     const syncExpandedState = () => {
       setMobile(query.matches);
       setExpanded(!query.matches);
+      if (!query.matches) setMobileSummaryOpen(false);
     };
     syncExpandedState();
     query.addEventListener("change", syncExpandedState);
@@ -278,21 +291,24 @@ function PillView({
     return firstField.value ?? firstField.values?.join(" · ") ?? "Complete";
   }
 
-  function sectionDetails(section: PillSection, fieldCount?: number) {
+  function sectionDetails(section: PillSection, fieldCount?: number, mobilePresentation = false) {
     if (section.fields?.length) {
       const fieldsToShow = fieldCount === undefined ? section.fields : section.fields.slice(0, fieldCount);
       return (
         <div className="campaign-pill-section-fields">
-          {fieldsToShow.map((field) => (
+          {fieldsToShow.map((field) => {
+            const customerValues = mobilePresentation && field.label === "Customers" && field.value ? shortSavedCustomerSegments(field.value) : null;
+            const values = field.values ?? customerValues;
+            return (
             <div className="campaign-pill-section-field" data-field={field.label.toLowerCase()} key={field.label}>
-              <b>{field.label}</b>
-              {field.values?.length ? (
+              <b>{mobilePresentation && field.label === "Customers" ? "Who we help" : field.label}</b>
+              {values?.length ? (
                 <div className="campaign-pill-customer-values" aria-label={field.label}>
-                  {field.values.map((value) => <span key={value}>{value}</span>)}
+                  {values.map((value) => <span key={value}>{value}</span>)}
                 </div>
               ) : field.value ? <span>{field.value}</span> : null}
             </div>
-          ))}
+          ); })}
         </div>
       );
     }
@@ -370,6 +386,14 @@ function PillView({
       )}
       aria-label="Your campaign"
     >
+      {responsiveDefaultCollapsed ? <button
+        ref={summaryTriggerRef}
+        type="button"
+        className={mobileStyles.disclosure}
+        aria-label={campaign.site ? `Open campaign summary for ${site.label}` : "Open campaign summary"}
+        aria-expanded={mobileSummaryOpen}
+        onClick={() => setMobileSummaryOpen(true)}
+      >{campaign.site ? <><strong>{site.label}</strong><span aria-hidden>·</span></> : null}<span>{fields.length || sections.length ? "Your campaign" : campaign.statusLabel ?? "Building your campaign"}</span><ChevronRight className="size-4" aria-hidden /></button> : null}
       <div className="campaign-pill-ambient" aria-hidden />
       <div className="campaign-pill-site" aria-label={`Website: ${site.label}`}>
         <Image
@@ -534,6 +558,32 @@ function PillView({
           {sectionDetails(fullDetailSection)}
         </dialog>, document.body,
       ) : null}
+      <Sheet open={mobileSummaryOpen} onOpenChange={setMobileSummaryOpen}>
+        <SheetContent side="bottom" className={cn(mobileStyles.sheet, mobileStyles.summarySheet)} overlayClassName={mobileStyles.sheetBackdrop} initialFocus={summaryHeadingRef} finalFocus={summaryTriggerRef}>
+          <span className={mobileStyles.handle} aria-hidden />
+          <SheetTitle ref={summaryHeadingRef} tabIndex={-1}>Your campaign</SheetTitle>
+          <SheetDescription className={mobileStyles.summarySite}>{campaign.site ? site.label : "Your saved decisions will appear here."}</SheetDescription>
+          <div>
+            {mobileSections.map((section) => {
+              const hasDetails = (section.state ?? "complete") === "complete" && Boolean(section.fields?.length || section.value);
+              const active = mobileSection === section.id;
+              const completed = (section.state ?? "complete") === "complete";
+              const Icon = section.id === "targeting" ? Users : section.id === "content" ? Video : section.id === "style" ? CampaignStyleIcon : CheckCircle2;
+              return <section className={mobileStyles.summarySection} data-business={section.id === "business" || undefined} key={section.id}>
+                <button type="button" disabled={!hasDetails} aria-expanded={hasDetails ? active : undefined} aria-controls={hasDetails ? `${contentId}-mobile-${section.id}` : undefined} onClick={() => setMobileSection(active ? "" : section.id)}>
+                  {completed && section.id === "business" ? <span className={mobileStyles.summaryPrimaryCheck}><Check className="size-6" aria-hidden /></span> : completed ? <Icon className={cn("size-6", section.id === "channels" ? mobileStyles.summaryCheck : mobileStyles.summarySectionIcon)} aria-hidden /> : <span className={mobileStyles.summaryPending} aria-hidden />}
+                  <span>{section.id === "business" && section.summary ? section.summary : <>{section.label}{section.summary || section.pendingLabel ? <> · {section.summary ?? section.pendingLabel}</> : null}</>}</span>
+                  {completed && section.id !== "business" && section.id !== "channels" ? <CheckCircle2 className={cn("size-4", mobileStyles.summaryCheck)} aria-label="Complete" /> : null}
+                  {hasDetails ? <ChevronDown className="size-4" aria-hidden /> : null}
+                </button>
+                {hasDetails && active ? <div id={`${contentId}-mobile-${section.id}`} className={mobileStyles.summaryDetail}>{sectionDetails(section, undefined, true)}</div> : null}
+              </section>;
+            })}
+            {!mobileSections.length ? <p>{campaign.statusLabel ?? "Building your campaign"}</p> : null}
+          </div>
+          <SheetClose className={mobileStyles.primary}>Done</SheetClose>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
