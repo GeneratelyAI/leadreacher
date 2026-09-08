@@ -3,21 +3,26 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ONBOARDING_STEPS, STRATEGY_SUBSTEPS } from "./steps/steps";
+import { MOBILE_REFERENCE_STATES, mobileReferenceHref } from "@/lib/onboarding/mobile-reference";
+import styles from "./Preview.module.css";
 
 export function Preview() {
   const params = useSearchParams();
   const activeStep = params.get("step") ?? "strategy";
   const activeSubstep = params.get("substep");
+  // Screenshot fixtures omit developer chrome only, never customer controls.
+  if (params.get("capture") === "1") return null;
 
   return (
     <details
       aria-label="Onboarding preview controls"
-      className="group fixed top-20 right-3 z-[100] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-black/10 bg-white/95 shadow-2xl backdrop-blur dark:border-white/15 dark:bg-onboarding-neutral-900/95"
+      className={`group fixed top-20 right-3 z-[100] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-black/10 bg-white/95 shadow-2xl backdrop-blur dark:border-white/15 dark:bg-onboarding-neutral-900/95 ${styles.controls}`}
     >
       <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold uppercase tracking-wider text-onboarding-purple-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onboarding-purple-400 dark:text-onboarding-purple-200">
         Preview controls
       </summary>
       <nav className="flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto border-t border-black/10 p-2 dark:border-white/15">
+        {MOBILE_REFERENCE_STATES.map((state) => <a key={state.id} href={mobileReferenceHref(state.id)} className="shrink-0 rounded-lg border border-violet-100 px-3 py-2 text-sm text-violet-800">{state.id} {state.name}</a>)}
         {ONBOARDING_STEPS.map((step) => (
           <Link
             key={step.value}

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import OnboardingFlow from "@/components/onboarding/OnboardingFlow";
+import { MobileReferencePreview } from "@/components/onboarding/MobileReferencePreview";
 import { Preview } from "@/components/onboarding/Preview";
 import {
   isOnboardingStep,
@@ -32,8 +32,7 @@ export default async function OnboardingPreviewPage({ searchParams }: PreviewPag
 
   return (
     <div className="onboarding-root min-h-dvh overflow-x-clip">
-      <OnboardingFlow
-        preview
+      <MobileReferencePreview
         initialStep={initialStep}
         initialStrategySubstep={initialStrategySubstep}
       />

@@ -145,6 +145,49 @@ const scrapeStatus = {
   error: null,
 };
 
+/** Reset only preview-owned storage, never authenticated campaign data. */
+export function seedMobileReference(screen: string) {
+  if (!isOnboardingPreview()) return;
+  if (window.sessionStorage.getItem("lr_mobile_reference_screen") === screen) return;
+  const status = structuredClone(scrapeStatus);
+  Object.assign(status, { market: "B2B software", audience: "Founders and sales teams", value: "More qualified conversations", strategyStatus: "Book more relevant sales meetings" });
+  status.prospectProfile.companyTypes = ["B2B SaaS", "Services", "Agencies"];
+  status.prospectProfile.industries = ["Technology", "Consulting", "Finance"];
+  if (screen === "06") status.prospectProfile.decisionMakers.push("Marketing Director", "Operations Manager", "Revenue Leader");
+  const strategy = structuredClone(initialStrategy);
+  strategy.channels.selected = ["linkedin", "email"];
+  Object.assign(strategy.icpDefinition, {
+    websiteUrl: status.url,
+    discoverySummary: status,
+    prospectProfile: status.prospectProfile,
+    contentChoice: screen === "10" ? "ai-video" : screen === "11" ? "your-video" : screen === "12" ? "document" : "personalized-video",
+    approvedContent: Number(screen) >= 13 ? { type: "Personalized video", style: "professional" } : undefined,
+    onboarding: { introductionSeen: Number(screen) >= 5, prospectsApproved: Number(screen) >= 8 },
+  });
+  if (screen === "10") { strategy.campaignType = "ai_video_ad"; strategy.videoConfig.tone = "casual"; }
+  window.sessionStorage.setItem("lr_mobile_reference_scrape", JSON.stringify(status));
+  window.sessionStorage.setItem("lr_mobile_reference_screen", screen);
+  window.sessionStorage.setItem("lr_fixture_strategy:/onboarding-preview", JSON.stringify(strategy));
+  window.sessionStorage.removeItem("lr_fixture_content_choice:/onboarding-preview");
+  window.sessionStorage.removeItem(`lr_prospect_review:${PREVIEW_ORG_ID}:${status.url}`);
+  window.sessionStorage.removeItem(DEMO_ACCOUNTS_KEY);
+}
+
+function fixtureScrapeStatus() {
+  if (isOnboardingPreview()) {
+    try {
+      const saved = window.sessionStorage.getItem("lr_mobile_reference_scrape");
+      if (saved) return JSON.parse(saved) as typeof scrapeStatus;
+    } catch { /* Preview data may be reset when browser storage is unavailable. */ }
+  }
+  return scrapeStatus;
+}
+
+/** Read the already seeded visual fixture without mutating organization scope. */
+export function mobileReferenceWebsiteUrl(): string | undefined {
+  return isOnboardingPreview() ? fixtureScrapeStatus().url : undefined;
+}
+
 function parseRequestBody(options: RequestInit): Record<string, unknown> {
   if (typeof options.body !== "string") return {};
   try {
@@ -235,10 +278,10 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       subscriptionStatus: null,
       onboardedAt: null,
       activeChannelCount: 1,
-      scrapeStatus,
+      scrapeStatus: fixtureScrapeStatus(),
     } as T;
   }
-  if (path === "/discovery/scrape-status" || path === "/discovery/scrape") return scrapeStatus as T;
+  if (path === "/discovery/scrape-status" || path === "/discovery/scrape") return fixtureScrapeStatus() as T;
   if (path === "/discovery/summary") {
     return {
       company: "Acme Growth",
@@ -324,6 +367,9 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     return strategy as T;
   }
   if (path === "/billing/pricing") {
+    if (isOnboardingPreview() && window.sessionStorage.getItem("lr_mobile_reference_screen")) {
+      return { lineItems: [{ key: "platform", priceId: "illustrative-preview", label: "LeadReacher Pro", unitAmount: 9900, currency: "usd", interval: "month", features: ["Personalized outreach", "Audience targeting", "Campaign reporting"] }] } as T;
+    }
     return {
       lineItems: [
         { key: "platform", priceId: "preview", label: "LeadReacher Pro", unitAmount: 19999, currency: "usd", interval: "month" },
@@ -368,6 +414,6 @@ export function previewOrganization() {
     subscriptionStatus: null,
     onboardedAt: null,
     activeChannelCount: 1,
-    scrapeStatus,
+    scrapeStatus: fixtureScrapeStatus(),
   };
 }

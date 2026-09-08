@@ -5,6 +5,7 @@ import type { NextConfig } from "next";
 loadEnvConfig(path.resolve(__dirname, "../.."));
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   images: {
     remotePatterns: [
       {
