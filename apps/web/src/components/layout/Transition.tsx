@@ -18,6 +18,7 @@ export default function Transition() {
   const resolveNavigationRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
+    if (pathname !== "/" && pathname !== "/pricing") return;
     router.prefetch(pathname === "/" ? "/pricing" : "/");
   }, [pathname, router]);
 
@@ -29,6 +30,7 @@ export default function Transition() {
   }, [pathname]);
 
   useEffect(() => {
+    if (pathname !== "/" && pathname !== "/pricing") return;
     const onClick = (event: MouseEvent) => {
       if (
         event.defaultPrevented ||
