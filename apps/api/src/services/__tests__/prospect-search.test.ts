@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, ExternalServiceError } from "../../lib/errors.js";
+import { ConflictError, ExternalServiceError } from "../../platform/http/errors.js";
 
 const { findMany, update, searchPeople, importProspectProfiles } = vi.hoisted(() => ({
   findMany: vi.fn(),
@@ -8,10 +8,10 @@ const { findMany, update, searchPeople, importProspectProfiles } = vi.hoisted(()
   importProspectProfiles: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: { socialAccount: { findMany, update } },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_API_KEY: "test-key" },
 }));
 vi.mock("../../adapters/unipile.js", () => ({

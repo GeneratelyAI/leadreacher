@@ -1,7 +1,7 @@
 import { GoogleGenAI, type GenerateVideosOperation } from "@google/genai";
-import { env } from "../config/env.js";
-import { externalServiceFailure } from "../lib/errors.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
+import { env } from "../platform/config/env.js";
+import { externalServiceFailure } from "../platform/http/errors.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
 import { withSilentVisualConstraint } from "../lib/video-generation-constraints.js";
 
 const googleAI = new GoogleGenAI({ apiKey: env.GOOGLE_AI_API_KEY });

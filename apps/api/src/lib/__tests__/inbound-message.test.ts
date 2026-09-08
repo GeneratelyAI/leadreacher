@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { create } = vi.hoisted(() => ({ create: vi.fn() }));
-vi.mock("../prisma.js", () => ({ prisma: { message: { create } } }));
+vi.mock("../../platform/persistence/prisma.js", () => ({ prisma: { message: { create } } }));
 
 import {
   inboundMessageId,

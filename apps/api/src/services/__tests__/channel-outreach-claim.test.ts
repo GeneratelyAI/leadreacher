@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { create, findUnique } = vi.hoisted(() => ({ create: vi.fn(), findUnique: vi.fn() }));
-vi.mock("../../lib/prisma.js", () => ({ prisma: { channelOutreachClaim: { create, findUnique } } }));
+vi.mock("../../platform/persistence/prisma.js", () => ({ prisma: { channelOutreachClaim: { create, findUnique } } }));
 
 import { claimFirstChannelOutreach } from "../channel-outreach-claim.js";
 

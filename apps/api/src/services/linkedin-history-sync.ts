@@ -1,6 +1,6 @@
 import type { UnipileAdapter, UnipileChatMessage } from "../adapters/unipile.js";
 import type { Prisma } from "@prisma/client";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 type SyncLinkedInHistoryInput = {
   orgId: string;

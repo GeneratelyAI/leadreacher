@@ -1,4 +1,4 @@
-import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
+import { ExternalServiceError, externalServiceFailure } from "../platform/http/errors.js";
 import { resolveCompanyHeadcountCodes } from "./linkedin-company-size-codes.js";
 import { resolveIndustryIds } from "./linkedin-industry-codes.js";
 import type { ProspectProfile, ProspectSearchFilters } from "./prospect-search.js";

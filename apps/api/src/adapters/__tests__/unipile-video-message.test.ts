@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_WEBHOOK_SECRET: "test-secret" },
 }));
 

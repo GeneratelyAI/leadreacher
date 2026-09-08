@@ -2,7 +2,7 @@ import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { callGroq } from "../../lib/groq.js";
 import { extractJsonObject } from "../../lib/llm-json.js";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "../../platform/persistence/prisma.js";
 import { OUTREACH_CHANNELS } from "../../lib/channels.js";
 
 const ChannelPersonalizationInputSchema = z.object({

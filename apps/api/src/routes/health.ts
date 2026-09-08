@@ -1,11 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
-import { prisma } from "../lib/prisma.js";
-import { publicRoute } from "../lib/openapi.js";
-import { redis } from "../lib/redis.js";
-import { ServiceUnavailableError } from "../lib/errors.js";
-import { requiresWorkerReadiness } from "../config/env.js";
-import { getStaleWorkerLeases } from "../lib/worker-leases.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { publicRoute } from "../platform/http/openapi.js";
+import { redis } from "../platform/redis/connection.js";
+import { ServiceUnavailableError } from "../platform/http/errors.js";
+import { requiresWorkerReadiness } from "../platform/config/env.js";
+import { getStaleWorkerLeases } from "../platform/queues/worker-leases.js";
 
 export const healthRoutes: FastifyPluginAsync = async (app) => {
   const r = app.withTypeProvider<ZodTypeProvider>();

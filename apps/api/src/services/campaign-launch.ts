@@ -1,6 +1,6 @@
-import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../platform/http/errors.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { parseSequence } from "../lib/sequence.js";
 import { channelsUsedInSequence } from "../lib/sequence.js";
 import { resolveLeadAttendeeId } from "../lib/lead-channel-identity.js";

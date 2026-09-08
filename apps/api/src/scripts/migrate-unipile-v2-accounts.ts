@@ -6,7 +6,7 @@
  */
 import path from "node:path";
 import { config } from "dotenv";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 config({ path: path.resolve(process.cwd(), ".env") });
 

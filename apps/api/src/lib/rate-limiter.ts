@@ -1,4 +1,4 @@
-import { redis } from "./redis.js";
+import { redis } from "../platform/redis/connection.js";
 
 const DAILY_SEND_CAPS = {
   invite: 20,

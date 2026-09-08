@@ -1,11 +1,11 @@
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { LEAD_STATUS_CONNECTED } from "../lib/lead-status.js";
 import { parseSequence } from "../lib/sequence.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
 import { resolveProviderId } from "../lib/provider-id.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
 import { isConnectedProfile } from "../lib/relation-status.js";
 import { deliverSequenceStep1ViaChat } from "../services/campaign-step1-chat.js";
 

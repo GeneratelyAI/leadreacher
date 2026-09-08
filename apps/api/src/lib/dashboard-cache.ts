@@ -1,4 +1,4 @@
-import { redis } from "./redis.js";
+import { redis } from "../platform/redis/connection.js";
 
 const DASHBOARD_CHROME_TTL_SECONDS = 30;
 

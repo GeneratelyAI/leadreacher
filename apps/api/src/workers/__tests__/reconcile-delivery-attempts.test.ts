@@ -30,14 +30,14 @@ const {
   }),
 );
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     deliveryAttempt: { findMany, updateMany },
     auditLog: { create: auditCreate },
     $transaction: transaction,
   },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_API_KEY: "key" },
 }));
 vi.mock("../../lib/queue.js", () => ({

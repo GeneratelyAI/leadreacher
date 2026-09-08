@@ -1,6 +1,6 @@
 import type { FastifyBaseLogger } from "fastify";
 import { getPausedWorkerFamilies } from "../config/env.js";
-import { redis } from "./redis.js";
+import { redis } from "../redis/connection.js";
 
 export const WORKER_LEASE_TTL_SECONDS = 90;
 export const WORKER_LEASE_RENEWAL_MS = 30_000;

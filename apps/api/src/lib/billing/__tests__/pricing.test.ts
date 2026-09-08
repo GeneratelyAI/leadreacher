@@ -11,7 +11,7 @@ const { env } = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("../../../config/env.js", () => ({ env }));
+vi.mock("../../../platform/config/env.js", () => ({ env }));
 
 import { buildPricingCatalog } from "../pricing.js";
 

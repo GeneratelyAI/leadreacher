@@ -1,11 +1,11 @@
 import { Job, Worker } from "bullmq";
-import { getBullMqIdleDrainDelaySeconds } from "../config/env.js";
+import { getBullMqIdleDrainDelaySeconds } from "../platform/config/env.js";
 import {
   QUEUE_RECONCILE_MAINTENANCE,
   RECONCILE_MAINTENANCE_INTERVAL_MS,
   scheduleReconciliationMaintenance,
 } from "../lib/queue.js";
-import { redisSubscriber } from "../lib/redis.js";
+import { redisSubscriber } from "../platform/redis/connection.js";
 import { reconcileCampaignStepZeroJobs } from "./reconcile-campaign-enrollments.js";
 import { reconcileDeliveryAttempts } from "./reconcile-delivery-attempts.js";
 import { reconcilePendingConnections } from "./reconcile-relations.js";

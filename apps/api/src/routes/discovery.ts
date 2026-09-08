@@ -15,15 +15,15 @@ import {
 } from "../lib/firecrawl.js";
 import { enrichFromUrl } from "../lib/link-enricher.js";
 import { fetchWebsitePreviewImage } from "../lib/website-text.js";
-import { ValidationError } from "../lib/errors.js";
+import { ValidationError } from "../platform/http/errors.js";
 import {
   ErrorResponseSchema,
   authenticatedRoute,
   publicRoute,
   errorResponses
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redis } from "../platform/redis/connection.js";
 
 type ChatRole = "user" | "assistant";
 

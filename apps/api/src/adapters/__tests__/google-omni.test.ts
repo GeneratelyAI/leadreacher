@@ -24,7 +24,7 @@ vi.mock("@google/genai", () => ({
   },
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     GOOGLE_AI_API_KEY: "test-key",
     VIDEO_MOCK_MODE: false,

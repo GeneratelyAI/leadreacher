@@ -10,7 +10,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 const CAMPAIGN_NAMES = [
   "Q3 Founder Outreach",

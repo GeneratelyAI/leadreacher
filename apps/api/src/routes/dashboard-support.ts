@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { ValidationError } from "../lib/errors.js";
+import { ValidationError } from "../platform/http/errors.js";
 
 export type OverviewMetricTrend = {
   direction: "up" | "down" | "flat" | "new";

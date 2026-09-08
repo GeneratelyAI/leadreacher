@@ -1,5 +1,5 @@
-import { env } from "./config/env.js";
-import { captureException, initializeSentry } from "./lib/sentry.js";
+import { env } from "./platform/config/env.js";
+import { captureException, initializeSentry } from "./platform/observability/sentry.js";
 import { buildServer } from "./server.js";
 
 const HOST = "0.0.0.0";

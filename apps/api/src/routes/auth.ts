@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import {
   anonScrapeClaimKey,
   anonScrapeStatusKey,
@@ -13,11 +13,11 @@ import {
   setScrapeStatus,
   type DiscoveryScrapeStatus,
 } from "./discovery.js";
-import { AuthError, ValidationError } from "../lib/errors.js";
-import { bearerSecurity, errorResponses } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
-import { requireMfa, verifySupabaseJwt } from "../plugins/auth.js";
+import { AuthError, ValidationError } from "../platform/http/errors.js";
+import { bearerSecurity, errorResponses } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redis } from "../platform/redis/connection.js";
+import { requireMfa, verifySupabaseJwt } from "../platform/auth/hooks.js";
 import { recoverOrganization } from "../services/organization-lifecycle.js";
 
 const BootstrapBodySchema = z.object({

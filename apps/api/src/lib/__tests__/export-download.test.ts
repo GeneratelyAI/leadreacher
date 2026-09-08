@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GoneError, ValidationError } from "../errors.js";
+import { GoneError, ValidationError } from "../../platform/http/errors.js";
 import { assertExportDownloadReady } from "../export-download.js";
 
 describe("export download status", () => {

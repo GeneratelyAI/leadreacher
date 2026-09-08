@@ -4,7 +4,7 @@ const { runAgent } = vi.hoisted(() => ({ runAgent: vi.fn() }));
 vi.mock("../../modules/agents/channel-outreach-personalization-agent.js", () => ({
   runChannelOutreachPersonalizationAgent: runAgent,
 }));
-vi.mock("../../lib/redis.js", () => ({
+vi.mock("../../platform/redis/connection.js", () => ({
   redis: {
     get: vi.fn().mockResolvedValue(null),
     set: vi.fn().mockResolvedValue("OK"),

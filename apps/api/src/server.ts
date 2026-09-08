@@ -3,17 +3,17 @@ import { createHash } from "node:crypto";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRawBody from "fastify-raw-body";
-import "./config/env.js";
-import { env, isWorkerEnabled, isWorkerFamilyPaused } from "./config/env.js";
-import { apiErrorResponse } from "./lib/errors.js";
-import { startBetterStackHeartbeat } from "./lib/better-stack.js";
-import { installHttpErrorHandling } from "./lib/http-error-handler.js";
-import { configureOperationalLogger } from "./lib/operational-logger.js";
+import "./platform/config/env.js";
+import { env, isWorkerEnabled, isWorkerFamilyPaused } from "./platform/config/env.js";
+import { apiErrorResponse } from "./platform/http/errors.js";
+import { startBetterStackHeartbeat } from "./platform/observability/better-stack.js";
+import { installHttpErrorHandling } from "./platform/http/error-handler.js";
+import { configureOperationalLogger } from "./platform/observability/operational-logger.js";
 import { closeQueues } from "./lib/queue.js";
-import { closeRedisConnections, redis } from "./lib/redis.js";
-import { captureException } from "./lib/sentry.js";
-import { openapiPlugin } from "./plugins/openapi.js";
-import { prismaPlugin } from "./plugins/prisma.js";
+import { closeRedisConnections, redis } from "./platform/redis/connection.js";
+import { captureException } from "./platform/observability/sentry.js";
+import { openapiPlugin } from "./platform/http/openapi-plugin.js";
+import { prismaPlugin } from "./platform/persistence/plugin.js";
 import { protectedRoutes } from "./plugins/protected-routes.js";
 import { authRoutes } from "./routes/auth.js";
 import { anonymousDiscoveryRoutes } from "./routes/discovery.js";
@@ -30,7 +30,7 @@ import {
   recordWorkerActivity,
   startWorkerLeaseRenewal,
   type WorkerLeaseName,
-} from "./lib/worker-leases.js";
+} from "./platform/queues/worker-leases.js";
 
 export async function buildServer() {
   const app = Fastify({

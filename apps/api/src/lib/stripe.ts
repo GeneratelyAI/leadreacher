@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { z } from "zod";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 
 export const MOCK_STRIPE_WEBHOOK_SIGNATURE = "stripe-mock-signature";
 

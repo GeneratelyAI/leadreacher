@@ -1,8 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Prisma } from "@prisma/client";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import { R2Adapter } from "../adapters/r2.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { cancelSubscriptionAtPeriodEnd, restoreSubscriptionRenewal } from "../lib/stripe.js";
 import {
   cancelCampaignPendingSequenceJobs,

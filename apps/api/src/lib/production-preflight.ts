@@ -1,5 +1,5 @@
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env, type Env } from "../config/env.js";
+import { env, type Env } from "../platform/config/env.js";
 import { CAMPAIGN_PRICE_CONFIG } from "./billing/pricing.js";
 import { getStripePrice } from "./stripe.js";
 

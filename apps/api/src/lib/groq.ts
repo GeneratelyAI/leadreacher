@@ -1,5 +1,5 @@
-import { env } from "../config/env.js";
-import { ExternalServiceError, ExternalServiceRateLimitError, externalServiceFailure } from "./errors.js";
+import { env } from "../platform/config/env.js";
+import { ExternalServiceError, ExternalServiceRateLimitError, externalServiceFailure } from "../platform/http/errors.js";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_TIMEOUT_MS = 30_000;

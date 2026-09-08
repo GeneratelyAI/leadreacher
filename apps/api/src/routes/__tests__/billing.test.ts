@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "../../lib/errors.js";
+import { AppError } from "../../platform/http/errors.js";
 
 const { strategyFindFirst, organizationFindUnique, userFindFirst } = vi.hoisted(() => ({
   strategyFindFirst: vi.fn(),
@@ -23,7 +23,7 @@ const { reconcileCompletedStripeCheckout } = vi.hoisted(() => ({
   reconcileCompletedStripeCheckout: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     STRIPE_MOCK_MODE: true,
     STRIPE_PRICE_PERSONALIZED_OUTREACH: "",
@@ -33,7 +33,7 @@ vi.mock("../../config/env.js", () => ({
     APP_URL: "http://localhost:3000",
   },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     strategy: { findFirst: strategyFindFirst },
     organization: { findUnique: organizationFindUnique },

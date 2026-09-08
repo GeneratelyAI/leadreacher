@@ -1,4 +1,4 @@
-import { prisma } from "./prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   recordInboundMessageWithStore,
   type InboundMessageData,

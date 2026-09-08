@@ -1,25 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
-import { openapiPlugin } from "../../plugins/openapi.js";
-import { authenticatedRoute, publicRoute } from "../../lib/openapi.js";
+import { openapiPlugin } from "../../platform/http/openapi-plugin.js";
+import { authenticatedRoute, publicRoute } from "../../platform/http/openapi.js";
 import { healthRoutes } from "../health.js";
 
-vi.mock("../../config/env.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../config/env.js")>();
+vi.mock("../../platform/config/env.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../platform/config/env.js")>();
   return {
     ...actual,
     isApiDocsEnabled: () => true,
   };
 });
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     $queryRaw: vi.fn().mockResolvedValue(1),
   },
 }));
 
-vi.mock("../../lib/redis.js", () => ({
+vi.mock("../../platform/redis/connection.js", () => ({
   redis: { ping: vi.fn().mockResolvedValue("PONG") },
 }));
 

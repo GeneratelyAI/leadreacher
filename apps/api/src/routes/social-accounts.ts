@@ -6,20 +6,20 @@ import {
   isAccountHealthy,
   UnipileAdapter,
 } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import { UNIPILE_CONNECT_PROVIDERS, normalizeUnipilePlatform } from "../lib/channels.js";
-import { ConflictError, SubscriptionRequiredError, ValidationError } from "../lib/errors.js";
+import { ConflictError, SubscriptionRequiredError, ValidationError } from "../platform/http/errors.js";
 import {
   ErrorResponseSchema,
   authenticatedRoute,
   errorResponses
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { publishDashboardEvent } from "../lib/dashboard-events.js";
-import { requireOrgId } from "../lib/request-org.js";
-import { requireMfaForEstablishedOrganization } from "../plugins/auth.js";
-import { redis } from "../lib/redis.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
+import { requireMfaForEstablishedOrganization } from "../platform/auth/hooks.js";
+import { redis } from "../platform/redis/connection.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
 import { overviewMetricTrend, resolveOverviewDateRange } from "./dashboard.js";
 

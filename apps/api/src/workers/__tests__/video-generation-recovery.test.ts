@@ -42,7 +42,7 @@ vi.mock("bullmq", () => ({
     }
   },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   getBullMqIdleDrainDelaySeconds: () => 60,
   getVeoParallelVariants: () => 1,
 }));
@@ -58,7 +58,7 @@ vi.mock("../../adapters/r2.js", () => ({
     uploadBuffer = uploadBuffer;
   },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     videoAsset: { findMany, updateMany },
     campaignVideoTemplate: {
@@ -70,7 +70,7 @@ vi.mock("../../lib/prisma.js", () => ({
     auditLog: { create: auditCreate },
   },
 }));
-vi.mock("../../lib/redis.js", () => ({ redis: {} }));
+vi.mock("../../platform/redis/connection.js", () => ({ redis: {} }));
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_VIDEO_GENERATION: "video-generation",
   videoGenerationQueue: { add: vi.fn() },

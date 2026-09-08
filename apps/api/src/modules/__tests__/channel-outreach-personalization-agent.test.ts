@@ -7,7 +7,7 @@ const { callGroq, pipelineRunCreate, pipelineRunUpdate } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../lib/groq.js", () => ({ callGroq }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     pipelineRun: { create: pipelineRunCreate, update: pipelineRunUpdate },
   },

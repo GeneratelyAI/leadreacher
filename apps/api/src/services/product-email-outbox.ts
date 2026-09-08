@@ -1,6 +1,6 @@
 import { Resend } from "resend";
-import { env } from "../config/env.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 type EnqueueProductEmailInput = {
   orgId: string;

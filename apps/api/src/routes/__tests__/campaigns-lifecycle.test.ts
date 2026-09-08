@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "../../lib/errors.js";
+import { AppError } from "../../platform/http/errors.js";
 
 const {
   campaignFindUnique,
@@ -56,7 +56,7 @@ const channelAccountTx = {
   },
 };
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     $transaction: transaction,
     campaign: {

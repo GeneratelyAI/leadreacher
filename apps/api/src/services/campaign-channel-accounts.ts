@@ -1,11 +1,11 @@
-import { ValidationError } from "../lib/errors.js";
+import { ValidationError } from "../platform/http/errors.js";
 import {
   isOutreachChannel,
   type OutreachChannel,
   OUTREACH_CHANNELS,
 } from "../lib/channels.js";
 import { channelsUsedInSequence, type SequenceStep } from "../lib/sequence.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 export type ChannelAccountMap = Partial<Record<OutreachChannel, string>>;
 

@@ -1,16 +1,16 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { ConflictError, ForbiddenError, NotFoundError } from "../lib/errors.js";
+import { ConflictError, ForbiddenError, NotFoundError } from "../platform/http/errors.js";
 import { LeadStatusSchema } from "../lib/lead-status.js";
 import {
   ErrorResponseSchema,
   IdParamsSchema,
   authenticatedRoute,
   errorResponses,
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { requireOrgId } from "../lib/request-org.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import {
   importFromCSV,
   importProspectProfiles,

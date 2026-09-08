@@ -23,7 +23,7 @@ vi.mock("bullmq", () => ({
     }
   },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { RESEND_API_KEY: "" },
   getBullMqIdleDrainDelaySeconds: () => 60,
 }));
@@ -32,7 +32,7 @@ vi.mock("../../lib/queue.js", () => ({
   RECONCILE_MAINTENANCE_INTERVAL_MS: 2 * 60 * 1000,
   scheduleReconciliationMaintenance: vi.fn(),
 }));
-vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
+vi.mock("../../platform/redis/connection.js", () => ({ redisSubscriber: {} }));
 vi.mock("../reconcile-campaign-enrollments.js", () => ({
   reconcileCampaignStepZeroJobs,
 }));

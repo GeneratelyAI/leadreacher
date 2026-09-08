@@ -9,8 +9,8 @@ import {
   DeliveryPendingError,
   DeliveryUnknownError,
   RecipientUnreachableError,
-} from "../lib/errors.js";
-import { prisma } from "../lib/prisma.js";
+} from "../platform/http/errors.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { publishChatEvent } from "../lib/chat-events.js";
 
 type DeliverOperatorMessageInput = {

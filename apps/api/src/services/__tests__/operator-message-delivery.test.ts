@@ -26,7 +26,7 @@ const {
   transaction: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     $transaction: transaction,
     message: {

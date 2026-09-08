@@ -1,6 +1,6 @@
-import { captureException, initializeSentry } from "./lib/sentry.js";
+import { captureException, initializeSentry } from "./platform/observability/sentry.js";
 import { buildServer } from "./server.js";
-import { assertProductionWorkerConfiguration, env } from "./config/env.js";
+import { assertProductionWorkerConfiguration, env } from "./platform/config/env.js";
 
 /**
  * Railway worker entry point. It registers the same Fastify lifecycle as the

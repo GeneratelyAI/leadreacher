@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { VideoGenerationJob } from "../lib/queue.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
 import { runVideoPromptAgent } from "../modules/agents/video-prompt-agent.js";
 import { runPersonalizedVideoTemplatePromptAgent } from "../modules/agents/personalized-video-prompt-agent.js";
 import { runPersonalizedVideoTemplateCritic } from "../modules/critics/personalized-video-prompt-critic.js";

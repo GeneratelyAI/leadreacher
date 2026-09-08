@@ -12,9 +12,9 @@ import {
   pollVideoJobStatus,
   submitVideoJobForProvider,
 } from "../adapters/video-provider.js";
-import { env } from "../config/env.js";
-import { logOperationalError } from "../lib/operational-logger.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { logOperationalError } from "../platform/observability/operational-logger.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { type VideoGenerationJob, videoGenerationQueue } from "../lib/queue.js";
 import {
   assertPersonalizedMasterVideo,

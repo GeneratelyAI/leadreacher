@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { callGroqVision, type VisionContentPart } from "../../lib/groq.js";
 import { extractJsonObject } from "../../lib/llm-json.js";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "../../platform/persistence/prisma.js";
 
 const VideoOutputCriticFrame = z.object({
   label: z.string(),

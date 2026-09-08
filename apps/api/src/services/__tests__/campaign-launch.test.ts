@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError, ValidationError } from "../../lib/errors.js";
+import { ConflictError, ValidationError } from "../../platform/http/errors.js";
 
 const {
   campaignFindUnique,
@@ -25,7 +25,7 @@ const {
   resolveInstagramCampaignIdentities: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     campaign: { findUnique: campaignFindUnique, update: campaignUpdate },
     socialAccount: { findFirst: socialAccountFindFirst },

@@ -2,21 +2,21 @@ import type { FastifyPluginAsync } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { NotFoundError } from "../lib/errors.js";
+import { NotFoundError } from "../platform/http/errors.js";
 import {
   CampaignIdParamsSchema,
   authenticatedRoute,
   errorResponses
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { resolvePlanDisplayLabel } from "../lib/billing/pricing.js";
 import { cacheDashboardChrome, invalidateDashboardChrome, readDashboardChrome } from "../lib/dashboard-cache.js";
 import { getDailySendLimitStatus } from "../lib/rate-limiter.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { buildPrimaryCampaignVideoSummary } from "../lib/campaign-video-summary.js";
 import { dashboardEventChannel, publishDashboardEvent } from "../lib/dashboard-events.js";
 import { videoGenerationQueue } from "../lib/queue.js";
-import { createRedisSubscriber } from "../lib/redis.js";
+import { createRedisSubscriber } from "../platform/redis/connection.js";
 import { registerDashboardSettingsRoutes } from "./dashboard-settings.js";
 import { registerDashboardProspectRoutes } from "./dashboard-prospects.js";
 import { registerDashboardAnalyticsRoutes } from "./dashboard-analytics.js";

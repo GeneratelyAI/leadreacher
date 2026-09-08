@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import type { OutreachChannel } from "../lib/channels.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 export async function claimFirstChannelOutreach(input: {
   orgId: string;

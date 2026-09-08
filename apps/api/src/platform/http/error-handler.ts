@@ -6,7 +6,7 @@ import {
   ExternalServiceTimeoutError,
   apiErrorResponse,
 } from "./errors.js";
-import { captureException } from "./sentry.js";
+import { captureException } from "../observability/sentry.js";
 
 type FastifyHttpError = {
   code?: string;

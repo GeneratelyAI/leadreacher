@@ -3,7 +3,7 @@ import {
   submitVideoJobForProvider,
   type VideoProvider,
 } from "../adapters/video-provider.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 const VEO_SUBMISSION_LEASE_MS = 2 * 60 * 1000;
 const VEO_ACTIVE_POLL_LEASE_MS = 2 * 60 * 1000;

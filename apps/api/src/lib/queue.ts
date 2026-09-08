@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { redis } from "./redis.js";
+import { redis } from "../platform/redis/connection.js";
 
 export const QUEUE_CAMPAIGN_SEQUENCE = "campaign-sequence";
 export const QUEUE_VIDEO_GENERATION = "video-generation";

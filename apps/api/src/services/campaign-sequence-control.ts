@@ -3,7 +3,7 @@ import {
   campaignSequenceQueue,
   QUEUE_CAMPAIGN_SEQUENCE,
 } from "../lib/queue.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { parseSequence } from "../lib/sequence.js";
 import { ensureCampaignStepZeroQueued } from "./campaign-step0-queue.js";
 

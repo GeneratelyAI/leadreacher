@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
-import { SubscriptionRequiredError } from "../lib/errors.js";
-import { prisma } from "../lib/prisma.js";
+import { SubscriptionRequiredError } from "../platform/http/errors.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   cancelCampaignPendingSequenceJobs,
   resumeCampaignSequenceJobs,

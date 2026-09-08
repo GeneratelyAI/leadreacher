@@ -10,7 +10,7 @@ const { create, GoogleGenAI } = vi.hoisted(() => {
 
 vi.mock("@google/genai", () => ({ GoogleGenAI }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     GOOGLE_AI_API_KEY: "test-key",
     VIDEO_MOCK_MODE: false,

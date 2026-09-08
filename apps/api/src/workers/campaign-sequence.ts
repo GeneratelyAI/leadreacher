@@ -1,8 +1,8 @@
 import { DelayedError, Job, Worker } from "bullmq";
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env, getBullMqIdleDrainDelaySeconds } from "../config/env.js";
-import { prisma } from "../lib/prisma.js";
-import { redisSubscriber } from "../lib/redis.js";
+import { env, getBullMqIdleDrainDelaySeconds } from "../platform/config/env.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redisSubscriber } from "../platform/redis/connection.js";
 import {
   type CampaignSequenceJob,
   campaignSequenceJobId,
@@ -40,7 +40,7 @@ import {
 import { ensureCampaignVideoReady } from "../services/campaign-video.js";
 import { personalizeSequenceStep } from "../services/personalize-sequence-step.js";
 import { claimFirstChannelOutreach } from "../services/channel-outreach-claim.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
 
 const PERSONALIZED_VIDEO_WAIT_MS = 30_000;
 

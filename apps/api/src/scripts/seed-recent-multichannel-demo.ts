@@ -8,7 +8,7 @@
  *   pnpm --filter @leadreacher/api exec tsx src/scripts/seed-recent-multichannel-demo.ts --email <login email>
  *   pnpm --filter @leadreacher/api exec tsx src/scripts/seed-recent-multichannel-demo.ts --org <org id>
  */
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 const DEMO_TAG = "leadreacher_recent_multichannel_demo";
 

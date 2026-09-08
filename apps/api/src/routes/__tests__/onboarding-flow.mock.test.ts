@@ -1,8 +1,8 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import fastifyRawBody from "fastify-raw-body";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "../../lib/errors.js";
+import { AppError } from "../../platform/http/errors.js";
 
 const ORG_ID = "org-e2e";
 
@@ -64,7 +64,7 @@ const { searchAndImportLinkedInProspects } = vi.hoisted(() => ({
   })),
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     APIFY_API_KEY: "test-key",
     STRIPE_MOCK_MODE: true,
@@ -78,7 +78,7 @@ vi.mock("../../config/env.js", () => ({
     UNIPILE_WEBHOOK_URL: "https://api.example.test/webhooks/unipile",
   },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     strategy: {
       findFirst: vi.fn(async () => state.strategy),
@@ -147,7 +147,7 @@ vi.mock("../../lib/prisma.js", () => ({
     message: { findFirst: vi.fn(), findMany: vi.fn(async () => []) },
   },
 }));
-vi.mock("../../lib/redis.js", () => ({
+vi.mock("../../platform/redis/connection.js", () => ({
   redis: { get: vi.fn(), set: vi.fn(), del: vi.fn(), publish: vi.fn(async () => 1) },
 }));
 vi.mock("../../lib/stripe.js", () => ({

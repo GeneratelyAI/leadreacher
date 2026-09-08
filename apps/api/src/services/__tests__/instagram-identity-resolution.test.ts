@@ -5,7 +5,7 @@ const { leadUpdate, getProfile } = vi.hoisted(() => ({
   getProfile: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: { lead: { update: leadUpdate } },
 }));
 

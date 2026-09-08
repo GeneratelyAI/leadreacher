@@ -1,6 +1,6 @@
-import { ValidationError } from "../lib/errors.js";
+import { ValidationError } from "../platform/http/errors.js";
 import { getInstagramAutomationStatus } from "../lib/rate-limiter.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { channelsUsedInSequence, parseSequence } from "../lib/sequence.js";
 import { getCampaignSenderForChannel } from "./campaign-channel-accounts.js";
 import { getWhatsAppReachability } from "./channel-reachability.js";

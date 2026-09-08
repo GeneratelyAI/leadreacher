@@ -7,9 +7,9 @@ import {
   MfaRequiredError,
   OrganizationDisabledError,
   UnauthorizedError,
-} from "../lib/errors.js";
-import { authenticationAssuranceLevel } from "../lib/auth-assurance.js";
-import { prisma } from "../lib/prisma.js";
+} from "../http/errors.js";
+import { authenticationAssuranceLevel } from "./assurance.js";
+import { prisma } from "../persistence/prisma.js";
 
 const BOOTSTRAP_MESSAGE =
   "Organization not set up. Call POST /auth/bootstrap first.";

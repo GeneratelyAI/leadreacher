@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { ProspectProfile } from "../adapters/prospect-search.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { normalizePhoneE164 } from "../lib/phone.js";
 
 export type CSVRow = {

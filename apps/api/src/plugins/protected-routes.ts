@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { requireOrg, verifySupabaseJwt } from "../plugins/auth.js";
+import { requireOrg, verifySupabaseJwt } from "../platform/auth/hooks.js";
 import { campaignRoutes } from "../routes/campaigns.js";
 import { discoveryRoutes } from "../routes/discovery.js";
 import { leadsRoutes } from "../routes/leads.js";

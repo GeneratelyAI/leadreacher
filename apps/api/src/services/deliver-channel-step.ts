@@ -2,7 +2,7 @@ import type { Lead } from "@prisma/client";
 import type { UnipileAdapter } from "../adapters/unipile.js";
 import type { OutreachChannel } from "../lib/channels.js";
 import { emailThreadKey, resolveLeadAttendeeId } from "../lib/lead-channel-identity.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   campaignSequenceJobId,
   campaignSequenceQueue,

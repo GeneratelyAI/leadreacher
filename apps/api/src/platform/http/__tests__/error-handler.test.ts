@@ -15,10 +15,10 @@ import {
   ValidationError,
   externalServiceFailure,
 } from "../errors.js";
-import { httpRequestLogContext, installHttpErrorHandling } from "../http-error-handler.js";
+import { httpRequestLogContext, installHttpErrorHandling } from "../error-handler.js";
 
 const { captureException } = vi.hoisted(() => ({ captureException: vi.fn() }));
-vi.mock("../sentry.js", () => ({ captureException }));
+vi.mock("../../observability/sentry.js", () => ({ captureException }));
 
 describe("HTTP error contract", () => {
   let app: FastifyInstance;

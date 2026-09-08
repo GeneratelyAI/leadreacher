@@ -10,14 +10,14 @@ const { findMany, findFirst, leadUpdate, getProfile, deliver } = vi.hoisted(
   }),
 );
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     campaignLead: { findMany },
     socialAccount: { findFirst },
     lead: { update: leadUpdate },
   },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_API_KEY: "key" },
 }));
 vi.mock("../../adapters/unipile.js", () => ({

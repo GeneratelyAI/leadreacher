@@ -7,10 +7,10 @@ import {
 import type { ProspectProfile } from "../adapters/prospect-search.js";
 import { resolveCompanyHeadcountCodes } from "../adapters/linkedin-company-size-codes.js";
 import { resolveIndustryIds } from "../adapters/linkedin-industry-codes.js";
-import { ValidationError } from "../lib/errors.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
-import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
+import { ValidationError } from "../platform/http/errors.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redis } from "../platform/redis/connection.js";
 import {
   buildStrategyFilters,
   COMPANY_SEARCH_UNAVAILABLE_REASON,

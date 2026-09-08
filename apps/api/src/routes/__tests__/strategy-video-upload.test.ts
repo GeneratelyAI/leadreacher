@@ -1,8 +1,8 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ZodError } from "zod";
-import { AppError } from "../../lib/errors.js";
+import { AppError } from "../../platform/http/errors.js";
 
 const { findFirst, update, uploadBuffer } = vi.hoisted(() => ({
   findFirst: vi.fn(),
@@ -10,15 +10,15 @@ const { findFirst, update, uploadBuffer } = vi.hoisted(() => ({
   uploadBuffer: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     strategy: { findFirst, update },
   },
 }));
-vi.mock("../../lib/redis.js", () => ({
+vi.mock("../../platform/redis/connection.js", () => ({
   redis: { get: vi.fn(), set: vi.fn(), del: vi.fn() },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { APIFY_API_KEY: "test-key" },
 }));
 vi.mock("../../adapters/r2.js", () => ({

@@ -11,7 +11,7 @@ const { incr, decr, expire, get, set, pttl, del, evalRedis } = vi.hoisted(() => 
   evalRedis: vi.fn(),
 }));
 
-vi.mock("../redis.js", () => ({ redis: { incr, decr, expire, get, set, pttl, del, eval: evalRedis } }));
+vi.mock("../../platform/redis/connection.js", () => ({ redis: { incr, decr, expire, get, set, pttl, del, eval: evalRedis } }));
 
 import {
   checkAndIncrementDailySendLimit,

@@ -1,10 +1,10 @@
 import Fastify from "fastify";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 
 const { getStripePrice } = vi.hoisted(() => ({ getStripePrice: vi.fn() }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     STRIPE_MOCK_MODE: true,
     STRIPE_PRICE_PERSONALIZED_OUTREACH: "",

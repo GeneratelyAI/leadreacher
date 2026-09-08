@@ -4,9 +4,9 @@ import type {
 } from "../adapters/prospect-search.js";
 import { UnipileProspectSearchProvider } from "../adapters/unipile-prospect-search.js";
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
-import { ConflictError, ExternalServiceError } from "../lib/errors.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { ConflictError, ExternalServiceError } from "../platform/http/errors.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { importProspectProfiles } from "./lead-import.js";
 
 type ProspectSearchOptions = {

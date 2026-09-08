@@ -7,7 +7,7 @@
  *     --first <firstName> --last <lastName> [--company <c>] [--title <t>]
  */
 import { buildSeedLead, type SeedLeadInput } from "../lib/seed-lead.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);

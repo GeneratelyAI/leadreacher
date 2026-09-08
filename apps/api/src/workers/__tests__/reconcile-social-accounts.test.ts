@@ -6,7 +6,7 @@ const { listAccounts, socialAccountFindMany, socialAccountUpdate } = vi.hoisted(
   socialAccountUpdate: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", () => ({ env: { UNIPILE_API_KEY: "key" } }));
+vi.mock("../../platform/config/env.js", () => ({ env: { UNIPILE_API_KEY: "key" } }));
 vi.mock("../../adapters/unipile.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../adapters/unipile.js")>();
   return {
@@ -16,7 +16,7 @@ vi.mock("../../adapters/unipile.js", async (importOriginal) => {
     },
   };
 });
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     socialAccount: {
       findMany: socialAccountFindMany,
@@ -24,7 +24,7 @@ vi.mock("../../lib/prisma.js", () => ({
     },
   },
 }));
-vi.mock("../../lib/operational-logger.js", () => ({ logOperationalInfo: vi.fn() }));
+vi.mock("../../platform/observability/operational-logger.js", () => ({ logOperationalInfo: vi.fn() }));
 
 import { reconcileSocialAccountStatuses } from "../reconcile-social-accounts.js";
 

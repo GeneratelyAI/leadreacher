@@ -3,10 +3,10 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
-import { NotFoundError } from "../lib/errors.js";
-import { authenticatedRoute, LeadIdParamsSchema } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { NotFoundError } from "../platform/http/errors.js";
+import { authenticatedRoute, LeadIdParamsSchema } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { leadSearchWhere } from "./dashboard-support.js";
 
 const ProspectListQuerySchema = z.object({

@@ -7,13 +7,13 @@ const { strategyUpdate, auditCreate, redisGet } = vi.hoisted(() => ({
   redisGet: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     strategy: { update: strategyUpdate },
     auditLog: { create: auditCreate },
   },
 }));
-vi.mock("../../lib/redis.js", () => ({ redis: { get: redisGet } }));
+vi.mock("../../platform/redis/connection.js", () => ({ redis: { get: redisGet } }));
 
 import {
   buildStrategyBrief,

@@ -56,17 +56,17 @@ vi.mock("bullmq", () => ({
     }
   },
 }));
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_API_KEY: "key" },
   getBullMqIdleDrainDelaySeconds: () => 60,
 }));
-vi.mock("../../lib/redis.js", () => ({ redisSubscriber: {} }));
+vi.mock("../../platform/redis/connection.js", () => ({ redisSubscriber: {} }));
 vi.mock("../../lib/queue.js", () => ({
   QUEUE_CAMPAIGN_SEQUENCE: "campaign-sequence",
   campaignSequenceJobId: vi.fn(),
   campaignSequenceQueue: { add: campaignSequenceQueueAdd },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     campaignLead: { findUnique: campaignLeadFindUnique, update: campaignLeadUpdate },
     lead: { update: leadUpdate },

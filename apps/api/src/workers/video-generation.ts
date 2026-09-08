@@ -4,7 +4,7 @@ import {
   env,
   getBullMqIdleDrainDelaySeconds,
   getVeoParallelVariants,
-} from "../config/env.js";
+} from "../platform/config/env.js";
 import {
   generateImageFromPrompt,
   generateImageWithAssets,
@@ -16,14 +16,14 @@ import {
   pollVideoJobStatus,
 } from "../adapters/video-provider.js";
 import { R2Adapter } from "../adapters/r2.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { publishDashboardEvent } from "../lib/dashboard-events.js";
 import {
   logOperationalError,
   logOperationalInfo,
-} from "../lib/operational-logger.js";
+} from "../platform/observability/operational-logger.js";
 import { enqueueOrganizationEmail } from "../services/product-email-outbox.js";
-import { redis } from "../lib/redis.js";
+import { redis } from "../platform/redis/connection.js";
 import {
   type VideoGenerationJob,
   QUEUE_VIDEO_GENERATION,

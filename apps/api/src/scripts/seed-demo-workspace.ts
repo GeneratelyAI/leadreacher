@@ -10,7 +10,7 @@
  *
  * NODE_ENV=production is blocked unless ALLOW_DEMO_SEED=true is set explicitly.
  */
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 const DEMO_TAG = "leadreacher_demo_workspace";
 const DEMO_CAMPAIGN_NAME = "Demo preview: Pipeline acceleration";

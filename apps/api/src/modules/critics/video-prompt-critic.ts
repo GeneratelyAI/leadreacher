@@ -5,7 +5,7 @@ import {
 } from "../agents/video-prompt-agent.js";
 import { callGroq } from "../../lib/groq.js";
 import { extractJsonObject } from "../../lib/llm-json.js";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "../../platform/persistence/prisma.js";
 
 const StoryboardVideoPromptCriticInput = z.object({
   orgId: z.string(),

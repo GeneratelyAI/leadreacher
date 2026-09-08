@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { callGroq } from "../../lib/groq.js";
 import { extractJsonObject } from "../../lib/llm-json.js";
-import { prisma } from "../../lib/prisma.js";
+import { prisma } from "../../platform/persistence/prisma.js";
 import { VideoPromptOutputSchema } from "./video-prompt-agent.js";
 
 const PersonalizedVideoTemplatePromptInput = z.object({

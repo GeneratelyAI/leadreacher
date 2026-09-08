@@ -1,4 +1,4 @@
-import { ExternalServiceError, RecipientUnreachableError, externalServiceFailure } from "../lib/errors.js";
+import { ExternalServiceError, RecipientUnreachableError, externalServiceFailure } from "../platform/http/errors.js";
 import type { UnipileCredentials, UnipileProfile } from "./types.js";
 
 const UNIPILE_V2_BASE_URL = "https://api.unipile.com/v2";

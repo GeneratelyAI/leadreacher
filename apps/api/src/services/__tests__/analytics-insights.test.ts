@@ -8,14 +8,14 @@ const { messageFindMany, campaignLeadFindMany, campaignFindMany, redisSet, runIn
   runInsightAgent: vi.fn(),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     message: { findMany: messageFindMany },
     campaignLead: { findMany: campaignLeadFindMany },
     campaign: { findMany: campaignFindMany },
   },
 }));
-vi.mock("../../lib/redis.js", () => ({ redis: { get: vi.fn(), set: redisSet } }));
+vi.mock("../../platform/redis/connection.js", () => ({ redis: { get: vi.fn(), set: redisSet } }));
 vi.mock("../../modules/agents/insight-agent.js", () => ({ runInsightAgent }));
 
 import {

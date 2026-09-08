@@ -6,8 +6,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { GoogleGenAI } from "@google/genai";
 import ffmpegPath from "ffmpeg-static";
-import { env } from "../config/env.js";
-import { ExternalServiceError, externalServiceFailure } from "../lib/errors.js";
+import { env } from "../platform/config/env.js";
+import { ExternalServiceError, externalServiceFailure } from "../platform/http/errors.js";
 import { createSilentMp3 } from "../lib/video-frames.js";
 
 const execFileAsync = promisify(execFile);

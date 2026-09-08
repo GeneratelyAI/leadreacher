@@ -1,12 +1,12 @@
 import { Job, Worker } from "bullmq";
-import { getBullMqIdleDrainDelaySeconds } from "../config/env.js";
+import { getBullMqIdleDrainDelaySeconds } from "../platform/config/env.js";
 import {
   QUEUE_ANALYTICS_INSIGHTS,
   scheduleAnalyticsInsightsAggregation,
   type AnalyticsInsightsJob,
 } from "../lib/queue.js";
-import { redisSubscriber } from "../lib/redis.js";
-import { prisma } from "../lib/prisma.js";
+import { redisSubscriber } from "../platform/redis/connection.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { aggregateOrganizationAnalyticsInsights } from "../services/analytics-insights.js";
 
 async function runAnalyticsInsightsAggregation(

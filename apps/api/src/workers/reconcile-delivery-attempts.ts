@@ -3,8 +3,8 @@ import {
   type UnipileChat,
   type UnipileMessage,
 } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   campaignSequenceJobId,
   campaignSequenceQueue,

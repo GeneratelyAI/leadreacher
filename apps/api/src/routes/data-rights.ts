@@ -2,14 +2,14 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { R2Adapter } from "../adapters/r2.js";
-import { env } from "../config/env.js";
-import { NotFoundError, ValidationError } from "../lib/errors.js";
+import { env } from "../platform/config/env.js";
+import { NotFoundError, ValidationError } from "../platform/http/errors.js";
 import { assertExportDownloadReady } from "../lib/export-download.js";
-import { authenticatedRoute } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+import { authenticatedRoute } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { requireOrganizationOwner } from "../lib/organization-access.js";
-import { requireMfa } from "../plugins/auth.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { requireMfa } from "../platform/auth/hooks.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { requestOrganizationDeletion } from "../services/organization-lifecycle.js";
 
 export async function dataRightsRoutes(app: FastifyInstance): Promise<void> {

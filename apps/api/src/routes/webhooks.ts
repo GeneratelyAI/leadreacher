@@ -5,14 +5,14 @@ import { z } from "zod";
 import {
   UnipileAdapter,
 } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import { normalizeUnipilePlatform } from "../lib/channels.js";
-import { AuthError, ExternalServiceError, ValidationError } from "../lib/errors.js";
+import { AuthError, ExternalServiceError, ValidationError } from "../platform/http/errors.js";
 import {
   errorResponses,
   unipileSecurity,
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import {
   campaignSequenceJobId,

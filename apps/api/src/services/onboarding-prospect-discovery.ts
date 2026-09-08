@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Prisma } from "@prisma/client";
-import { ValidationError } from "../lib/errors.js";
-import { prisma } from "../lib/prisma.js";
+import { ValidationError } from "../platform/http/errors.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { searchAndImportLinkedInProspects } from "./prospect-search.js";
 
 const ONBOARDING_PROSPECT_LIMIT = 25;

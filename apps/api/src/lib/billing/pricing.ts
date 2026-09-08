@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { env } from "../../config/env.js";
+import { env } from "../../platform/config/env.js";
 
 const CampaignTypeSchema = z.enum([
   "personalized_outreach",

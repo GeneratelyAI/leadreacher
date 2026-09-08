@@ -1,5 +1,5 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import fastifyRawBody from "fastify-raw-body";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -25,10 +25,10 @@ const { verifyStripeWebhookEvent } = vi.hoisted(() => ({
 }));
 const { add } = vi.hoisted(() => ({ add: vi.fn() }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { STRIPE_MOCK_MODE: true },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     stripeWebhookEvent: {
       create: stripeWebhookEventCreate,

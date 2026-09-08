@@ -13,7 +13,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 const DEMO_TAG = "leadreacher_messages_inbox_demo";
 const DEMO_CAMPAIGN_NAME = "Demo preview: Pipeline acceleration";

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { FIRECRAWL_API_KEY: "test-firecrawl-key" },
 }));
 vi.mock("../public-url.js", () => ({

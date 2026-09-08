@@ -14,7 +14,7 @@ import {
   sha256,
   updatePersonalizedTemplateManifest,
 } from "../lib/personalized-video-manifest.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   QUEUE_VIDEO_GENERATION,
   videoGenerationQueue,

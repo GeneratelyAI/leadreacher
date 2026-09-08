@@ -1,7 +1,7 @@
 import Fastify from "fastify";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "../../lib/errors.js";
+import { AppError } from "../../platform/http/errors.js";
 
 const {
   socialAccountFindMany,
@@ -63,7 +63,7 @@ const { onboardingDiscoveryAdd, onboardingDiscoveryGetJob } = vi.hoisted(() => (
 }));
 const { publishDashboardEvent } = vi.hoisted(() => ({ publishDashboardEvent: vi.fn() }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     UNIPILE_API_KEY: "unipile-key",
     UNIPILE_WEBHOOK_SECRET: "webhook-secret",
@@ -71,7 +71,7 @@ vi.mock("../../config/env.js", () => ({
     APP_URL: "http://localhost:3000",
   },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     socialAccount: {
       findMany: socialAccountFindMany,
@@ -119,7 +119,7 @@ vi.mock("../../lib/queue.js", () => ({
   },
 }));
 vi.mock("../../lib/dashboard-events.js", () => ({ publishDashboardEvent }));
-vi.mock("../../lib/redis.js", () => ({
+vi.mock("../../platform/redis/connection.js", () => ({
   redis: { get: redisGet, set: redisSet, del: redisDel },
 }));
 

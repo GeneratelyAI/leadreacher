@@ -1,5 +1,5 @@
 import { CAMPAIGN_PRICE_CONFIG, type CampaignType } from "../lib/billing/pricing.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { videoGenerationQueue } from "../lib/queue.js";
 import { subscriptionIsEntitled, synchronizeBillingSuspension } from "./entitlements.js";
 import { enqueueOrganizationEmail } from "./product-email-outbox.js";

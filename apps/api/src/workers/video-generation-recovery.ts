@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { R2Adapter } from "../adapters/r2.js";
 import { getVideoJobResult, pollVideoJobStatus } from "../adapters/video-provider.js";
-import { logOperationalError } from "../lib/operational-logger.js";
-import { prisma } from "../lib/prisma.js";
+import { logOperationalError } from "../platform/observability/operational-logger.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   extractRepresentativeFrames,
   normalizeVideoDuration,

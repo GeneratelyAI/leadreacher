@@ -1,5 +1,5 @@
-import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redis } from "../platform/redis/connection.js";
 import {
   runInsightAgent,
   type InsightAgentInput,

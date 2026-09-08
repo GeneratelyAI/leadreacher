@@ -1,7 +1,7 @@
 import { ZipArchive } from "archiver";
 import { PassThrough } from "node:stream";
 import { R2Adapter } from "../adapters/r2.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { enqueueProductEmail } from "./product-email-outbox.js";
 
 function csvCell(value: unknown): string {

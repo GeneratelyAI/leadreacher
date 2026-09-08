@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { authenticatedRoute } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { authenticatedRoute } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { resolvePlanDisplayLabel } from "../lib/billing/pricing.js";
 
 const UpdateDashboardSettingsSchema = z.object({

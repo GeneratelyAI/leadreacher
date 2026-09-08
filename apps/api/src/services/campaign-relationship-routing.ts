@@ -1,9 +1,9 @@
 import { UnipileAdapter } from "../adapters/unipile.js";
 import type { UnipileProfile } from "../adapters/types.js";
-import { env } from "../config/env.js";
-import { ValidationError } from "../lib/errors.js";
+import { env } from "../platform/config/env.js";
+import { ValidationError } from "../platform/http/errors.js";
 import { leadLinkedinIdentifier } from "../lib/linkedin-identifier.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { isConnectedProfile } from "../lib/relation-status.js";
 
 const LINKEDIN_RELATIONSHIPS = [

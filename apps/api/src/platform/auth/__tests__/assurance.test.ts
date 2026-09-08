@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { authenticationAssuranceLevel } from "../auth-assurance.js";
+import { authenticationAssuranceLevel } from "../assurance.js";
 
 function tokenWithClaims(claims: Record<string, unknown>): string {
   return `header.${Buffer.from(JSON.stringify(claims)).toString("base64url")}.signature`;

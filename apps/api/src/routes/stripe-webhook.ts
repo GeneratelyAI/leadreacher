@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { ValidationError } from "../lib/errors.js";
-import { errorResponses, stripeSecurity } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+import { ValidationError } from "../platform/http/errors.js";
+import { errorResponses, stripeSecurity } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { verifyStripeWebhookEvent, type StripeWebhookEvent } from "../lib/stripe.js";
 import {
   synchronizeStripeCheckoutSession,

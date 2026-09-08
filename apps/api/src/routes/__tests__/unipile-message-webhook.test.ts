@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import crypto from "node:crypto";
 import fastifyRawBody from "fastify-raw-body";
-import { applyZodCompilers } from "../../lib/zod-compilers.js";
+import { applyZodCompilers } from "../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -30,7 +30,7 @@ const {
   invalidateDashboardChrome: vi.fn(),
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: {
     REDIS_URL: "redis://localhost:6379",
     REDIS_PASSWORD: "",
@@ -38,7 +38,7 @@ vi.mock("../../config/env.js", () => ({
     UNIPILE_WEBHOOK_SECRET: "webhook-secret",
   },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     message: { findFirst: messageFindFirst, updateMany: messageUpdateMany },
     socialAccount: { findFirst: socialAccountFindFirst, updateMany: socialAccountUpdateMany },

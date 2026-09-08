@@ -1,6 +1,6 @@
 import type { Campaign, Lead } from "@prisma/client";
 import type { OutreachChannel } from "../lib/channels.js";
-import { redis } from "../lib/redis.js";
+import { redis } from "../platform/redis/connection.js";
 import type { SequenceStep } from "../lib/sequence.js";
 import { runChannelOutreachPersonalizationAgent } from "../modules/agents/channel-outreach-personalization-agent.js";
 import {

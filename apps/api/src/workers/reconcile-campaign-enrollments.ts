@@ -1,4 +1,4 @@
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
 
 const BATCH_SIZE = 100;

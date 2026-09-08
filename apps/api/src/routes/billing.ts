@@ -2,7 +2,7 @@ import type { Strategy } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { ForbiddenError, ValidationError } from "../lib/errors.js";
+import { ForbiddenError, ValidationError } from "../platform/http/errors.js";
 import {
   buildPricingCatalog,
   parseVideoConfig,
@@ -13,12 +13,12 @@ import {
   ErrorResponseSchema,
   authenticatedRoute,
   errorResponses,
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { requireOrgId } from "../lib/request-org.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { requireOrganizationOwner } from "../lib/organization-access.js";
 import { isOutreachChannel } from "../lib/channels.js";
-import { requireMfa } from "../plugins/auth.js";
+import { requireMfa } from "../platform/auth/hooks.js";
 import {
   createBillingPortalSession,
   createSubscriptionCheckoutSession,

@@ -4,22 +4,22 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
 import { z } from "zod";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import { R2Adapter } from "../adapters/r2.js";
 import {
   AppError,
   ForbiddenError,
   NotFoundError,
   ValidationError,
-} from "../lib/errors.js";
+} from "../platform/http/errors.js";
 import {
   ErrorResponseSchema,
   authenticatedRoute,
   errorResponses
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { redis } from "../lib/redis.js";
-import { requireOrgId } from "../lib/request-org.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { redis } from "../platform/redis/connection.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { VideoConfigSchema } from "../lib/billing/pricing.js";
 import { OUTREACH_CHANNELS } from "../lib/channels.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";

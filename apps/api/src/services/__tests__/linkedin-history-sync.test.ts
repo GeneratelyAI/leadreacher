@@ -10,7 +10,7 @@ const { messageFindMany, messageCreateMany, messageUpdateMany, leadUpdate, campa
   transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
 }));
 
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     message: { findMany: messageFindMany, createMany: messageCreateMany, updateMany: messageUpdateMany },
     lead: { update: leadUpdate },

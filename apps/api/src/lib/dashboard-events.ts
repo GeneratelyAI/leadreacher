@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { redis } from "./redis.js";
+import { redis } from "../platform/redis/connection.js";
 
 const DASHBOARD_EVENT_TYPES = [
   "campaign.updated",

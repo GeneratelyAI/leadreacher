@@ -2,13 +2,13 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { UnipileAdapter } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
-import { DailySendLimitError, NotFoundError, ValidationError } from "../lib/errors.js";
-import { CampaignLeadIdParamsSchema, authenticatedRoute } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { DailySendLimitError, NotFoundError, ValidationError } from "../platform/http/errors.js";
+import { CampaignLeadIdParamsSchema, authenticatedRoute } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
 import { checkAndIncrementDailySendLimit, getDailySendLimitStatus } from "../lib/rate-limiter.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { isOutreachChannel } from "../lib/channels.js";
 import {
   deliverOperatorMessage,

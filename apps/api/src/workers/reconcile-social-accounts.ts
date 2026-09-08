@@ -1,7 +1,7 @@
 import { isAccountHealthy, UnipileAdapter } from "../adapters/unipile.js";
-import { env } from "../config/env.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
-import { prisma } from "../lib/prisma.js";
+import { env } from "../platform/config/env.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
+import { prisma } from "../platform/persistence/prisma.js";
 
 export async function reconcileSocialAccountStatuses(): Promise<{
   checked: number;

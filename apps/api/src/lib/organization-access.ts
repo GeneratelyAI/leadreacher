@@ -1,7 +1,7 @@
 import type { FastifyRequest } from "fastify";
-import { ForbiddenError } from "./errors.js";
-import { prisma } from "./prisma.js";
-import { requireOrgId } from "./request-org.js";
+import { ForbiddenError } from "../platform/http/errors.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 
 export async function requireOrganizationOwner(request: FastifyRequest): Promise<{
   orgId: string;

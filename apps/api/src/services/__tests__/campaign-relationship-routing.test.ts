@@ -18,10 +18,10 @@ const {
   transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
 }));
 
-vi.mock("../../config/env.js", () => ({
+vi.mock("../../platform/config/env.js", () => ({
   env: { UNIPILE_API_KEY: "key" },
 }));
-vi.mock("../../lib/prisma.js", () => ({
+vi.mock("../../platform/persistence/prisma.js", () => ({
   prisma: {
     campaignLead: {
       count: campaignLeadCount,

@@ -1,10 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { authenticatedRoute } from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
+import { authenticatedRoute } from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { analyticsInsightsQueue, QUEUE_ANALYTICS_INSIGHTS } from "../lib/queue.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { readCachedAnalyticsInsights } from "../services/analytics-insights.js";
 import {
   overviewMetricTrend,

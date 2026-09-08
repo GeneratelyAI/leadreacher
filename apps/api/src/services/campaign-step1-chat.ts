@@ -1,5 +1,5 @@
 import type { UnipileAdapter } from "../adapters/unipile.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import {
   campaignSequenceJobId,
   campaignSequenceQueue,

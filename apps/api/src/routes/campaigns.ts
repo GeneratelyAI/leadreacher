@@ -2,16 +2,16 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { ForbiddenError, NotFoundError, ValidationError } from "../lib/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../platform/http/errors.js";
 import {
   CampaignIdParamsSchema,
   authenticatedRoute,
   errorResponses,
-} from "../lib/openapi.js";
+} from "../platform/http/openapi.js";
 import { OUTREACH_CHANNELS } from "../lib/channels.js";
-import { prisma } from "../lib/prisma.js";
+import { prisma } from "../platform/persistence/prisma.js";
 import { invalidateDashboardChrome } from "../lib/dashboard-cache.js";
-import { requireOrgId } from "../lib/request-org.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { parseSequence } from "../lib/sequence.js";
 import { ensureCampaignStepZeroQueued } from "../services/campaign-step0-queue.js";
 import { requireOrganizationEntitlement } from "../services/entitlements.js";

@@ -2,10 +2,10 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { GoogleGenAI, FileState } from "@google/genai";
-import { env } from "../config/env.js";
+import { env } from "../platform/config/env.js";
 import { withSilentVisualConstraint } from "../lib/video-generation-constraints.js";
-import { externalServiceFailure } from "../lib/errors.js";
-import { logOperationalInfo } from "../lib/operational-logger.js";
+import { externalServiceFailure } from "../platform/http/errors.js";
+import { logOperationalInfo } from "../platform/observability/operational-logger.js";
 import type { VideoJobStatus } from "./google-ai.js";
 
 export const GOOGLE_OMNI_VIDEO_MODEL = "gemini-omni-1.1-flash-preview";

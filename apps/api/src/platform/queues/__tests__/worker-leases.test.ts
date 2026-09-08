@@ -8,7 +8,7 @@ const redisMocks = vi.hoisted(() => ({
   redisSet: vi.fn(),
 }));
 
-vi.mock("../redis.js", () => ({
+vi.mock("../../redis/connection.js", () => ({
   redis: {
     mget: redisMocks.mget,
     pipeline: redisMocks.pipeline,

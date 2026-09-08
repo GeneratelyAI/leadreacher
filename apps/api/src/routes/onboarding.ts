@@ -2,14 +2,14 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { ForbiddenError, ValidationError } from "../lib/errors.js";
+import { ForbiddenError, ValidationError } from "../platform/http/errors.js";
 import {
   CampaignIdParamsSchema,
   authenticatedRoute,
   errorResponses,
-} from "../lib/openapi.js";
-import { prisma } from "../lib/prisma.js";
-import { requireOrgId } from "../lib/request-org.js";
+} from "../platform/http/openapi.js";
+import { prisma } from "../platform/persistence/prisma.js";
+import { requireOrgId } from "../platform/auth/request-org.js";
 import { onboardingProspectDiscoveryQueue } from "../lib/queue.js";
 import { runOutreachMessageAgent } from "../modules/agents/outreach-message-agent.js";
 import {

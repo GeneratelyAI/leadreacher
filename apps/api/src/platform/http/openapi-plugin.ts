@@ -8,8 +8,8 @@ import {
 } from "fastify-type-provider-zod";
 
 import { isApiDocsEnabled } from "../config/env.js";
-import { errorResponses, OPENAPI_TAGS } from "../lib/openapi.js";
-import { applyZodCompilers } from "../lib/zod-compilers.js";
+import { errorResponses, OPENAPI_TAGS } from "./openapi.js";
+import { applyZodCompilers } from "./zod-compilers.js";
 
 /**
  * Always installs Zod request/response compilers so route `schema` works.
