@@ -43,7 +43,7 @@ export function classifyProspectDetail(raw: string): { value: string; category: 
     return { value: aliases[key] ?? (iso ? regionNames.of(geographic)! : geographic), category: "locations" };
   }
   const candidates: ProspectCategory[] = [];
-  if (/\b(founder|co-founder|ceo|cfo|cto|coo|cmo|cio|chief|vp|vice president|director|head of|manager|president|owner|partner)\b/i.test(value)) candidates.push("decisionMakers");
+  if (/\b(founder|co-founder|ceo|cfo|cto|coo|cmo|cio|chief|vp|vice president|director|head of|managers?|president|owner|partner)\b/i.test(value)) candidates.push("decisionMakers");
   if (/\b(saas|startups?|enterprises?|agenc(?:y|ies)|retailers?|manufacturers?|marketplaces?|nonprofits?|non-profits?|b2b|b2c|small businesses|smbs?)\b/i.test(value)) candidates.push("companyTypes");
   if (industries.has(normalize(value))) candidates.push("industries");
   return { value, category: candidates.length === 1 ? candidates[0]! : null };

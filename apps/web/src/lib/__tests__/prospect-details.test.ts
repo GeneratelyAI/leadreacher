@@ -5,7 +5,7 @@ describe("prospect details", () => {
   it.each([
     ["Brazil", "locations"], ["in Canada", "locations"], ["based in Canada", "locations"],
     ["UK", "locations"], ["Europe", "locations"], ["Latin America", "locations"],
-    ["VP of Sales", "decisionMakers"], ["Sourcing Director", "decisionMakers"],
+    ["VP of Sales", "decisionMakers"], ["Sourcing Director", "decisionMakers"], ["Digital marketing managers", "decisionMakers"],
     ["B2B SaaS", "companyTypes"], ["Marketing agency", "companyTypes"],
     ["Financial Services", "industries"], ["Technology", "industries"],
     ["Growing teams", null], ["Agency founder", null],
