@@ -3,16 +3,20 @@
 import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Check } from "@/components/ui/icons";
 import { appendProspectDetail, classifyProspectDetail, PROSPECT_CATEGORIES, splitProspectDetails, type ProspectCategory, type ProspectDetails } from "@/lib/prospect-details";
+import { useMobileCampaign } from "@/hooks/useMobileCampaign";
+import styles from "./MobileProspects.module.css";
 
-export function ProspectDetailInput({ profile, setProfile, onContextChange, disabled }: {
+export function ProspectDetailInput({ profile, setProfile, onContextChange, disabled, initialPlacement }: {
   profile: ProspectDetails;
   setProfile: Dispatch<SetStateAction<ProspectDetails>>;
   onContextChange: (value: string) => void;
   disabled: boolean;
+  initialPlacement?: string;
 }) {
-  const [input, setInput] = useState("");
-  const [pending, setPending] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<ProspectCategory | null>(null);
+  const mobile = useMobileCampaign();
+  const [input, setInput] = useState(initialPlacement ?? "");
+  const [pending, setPending] = useState<string[]>(initialPlacement ? [initialPlacement] : []);
+  const [selectedCategory, setSelectedCategory] = useState<ProspectCategory | null>(initialPlacement ? "industries" : null);
   const [selectorHeight, setSelectorHeight] = useState(0);
   const [selectorReady, setSelectorReady] = useState(false);
   const [selectorClosing, setSelectorClosing] = useState(false);
@@ -22,6 +26,24 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
   const arrivals = useRef<Array<{ category: ProspectCategory; value: string; source: DOMRect }>>([]);
   const cleanup = useRef<Set<() => void>>(new Set());
   const selectorTimers = useRef<Set<number>>(new Set());
+  const desktopPlacement = useRef<{ value: string; committed: boolean } | null>(null);
+  const previousMobile = useRef(mobile);
+
+  useLayoutEffect(() => {
+    // Mobile selection is only a draft until Add is pressed. Desktop choices
+    // commit directly, so a breakpoint change must not leave them disabled.
+    if (previousMobile.current && !mobile) setSelectedCategory(null);
+    if (!previousMobile.current && mobile && desktopPlacement.current) {
+      selectorTimers.current.forEach((timer) => window.clearTimeout(timer));
+      selectorTimers.current.clear();
+      const placement = desktopPlacement.current;
+      if (placement.committed) setPending((current) => current[0] === placement.value ? current.slice(1) : current);
+      desktopPlacement.current = null;
+      setSelectedCategory(null);
+      setSelectorClosing(false);
+    }
+    previousMobile.current = mobile;
+  }, [mobile]);
 
   useEffect(() => {
     onContextChange([...pending, input.trim()].filter(Boolean).join("; "));
@@ -44,7 +66,7 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
     setSelectorReady(false);
     setSelectorClosing(false);
     const measure = () => {
-      const height = Math.ceil(selectorRef.current?.getBoundingClientRect().height ?? 0);
+      const height = selectorRef.current?.offsetHeight ?? 0;
       setSelectorHeight(height);
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         setSelectorReady(true);
@@ -85,8 +107,8 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
     const frames = new Set<number>();
     const beginTravel = ({ category, value, source }: typeof entries[number], index: number) => {
       const row = task?.querySelector<HTMLElement>(`[data-prospect-row="${category}"]`);
-      const chip = Array.from(row?.querySelectorAll<HTMLElement>(".onboarding-campaign-chip-label") ?? []).find((node) => node.textContent === value);
-      const overflowTrigger = row?.querySelector<HTMLElement>(`[data-prospect-overflow-trigger="${category}"]`);
+      const chip = Array.from(row?.querySelectorAll<HTMLElement>(".onboarding-campaign-chip-label") ?? []).find((node) => node.textContent === value && node.offsetWidth > 0 && node.offsetHeight > 0);
+      const overflowTrigger = Array.from(row?.querySelectorAll<HTMLElement>(`[data-prospect-overflow-trigger="${category}"]`) ?? []).find((node) => node.offsetWidth > 0);
       const destinationTarget = chip ?? overflowTrigger;
       if (!row || !destinationTarget) return;
       const destination = destinationTarget.getBoundingClientRect();
@@ -144,6 +166,7 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
 
   function selectCategory(category: ProspectCategory) {
     const value = pending[0];
+    if (mobile) { setSelectedCategory(category); return; }
     if (!value || selectedCategory) return;
     setSelectedCategory(category);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -163,7 +186,9 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
       selectorTimers.current.add(timer);
     };
 
+    desktopPlacement.current = { value, committed: false };
     schedule(() => {
+      if (desktopPlacement.current) desktopPlacement.current.committed = true;
       place([{ category, value }]);
       setSelectorClosing(true);
       schedule(() => {
@@ -172,20 +197,21 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
       schedule(() => {
         setPending((current) => current[0] === value ? current.slice(1) : current);
         setSelectedCategory(null);
+        desktopPlacement.current = null;
       }, 660);
     }, 180);
   }
 
   return (
-    <form className="onboarding-campaign-context discovery-detail-editor" onSubmit={(event) => { event.preventDefault(); if (input.trim() && !disabled) submit(); }}>
+    <form className={`onboarding-campaign-context discovery-detail-editor ${styles.editor}`} data-mobile-placement={mobile && Boolean(pending.length)} onSubmit={(event) => { event.preventDefault(); if (input.trim() && !disabled) submit(); }}>
       <label htmlFor="prospect-context">Did we miss anything?</label>
       <div className="discovery-detail-entry">
         <input ref={inputRef} id="prospect-context" className="onboarding-campaign-context-input" value={input} disabled={disabled}
-          onChange={(event) => setInput(event.target.value)} placeholder="Add a role, company type, industry or location..."
+          onChange={(event) => setInput(event.target.value)} placeholder={mobile ? "Add a role, industry or location" : "Add a role, company type, industry or location..."}
           onPaste={(event) => { const text = event.clipboardData.getData("text"); if (/[\r\n]/.test(text)) { event.preventDefault(); setInput((current) => current + text.replace(/[\r\n]+/g, "; ")); } }} />
         <button className="discovery-detail-add" type="submit" disabled={disabled || !input.trim()}>Add</button>
       </div>
-      <div className="discovery-detail-fallback" aria-live="polite" style={{ height: `${selectorHeight}px` }}>
+      <div className="discovery-detail-fallback" aria-live="polite" style={mobile ? undefined : { height: `${selectorHeight}px` }}>
         {pending[0] ? <>
           <div
             ref={selectorRef}
@@ -202,7 +228,7 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
                   <button
                     key={key}
                     type="button"
-                    disabled={disabled || selectedCategory !== null}
+                    disabled={disabled || (!mobile && selectedCategory !== null)}
                     aria-pressed={selected}
                     className={selected ? "discovery-detail-category-selected" : undefined}
                     onClick={() => selectCategory(key)}
@@ -213,6 +239,19 @@ export function ProspectDetailInput({ profile, setProfile, onContextChange, disa
                 );
               })}
             </div>
+            {mobile ? <div className={styles.placementActions}>
+              <button type="button" disabled={!selectedCategory || disabled} onClick={() => {
+                if (!selectedCategory || !pending[0]) return;
+                place([{ category: selectedCategory, value: pending[0] }]);
+                setPending((current) => current.slice(1));
+                setInput("");
+                setSelectedCategory(null);
+              }}>Add to {PROSPECT_CATEGORIES.find((category) => category.key === selectedCategory)?.label ?? "category"}</button>
+              <button type="button" onClick={() => {
+                setPending([]); setInput(""); setSelectedCategory(null);
+                setAnnouncement("Placement cancelled."); inputRef.current?.focus({ preventScroll: true });
+              }}>Cancel</button>
+            </div> : null}
           </div>
         </> : null}
       </div>

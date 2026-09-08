@@ -16,10 +16,16 @@ import { type WebsiteScrapeStatus, useWebsiteScrapeStatus } from "@/hooks/useWeb
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
 import { cleanWebsiteDomain } from "@/lib/website-url";
+import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { navigateOnboarding, onboardingHref, strategyHref } from "./steps";
 import { cn } from "@/lib/utils";
 import { ProspectDetailInput } from "../ProspectDetailInput";
 import { getDiscoveryOrgScope } from "@/lib/discovery-scrape-cache";
+import { appendProspectDetail, splitProspectDetails } from "@/lib/prospect-details";
+import { isOnboardingPreview } from "@/lib/onboarding/preview-api";
+import { MobileProspectCategory } from "../MobileProspectCategory";
+import { MobileWebsiteEntry } from "../MobileWebsiteEntry";
+import mobileStyles from "../MobileProspects.module.css";
 
 type ProspectProfile = NonNullable<WebsiteScrapeStatus["prospectProfile"]>;
 
@@ -166,6 +172,14 @@ function ProspectCategoryValues({ category, label, values, removing, onRemove, o
     };
   }, [values]);
 
+  const popoverReady = open && position !== null && overflowValues.length > 0;
+  useLayoutEffect(() => {
+    if (!popoverReady || !popoverRef.current) return;
+    if (!popoverRef.current.contains(document.activeElement)) {
+      closeRef.current?.focus({ preventScroll: true });
+    }
+  }, [popoverReady]);
+
   useEffect(() => {
     if (!open || !overflowValues.length) return;
     const updatePosition = () => {
@@ -213,7 +227,6 @@ function ProspectCategoryValues({ category, label, values, removing, onRemove, o
     const frame = window.requestAnimationFrame(() => {
       updatePosition();
       if (popoverRef.current) observer.observe(popoverRef.current);
-      closeRef.current?.focus({ preventScroll: true });
     });
     return () => {
       observer.disconnect();
@@ -413,7 +426,7 @@ export default function Discovery() {
 
   async function submitWebsite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalized = cleanWebsiteDomain(websiteInput);
+    const normalized = normalizeLandingWebsiteUrl(websiteInput);
     if (!normalized) {
       setError("Enter a valid website URL.");
       return;
@@ -491,7 +504,7 @@ export default function Discovery() {
   const campaign = campaignFromStatus(status, websiteUrl);
 
   return (
-    <div className="onboarding-page box-border h-dvh overflow-hidden bg-[#fdfdff] px-6 py-8 text-[#080e28] lg:px-10 xl:px-14">
+    <div className={cn("onboarding-page box-border h-dvh overflow-hidden bg-[#fdfdff] px-6 py-8 text-[#080e28] lg:px-10 xl:px-14", mobileStyles.screen)}>
       <Link
         href="/"
         aria-label="LeadReacher home"
@@ -501,6 +514,7 @@ export default function Discovery() {
       </Link>
       {showWebsiteForm ? (
           <section className="discovery-website-gate" aria-labelledby="discovery-website-title">
+            <MobileWebsiteEntry value={websiteInput} onChange={(value) => { setWebsiteInput(value); setError(null); }} onSubmit={submitWebsite} disabled={loading || submittingWebsite} error={error ?? (status.status === "failed" ? message : null)} />
             <div className="signup-campaign-form-column">
               <div className="signup-campaign-copy login-campaign-copy">
                 <h1 id="discovery-website-title">
@@ -577,7 +591,7 @@ export default function Discovery() {
                   <h1 id="prospect-review-title" className="onboarding-campaign-heading">
                     Your <span className="whitespace-nowrap">prospects<span className="signup-campaign-period">.</span></span>
                   </h1>
-                  <p>Here’s who we’re targeting.</p>
+                  <p><span className={mobileStyles.desktopNext}>Here’s who we’re targeting.</span><span className={mobileStyles.mobileNext}>Review who your campaign will reach.</span></p>
                 </div>
 
                 <div className="onboarding-campaign-profile">
@@ -602,11 +616,26 @@ export default function Discovery() {
                         prospectId={prospectId}
                         reduceMotion={reduceMotion}
                       />
+                      <MobileProspectCategory category={key} label={label} values={profile[key]}
+                        initialOpen={isOnboardingPreview() && searchParams.get("screen") === "06" && key === "decisionMakers"}
+                        onRemove={finishProspectRemoval}
+                        onAdd={(category, raw) => {
+                          let next = profile;
+                          const added: string[] = [];
+                          for (const value of splitProspectDetails(raw)) {
+                            const updated = appendProspectDetail(next, category, value);
+                            if (updated !== next) added.push(value);
+                            next = updated;
+                          }
+                          setProfile(next);
+                          setRemovalAnnouncement(added.length ? `${added.join(", ")} added to ${label}.` : "Those details are already in your audience.");
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
 
-                <ProspectDetailInput profile={profile} setProfile={setProfile} onContextChange={setAdditionalContext} disabled={saving} />
+                <ProspectDetailInput profile={profile} setProfile={setProfile} onContextChange={setAdditionalContext} disabled={saving} initialPlacement={isOnboardingPreview() && searchParams.get("screen") === "07" ? "Healthcare" : undefined} />
 
                 <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">{removalAnnouncement}</p>
 
@@ -623,7 +652,7 @@ export default function Discovery() {
                   className="onboarding-campaign-next"
                   onClick={handleNext}
                 >
-                  {saving ? "Saving..." : "Next"}
+                  {saving ? "Saving..." : <><span className={mobileStyles.desktopNext}>Next</span><span className={mobileStyles.mobileNext}>Continue</span></>}
                   <ArrowRight className="size-5" aria-hidden />
                 </Button>
               </div>
