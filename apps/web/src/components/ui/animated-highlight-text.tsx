@@ -6,10 +6,10 @@ import {
   motion,
   type Variants,
   useMotionValue,
-  useReducedMotion,
   useSpring,
 } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useStableReducedMotion as useReducedMotion } from "@/hooks/useStableReducedMotion";
 
 type DrawState = "rest" | "draw";
 

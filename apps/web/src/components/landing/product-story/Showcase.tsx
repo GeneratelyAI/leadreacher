@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { m, useReducedMotion } from "framer-motion";
+import { m } from "framer-motion";
+import { useStableReducedMotion as useReducedMotion } from "@/hooks/useStableReducedMotion";
 import {
   Activity,
   ArrowRight,
@@ -86,10 +87,12 @@ function WorkflowCardIcon({
   Icon,
   isActive,
   reducedMotion,
+  showSparkle,
 }: {
   Icon: AcquisitionFlowStep["icon"];
   isActive: boolean;
   reducedMotion: boolean;
+  showSparkle: boolean;
 }) {
   const wasActive = useRef(isActive);
   const [activation, setActivation] = useState(isActive ? 1 : 0);
@@ -134,7 +137,7 @@ function WorkflowCardIcon({
         className={cn("size-7 sm:size-9", isActive ? "text-[#ad9bff]" : "text-[#a79be0]")}
         strokeWidth={1.6}
       />
-      {isActive ? (
+      {showSparkle && isActive ? (
         <m.svg
           viewBox="0 0 24 24"
           fill="none"
@@ -230,6 +233,7 @@ function AcquisitionStepVisual({
           src="/landing/product-story/strategy-brain.webp"
           alt=""
           fill
+          loading="eager"
           sizes="(min-width: 640px) 220px, 160px"
           className="object-contain"
         />
@@ -475,12 +479,14 @@ type AcquisitionWorkflowCarouselProps = {
   compact?: boolean;
   className?: string;
   showPagination?: boolean;
+  showIconSparkle?: boolean;
 };
 
 export function AcquisitionWorkflowCarousel({
   compact = false,
   className,
   showPagination,
+  showIconSparkle = true,
 }: AcquisitionWorkflowCarouselProps) {
   const reducedMotion = Boolean(useReducedMotion());
 
@@ -528,7 +534,7 @@ export function AcquisitionWorkflowCarousel({
               >
               <m.div initial={reducedMotion ? false : { opacity: 0.72, y: 6 }} animate={{ opacity: isVisuallyActive ? 1 : 0.72, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }} className="flex items-center justify-between">
                 <span className={cn("text-xl font-semibold tracking-[-0.03em] sm:text-2xl", isVisuallyActive ? "text-[#a792ff]" : "text-[#6948e4] dark:text-[#a792ff]")}>0{index + 1}</span>
-                <WorkflowCardIcon Icon={Icon} isActive={isVisuallyActive} reducedMotion={reducedMotion} />
+                <WorkflowCardIcon Icon={Icon} isActive={isVisuallyActive} reducedMotion={reducedMotion} showSparkle={showIconSparkle} />
               </m.div>
               <m.div initial={reducedMotion ? false : { opacity: 0.62, y: 8 }} animate={{ opacity: isVisuallyActive ? 1 : 0.78, y: isVisuallyActive ? 0 : 3 }} transition={{ duration: reducedMotion ? 0 : 0.28, delay: reducedMotion || !isVisuallyActive ? 0 : 0.04, ease: [0.22, 1, 0.36, 1] }} className={compact ? "mt-2.5 sm:mt-3 h-short:mt-2" : "mt-2.5 sm:mt-4 h-short:mt-2"}>
                 <AcquisitionStepVisual index={index} isSelected={isVisuallyActive} />
