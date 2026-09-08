@@ -14,10 +14,10 @@ import { apiFetch } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "./steps";
 
 const EXPLANATION = [
-  { text: "We find the right prospects." },
-  { text: "We create personalized content." },
-  { text: "We reach them automatically." },
-  { text: "They respond. You close." },
+  { text: "We find the right prospects.", title: "Find the right prospects", description: "We find and qualify prospects that match your ideal customer profile." },
+  { text: "We create personalized content.", title: "Create personalized content", description: "We craft personalized videos and messages that speak to each prospect." },
+  { text: "We reach them automatically.", title: "Reach them automatically", description: "We send your content across channels and follow up automatically." },
+  { text: "They respond. You close.", title: "They respond. You close.", description: "Interested prospects reply. You have the conversation and close more deals." },
 ] as const;
 
 export default function HowItWorks() {
@@ -61,7 +61,7 @@ export default function HowItWorks() {
     }
   }
 
-  return <section className="how-it-works-campaign-page how-it-works-explanation">
+  return <section className={`how-it-works-campaign-page how-it-works-explanation ${styles.page}`}>
     <main className="how-it-works-campaign-main" aria-labelledby="how-it-works-title">
       <header className="how-it-works-campaign-header" data-explanation-heading>
         <h1 id="how-it-works-title" className={styles.title} onMouseEnter={replaySparkle} onFocus={replaySparkle}>
@@ -69,12 +69,13 @@ export default function HowItWorks() {
           <span>How <ShimmerText key={`${reduceMotion}:${sparkleReplay}`} duration={3.6} className={styles.materializingWord} data-materialize={!reduceMotion}>LeadReacher</ShimmerText> works<span className="signup-campaign-period">.</span></span>
         </h1>
       </header>
-      <ol ref={storyRef} className="how-it-works-sequence" aria-label="Your campaign journey">
-        {EXPLANATION.map(({ text }, index) => <li key={text} data-explanation-step>
+      <ol ref={storyRef} className={`how-it-works-sequence ${styles.sequence}`} aria-label="Your campaign journey">
+        {EXPLANATION.map(({ text, title, description }, index) => <li key={text} data-explanation-step>
           <span className="how-it-works-illustration" data-audience-illustration={index === 0 ? "true" : undefined} aria-hidden>
             <HowItWorksIllustration index={index} />
           </span>
-          <p>{text}</p>
+          <span className={styles.number} aria-hidden>{index + 1}</span>
+          <p><span className={styles.desktopCopy}>{text}</span><span className={styles.mobileCopy}><strong>{title}</strong><span>{description}</span></span></p>
           {index < EXPLANATION.length - 1 ? <ArrowRight className="how-it-works-connector" aria-hidden /> : null}
         </li>)}
       </ol>

@@ -30,9 +30,214 @@
   animation-delay: 2.12s;
 }
 
+.number,
+.mobileCopy,
+.mobileArt {
+  display: none;
+}
+
 @keyframes materializeWord {
   from { mask-position: 100% 0; opacity: 0; }
   to { mask-position: 0 0; opacity: 1; }
+}
+
+@media (max-width: 63rem) {
+  .page.page {
+    height: auto;
+    min-height: 0;
+    padding: 28px 20px max(28px, env(safe-area-inset-bottom));
+    background: #fff;
+  }
+
+  .page.page :global(.how-it-works-campaign-main) {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-width: 42rem;
+    padding: 0;
+  }
+
+  .page :global(.how-it-works-campaign-header) .title {
+    justify-content: flex-start;
+    text-align: left;
+    color: #100d30;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.85px;
+  }
+
+  .page .sparkle,
+  .page :global(.signup-campaign-period),
+  .page :global(.how-it-works-connector),
+  .desktopCopy,
+  .desktopArt {
+    display: none;
+  }
+
+  .page .materializingWord[data-materialize="true"] {
+    animation: none;
+    mask-image: none;
+  }
+
+  .page .materializingWord :global(.lr-shimmer-text__base) {
+    color: inherit;
+  }
+
+  .page :global(.lr-shimmer-text__shine) {
+    display: none;
+  }
+
+  .page .sequence {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 25px;
+    margin: 28px 0 0;
+  }
+
+  .page .sequence > li {
+    display: grid;
+    grid-template-columns: 90px 29px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 14px;
+    min-height: 98px;
+    text-align: left;
+  }
+
+  .sequence :global(.how-it-works-illustration) {
+    position: relative;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 35%, #eee9ff, #eae4ff 72%, #f1edff);
+  }
+
+  .sequence > li:not(:last-child) :global(.how-it-works-illustration)::after {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    height: 33px;
+    border-left: 1px dashed #d3cfdf;
+    content: "";
+  }
+
+  .sequence :global(.how-it-works-illustration) svg {
+    width: 70px;
+    height: 70px;
+    overflow: visible;
+  }
+
+  .number {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    margin-top: 9px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #eee9ff, #f7f5ff);
+    color: #5127e1;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  .sequence > li:not(:last-child) .number::after {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    height: 94px;
+    border-left: 1px dashed #d3cfdf;
+    content: "";
+  }
+
+  .mobileCopy {
+    display: block;
+    padding-top: 7px;
+  }
+
+  .mobileCopy strong {
+    display: block;
+    color: #12132d;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.25px;
+    line-height: 1.3;
+  }
+
+  .mobileCopy > span {
+    display: block;
+    max-width: 195px;
+    margin-top: 6px;
+    color: #52506a;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0;
+    line-height: 1.45;
+  }
+
+  .mobileArt {
+    display: inline;
+  }
+
+  .page.page :global(.how-it-works-campaign-actions) {
+    position: static;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 10px;
+    width: 100%;
+    max-width: 42rem;
+    margin: 26px auto 0;
+    padding: 0;
+    transform: none;
+  }
+
+  .page.page :global(.how-it-works-campaign-actions) button {
+    width: 100%;
+    min-width: 0;
+    height: 49px;
+    min-height: 49px;
+    margin: 0;
+    border: 1px solid #956cff;
+    border-radius: 7px;
+    box-shadow: none;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .page :global(.how-it-works-campaign-actions .onboarding-campaign-next) {
+    background: linear-gradient(110deg, #5430ef, #4f28ed);
+    color: #fff;
+  }
+
+  .page :global(.how-it-works-campaign-actions .campaign-content-back) {
+    background: #fff;
+    color: #5326ef;
+  }
+
+  .page :global(.how-it-works-campaign-actions) button svg {
+    display: none;
+  }
+}
+
+@media (max-width: 23rem) {
+  .page .sequence > li {
+    grid-template-columns: 66px 24px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+
+  .sequence :global(.how-it-works-illustration) {
+    width: 66px;
+    height: 66px;
+  }
+
+  .sequence :global(.how-it-works-illustration) svg {
+    width: 51px;
+    height: 51px;
+  }
+
+  .sequence > li:not(:last-child) :global(.how-it-works-illustration)::after {
+    height: calc(100% - 9px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

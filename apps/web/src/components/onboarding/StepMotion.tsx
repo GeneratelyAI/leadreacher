@@ -31,6 +31,7 @@ function ViewportFittedPane({
 
     let animationFrame = 0;
     let currentScale = 1;
+    const mobileQuery = window.matchMedia("(max-width: 63rem)");
 
     const applyScale = (scale: number) => {
       currentScale = scale;
@@ -43,11 +44,7 @@ function ViewportFittedPane({
     const fit = (reset = false, immediately = false) => {
       window.cancelAnimationFrame(animationFrame);
       const measure = () => {
-        if (window.matchMedia("(max-width: 63rem)").matches) {
-          applyScale(1);
-          canvas.style.transform = "none";
-          return;
-        }
+        if (mobileQuery.matches) return;
         const availableWidth = frame.clientWidth;
         const availableHeight = frame.clientHeight;
         if (!availableWidth || !availableHeight) return;
@@ -80,16 +77,28 @@ function ViewportFittedPane({
 
     const frameResizeObserver = new ResizeObserver(() => fit(true));
     const contentResizeObserver = new ResizeObserver(() => fit());
-    frameResizeObserver.observe(frame);
-    contentResizeObserver.observe(canvas);
-    // Apply the first fit in the layout phase so direct route loads do not
-    // paint at one size and settle to another on the next animation frame.
-    fit(true, true);
+    const syncViewportMode = () => {
+      window.cancelAnimationFrame(animationFrame);
+      frameResizeObserver.disconnect();
+      contentResizeObserver.disconnect();
+      if (mobileQuery.matches) {
+        applyScale(1);
+        canvas.style.transform = "none";
+        return;
+      }
+      frameResizeObserver.observe(frame);
+      contentResizeObserver.observe(canvas);
+      // Fit desktop before paint. Mobile stays in document flow and is never measured.
+      fit(true, true);
+    };
+    syncViewportMode();
+    mobileQuery.addEventListener("change", syncViewportMode);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
       frameResizeObserver.disconnect();
       contentResizeObserver.disconnect();
+      mobileQuery.removeEventListener("change", syncViewportMode);
     };
   }, [contentKey, fitViewport]);
 
@@ -129,7 +138,7 @@ export function StepMotion({
     const container = containerRef.current;
     if (!container) return;
 
-    const heading = container.querySelector<HTMLElement>("h1, [data-onboarding-focus]");
+    const heading = Array.from(container.querySelectorAll<HTMLElement>("h1, [data-onboarding-focus]")).find((node) => node.offsetWidth > 0 && node.offsetHeight > 0);
     if (!changed) return;
     if (heading && (document.activeElement === document.body || container.contains(document.activeElement))) {
       heading.tabIndex = -1;

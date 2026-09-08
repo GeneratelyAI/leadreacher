@@ -22,6 +22,13 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function isImmediateMobileAudienceTransition(from: string, to: string): boolean {
+  return window.matchMedia("(max-width: 63rem)").matches && (
+    (from === "strategy:how-it-works" && to === "discovery") ||
+    (from === "discovery" && to === "strategy:how-it-works")
+  );
+}
+
 function scenePosition(href: string): number {
   const url = new URL(href, window.location.origin);
   const step = url.searchParams.get("step");
@@ -135,6 +142,17 @@ export function OnboardingTransitionController({
       const direction = directionFor(`${window.location.pathname}${window.location.search}`, detail.href);
       pendingDirection.current = direction;
       const destination = new URL(detail.href, window.location.origin);
+      const destinationStep = destination.searchParams.get("step");
+      const destinationScene = destinationStep === "strategy"
+        ? `strategy:${destination.searchParams.get("substep") ?? "how-it-works"}`
+        : destination.searchParams.get("view") === "website" ? "website" : destinationStep ?? "";
+      if (isImmediateMobileAudienceTransition(previousSceneKey.current, destinationScene)) {
+        pendingBridge.current = false;
+        returningRows.current = [];
+        setMotion({ direction, phase: "idle" });
+        applyHistory(detail);
+        return;
+      }
       returningRows.current = direction === "backward" && destination.searchParams.get("substep") === "how-it-works"
         ? Array.from(document.querySelectorAll<HTMLElement>("[data-prospect-row]")).map(stableBounds)
         : [];
@@ -235,7 +253,7 @@ export function OnboardingTransitionController({
     const direction = pendingDirection.current ?? "backward";
     pendingDirection.current = null;
 
-    if (prefersReducedMotion()) {
+    if (prefersReducedMotion() || isImmediateMobileAudienceTransition(previous, sceneKey)) {
       clearVisuals();
       pendingBridge.current = false;
       returningRows.current = [];
