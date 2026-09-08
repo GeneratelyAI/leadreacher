@@ -1,7 +1,7 @@
 import { getBrowserSession } from "@/lib/supabase/client";
+import { announceCampaignSave } from "@/lib/onboarding/campaign-events";
 import { defaultOrgNameFromEmail } from "@/lib/auth/org-name";
 import {
-  isOnboardingPreview,
   previewApiFetch,
   previewOrganization,
   usesOnboardingFixtures,
@@ -91,10 +91,10 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const usesRealPreviewConnection =
-    isOnboardingPreview() && path.startsWith("/social-accounts");
-  if (usesOnboardingFixtures() && !usesRealPreviewConnection) {
-    return previewApiFetch<T>(path, options);
+  if (usesOnboardingFixtures()) {
+    const result = await previewApiFetch<T>(path, options);
+    announceCampaignSave(path, options.method);
+    return result;
   }
 
   const token = await getAccessToken();
@@ -133,6 +133,7 @@ export async function apiFetch<T>(
     throw apiErrorFromResponse(response, payload as ApiErrorPayload | null);
   }
 
+  announceCampaignSave(path, options.method);
   return payload as T;
 }
 

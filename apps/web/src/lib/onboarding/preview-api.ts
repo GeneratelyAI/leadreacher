@@ -55,7 +55,7 @@ export function fixtureWebsiteUrl(): string {
   }
 }
 
-const strategy = {
+const initialStrategy = {
   id: "onboarding-preview-strategy",
   orgId: PREVIEW_ORG_ID,
   campaignType: "personalized_outreach",
@@ -67,6 +67,7 @@ const strategy = {
     uploadedVideoUrl: null,
   },
   icpDefinition: {
+    onboarding: { introductionSeen: false, prospectsApproved: false },
     idealCustomer: "Growth-stage B2B companies with lean sales teams",
     audienceAnalysis: {
       status: "completed",
@@ -117,7 +118,7 @@ const strategy = {
     },
   },
   channels: {
-    selected: ["linkedin", "email", "whatsapp"],
+    selected: [] as string[],
     recommendations: [
       { channel: "linkedin", label: "LinkedIn", confidence: 92, signalCount: 155, totalProfiles: 180, tag: "Best fit", description: "Most decision makers are reachable here." },
       { channel: "email", label: "Email", confidence: 84, signalCount: 142, totalProfiles: 180, tag: "Strong coverage", description: "Reliable reach for follow-up sequences." },
@@ -180,7 +181,7 @@ function rememberDemoTone(value: unknown): void {
 }
 
 function readDemoAccounts(): FixtureAccount[] {
-  if (!isOnboardingDemo()) return [DEFAULT_LINKEDIN_ACCOUNT];
+  if (!usesOnboardingFixtures()) return [DEFAULT_LINKEDIN_ACCOUNT];
   try {
     const stored = window.sessionStorage.getItem(DEMO_ACCOUNTS_KEY);
     if (!stored) return [DEFAULT_LINKEDIN_ACCOUNT];
@@ -209,8 +210,23 @@ function connectDemoAccount(provider: unknown): FixtureAccount {
 
 /** Deterministic, side-effect-free API responses for the visual onboarding preview. */
 export async function previewApiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
+  if (!usesOnboardingFixtures()) throw new Error("Preview fixtures are unavailable outside preview routes.");
   await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
   const method = (options.method ?? "GET").toUpperCase();
+  const strategyKey = `lr_fixture_strategy:${window.location.pathname}`;
+  const strategy = structuredClone(initialStrategy);
+  try {
+    const saved = window.sessionStorage.getItem(strategyKey);
+    if (saved) Object.assign(strategy, JSON.parse(saved));
+  } catch { /* Use the shared fixture when storage is unavailable. */ }
+  const saveStrategy = () => {
+    try { window.sessionStorage.setItem(strategyKey, JSON.stringify(strategy)); } catch { /* Optional fixture persistence. */ }
+  };
+  const savedChoiceKey = `lr_fixture_content_choice:${window.location.pathname}`;
+  try {
+    const savedChoice = window.sessionStorage.getItem(savedChoiceKey);
+    if (savedChoice) Object.assign(strategy.icpDefinition, { contentChoice: savedChoice });
+  } catch { /* Fixtures remain usable when browser storage is unavailable. */ }
 
   if (path === "/auth/bootstrap") {
     return {
@@ -234,7 +250,16 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       nextStep: "Build a focused acquisition strategy.",
     } as T;
   }
-  if (path === "/discovery/complete") return { strategyId: strategy.id } as T;
+  if (path === "/discovery/complete") {
+    const body = parseRequestBody(options);
+    const existingProfile = (strategy.icpDefinition as Record<string, unknown>).prospectProfile;
+    Object.assign(strategy.icpDefinition, {
+      onboarding: { introductionSeen: true, prospectsApproved: body.mode === "introduction" ? (strategy.icpDefinition.onboarding?.prospectsApproved ?? false) : true },
+      prospectProfile: body.mode === "introduction" && existingProfile ? existingProfile : body.prospectProfile,
+    });
+    saveStrategy();
+    return { strategyId: strategy.id } as T;
+  }
   if (path === "/strategy/generate" || /^\/strategy\/[^/]+$/.test(path)) return strategy as T;
   if (path.endsWith("/outreach-message")) {
     return {
@@ -246,6 +271,11 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   }
   if (path.includes("/campaign-type")) {
     const campaignType = parseRequestBody(options).campaignType;
+    Object.assign(strategy.icpDefinition, { contentChoice: parseRequestBody(options).contentChoice });
+    const contentChoice = parseRequestBody(options).contentChoice;
+    if (typeof contentChoice === "string") {
+      try { window.sessionStorage.setItem(savedChoiceKey, contentChoice); } catch { /* Optional preview persistence. */ }
+    }
     rememberDemoCampaignType(campaignType);
     if (
       campaignType === "personalized_outreach" ||
@@ -254,6 +284,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     ) {
       strategy.campaignType = campaignType;
     }
+    saveStrategy();
     return strategy as T;
   }
   if (path.includes("/video-upload")) {
@@ -267,17 +298,31 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       tone: null,
       uploadedVideoUrl: `https://preview.leadreacher.ai/uploads/${encodeURIComponent(fileName)}`,
     });
+    saveStrategy();
     return strategy as T;
   }
   if (path.includes("/video-decision")) {
     if (method === "PATCH") {
       const videoConfig = parseRequestBody(options);
       Object.assign(strategy.videoConfig, videoConfig);
+      Object.assign(strategy.icpDefinition, { approvedContent: { type: strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone } });
       rememberDemoTone(videoConfig.tone);
+      saveStrategy();
     }
     return strategy as T;
   }
-  if (path.endsWith("/channels")) return strategy as T;
+  if (path.endsWith("/channels")) {
+    if (method === "PATCH") {
+      Object.assign(strategy.channels, { selected: parseRequestBody(options).channels });
+      saveStrategy();
+    }
+    return strategy as T;
+  }
+  if (path.endsWith("/content-approval")) {
+    Object.assign(strategy.icpDefinition, { approvedContent: parseRequestBody(options) });
+    saveStrategy();
+    return strategy as T;
+  }
   if (path === "/billing/pricing") {
     return {
       lineItems: [
@@ -299,7 +344,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   }
   if (path === "/social-accounts/sync") return { synced: true } as T;
   if (path === "/social-accounts/connect") {
-    if (isOnboardingDemo()) {
+    if (usesOnboardingFixtures()) {
       const account = connectDemoAccount(parseRequestBody(options).provider);
       return {
         url: `/demo/onboarding?step=channels&status=connected&account_id=${account.id}`,
