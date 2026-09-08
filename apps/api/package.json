@@ -22,6 +22,7 @@
     "migrate:unipile-v2": "tsx src/scripts/migrate-unipile-v2-accounts.ts"
   },
   "dependencies": {
+    "@leadreacher/shared": "workspace:*",
     "@aws-sdk/client-s3": "^3.1102.0",
     "@aws-sdk/s3-request-presigner": "^3.1102.0",
     "@fastify/cors": "^11.2.0",

@@ -2,18 +2,25 @@
   "name": "@leadreacher/shared",
   "version": "0.1.0",
   "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+    "./campaign": {
+      "types": "./dist/campaign.d.ts",
+      "default": "./dist/campaign.js"
+    },
+    "./delivery": {
+      "types": "./dist/delivery.d.ts",
+      "default": "./dist/delivery.js"
+    },
+    "./http": {
+      "types": "./dist/http.d.ts",
+      "default": "./dist/http.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test": "tsc && node --test tests/*.test.mjs"
   },
   "devDependencies": {
     "typescript": "^5"
