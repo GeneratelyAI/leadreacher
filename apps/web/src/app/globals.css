@@ -545,7 +545,7 @@
 .campaign-content-option-selected { border-color: #5b3ff0; box-shadow: inset 0 0 0 1px rgb(91 63 240 / 13%), 0 0.8rem 1.8rem rgb(91 63 240 / 7%); }
 .campaign-content-option-art { position: relative; display: grid; width: 100%; height: clamp(6.5rem, 12vh, 9rem); place-items: center; overflow: hidden; border-radius: 0.65rem; background: linear-gradient(135deg, #f1f3f8, #e4e8f0); }
 .campaign-content-option-icon { color: #48536d; width: clamp(2.6rem, 4.2vw, 3.65rem); height: clamp(2.6rem, 4.2vw, 3.65rem); }
-.campaign-content-option-illustration { width: clamp(5.25rem, 7vw, 6.5rem); height: auto; max-height: 88%; object-fit: contain; }
+.campaign-content-option-illustration { display: block; width: 96px; height: 80px; max-width: 88%; max-height: 88%; object-fit: contain; }
 .campaign-content-option-play { position: absolute; right: 0.65rem; bottom: 0.65rem; display: grid; width: 2.35rem; height: 2.35rem; place-items: center; border-radius: 999px; background: rgb(7 15 38 / 86%); color: #fff; box-shadow: 0 0.4rem 1rem rgb(7 15 38 / 25%); }
 .campaign-content-option-check { position: absolute; top: 0.7rem; right: 0.7rem; display: grid; width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 999px; background: #5538e7; color: #fff; box-shadow: 0 0.25rem 0.7rem rgb(84 55 229 / 34%); }
 .campaign-content-option-title { display: block; margin-top: 1rem; color: #101428; font-size: clamp(1rem, 1.25vw, 1.18rem); font-weight: 700; letter-spacing: -0.035em; line-height: 1.2; }

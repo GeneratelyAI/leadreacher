@@ -165,13 +165,15 @@ export default function CampaignContent() {
                         <span className="campaign-content-option-play"><Play className="size-5" weight="fill" /></span>
                       </>
                     ) : option.illustration ? (
-                      <Image
+                      // The local SVG must bypass image optimization to retain its native vector rendering.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
                         src={option.illustration}
                         alt=""
-                        width={112}
-                        height={100}
-                        unoptimized
+                        width={96}
+                        height={80}
                         className="campaign-content-option-illustration"
+                        draggable={false}
                       />
                     ) : Icon ? (
                       <Icon className="campaign-content-option-icon" weight="fill" />
