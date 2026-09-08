@@ -1853,10 +1853,8 @@ html {
   .upload-your-video-file-details > div,
   .upload-document-file-details > div { min-width: 0; overflow-wrap: anywhere; }
 
-  .checkout-page,
   .strategy-targeting-screen,
-  .strategy-channels-screen,
-  .onboarding-connect-screen {
+  .strategy-channels-screen {
     min-height: 0 !important;
     padding-right: max(1rem, env(safe-area-inset-right)) !important;
     padding-bottom: max(2rem, env(safe-area-inset-bottom)) !important;
@@ -6931,7 +6929,7 @@ html[data-page="discovery"].dark body {
   .onboarding-root .onboarding-page { padding: 0; }
   .signup-campaign-layout { padding-top: calc(5rem + env(safe-area-inset-top)); }
   .onboarding-campaign-scene .onboarding-campaign-layout { padding-top: 1.25rem; }
-  .onboarding-campaign-scene :is(.checkout-page, .strategy-targeting-screen, .strategy-channels-screen, .onboarding-connect-screen) {
+  .onboarding-campaign-scene :is(.strategy-targeting-screen, .strategy-channels-screen) {
     padding-top: 1.25rem !important;
   }
   .onboarding-campaign-scene .onboarding-chrome { position: absolute; top: .5rem; }

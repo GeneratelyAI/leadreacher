@@ -1,0 +1,292 @@
+.mobile {
+  display: none;
+}
+
+@media (max-width: 63rem) {
+  .screen .mobile {
+    display: block;
+  }
+  .screen .desktop {
+    display: none;
+  }
+  .screen {
+    color: #0a0d2b;
+  }
+  .screen .main {
+    padding: 12px var(--mobile-gutter, 20px) 0;
+    margin: 0;
+    max-width: none;
+    min-height: auto;
+  }
+  .screen .grid {
+    display: flex;
+    flex-direction: column;
+    gap: 23px;
+    transform: none;
+  }
+  .heading {
+    margin-bottom: 14px;
+  }
+  .heading h1 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.2;
+  }
+  .heading p {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 1.4;
+    color: #596078;
+  }
+  .plan {
+    border: 1px solid #dcdfe8;
+    border-radius: 9px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .planBody {
+    padding: 15px 15px 18px;
+  }
+  .planHeading {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .planHeading h2 {
+    font-size: 19px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+  .sample {
+    padding: 7px 9px;
+    color: #352080;
+    background: #efe9ff;
+    font-size: 11px;
+    line-height: 1.25;
+    font-weight: 600;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .price {
+    font-size: 27px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    margin-top: 6px;
+    line-height: 1.3;
+  }
+  .price span {
+    font-size: 16px;
+    font-weight: 400;
+    letter-spacing: 0;
+    margin-left: 4px;
+  }
+  .features {
+    display: grid;
+    gap: 8px;
+    margin-top: 17px;
+  }
+  .features li {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  .features svg {
+    color: #fff;
+    background: #6330eb;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    padding: 2px;
+    margin-top: 2px;
+  }
+  .totals {
+    border-top: 1px solid #dcdfe8;
+    padding: 0 16px;
+    font-size: 15px;
+    line-height: 1.3;
+  }
+  .totals > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 9px;
+  }
+  .totals > div + div {
+    border-top: 1px solid #e4e6ed;
+  }
+  .totals dd {
+    white-space: nowrap;
+  }
+  .total {
+    font-weight: 650;
+  }
+  .tax {
+    color: #656d82;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 0 16px 12px;
+  }
+  .screen .paymentTitle {
+    font-size: 16px;
+    line-height: 1.4;
+    font-weight: 650;
+    margin-bottom: 10px;
+  }
+  .screen .trust {
+    display: none;
+  }
+  .screen .actions {
+    position: static;
+    padding: 0 var(--mobile-gutter, 20px) max(8px, env(safe-area-inset-bottom));
+    margin: 0;
+  }
+  .screen .actions button {
+    height: 44px;
+  }
+  .screen .actions:has(> :only-child) {
+    justify-content: center;
+  }
+  .screen .actions > div:first-child button {
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+    color: #655b84;
+    font-size: 14px;
+  }
+  .screen .actions > div:only-child button::after {
+    content: "";
+  }
+  .screen .secureNote {
+    margin: 14px auto 0;
+    font-size: 12px;
+    color: #626a7f;
+    line-height: 1.4;
+    text-align: center;
+  }
+  .screen .secureNote svg {
+    width: 14px;
+    height: 14px;
+    color: #7c8493;
+  }
+  .screen .mock {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+  .screen .mock::before,
+  .screen .stripe::before {
+    content: none;
+  }
+  .screen .mockHeader {
+    display: none;
+  }
+  .screen .mockFields {
+    gap: 12px;
+    margin: 0;
+  }
+  .screen .previewField {
+    display: grid;
+    gap: 2px;
+    border: 1px solid #dcdfe8;
+    border-radius: 7px;
+    min-height: 57px;
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.15;
+    color: #545e73;
+  }
+  .screen .previewField > span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .screen .previewField input {
+    padding: 0;
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #747d91;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  .screen .previewField svg {
+    width: 23px;
+    height: 23px;
+    color: #9299a6;
+  }
+  .screen .previewField:focus-within {
+    outline: 2px solid #8b62f4;
+    outline-offset: 2px;
+  }
+  .screen .previewSplit {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .screen .mockSubmit {
+    width: 100%;
+    height: 55px;
+    border-radius: 8px;
+    margin-top: 7px;
+    background: linear-gradient(110deg, #6230f6, #4c21e4);
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .screen .mockSecurity {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    color: #717a8c;
+    font-size: 12px;
+    line-height: 1.4;
+    text-align: center;
+  }
+  .screen .mockSecurity svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+  }
+  .screen .mockFootnote {
+    color: #596178;
+    font-size: 13px;
+    text-align: center;
+    line-height: 1.5;
+    margin-top: 2px;
+  }
+  .screen .stripe {
+    background: transparent;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 350px) {
+  .planHeading {
+    flex-wrap: wrap;
+  }
+  .sample {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen button {
+    animation: none;
+    transition: none;
+  }
+}

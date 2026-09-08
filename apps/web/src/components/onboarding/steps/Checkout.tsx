@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CreditCard,
+  Check,
   Loader2,
   Lock,
   ShieldCheck,
@@ -22,6 +23,7 @@ import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { isOnboardingDemo, isOnboardingPreview } from "@/lib/onboarding/preview-api";
 import { navigateOnboarding, onboardingHref } from "./steps";
+import styles from "./CheckoutMobile.module.css";
 
 const PAYMENT_VERIFICATION_ATTEMPTS = 5;
 const PAYMENT_VERIFICATION_DELAY_MS = 2_000;
@@ -35,10 +37,12 @@ type BillingLineItem = {
   currency: string | null;
   interval: string | null;
   channel?: string;
+  features?: string[];
 };
 
 type PricingResponse = {
   lineItems: BillingLineItem[];
+  features?: string[];
 };
 
 type StrategyResponse = {
@@ -143,6 +147,7 @@ export default function Checkout() {
 
   const searchParams = useSearchParams();
   const [lineItems, setLineItems] = useState<BillingLineItem[]>([]);
+  const [features, setFeatures] = useState<string[]>([]);
   const [strategy, setStrategy] = useState<StrategyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -180,6 +185,10 @@ export default function Checkout() {
           `/strategy/${bootstrap.orgId}`,
         );
         if (!cancelled) setLineItems(pricing.lineItems);
+        if (!cancelled) {
+          const planFeatures = pricing.features ?? pricing.lineItems.flatMap((item) => item.features ?? []);
+          setFeatures(Array.isArray(planFeatures) ? planFeatures.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : []);
+        }
         if (!cancelled) setStrategy(loadedStrategy);
         if (!cancelled) setSubscriptionStatus(bootstrap.subscriptionStatus);
       } catch (loadError) {
@@ -296,8 +305,8 @@ export default function Checkout() {
   ]);
 
   return (
-    <div className="onboarding-page relative flex min-h-dvh w-full flex-col">
-      <main className="checkout-page mx-auto flex w-full max-w-[74rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-24 lg:pb-24 h-short:lg:pt-20 h-short:lg:pb-20">
+    <div className={`onboarding-page relative flex min-h-dvh w-full flex-col ${styles.screen}`}>
+      <main className={`checkout-page mx-auto flex w-full max-w-[74rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-24 lg:pb-24 h-short:lg:pt-20 h-short:lg:pb-20 ${styles.main}`}>
         {error ? (
           <Alert
             tone="error"
@@ -316,14 +325,40 @@ export default function Checkout() {
           </Alert>
         ) : null}
 
-        <div className="relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:translate-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0">
+        <div className={`relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:translate-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0 ${styles.grid}`}>
+          <div className={styles.mobile}>
+            <header className={styles.heading}>
+              <h1>Your campaign starts here.</h1>
+              <p>Review your plan before continuing.</p>
+            </header>
+            {isLoading ? <p role="status">Loading your plan...</p> : lineItems.length > 0 ? (
+              <section className={styles.plan} aria-label="Your subscription plan">
+                <div className={styles.planBody}>
+                  <div className={styles.planHeading}>
+                    <h2>{primaryLineItems[0]?.label ?? lineItems[0].label}</h2>
+                    {isOnboardingPreview() || isOnboardingDemo() ? <span className={styles.sample}>Illustrative pricing</span> : null}
+                  </div>
+                  <p className={styles.price}>{formatPrice(primaryLineItems[0] ?? lineItems[0])}<span>{(primaryLineItems[0] ?? lineItems[0]).interval ? `/ ${(primaryLineItems[0] ?? lineItems[0]).interval}` : ""}</span></p>
+                  {features.length || lineItems.length > 1 ? <ul className={styles.features}>
+                    {(features.length ? features : lineItems.filter((item) => item !== (primaryLineItems[0] ?? lineItems[0])).map((item) => item.label)).map((feature) => <li key={feature}><Check aria-hidden />{feature}</li>)}
+                  </ul> : null}
+                </div>
+                <dl className={styles.totals}>
+                  {lineItems.map((item) => <div key={item.priceId}><dt>{item.key === "platform" && item.interval === "month" ? "Monthly plan" : item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
+                  <div className={styles.total}><dt>Subtotal today</dt><dd>{formatTotal(lineItems)}</dd></div>
+                </dl>
+                <p className={styles.tax}>Taxes calculated by Stripe at checkout.</p>
+              </section>
+            ) : null}
+          </div>
           <section className="min-w-0 lg:pr-8 xl:pr-10" aria-labelledby="payment-heading">
-            <div className="mb-7 h-short:mb-5">
+            <div className={`mb-7 h-short:mb-5 ${styles.desktop}`}>
               <h1 id="payment-heading" className="text-3xl font-semibold tracking-[-0.035em] text-onboarding-ink dark:text-white sm:text-4xl">Complete your subscription</h1>
               <p className="mt-3 max-w-xl text-sm leading-6 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Pay securely to continue. Your campaign stays in draft until you review and approve it.</p>
             </div>
 
-            <PaymentTrustBar />
+            <h2 className={`${styles.mobile} ${styles.paymentTitle}`}>Payment details</h2>
+            <div className={styles.trust}><PaymentTrustBar /></div>
 
             {isRedirecting && !embeddedCheckout ? (
               <EmptyState
@@ -342,19 +377,19 @@ export default function Checkout() {
                 previewAmount={lineItems.reduce((total, item) => total + (item.unitAmount ?? 0), 0)}
                 previewCurrency={lineItems.find((item) => item.currency)?.currency ?? "usd"}
                 showStripePreview={isOnboardingPreview()}
-                onMockSubmit={isOnboardingDemo() ? () => {
-                  navigateOnboarding(`${onboardingHref("checkout")}&status=success&session_id=demo`, true);
+                onMockSubmit={isOnboardingDemo() || isOnboardingPreview() ? () => {
+                  navigateOnboarding(`${onboardingHref("checkout")}&status=success&session_id=${isOnboardingDemo() ? "demo" : "preview"}`, true);
                 } : undefined}
               />
             ) : null}
 
-            <div className="mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3">
+            <div className={`mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3 ${embeddedCheckout?.mockMode ? styles.desktop : styles.secureNote}`}>
               <ShieldCheck className="size-4 text-onboarding-success-500" aria-hidden />
               Payment details never touch LeadReacher servers
             </div>
           </section>
 
-          <aside className="min-w-0 lg:pl-8 xl:pl-10" aria-labelledby="summary-heading">
+          <aside className={`min-w-0 lg:pl-8 xl:pl-10 ${styles.desktop}`} aria-labelledby="summary-heading">
             <div className="lg:sticky lg:top-32">
               <h2 id="summary-heading" className="text-2xl font-semibold tracking-[-0.025em] text-onboarding-ink dark:text-white sm:text-3xl">Order summary</h2>
 
@@ -406,7 +441,7 @@ export default function Checkout() {
                               <span>{channelLabel(channel)}</span>
                             </span>
                             <span className={index === 0 ? "text-onboarding-success-600" : "font-semibold text-onboarding-ink dark:text-white"}>
-                              {index === 0 ? "Included" : charge ? formatPrice(charge) : "$50"}
+                              {index === 0 ? "Included" : charge ? formatPrice(charge) : "Calculated at checkout"}
                             </span>
                           </div>
                         );
@@ -452,6 +487,7 @@ export default function Checkout() {
       </main>
 
       <ActionBar
+        className={styles.actions}
         leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("campaign-content"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
         trailing={checkoutSucceeded || returnedFromCheckout ? (
           <Button
