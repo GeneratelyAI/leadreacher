@@ -55,6 +55,9 @@ next-env.d.ts
 .claude/
 CLAUDE.local.md
 
+# local agent runtime and installed workflow skills
+.agents/
+
 # local documentation scratch files only. Curated project documentation lives in
 # /docs and is tracked.
 /docs/*.local.md
