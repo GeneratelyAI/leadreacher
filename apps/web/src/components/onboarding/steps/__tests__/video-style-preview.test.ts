@@ -15,6 +15,15 @@ describe("video style preview state", () => {
     expect(resolveVideoStylePreview({ sampleImage, previewMode: false })).toEqual({ kind: "placeholder" });
   });
 
+  it("supports the safe placeholder comparison fixture without changing default preview samples", () => {
+    expect(resolveVideoStylePreview({ sampleImage, previewMode: true, placeholderFixture: true })).toEqual({ kind: "placeholder" });
+    expect(resolveVideoStylePreview({ sampleImage, previewMode: false, placeholderFixture: true, generatedPreview: { posterUrl: "/generated/real.webp" } })).toEqual({ kind: "generated-poster", src: "/generated/real.webp" });
+  });
+
+  it("does not retry a broken sample indefinitely", () => {
+    expect(resolveVideoStylePreview({ sampleImage, previewMode: true, unavailable: true })).toEqual({ kind: "placeholder" });
+  });
+
   it("promotes a future generated video or poster without changing the card model", () => {
     expect(resolveVideoStylePreview({
       sampleImage,

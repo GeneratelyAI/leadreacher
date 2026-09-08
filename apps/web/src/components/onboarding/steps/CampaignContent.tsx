@@ -14,6 +14,8 @@ import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { recoverContentChoice, type ContentChoice } from "@/lib/onboarding/content-choice";
 import { navigateOnboarding, onboardingHref } from "./steps";
+import { CreativeIllustration } from "./CreativeIllustrations";
+import mobile from "./CreativeMobile.module.css";
 
 type ContentOptionId = ContentChoice;
 type PersistedCampaignType = "personalized_outreach" | "ai_video_ad" | "uploaded_video";
@@ -27,6 +29,7 @@ type ContentOption = {
   illustration?: string;
   icon?: AppIcon;
   recommended?: boolean;
+  mobileDescription: string;
 };
 
 const CONTENT_OPTIONS: readonly ContentOption[] = [
@@ -37,6 +40,7 @@ const CONTENT_OPTIONS: readonly ContentOption[] = [
     detail: "One-to-one AI video.",
     image: "/landing/product-story/personalized-video-outreach-poster.webp",
     recommended: true,
+    mobileDescription: "A personal introduction for every prospect.",
   },
   {
     id: "ai-video",
@@ -44,6 +48,7 @@ const CONTENT_OPTIONS: readonly ContentOption[] = [
     description: "Create it with AI.",
     detail: "One sales-focused video at scale.",
     image: "/landing/product-story/content-professional.webp",
+    mobileDescription: "One sales-focused video at scale.",
   },
   {
     id: "your-video",
@@ -51,6 +56,7 @@ const CONTENT_OPTIONS: readonly ContentOption[] = [
     description: "Put your video to work.",
     detail: "Upload existing creative.",
     icon: Upload,
+    mobileDescription: "Upload your existing creative.",
   },
   {
     id: "document",
@@ -58,6 +64,7 @@ const CONTENT_OPTIONS: readonly ContentOption[] = [
     description: "Give them something worth opening.",
     detail: "Deck · Case study · Brochure · PDF",
     illustration: "/onboarding/campaign-content-pdf.svg",
+    mobileDescription: "Share a deck, brochure, or PDF.",
   },
 ];
 
@@ -141,7 +148,7 @@ export default function CampaignContent() {
   }
 
   return (
-    <section className="campaign-content-page">
+    <section className={cn("campaign-content-page", mobile.page)}>
       <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
         <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
@@ -149,9 +156,10 @@ export default function CampaignContent() {
       <main className="campaign-content-main" aria-labelledby="campaign-content-title">
         <header className="campaign-content-header">
           <h1 id="campaign-content-title">
-            Campaign Content<span className="signup-campaign-period">.</span>
+            <span className={mobile.desktopOnly}>Campaign Content<span className="signup-campaign-period">.</span></span>
+            <span className={mobile.mobileOnly}>What will you send?</span>
           </h1>
-          <p>Choose what you want to send prospects.</p>
+          <p><span className={mobile.desktopOnly}>Choose what you want to send prospects.</span><span className={mobile.mobileOnly}>Choose the content for your campaign.</span></p>
         </header>
 
         <section
@@ -177,6 +185,7 @@ export default function CampaignContent() {
                   type="button"
                   role="radio"
                   aria-checked={selected}
+                  tabIndex={selected ? 0 : -1}
                   disabled={isSaving}
                   className={cn(
                     "campaign-content-option",
@@ -184,7 +193,19 @@ export default function CampaignContent() {
                     isTransitioning && selected && "campaign-content-option-approving",
                   )}
                   onClick={() => { choiceTouched.current = true; setSelectedId(option.id); }}
+                  onKeyDown={(event) => {
+                    const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+                    if (!direction && event.key !== "Home" && event.key !== "End") return;
+                    event.preventDefault();
+                    const current = CONTENT_OPTIONS.findIndex((choice) => choice.id === option.id);
+                    const index = event.key === "Home" ? 0 : event.key === "End" ? CONTENT_OPTIONS.length - 1 : (current + direction + CONTENT_OPTIONS.length) % CONTENT_OPTIONS.length;
+                    choiceTouched.current = true;
+                    setSelectedId(CONTENT_OPTIONS[index].id);
+                    event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[index]?.focus({ preventScroll: true });
+                  }}
                 >
+                  <span className={mobile.optionRadio} aria-hidden />
+                  <CreativeIllustration kind={option.id} className={mobile.mobileArt} />
                   <span className="campaign-content-option-art" aria-hidden>
                     {option.image ? (
                       <>
@@ -210,6 +231,7 @@ export default function CampaignContent() {
                   <span className="campaign-content-option-title">{option.title}</span>
                   <span className="campaign-content-option-description">{option.description}</span>
                   <span className="campaign-content-option-detail">{option.detail}</span>
+                  <span className={cn(mobile.mobileOnly, mobile.optionDescription)}>{option.mobileDescription}</span>
                   {option.recommended ? <span className="campaign-content-option-recommended">Recommended</span> : null}
                 </button>
               );

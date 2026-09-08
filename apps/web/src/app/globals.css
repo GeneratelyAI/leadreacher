@@ -1879,7 +1879,7 @@ html {
   .personalized-video-style-actions > *,
   .upload-your-video-actions > *,
   .upload-document-actions > * {
-    width: 100% !important;
+    width: 100%;
   }
 
   .campaign-content-options-grid,

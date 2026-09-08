@@ -11,6 +11,10 @@ import { useWebsiteScrapeStatus } from "@/hooks/useWebsiteScrapeStatus";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { navigateOnboarding, onboardingHref } from "./steps";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { usesOnboardingFixtures } from "@/lib/onboarding/preview-api";
+import { FilePreviewIllustration } from "./CreativeIllustrations";
+import mobile from "./CreativeMobile.module.css";
 
 const MAX_DOCUMENT_UPLOAD_BYTES = 25 * 1024 * 1024;
 const ACCEPTED_DOCUMENT_TYPES = [
@@ -32,11 +36,14 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1)} MB`;
 }
 
-export default function UploadDocument() {
+export default function UploadDocument({ preview = false, selectedFileFixture = false }: { preview?: boolean; selectedFileFixture?: boolean }) {
   useLayoutEffect(() => applyStoredTheme(), []);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const [selectedDocument, setSelectedDocument] = useState<SelectedDocument | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<SelectedDocument | null>(() => preview && selectedFileFixture ? {
+    name: "Acme-growth-services-overview.pdf",
+    size: Math.round(2.4 * 1024 * 1024),
+  } : null);
   const [isDragging, setIsDragging] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +60,7 @@ export default function UploadDocument() {
   }
 
   function selectDocument(file: File | undefined) {
-    if (!file) return;
+    if (!file || approved) return;
 
     const hasAcceptedExtension = ACCEPTED_DOCUMENT_EXTENSIONS.some((extension) =>
       file.name.toLowerCase().endsWith(extension),
@@ -73,7 +80,7 @@ export default function UploadDocument() {
   }
 
   return (
-    <section className="upload-document-page">
+    <section className={cn("upload-document-page", mobile.page)}>
       <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
         <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
@@ -81,9 +88,10 @@ export default function UploadDocument() {
       <main className="upload-document-main" aria-labelledby="upload-document-title">
         <header className="upload-document-header">
           <h1 id="upload-document-title">
-            Add your document<span className="signup-campaign-period">.</span>
+            <span className={mobile.desktopOnly}>Add your document<span className="signup-campaign-period">.</span></span>
+            <span className={mobile.mobileOnly}>Give them something worth opening.</span>
           </h1>
-          <p>Give prospects something worth opening.</p>
+          <p><span className={mobile.desktopOnly}>Give prospects something worth opening.</span><span className={mobile.mobileOnly}>Share a useful deck, brochure, or PDF.</span></p>
         </header>
 
         <input
@@ -99,17 +107,21 @@ export default function UploadDocument() {
         <section className="upload-document-section" aria-label="Campaign document upload">
           {selectedDocument ? (
             <div className="upload-document-selected">
+              <div className={mobile.filePreview} aria-label="Document file illustration, not a content preview"><FilePreviewIllustration document /></div>
               <div className="upload-document-file-details">
-                <FileText className="upload-document-file-icon" weight="fill" aria-hidden />
+                <FileText className={cn("upload-document-file-icon", mobile.desktopOnly)} weight="fill" aria-hidden />
+                <FilePreviewIllustration document className={cn("upload-document-file-icon", mobile.mobileOnly)} />
                 <div>
                   <p>{selectedDocument.name}</p>
-                  <span>{formatBytes(selectedDocument.size)} · Ready to include</span>
+                  <span>{selectedDocument.name.split(".").pop()?.toUpperCase()} · {formatBytes(selectedDocument.size)}</span>
                 </div>
-                <Button type="button" variant="secondary" className="upload-document-remove" onClick={clearSelection}>
+                <Button type="button" variant="secondary" className="upload-document-remove" disabled={approved} onClick={clearSelection}>
                   <X className="size-4" aria-hidden />
                   Remove
                 </Button>
               </div>
+              <Button type="button" variant="secondary" className={mobile.fileReplace} disabled={approved} onClick={() => inputRef.current?.click()}><Upload className="size-4" aria-hidden />Choose another file</Button>
+              <p className={mobile.documentStorageNotice}>{preview ? "Sample document selected for this preview. No file is stored or sent." : "Document storage is not available yet. This file is selected on your device only and cannot be included in a campaign."}</p>
             </div>
           ) : (
             <div
@@ -152,8 +164,9 @@ export default function UploadDocument() {
         <Button
           type="button"
           className="onboarding-campaign-next"
-          disabled={!selectedDocument || approved}
+          disabled={!selectedDocument || approved || !preview}
           onClick={async () => {
+            if (!preview || !usesOnboardingFixtures()) return;
             setApproved(true);
             try {
               const { orgId } = await bootstrapCurrentOrganization();
@@ -165,7 +178,7 @@ export default function UploadDocument() {
             }
           }}
         >
-          Continue
+          <span className={mobile.desktopOnly}>Continue</span><span className={mobile.mobileOnly}>Use this document</span>
           <ArrowRight className="size-5" aria-hidden />
         </Button>
       </div>

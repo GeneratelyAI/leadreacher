@@ -14,12 +14,16 @@ export function resolveVideoStylePreview({
   previewMode,
   generatedPreview,
   unavailable = false,
+  placeholderFixture = false,
 }: {
   sampleImage: string;
   previewMode: boolean;
   generatedPreview?: GeneratedVideoPreview;
   unavailable?: boolean;
+  placeholderFixture?: boolean;
 }): ResolvedVideoPreview {
+  // Screenshot fixtures are valid only inside the existing preview boundary.
+  if (previewMode && placeholderFixture) return { kind: "placeholder" };
   if (!unavailable && generatedPreview?.videoUrl) {
     return {
       kind: "generated-video",
@@ -30,6 +34,6 @@ export function resolveVideoStylePreview({
   if (!unavailable && generatedPreview?.posterUrl) {
     return { kind: "generated-poster", src: generatedPreview.posterUrl };
   }
-  if (previewMode) return { kind: "sample", src: sampleImage };
+  if (previewMode && !unavailable) return { kind: "sample", src: sampleImage };
   return { kind: "placeholder" };
 }

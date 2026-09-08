@@ -121,10 +121,12 @@ export default function OnboardingFlow({
   initialStep,
   initialStrategySubstep = "how-it-works",
   preview = false,
+  initialPreviewWebsiteUrl,
 }: {
   initialStep: OnboardingStepParam;
   initialStrategySubstep?: StrategySubstepParam;
   preview?: boolean;
+  initialPreviewWebsiteUrl?: string;
 }) {
   const searchParams = useSearchParams();
   const queryStep = searchParams.get("step");
@@ -144,13 +146,13 @@ export default function OnboardingFlow({
   } else if (activeStep === "campaign-content") {
     activeStepContent = <CampaignContent />;
   } else if (activeStep === "personalized-video-style") {
-    activeStepContent = <PersonalizedVideoStyle preview={preview} />;
+    activeStepContent = <PersonalizedVideoStyle preview={preview} placeholderPreview={preview && searchParams.get("media") === "placeholder"} />;
   } else if (activeStep === "ai-video-style") {
-    activeStepContent = <AiVideoStyle preview={preview} />;
+    activeStepContent = <AiVideoStyle preview={preview} placeholderPreview={preview && searchParams.get("media") === "placeholder"} initialStyle={preview && searchParams.get("screen") === "10" ? "casual" : undefined} />;
   } else if (activeStep === "upload-video") {
-    activeStepContent = <UploadYourVideo />;
+    activeStepContent = <UploadYourVideo preview={preview} selectedFileFixture={preview && searchParams.get("screen") === "11"} />;
   } else if (activeStep === "upload-document") {
-    activeStepContent = <UploadDocument />;
+    activeStepContent = <UploadDocument preview={preview} selectedFileFixture={preview && searchParams.get("screen") === "12"} />;
   } else if (activeStep === "checkout") {
     activeStepContent = <Checkout />;
   } else {
@@ -160,7 +162,7 @@ export default function OnboardingFlow({
   const sceneKey = activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep === "discovery" && searchParams.get("view") === "website" ? "website" : activeStep;
 
   const scene = (
-    <CampaignCanvas>
+    <CampaignCanvas initialWebsiteUrl={preview ? initialPreviewWebsiteUrl : undefined}>
       {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || activeStep === "upload-document" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome />}
       <OnboardingTransitionController sceneKey={sceneKey}>
         <StepMotion

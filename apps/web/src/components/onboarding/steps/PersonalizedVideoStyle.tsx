@@ -19,6 +19,7 @@ import {
   resolveVideoStylePreview,
   type GeneratedVideoPreview,
 } from "./video-style-preview";
+import mobile from "./CreativeMobile.module.css";
 
 type StyleOption = {
   id: VideoTone;
@@ -26,6 +27,7 @@ type StyleOption = {
   qualities: readonly string[];
   sampleImage: string;
   recommended?: boolean;
+  description: string;
 };
 
 const STYLE_OPTIONS: readonly StyleOption[] = [
@@ -35,18 +37,21 @@ const STYLE_OPTIONS: readonly StyleOption[] = [
     qualities: ["Polished", "Credible", "Decision-maker focused"],
     sampleImage: "/landing/product-story/content-professional.webp",
     recommended: true,
+    description: "Clear, confident, and direct.",
   },
   {
     id: "casual",
     title: "Casual",
     qualities: ["Natural", "Approachable", "Conversational"],
     sampleImage: "/landing/product-story/content-casual.webp",
+    description: "Warm, approachable, and conversational.",
   },
   {
     id: "aggressive",
     title: "Aggressive",
     qualities: ["Direct", "High-energy", "Action-focused"],
     sampleImage: "/landing/product-story/content-aggressive.webp",
+    description: "Bold, direct, and results-oriented.",
   },
 ];
 
@@ -62,11 +67,15 @@ export function VideoStyleSelection({
   styleLabel,
   preview: isPreviewMode = false,
   generatedPreviews,
+  placeholderPreview = false,
+  initialStyle,
 }: {
   mode: "personalized" | "standardized";
   styleLabel: string;
   preview?: boolean;
   generatedPreviews?: Partial<Record<VideoTone, GeneratedVideoPreview>>;
+  placeholderPreview?: boolean;
+  initialStyle?: VideoTone;
 }) {
   useLayoutEffect(() => applyStoredTheme(), []);
   const mounted = useRef(true);
@@ -75,9 +84,14 @@ export function VideoStyleSelection({
     return () => { mounted.current = false; };
   }, []);
 
-  const [selectedStyle, setSelectedStyle] = useState<VideoTone>("professional");
+  const savedCampaign = useCampaignData();
+  const savedContent = savedCampaign?.sections?.find((section) => section.id === "content")?.value;
+  const savedContentStyle = STYLE_OPTIONS.find((option) => savedContent?.endsWith(` · ${option.title}`));
+  const [selectedStyle, setSelectedStyle] = useState<VideoTone>(
+    savedContentStyle?.id ?? (isPreviewMode && initialStyle ? initialStyle : "professional"),
+  );
   const railRef = useRef<HTMLDivElement>(null);
-  const [railIndex, setRailIndex] = useState(0);
+  const [railIndex, setRailIndex] = useState(() => STYLE_OPTIONS.findIndex((option) => option.id === selectedStyle));
   function showStyle(index: number) {
     const rail = railRef.current;
     const card = rail?.children[index] as HTMLElement | undefined;
@@ -86,27 +100,31 @@ export function VideoStyleSelection({
     setRailIndex(index);
   }
   const hasChosenStyle = useRef(false);
+  useLayoutEffect(() => {
+    if (hasChosenStyle.current || !window.matchMedia("(max-width: 63rem)").matches) return;
+    const index = STYLE_OPTIONS.findIndex((option) => option.id === selectedStyle);
+    const rail = railRef.current;
+    const card = rail?.children[index] as HTMLElement | undefined;
+    const first = rail?.children[0] as HTMLElement | undefined;
+    if (!rail || !card || !first) return;
+    // Place restored selections before paint, using untransformed layout widths.
+    rail.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: "instant" });
+    setRailIndex(index);
+  }, [selectedStyle]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
         const { orgId } = await bootstrapCurrentOrganization();
         const saved = await apiFetch<{ videoConfig?: { tone?: string } }>(`/strategy/${orgId}`);
-        const index = STYLE_OPTIONS.findIndex((option) => option.id === saved.videoConfig?.tone);
+        const tone = saved.videoConfig?.tone ?? (isPreviewMode ? initialStyle : undefined);
+        const index = STYLE_OPTIONS.findIndex((option) => option.id === tone);
         if (cancelled || hasChosenStyle.current || index < 0) return;
         setSelectedStyle(STYLE_OPTIONS[index].id);
-        const rail = railRef.current;
-        const card = rail?.children[index] as HTMLElement | undefined;
-        if (rail && card && window.matchMedia("(max-width: 63rem)").matches) {
-          rail.scrollTo({ left: card.offsetLeft - (rail.children[0] as HTMLElement).offsetLeft, behavior: "instant" });
-          setRailIndex(index);
-        }
       } catch { /* Keep the default when there is no saved style. */ }
     })();
     return () => { cancelled = true; };
-  }, []);
-  const savedCampaign = useCampaignData();
-  const savedContent = savedCampaign?.sections?.find((section) => section.id === "content")?.value;
+  }, [initialStyle, isPreviewMode]);
   useEffect(() => {
     if (hasChosenStyle.current || !savedContent) return;
     const savedStyle = STYLE_OPTIONS.find((option) => savedContent.endsWith(` · ${option.title}`));
@@ -118,7 +136,7 @@ export function VideoStyleSelection({
     return !unavailablePreviewIds.has(option.id) && Boolean(asset?.videoUrl || asset?.posterUrl);
   });
   const [phase, setPhase] = useState<ContentAnimationPhase>(() => (
-    isPreviewMode || hasGeneratedPreview ? "generating" : "select"
+    (isPreviewMode && !placeholderPreview) || hasGeneratedPreview ? "generating" : "select"
   ));
   const [loadedPreviews, setLoadedPreviews] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -146,9 +164,10 @@ export function VideoStyleSelection({
         previewMode: isPreviewMode,
         generatedPreview: generatedPreviews?.[option.id],
         unavailable: unavailablePreviewIds.has(option.id),
+        placeholderFixture: placeholderPreview,
       }),
     };
-  }), [generatedPreviews, isPreviewMode, unavailablePreviewIds]);
+  }), [generatedPreviews, isPreviewMode, placeholderPreview, unavailablePreviewIds]);
 
   const previewsAreReady = resolvedPreviews.every(({ option, preview }) => (
     preview.kind === "placeholder" || loadedPreviews.includes(option.id)
@@ -199,7 +218,7 @@ export function VideoStyleSelection({
   }
 
   const isPreparing = phase === "generating";
-  const isWaitingForGeneratedPreview = !isPreviewMode && !hasGeneratedPreview;
+  const isWaitingForGeneratedPreview = (!isPreviewMode || placeholderPreview) && !hasGeneratedPreview;
   const statusState = isWaitingForGeneratedPreview
     ? "awaiting"
     : phase === "generating"
@@ -208,7 +227,7 @@ export function VideoStyleSelection({
   const contentTypeLabel = mode === "personalized" ? "personalized videos" : "AI video";
 
   return (
-    <section className="personalized-video-style-page">
+    <section className={cn("personalized-video-style-page", mobile.page)}>
       <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
         <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
       </Link>
@@ -216,8 +235,10 @@ export function VideoStyleSelection({
       <main className="personalized-video-style-main" aria-labelledby="personalized-video-style-title">
         <header className="personalized-video-style-header">
           <h1 id="personalized-video-style-title">
-            Campaign Content<span className="signup-campaign-period">.</span>
+            <span className={mobile.desktopOnly}>Campaign Content<span className="signup-campaign-period">.</span></span>
+            <span className={mobile.mobileOnly}>{mode === "personalized" ? "Make it sound like you." : "Set the tone."}</span>
           </h1>
+          <p className={mobile.mobileOnly}>{mode === "personalized" ? "Choose a style for your personalized video." : "Choose the style of your campaign video."}</p>
         </header>
 
         <div
@@ -270,7 +291,7 @@ export function VideoStyleSelection({
                   role="radio"
                   aria-checked={selected}
                   aria-hidden={isPreparing}
-                  tabIndex={isPreparing ? -1 : undefined}
+                  tabIndex={isPreparing || !selected ? -1 : 0}
                   disabled={isPreparing || isSaving || phase === "approved"}
                   className={cn(
                     "personalized-video-style-card",
@@ -281,9 +302,20 @@ export function VideoStyleSelection({
                   onClick={() => {
                     hasChosenStyle.current = true;
                     setSelectedStyle(option.id);
+                    if (window.matchMedia("(max-width: 63rem)").matches) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
                   }}
                   onFocus={() => {
                     if (window.matchMedia("(max-width: 63rem)").matches) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
+                  }}
+                  onKeyDown={(event) => {
+                    const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
+                    if (!direction && event.key !== "Home" && event.key !== "End") return;
+                    event.preventDefault();
+                    const current = STYLE_OPTIONS.findIndex((style) => style.id === option.id);
+                    const index = event.key === "Home" ? 0 : event.key === "End" ? STYLE_OPTIONS.length - 1 : (current + direction + STYLE_OPTIONS.length) % STYLE_OPTIONS.length;
+                    hasChosenStyle.current = true;
+                    setSelectedStyle(STYLE_OPTIONS[index].id);
+                    (railRef.current?.children[index] as HTMLElement | undefined)?.focus({ preventScroll: true });
                   }}
                 >
                   <span
@@ -339,6 +371,7 @@ export function VideoStyleSelection({
                     ) : null}
                     <span className="personalized-video-style-play"><Play className="size-6" weight="fill" /></span>
                     <span className="personalized-video-style-duration">0:10</span>
+                    {preview.kind === "placeholder" ? <span className={cn(mobile.mobileOnly, mobile.previewStatus)}>Preview not generated</span> : null}
                   </span>
                   <span className="personalized-video-style-card-title">
                     {option.title}
@@ -347,14 +380,19 @@ export function VideoStyleSelection({
                   <span className="personalized-video-style-card-description">
                     {option.qualities.map((quality) => <span key={quality}>{quality}</span>)}
                   </span>
+                  <span className={cn(mobile.mobileOnly, mobile.styleDescription)}>{option.description}</span>
+                  <span className={mobile.styleRadio} aria-hidden />
                 </button>
               );
             })}
           </div>
+          <div className={mobile.styleTabs} aria-label="Choose a video style">
+            {STYLE_OPTIONS.map((option, index) => <button key={option.id} type="button" aria-pressed={selectedStyle === option.id} disabled={isSaving || phase === "approved"} onClick={() => { hasChosenStyle.current = true; setSelectedStyle(option.id); showStyle(index); }}>{option.title}</button>)}
+          </div>
           <div className="video-style-rail-controls">
-            <button type="button" aria-label="Previous video style" disabled={railIndex === 0} onClick={() => showStyle(railIndex - 1)}>Previous</button>
+            <button type="button" aria-label="Previous video style" disabled={railIndex === 0} onClick={() => showStyle(railIndex - 1)}><span className={mobile.desktopOnly}>Previous</span><ArrowLeft className={mobile.mobileOnly} aria-hidden /></button>
             <span aria-live="polite">{railIndex + 1} of {STYLE_OPTIONS.length}</span>
-            <button type="button" aria-label="Next video style" disabled={railIndex === STYLE_OPTIONS.length - 1} onClick={() => showStyle(railIndex + 1)}>Next</button>
+            <button type="button" aria-label="Next video style" disabled={railIndex === STYLE_OPTIONS.length - 1} onClick={() => showStyle(railIndex + 1)}><span className={mobile.desktopOnly}>Next</span><ArrowRight className={mobile.mobileOnly} aria-hidden /></button>
           </div>
         </section>
 
@@ -372,7 +410,7 @@ export function VideoStyleSelection({
           disabled={isSaving || isPreparing || phase === "approved"}
           onClick={() => void handleContinue()}
         >
-          {isPreparing ? "Creating..." : phase === "approved" ? "Approved" : isSaving ? "Saving..." : "Use this"}
+          {isPreparing ? "Creating..." : phase === "approved" ? "Approved" : isSaving ? "Saving..." : <><span className={mobile.desktopOnly}>Use this</span><span className={mobile.mobileOnly}>Use this style</span></>}
           <ArrowRight className="size-5" aria-hidden />
         </Button>
       </div>
@@ -384,6 +422,6 @@ export function VideoStyleSelection({
   );
 }
 
-export default function PersonalizedVideoStyle({ preview = false }: { preview?: boolean }) {
-  return <VideoStyleSelection mode="personalized" styleLabel="Personalized video style" preview={preview} />;
+export default function PersonalizedVideoStyle({ preview = false, placeholderPreview = false, initialStyle }: { preview?: boolean; placeholderPreview?: boolean; initialStyle?: VideoTone }) {
+  return <VideoStyleSelection mode="personalized" styleLabel="Personalized video style" preview={preview} placeholderPreview={placeholderPreview} initialStyle={initialStyle} />;
 }
