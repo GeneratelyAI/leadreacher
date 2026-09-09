@@ -1,22 +1,79 @@
+.controls {
+  position: fixed;
+  z-index: 100;
+  top: 1rem;
+  right: 1rem;
+  width: min(12rem, calc(100vw - 2rem));
+  overflow: hidden;
+  border: 1px solid rgb(81 70 133 / 18%);
+  border-radius: .7rem;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 .35rem 1.1rem rgb(31 18 83 / 10%);
+  color: #211b3f;
+  font-size: .75rem;
+}
+
+.summary {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: 0 .7rem;
+  color: #4e2ac8;
+  cursor: pointer;
+  font-size: .67rem;
+  font-weight: 750;
+  letter-spacing: .09em;
+  line-height: 1;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.summary::-webkit-details-marker { display: none; }
+.summary:focus-visible,
+.controls button:focus-visible,
+.controls select:focus-visible { outline: 2px solid #7655e9; outline-offset: 2px; }
+.summaryHint { color: #8075a5; font-size: .59rem; letter-spacing: .04em; }
+.controls[open] .summaryHint { font-size: 0; }
+.controls[open] .summaryHint::after { content: "Close"; font-size: .59rem; }
+
+.panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-.25rem);
+  transition: grid-template-rows 180ms cubic-bezier(.16, 1, .3, 1), opacity 160ms cubic-bezier(.16, 1, .3, 1), transform 180ms cubic-bezier(.16, 1, .3, 1);
+}
+.controls[open] .panel { grid-template-rows: 1fr; opacity: 1; pointer-events: auto; transform: translateY(0); }
+.panelInner { min-height: 0; overflow: hidden; border-top: 1px solid rgb(81 70 133 / 13%); }
+.group { display: grid; gap: .35rem; padding: .6rem .7rem; border-bottom: 1px solid rgb(81 70 133 / 10%); }
+.group label, .groupLabel { color: #625a80; font-size: .62rem; font-weight: 700; letter-spacing: .055em; text-transform: uppercase; }
+.group select { width: 100%; min-height: 2rem; border: 1px solid #d8d1ed; border-radius: .42rem; padding: 0 .45rem; color: #24194d; background: #fff; font: inherit; }
+.segmented { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .28rem; }
+.segmented button, .actions button { min-height: 2rem; border: 1px solid #ddd6ef; border-radius: .42rem; padding: .35rem; color: #4f2ad1; background: #faf9ff; font: inherit; font-weight: 650; line-height: 1.15; text-transform: capitalize; cursor: pointer; }
+.segmented button[aria-current="page"] { border-color: #6540dc; color: #fff; background: #6540dc; }
+.segmented button:not([aria-current="page"]):hover, .actions button:hover { border-color: #b9a9f5; background: #f1edff; }
+.actions { display: flex; align-items: center; gap: .45rem; padding: .6rem .7rem; }
+.actions button { flex: none; padding-inline: .55rem; }
+.copyStatus { min-width: 0; color: #5c5278; font-size: .68rem; overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { transition: none; }
+}
+
 @media (max-width: 63rem) {
   .controls {
     position: relative;
     inset: auto;
     z-index: auto;
-    width: calc(100% - 40px);
-    max-width: 100%;
-    margin: 16px 20px 24px;
-    border-radius: 8px;
+    width: auto;
+    max-width: none;
+    margin: 1rem 1.25rem 1.5rem;
     box-shadow: none;
   }
 
-  .controls > summary {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-  }
-
-  .controls > nav {
-    max-width: 100%;
-  }
+  .summary { min-height: 2.75rem; font-size: .7rem; }
+  .group select, .segmented button, .actions button { min-height: 2.75rem; }
 }

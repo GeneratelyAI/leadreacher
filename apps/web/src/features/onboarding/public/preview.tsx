@@ -1,51 +1,102 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ONBOARDING_STEPS, STRATEGY_SUBSTEPS } from "./navigation";
-import { MOBILE_REFERENCE_STATES, mobileReferenceHref } from "@/features/onboarding/state/mobile-reference";
+import { MOBILE_REFERENCE_STATES } from "@/features/onboarding/state/mobile-reference";
+import {
+  previewMobileReferenceHref,
+  previewStepHref,
+  previewStrategyHref,
+} from "./preview-navigation";
 import styles from "../components/Preview.module.css";
 
+/** Internal toolbar for URL-addressable visual fixtures. It never owns campaign state. */
 export function Preview() {
   const params = useSearchParams();
+  const router = useRouter();
   const activeStep = params.get("step") ?? "strategy";
-  const activeSubstep = params.get("substep");
+  const activeSubstep = params.get("substep") ?? "how-it-works";
+  const activeReference = params.get("screen") ?? "";
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const copyTimer = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+  }, []);
+
+  function navigate(href: string) {
+    router.push(href);
+  }
+
+  async function copyPreviewLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("failed");
+    }
+    if (copyTimer.current !== null) window.clearTimeout(copyTimer.current);
+    copyTimer.current = window.setTimeout(() => setCopyStatus("idle"), 1800);
+  }
+
   // Screenshot fixtures omit developer chrome only, never customer controls.
   if (params.get("capture") === "1") return null;
 
   return (
-    <details
-      aria-label="Onboarding preview controls"
-      className={`group fixed top-20 right-3 z-[100] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-black/10 bg-white/95 shadow-2xl backdrop-blur dark:border-white/15 dark:bg-onboarding-neutral-900/95 ${styles.controls}`}
-    >
-      <summary className="cursor-pointer list-none px-4 py-3 text-xs font-bold uppercase tracking-wider text-onboarding-purple-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-onboarding-purple-400 dark:text-onboarding-purple-200">
-        Preview controls
+    <details aria-label="Onboarding preview controls" className={styles.controls}>
+      <summary className={styles.summary}>
+        <span>Preview controls</span>
+        <span className={styles.summaryHint} aria-hidden>Open</span>
       </summary>
-      <nav className="flex max-w-[calc(100vw-1.5rem)] items-center gap-2 overflow-x-auto border-t border-black/10 p-2 dark:border-white/15">
-        {MOBILE_REFERENCE_STATES.map((state) => <a key={state.id} href={mobileReferenceHref(state.id)} className="shrink-0 rounded-lg border border-violet-100 px-3 py-2 text-sm text-violet-800">{state.id} {state.name}</a>)}
-        {ONBOARDING_STEPS.map((step) => (
-          <Link
-            key={step.value}
-            href={`/onboarding-preview?step=${step.value}`}
-            className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${activeStep === step.value ? "bg-onboarding-purple-600 text-white" : "text-onboarding-neutral-700 hover:bg-onboarding-neutral-100 dark:text-onboarding-neutral-200 dark:hover:bg-white/10"}`}
-          >
-            {step.label}
-          </Link>
-        ))}
-        {activeStep === "strategy" ? (
-          <div className="flex shrink-0 gap-1 border-l border-black/10 pl-2 dark:border-white/15">
-            {STRATEGY_SUBSTEPS.map((substep) => (
-              <Link
-                key={substep}
-                href={`/onboarding-preview?step=strategy&substep=${substep}`}
-                className={`rounded-lg px-2.5 py-2 text-xs font-medium capitalize ${activeSubstep === substep ? "bg-onboarding-purple-100 text-onboarding-purple-700 dark:bg-onboarding-purple-900 dark:text-onboarding-purple-100" : "text-onboarding-neutral-600 dark:text-onboarding-neutral-300"}`}
-              >
-                {substep.replaceAll("-", " ")}
-              </Link>
-            ))}
+      <div className={styles.panel}>
+        <div className={styles.panelInner}>
+          <div className={styles.group}>
+            <label htmlFor="preview-step">Onboarding step</label>
+            <select
+              id="preview-step"
+              value={activeStep}
+              onChange={(event) => navigate(previewStepHref(params, event.target.value as typeof ONBOARDING_STEPS[number]["value"]))}
+            >
+              {ONBOARDING_STEPS.map((step) => <option key={step.value} value={step.value}>{step.label}</option>)}
+            </select>
           </div>
-        ) : null}
-      </nav>
+          {activeStep === "strategy" ? (
+            <div className={styles.group} aria-label="Strategy substep">
+              <span className={styles.groupLabel}>Strategy substep</span>
+              <div className={styles.segmented}>
+                {STRATEGY_SUBSTEPS.map((substep) => (
+                  <button
+                    type="button"
+                    key={substep}
+                    aria-current={activeSubstep === substep ? "page" : undefined}
+                    onClick={() => navigate(previewStrategyHref(params, substep))}
+                  >
+                    {substep.replaceAll("-", " ")}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className={styles.group}>
+            <label htmlFor="preview-mobile-reference">Mobile reference state</label>
+            <select
+              id="preview-mobile-reference"
+              value={activeReference}
+              onChange={(event) => {
+                if (event.target.value) navigate(previewMobileReferenceHref(event.target.value as typeof MOBILE_REFERENCE_STATES[number]["id"]));
+              }}
+            >
+              <option value="">No mobile reference</option>
+              {MOBILE_REFERENCE_STATES.map((state) => <option key={state.id} value={state.id}>{state.id} · {state.name}</option>)}
+            </select>
+          </div>
+          <div className={styles.actions}>
+            <button type="button" onClick={copyPreviewLink}>Copy preview link</button>
+            <span className={styles.copyStatus} role="status" aria-live="polite">{copyStatus === "copied" ? "Copied" : copyStatus === "failed" ? "Copy failed" : ""}</span>
+          </div>
+        </div>
+      </div>
     </details>
   );
 }

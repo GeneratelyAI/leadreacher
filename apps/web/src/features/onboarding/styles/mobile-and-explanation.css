@@ -58,10 +58,6 @@
   .upload-document-file-details p, .upload-your-video-file-details p {
     white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
   }
-  details[aria-label="Onboarding preview controls"] {
-    position: relative; inset: auto; margin: 1rem; width: fit-content; max-width: calc(100% - 2rem);
-  }
-  details[aria-label="Onboarding preview controls"] nav { flex-wrap: wrap; }
   .personalized-video-style-grid {
     display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px;
     padding: 6px 4px 16px; scroll-padding-inline: 4px;
