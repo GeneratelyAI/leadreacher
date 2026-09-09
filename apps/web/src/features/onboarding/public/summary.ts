@@ -42,7 +42,7 @@ export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, save
         ? { id: "targeting", label: "Prospects", state: "complete", summary: [profile.decisionMakers[0], profile.companyTypes[0], profile.industries[0], profile.locations[0]].filter((value) => value && value.length <= 45).join(" · ") || targetingSummary(profile), fields: targetingFields(profile) }
         : inactive("targeting", "Prospects"),
       contentText ? { id: "content", label: "Content", state: "complete", summary: contentText, value: contentText } : inactive("content", "Content"),
-      channels.length ? { id: "channels", label: "Channels", state: "complete", summary: channels.join(" · "), fields: [{ label: "Selected channels", value: channels.join(" · ") }] } : inactive("channels", "Channels"),
+      channels.length ? { id: "channels", label: "Channels", state: "complete", summary: channels.join(" · "), fields: [{ label: "Selected channels", values: channels }] } : inactive("channels", "Channels"),
     ],
   };
 }

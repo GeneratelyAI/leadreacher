@@ -6,13 +6,17 @@ import { usePillSectionDisclosure } from "../hooks/usePillSectionDisclosure";
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSearchParams } from "next/navigation";
-import { createPortal } from "react-dom";
 import { Sheet, SheetContent, SheetTitle, SheetClose, SheetDescription } from "@/components/ui/sheet";
 import { useStableReducedMotion } from "@/hooks/useStableReducedMotion";
 import { isOnboardingPreview } from "../public/preview-api";
 import mobileStyles from "./MobileOnboarding.module.css";
 import { mobileCampaignSections, shortSavedCustomerSegments } from "./mobile-campaign-summary";
 import type { PillField, PillSection, PillProps } from "../public/campaign-summary";
+import {
+  CampaignChannelDetails,
+  CampaignChannelMarks,
+  campaignChannels,
+} from "./CampaignChannelMarks";
 
 function CampaignStyleIcon({ className }: { className?: string }) {
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden><path d="m12 2 3 6.5 7 .9-5.2 5 1.4 7-6.2-3.5L5.8 21l1.4-6.6L2 9.4l7-.9Z" /></svg>;
@@ -56,9 +60,6 @@ export function PillView({
   const hasInitializedSectionStates = useRef(false);
   const [enteringSectionIds, setEnteringSectionIds] = useState<Set<string>>(() => new Set());
   const [newlyCompletedSectionId, setNewlyCompletedSectionId] = useState<string | null>(null);
-  const [fullDetailSection, setFullDetailSection] = useState<PillSection | null>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useEffect(() => { if (fullDetailSection) dialogRef.current?.showModal(); }, [fullDetailSection]);
   const { expandedSectionId, detailPresentations, sectionListRef, sectionRefs, detailMeasureRefs, detailContainerRefs, expandSection, collapseSection } = usePillSectionDisclosure(sections, mobile, prefersReducedMotion);
   const [reveal, setReveal] = useState(() => ({ signature: serializedFields, count: 0 }));
   const visibleFieldCount = campaign.status === "ready"
@@ -152,7 +153,11 @@ export function PillView({
       ? "Building your campaign"
       : campaign.statusLabel ?? "Business understood";
 
-  function sectionSummary(section: PillSection): string {
+  function sectionSummary(section: PillSection) {
+    const channels = section.id === "channels" ? campaignChannels(section) : [];
+    if (channels.length) {
+      return <CampaignChannelMarks channels={channels} />;
+    }
     if (section.summary) return section.summary;
     if (section.value) return section.value;
     const firstField = section.fields?.find((field) => field.value || field.values?.length);
@@ -161,6 +166,9 @@ export function PillView({
   }
 
   function sectionDetails(section: PillSection, fieldCount?: number, mobilePresentation = false) {
+    const channels = section.id === "channels" ? campaignChannels(section) : [];
+    if (channels.length) return <CampaignChannelDetails channels={channels} />;
+
     if (section.fields?.length) {
       const fieldsToShow = fieldCount === undefined ? section.fields : section.fields.slice(0, fieldCount);
       return (
@@ -317,7 +325,7 @@ export function PillView({
                       <span className="campaign-pill-section-next">{section.pendingLabel ?? "Next"}</span>
                     ) : (
                       <>
-                        <span className="campaign-pill-section-summary">{sectionSummary(section)}</span>
+                        <span className={cn("campaign-pill-section-summary", section.id === "channels" && "campaign-pill-channel-summary")}>{sectionSummary(section)}</span>
                         <div
                           aria-hidden
                           className="campaign-pill-section-detail-measure"
@@ -335,7 +343,6 @@ export function PillView({
                         >
                           <div>
                             {sectionDetails(section, detailPresentation?.fieldCount)}
-                            {detailPresentation?.fieldCount !== undefined ? <button type="button" className="campaign-pill-all-details" onClick={() => setFullDetailSection(section)}>View all {section.label.toLowerCase()} details</button> : null}
                           </div>
                         </div>
                       </>
@@ -364,12 +371,6 @@ export function PillView({
           </div>
         )}
       </div>
-      {fullDetailSection && typeof document !== "undefined" ? createPortal(
-        <dialog ref={dialogRef} className="campaign-full-details-dialog" aria-labelledby={`${contentId}-full-title`} onCancel={() => setFullDetailSection(null)} onClose={() => setFullDetailSection(null)}>
-          <header><h2 id={`${contentId}-full-title`}>{fullDetailSection.label}</h2><button type="button" autoFocus onClick={() => { dialogRef.current?.close(); setFullDetailSection(null); }}>Close</button></header>
-          {sectionDetails(fullDetailSection)}
-        </dialog>, document.body,
-      ) : null}
       <Sheet open={mobileSummaryOpen} onOpenChange={setMobileSummaryOpen}>
         <SheetContent side="bottom" className={cn(mobileStyles.sheet, mobileStyles.summarySheet)} overlayClassName={mobileStyles.sheetBackdrop} initialFocus={summaryHeadingRef} finalFocus={summaryTriggerRef}>
           <span className={mobileStyles.handle} aria-hidden />
@@ -380,11 +381,12 @@ export function PillView({
               const hasDetails = (section.state ?? "complete") === "complete" && Boolean(section.fields?.length || section.value);
               const active = mobileSection === section.id;
               const completed = (section.state ?? "complete") === "complete";
+              const channels = section.id === "channels" ? campaignChannels(section) : [];
               const Icon = section.id === "targeting" ? Users : section.id === "content" ? Video : section.id === "style" ? CampaignStyleIcon : CheckCircle2;
               return <section className={mobileStyles.summarySection} data-business={section.id === "business" || undefined} key={section.id}>
                 <button type="button" disabled={!hasDetails} aria-expanded={hasDetails ? active : undefined} aria-controls={hasDetails ? `${contentId}-mobile-${section.id}` : undefined} onClick={() => setMobileSection(active ? "" : section.id)}>
                   {completed && section.id === "business" ? <span className={mobileStyles.summaryPrimaryCheck}><Check className="size-6" aria-hidden /></span> : completed ? <Icon className={cn("size-6", section.id === "channels" ? mobileStyles.summaryCheck : mobileStyles.summarySectionIcon)} aria-hidden /> : <span className={mobileStyles.summaryPending} aria-hidden />}
-                  <span>{section.id === "business" && section.summary ? section.summary : <>{section.label}{section.summary || section.pendingLabel ? <> · {section.summary ?? section.pendingLabel}</> : null}</>}</span>
+                  <span className={channels.length ? mobileStyles.channelSummary : undefined}>{section.id === "business" && section.summary ? section.summary : channels.length ? <><span>{section.label}</span><CampaignChannelMarks channels={channels} /></> : <>{section.label}{section.summary || section.pendingLabel ? <> · {section.summary ?? section.pendingLabel}</> : null}</>}</span>
                   {completed && section.id !== "business" && section.id !== "channels" ? <CheckCircle2 className={cn("size-4", mobileStyles.summaryCheck)} aria-label="Complete" /> : null}
                   {hasDetails ? <ChevronDown className="size-4" aria-hidden /> : null}
                 </button>

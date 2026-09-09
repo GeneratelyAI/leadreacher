@@ -199,6 +199,16 @@
 .campaign-pill-section-list-dense .campaign-pill-section-summary,
 .campaign-pill-section-list-dense .campaign-pill-section-next { margin-top: 0.4rem; }
 .campaign-pill-section-summary { transition: opacity 220ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.campaign-pill-channel-marks { display: inline-flex; align-items: center; gap: 0.48rem; min-height: 1.5rem; }
+.campaign-pill-channel-mark { display: inline-grid; width: 1.5rem; height: 1.5rem; place-items: center; transition: opacity 200ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.campaign-pill-channel-mark-icon { display: block; width: 1.3rem; height: 1.3rem; object-fit: contain; }
+.campaign-pill-channel-summary { max-height: 2rem; overflow: hidden; transition: max-height 220ms cubic-bezier(.16, 1, .3, 1), margin 220ms cubic-bezier(.16, 1, .3, 1), opacity 200ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.campaign-pill-section-expanded .campaign-pill-channel-summary { max-height: 0; margin-top: 0; opacity: 0; transform: translateY(-0.25rem); }
+.campaign-pill-channel-details { min-width: 0; }
+.campaign-pill-channel-pills { display: flex; flex-wrap: wrap; gap: 0.42rem; }
+.campaign-pill-channel-pill { display: inline-flex; min-width: 0; align-items: center; gap: 0.38rem; border: 1px solid rgb(188 171 255 / 42%); border-radius: 0.45rem; padding: 0.28rem 0.44rem; color: #f2efff; background: rgb(182 162 255 / 14%); box-shadow: 0 0.16rem 0.4rem rgb(3 8 23 / 16%); font-size: 0.7rem; font-weight: 600; line-height: 1.15; white-space: nowrap; opacity: 0; transform: translateY(0.25rem); transition: opacity 180ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.campaign-pill-channel-pill-icon { display: block; width: 0.9rem; height: 0.9rem; flex: none; object-fit: contain; }
+.campaign-pill-section-expanded .campaign-pill-channel-pill { opacity: 1; transform: translateY(0); }
 .campaign-pill-section:focus-visible { position: relative; z-index: 1; outline: 2px solid #a795ff; outline-offset: 0.28rem; border-radius: 0.35rem; }
 .campaign-pill-section-detail-measure { position: absolute; width: 100%; visibility: hidden; pointer-events: none; }
 .campaign-pill-section-details { height: 0; margin-top: 0; overflow: hidden; opacity: 0; transform: translateY(-0.2rem); transition: height 220ms cubic-bezier(.16, 1, .3, 1), margin 220ms cubic-bezier(.16, 1, .3, 1), opacity 180ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
@@ -330,5 +340,8 @@
   .campaign-pill:not(.campaign-pill-expanded) .campaign-pill-section { transition: none; }
   .campaign-pill-section,
   .campaign-pill-section-summary,
-  .campaign-pill-section-details { transition: none; }
+  .campaign-pill-section-details,
+  .campaign-pill-channel-mark,
+  .campaign-pill-channel-summary,
+  .campaign-pill-channel-pill { transition: none; }
 }

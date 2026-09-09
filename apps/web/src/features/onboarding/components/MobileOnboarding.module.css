@@ -108,6 +108,24 @@
   outline: 2px solid #bbaaee;
   outline-offset: 3px;
 }
+.channelSummary {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+}
+.channelSummary :global(.campaign-pill-channel-marks) {
+  gap: 8px;
+}
+.channelSummary :global(.campaign-pill-channel-mark) {
+  width: 24px;
+  height: 24px;
+}
+.channelSummary :global(.campaign-pill-channel-mark-icon) {
+  width: 21px;
+  height: 21px;
+}
 .summaryCheck {
   color: #11864b;
 }
@@ -176,6 +194,18 @@
   border-radius: 5px;
   padding: 4px 7px;
   font-size: 12px;
+}
+.summaryDetail :global(.campaign-pill-channel-pills) {
+  gap: 8px;
+}
+.summaryDetail :global(.campaign-pill-channel-pill) {
+  border-color: #d6c8ff;
+  background: #f0eaff;
+  box-shadow: none;
+  color: #25145a;
+  font-size: 13px;
+  opacity: 1;
+  transform: none;
 }
 
 @media (max-width: 63rem) {

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createCompactCampaignFields, createFutureCampaignSections, createLiveCampaignSummary } from "../../public/summary";
+import {
+  createCompactCampaignFields,
+  createConfirmedCampaignSummary,
+  createFutureCampaignSections,
+  createLiveCampaignSummary,
+} from "../../public/summary";
 
 const status = {
   status: "completed" as const,
@@ -111,5 +116,16 @@ describe("live campaign summary", () => {
       { id: "channels", label: "Channels", state: "future", pendingLabel: "Up next" },
       { id: "launch", label: "Launch", state: "future", pendingLabel: "Next" },
     ]);
+  });
+
+  it("preserves selected channel order as values for the shared campaign pill", () => {
+    const campaign = createConfirmedCampaignSummary(status, {
+      channels: { selected: ["linkedin", "whatsapp", "instagram", "facebook", "email"] },
+    });
+
+    expect(campaign.sections?.find((section) => section.id === "channels")).toMatchObject({
+      state: "complete",
+      fields: [{ label: "Selected channels", values: ["linkedin", "whatsapp", "instagram", "facebook", "email"] }],
+    });
   });
 });

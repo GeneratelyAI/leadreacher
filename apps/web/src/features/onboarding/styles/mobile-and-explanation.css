@@ -105,14 +105,6 @@
 .onboarding-audience-formation { position: fixed; z-index: 31; pointer-events: none; transform-origin: left center; border-radius: 12px; background: linear-gradient(90deg, rgb(143 111 255 / 18%), rgb(173 153 255 / 8%) 56%, transparent); }
 .onboarding-audience-formation > span { position: absolute; inset: auto 0 0; height: 1px; background: linear-gradient(90deg, rgb(127 97 231 / 48%), rgb(127 97 231 / 8%)); transform-origin: left; }
 .onboarding-explanation-snapshot { color: #080e28; }
-.campaign-pill-all-details { min-height: 44px; border: 0; background: none; color: #c4b5fd; font: inherit; text-decoration: underline; text-underline-offset: 4px; }
-.campaign-full-details-dialog { width: min(36rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto; border: 1px solid #ded6f5; border-radius: 1rem; padding: 1.5rem; background: #fff; color: #151a33; }
-.campaign-full-details-dialog::backdrop { background: rgb(8 14 40 / 35%); }
-.campaign-full-details-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-.campaign-full-details-dialog h2 { font-size: 1.35rem; font-weight: 650; }
-.campaign-full-details-dialog button { min-width: 44px; min-height: 44px; }
-.campaign-full-details-dialog .campaign-pill-section-field { margin-top: 1rem; overflow-wrap: anywhere; }
-.campaign-full-details-dialog .campaign-pill-section-field p { font-weight: 650; }
 .onboarding-campaign-actions .discovery-back { flex: 0 0 auto; min-height: 44px; padding-inline: 1rem; }
 .onboarding-campaign-actions:has(.discovery-back) { display: flex; gap: 1rem; }
 .onboarding-campaign-actions:has(.discovery-back) .onboarding-campaign-next { flex: 1; min-width: 0; }

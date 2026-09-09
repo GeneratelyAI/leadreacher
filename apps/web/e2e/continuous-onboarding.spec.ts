@@ -201,6 +201,82 @@ test("live campaign pill completes only persisted approvals across the revised f
   await expect(pill.locator(".campaign-pill-site-url")).toHaveText("acme.example");
 });
 
+test("completed channels use compact brand marks and reveal named marks as one section", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("lr_fixture_strategy:/onboarding-preview", JSON.stringify({
+      channels: { selected: ["linkedin", "whatsapp", "instagram", "facebook", "email"] },
+    }));
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/onboarding-preview?step=channels");
+
+  const section = page.locator("[data-campaign-section-id='channels']");
+  await expect(section.locator(".campaign-pill-channel-mark")).toHaveCount(5);
+  await expect(section.getByLabel("LinkedIn")).toBeVisible();
+  await expect(section.getByLabel("WhatsApp")).toBeVisible();
+  await expect(section.locator(".campaign-pill-section-details .campaign-pill-channel-pill")).toHaveCount(5);
+  const compactMarkAppearance = await section.locator(".campaign-pill-channel-mark").first().evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { background: style.backgroundImage, borderWidth: style.borderTopWidth, width: node.getBoundingClientRect().width };
+  });
+  expect(compactMarkAppearance.background).toBe("none");
+  expect(compactMarkAppearance.borderWidth).toBe("0px");
+  expect(compactMarkAppearance.width).toBeGreaterThanOrEqual(24);
+
+  await section.hover();
+  await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+  const details = section.locator(".campaign-pill-section-details");
+  await expect(details.getByText("LinkedIn", { exact: true })).toBeVisible();
+  await expect(details.getByText("WhatsApp", { exact: true })).toBeVisible();
+  await expect(details.getByText("Instagram", { exact: true })).toBeVisible();
+  await expect(details.getByText("Facebook", { exact: true })).toBeVisible();
+  await expect(details.getByText("Email", { exact: true })).toBeVisible();
+
+  await page.mouse.move(1, 1);
+  await page.locator(".onboarding-persistent-logo").focus();
+  await page.waitForTimeout(120);
+  await expect(section).not.toHaveClass(/campaign-pill-section-expanded/);
+  await section.focus();
+  await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("channel disclosure respects reduced motion", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("lr_fixture_strategy:/onboarding-preview", JSON.stringify({
+      channels: { selected: ["linkedin", "email"] },
+    }));
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/onboarding-preview?step=channels");
+
+  const section = page.locator("[data-campaign-section-id='channels']");
+  await expect(section.locator(".campaign-pill-channel-mark")).toHaveCount(2);
+  await section.focus();
+  await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+  expect(await section.locator(".campaign-pill-section-details").evaluate((node) => getComputedStyle(node).transitionDuration)).toBe("0s");
+});
+
+test("mobile campaign disclosure exposes channel marks without an internal scroll area", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("lr_fixture_strategy:/onboarding-preview", JSON.stringify({
+      channels: { selected: ["linkedin", "whatsapp", "instagram", "facebook", "email"] },
+    }));
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/onboarding-preview?step=channels");
+
+  await page.getByRole("button", { name: /Open campaign summary/i }).click();
+  const summary = page.getByRole("dialog");
+  const channelsButton = summary.getByRole("button", { name: /^Channels/ });
+  const channelDisclosure = channelsButton.locator("xpath=..");
+  await expect(channelDisclosure.locator(".campaign-pill-channel-mark")).toHaveCount(5);
+  await channelsButton.click();
+  await expect(channelDisclosure.getByText("LinkedIn", { exact: true })).toBeVisible();
+  await expect(channelDisclosure.getByText("Email", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
 test("reduced motion renders quiet unselected sections without fake loading", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/onboarding-preview?step=strategy&substep=how-it-works");

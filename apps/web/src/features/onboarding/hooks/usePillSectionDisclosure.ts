@@ -48,11 +48,21 @@ export function usePillSectionDisclosure(sections: PillSection[], mobile: boolea
         : 0;
       return total + section.offsetHeight - detailHeight - detailMargin;
     }, 0);
-    const availableHeight = Math.max(0, list.clientHeight - compactSectionHeight);
+    const channelSummary = detail.querySelector<HTMLElement>("[data-campaign-pill-channel-details]")
+      ? sectionRefs.current[sectionId]?.querySelector<HTMLElement>(".campaign-pill-channel-summary")
+      : null;
+    const releasableChannelSummaryHeight = channelSummary
+      ? channelSummary.offsetHeight + (Number.parseFloat(window.getComputedStyle(channelSummary).marginTop) || 0)
+      : 0;
+    const availableHeight = Math.max(0, list.clientHeight - compactSectionHeight + releasableChannelSummaryHeight);
     const naturalHeight = detail.scrollHeight;
     if (mobile) return { height: naturalHeight };
 
     if (naturalHeight <= availableHeight) return { height: naturalHeight };
+
+    if (detail.querySelector("[data-campaign-pill-channel-details]")) {
+      return { height: Math.min(naturalHeight, availableHeight) };
+    }
 
     const fieldElements = Array.from(detail.querySelectorAll<HTMLElement>(".campaign-pill-section-field"));
     const fieldCount = fieldElements.reduce((count, field, index) => {
