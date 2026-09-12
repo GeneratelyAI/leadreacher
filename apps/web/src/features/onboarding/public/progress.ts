@@ -1,105 +1,67 @@
-import {
-  getOnboardingStepIndex,
-  type OnboardingStepParam,
-  type StrategySubstepParam,
-} from "@/features/onboarding/public/navigation";
+import type { ContentChoice } from "@leadreacher/shared/campaign";
+import { getOnboardingRouteIndex, type OnboardingRouteId } from "@/features/onboarding/public/navigation";
+import { recoverContentChoice } from "@/features/onboarding/public/content-choice";
 
-type ResumeStrategy = {
-  audienceAnalysisComplete: boolean;
+type JsonRecord = Record<string, unknown>;
+
+export type ResumeStrategy = {
   campaignType: string | null;
   videoConfig: unknown;
-  introductionSeen?: boolean;
-  prospectsApproved?: boolean;
+  icpDefinition: unknown;
+  channels: unknown;
+  messagingAngles: unknown;
 };
 
-function needsVideoStyle(videoConfig: unknown): boolean {
-  if (!videoConfig || typeof videoConfig !== "object" || Array.isArray(videoConfig)) {
-    return true;
-  }
-
-  const config = videoConfig as Record<string, unknown>;
-  if (config.enabled !== true) return false;
-
-  const tone = config.tone;
-  return tone !== "professional" && tone !== "casual" && tone !== "aggressive";
+function record(value: unknown): JsonRecord {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
 }
 
-function needsUploadedVideo(videoConfig: unknown): boolean {
-  if (!videoConfig || typeof videoConfig !== "object" || Array.isArray(videoConfig)) {
-    return true;
+function incompleteContentRoute(strategy: ResumeStrategy, choice: ContentChoice): OnboardingRouteId | null {
+  const video = record(strategy.videoConfig);
+  const approved = record(record(strategy.icpDefinition).approvedContent);
+  if (choice === "document") return approved.type === "Document" ? null : "document";
+  if (choice === "your-video") {
+    return video.source === "uploaded" && typeof video.uploadedVideoUrl === "string" && video.uploadedVideoUrl
+      ? null
+      : "your-video";
   }
-
-  const config = videoConfig as Record<string, unknown>;
-  return config.source !== "uploaded" || typeof config.uploadedVideoUrl !== "string" || !config.uploadedVideoUrl;
+  const expectedMode = choice === "ai-video" ? "standardized" : "personalized";
+  const tone = video.tone;
+  return video.source === "generated" && video.mode === expectedMode &&
+    (tone === "professional" || tone === "casual" || tone === "aggressive") ? null : choice;
 }
 
-export type OnboardingResumeTarget = {
-  step: OnboardingStepParam;
-  strategySubstep?: StrategySubstepParam;
-};
-
-export function resolveAllowedOnboardingStep(
-  requested: OnboardingStepParam | null,
-  earned: OnboardingStepParam,
-): OnboardingStepParam {
-  if (!requested) return earned;
-
-  return getOnboardingStepIndex(requested) <= getOnboardingStepIndex(earned)
-    ? requested
-    : earned;
+export function selectedChannels(value: unknown): string[] {
+  const selected = record(value).selected;
+  return Array.isArray(selected)
+    ? selected.filter((channel): channel is string => typeof channel === "string" && Boolean(channel.trim()))
+    : [];
 }
 
-export function resolveOnboardingResumeTarget(input: {
-  strategy: ResumeStrategy | null;
-  subscriptionStatus: string | null | undefined;
-}): OnboardingResumeTarget {
-  if (!input.strategy) {
-    return { step: "discovery" };
-  }
+export function messageIsApproved(value: unknown): boolean {
+  const messaging = record(value);
+  return typeof messaging.outreachMessage === "string" && Boolean(messaging.outreachMessage.trim()) &&
+    typeof messaging.outreachMessageApprovedAt === "string" && Boolean(messaging.outreachMessageApprovedAt.trim());
+}
 
-  if (!input.strategy.audienceAnalysisComplete && input.strategy.prospectsApproved !== true && !input.strategy.campaignType) {
-    if (input.strategy.introductionSeen) return { step: "discovery" };
-    return { step: "strategy", strategySubstep: "how-it-works" };
-  }
+export function resolveAllowedOnboardingRoute(requested: OnboardingRouteId, earliestIncomplete: OnboardingRouteId): OnboardingRouteId {
+  return getOnboardingRouteIndex(requested) <= getOnboardingRouteIndex(earliestIncomplete) ? requested : earliestIncomplete;
+}
 
-  if (input.strategy.prospectsApproved === false) return input.strategy.introductionSeen
-    ? { step: "discovery" } : { step: "strategy", strategySubstep: "how-it-works" };
+export function contentChoiceRoute(strategy: Pick<ResumeStrategy, "campaignType" | "icpDefinition">): ContentChoice {
+  return recoverContentChoice({ campaignType: strategy.campaignType ?? undefined, icpDefinition: record(strategy.icpDefinition) });
+}
 
-  if (!input.strategy.campaignType) {
-    return { step: "campaign-content" };
-  }
-
-  if (
-    input.strategy.campaignType === "personalized_outreach" &&
-    needsVideoStyle(input.strategy.videoConfig)
-  ) {
-    return { step: "personalized-video-style" };
-  }
-
-  if (
-    input.strategy.campaignType === "ai_video_ad" &&
-    needsVideoStyle(input.strategy.videoConfig)
-  ) {
-    return { step: "ai-video-style" };
-  }
-
-  if (
-    input.strategy.campaignType === "uploaded_video" &&
-    needsUploadedVideo(input.strategy.videoConfig)
-  ) {
-    return { step: "upload-video" };
-  }
-
-  if (input.strategy.videoConfig === null || input.strategy.videoConfig === undefined) {
-    return { step: "campaign-content" };
-  }
-
-  if (input.subscriptionStatus !== "active") {
-    return { step: "checkout" };
-  }
-
-  // Both an unfinished channel connection and a completed onboarding end on
-  // the Channels screen: it remains the safe place to connect or review
-  // required outreach channels.
-  return { step: "channels" };
+export function resolveOnboardingResumeRoute(input: { strategy: ResumeStrategy | null; subscriptionStatus: string | null | undefined }): OnboardingRouteId {
+  if (!input.strategy) return "how-leadreacher-works";
+  const onboarding = record(record(input.strategy.icpDefinition).onboarding);
+  if (onboarding.introductionSeen !== true) return "how-leadreacher-works";
+  if (onboarding.prospectsApproved !== true) return "discovery";
+  if (!input.strategy.campaignType) return "campaign-content";
+  const incompleteContent = incompleteContentRoute(input.strategy, contentChoiceRoute(input.strategy));
+  if (incompleteContent) return incompleteContent;
+  if (!messageIsApproved(input.strategy.messagingAngles)) return "cta";
+  if (selectedChannels(input.strategy.channels).length === 0) return "channels";
+  if (input.subscriptionStatus !== "active" && input.subscriptionStatus !== "trialing") return "checkout";
+  return "connect-channels";
 }

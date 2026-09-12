@@ -1,10 +1,9 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { StepMotion } from "@/features/onboarding/components/StepMotion";
 import { OnboardingTransitionController } from "@/features/onboarding/components/OnboardingTransitionController";
-import { OnboardingChrome } from "@/features/onboarding/components/OnboardingChrome";
 import { CampaignCanvas } from "./canvas";
 import { Button } from "@/components/ui/Button";
 import { Loading } from "@/components/ui/Loading";
@@ -15,14 +14,13 @@ import CampaignContent from "@/features/onboarding/components/steps/CampaignCont
 import Discovery from "@/features/onboarding/components/steps/Discovery";
 import HowItWorks from "@/features/onboarding/components/steps/HowItWorks";
 import PersonalizedVideoStyle from "@/features/onboarding/components/steps/PersonalizedVideoStyle";
-import Strategy from "@/features/onboarding/components/steps/Strategy";
 import UploadYourVideo from "@/features/onboarding/components/steps/UploadYourVideo";
 import UploadDocument from "@/features/onboarding/components/steps/UploadDocument";
+import MessageAndCta from "@/features/onboarding/components/steps/MessageAndCta";
+import ChannelSelection from "@/features/onboarding/components/steps/ChannelSelection";
 import {
-  isOnboardingStep,
-  isStrategySubstep,
-  type OnboardingStepParam,
-  type StrategySubstepParam,
+  onboardingRouteFromPathname,
+  type OnboardingRouteId,
 } from "@/features/onboarding/public/navigation";
 import { bootstrapOrganization } from "@/lib/api";
 import { defaultOrgNameFromEmail } from "@/features/organizations/public/naming";
@@ -118,57 +116,54 @@ function OnboardingBootstrapBridge({ children }: { children: ReactNode }) {
 }
 
 export default function OnboardingFlow({
-  initialStep,
-  initialStrategySubstep = "how-it-works",
+  route,
   preview = false,
   initialPreviewWebsiteUrl,
 }: {
-  initialStep: OnboardingStepParam;
-  initialStrategySubstep?: StrategySubstepParam;
+  route: OnboardingRouteId;
   preview?: boolean;
   initialPreviewWebsiteUrl?: string;
 }) {
   const searchParams = useSearchParams();
-  const queryStep = searchParams.get("step");
-  const querySubstep = searchParams.get("substep");
-  const activeStep = isOnboardingStep(queryStep) ? queryStep : initialStep;
-  const activeStrategySubstep = isStrategySubstep(querySubstep)
-    ? querySubstep
-    : initialStrategySubstep;
+  const pathname = usePathname();
+  const namedPath = pathname.replace(/^\/onboarding-preview/, "/onboarding").replace(/^\/demo\/onboarding/, "/onboarding");
+  const activeRoute = onboardingRouteFromPathname(namedPath) ?? route;
 
   let activeStepContent: ReactNode;
-  if (activeStep === "discovery") {
+  if (activeRoute === "discovery") {
     activeStepContent = <Discovery />;
-  } else if (activeStep === "strategy") {
-    activeStepContent = activeStrategySubstep === "how-it-works"
-      ? <HowItWorks />
-      : <Strategy substep={activeStrategySubstep} />;
-  } else if (activeStep === "campaign-content") {
+  } else if (activeRoute === "how-leadreacher-works") {
+    activeStepContent = <HowItWorks />;
+  } else if (activeRoute === "campaign-content") {
     activeStepContent = <CampaignContent />;
-  } else if (activeStep === "personalized-video-style") {
-    activeStepContent = <PersonalizedVideoStyle preview={preview} placeholderPreview={preview && searchParams.get("media") === "placeholder"} />;
-  } else if (activeStep === "ai-video-style") {
-    activeStepContent = <AiVideoStyle preview={preview} placeholderPreview={preview && searchParams.get("media") === "placeholder"} initialStyle={preview && searchParams.get("screen") === "10" ? "casual" : undefined} />;
-  } else if (activeStep === "upload-video") {
+  } else if (activeRoute === "personalized-video") {
+    activeStepContent = <PersonalizedVideoStyle preview={preview} placeholderPreview={preview && (searchParams.get("media") === "placeholder" || searchParams.get("screen") === "09")} />;
+  } else if (activeRoute === "ai-video") {
+    activeStepContent = <AiVideoStyle preview={preview} placeholderPreview={preview && (searchParams.get("media") === "placeholder" || searchParams.get("screen") === "10")} initialStyle={preview && searchParams.get("screen") === "10" ? "casual" : undefined} />;
+  } else if (activeRoute === "your-video") {
     activeStepContent = <UploadYourVideo preview={preview} selectedFileFixture={preview && searchParams.get("screen") === "11"} />;
-  } else if (activeStep === "upload-document") {
+  } else if (activeRoute === "document") {
     activeStepContent = <UploadDocument preview={preview} selectedFileFixture={preview && searchParams.get("screen") === "12"} />;
-  } else if (activeStep === "checkout") {
+  } else if (activeRoute === "cta") {
+    activeStepContent = <MessageAndCta />;
+  } else if (activeRoute === "channels") {
+    activeStepContent = <ChannelSelection />;
+  } else if (activeRoute === "checkout") {
     activeStepContent = <Checkout />;
   } else {
     activeStepContent = <Channels />;
   }
 
-  const sceneKey = activeStep === "strategy" ? `strategy:${activeStrategySubstep}` : activeStep === "discovery" && searchParams.get("view") === "website" ? "website" : activeStep;
+  const sceneKey = activeRoute === "discovery" && searchParams.get("view") === "website"
+        ? "website"
+        : activeRoute;
 
   const scene = (
     <CampaignCanvas initialWebsiteUrl={preview ? initialPreviewWebsiteUrl : undefined}>
-      {activeStep === "discovery" || activeStep === "campaign-content" || activeStep === "personalized-video-style" || activeStep === "ai-video-style" || activeStep === "upload-video" || activeStep === "upload-document" || (activeStep === "strategy" && activeStrategySubstep === "how-it-works") ? null : <OnboardingChrome />}
       <OnboardingTransitionController sceneKey={sceneKey}>
         <StepMotion
           transitionKey={sceneKey}
           className="onboarding-flow-step h-dvh min-h-0"
-          fitViewport={activeStep !== "discovery" && activeStep !== "campaign-content" && activeStep !== "personalized-video-style" && activeStep !== "ai-video-style" && activeStep !== "upload-video" && activeStep !== "upload-document" && !(activeStep === "strategy" && activeStrategySubstep === "how-it-works")}
         >
           {activeStepContent}
         </StepMotion>

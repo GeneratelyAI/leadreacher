@@ -24,24 +24,35 @@ function prefersReducedMotion(): boolean {
 
 function isImmediateMobileAudienceTransition(from: string, to: string): boolean {
   return window.matchMedia("(max-width: 63rem)").matches && (
-    (from === "strategy:how-it-works" && to === "discovery") ||
-    (from === "discovery" && to === "strategy:how-it-works")
+    (from === "how-leadreacher-works" && to === "discovery") ||
+    (from === "discovery" && to === "how-leadreacher-works")
   );
+}
+
+function sceneFromUrl(url: URL): string {
+  if (url.searchParams.get("view") === "website") return "website";
+  const path = url.pathname
+    .replace(/^\/onboarding-preview/, "/onboarding")
+    .replace(/^\/demo\/onboarding/, "/onboarding");
+  if (path === "/onboarding/how-leadreacher-works") return "how-leadreacher-works";
+  if (path === "/onboarding/discovery") return "discovery";
+  if (path === "/onboarding/campaign-content") return "campaign-content";
+  if (path.startsWith("/onboarding/campaign-content/")) return path.split("/").at(-1) ?? "campaign-content";
+  return path.split("/").filter(Boolean).at(-1) ?? "";
 }
 
 function scenePosition(href: string): number {
   const url = new URL(href, window.location.origin);
-  const step = url.searchParams.get("step");
-  const substep = url.searchParams.get("substep");
-
-  if (url.searchParams.get("view") === "website") return -1;
-  if (step === "discovery") return 1;
-  if (step === "strategy" && substep === "how-it-works") return 0;
-  if (step === "campaign-content") return 2;
-  if (step === "personalized-video-style" || step === "ai-video-style" || step === "upload-video" || step === "upload-document") return 3;
-  if (step === "checkout") return 4;
-  if (step === "channels" || (step === "strategy" && substep === "channels")) return 5;
-  if (step === "strategy" && substep === "targeting") return 5.5;
+  const scene = sceneFromUrl(url);
+  if (scene === "website") return -1;
+  if (scene === "how-leadreacher-works") return 0;
+  if (scene === "discovery") return 1;
+  if (scene === "campaign-content") return 2;
+  if (["personalized-video", "ai-video", "your-video", "document"].includes(scene)) return 3;
+  if (scene === "cta") return 4;
+  if (scene === "channels") return 5;
+  if (scene === "checkout") return 6;
+  if (scene === "connect-channels") return 7;
   return 0;
 }
 
@@ -142,10 +153,7 @@ export function OnboardingTransitionController({
       const direction = directionFor(`${window.location.pathname}${window.location.search}`, detail.href);
       pendingDirection.current = direction;
       const destination = new URL(detail.href, window.location.origin);
-      const destinationStep = destination.searchParams.get("step");
-      const destinationScene = destinationStep === "strategy"
-        ? `strategy:${destination.searchParams.get("substep") ?? "how-it-works"}`
-        : destination.searchParams.get("view") === "website" ? "website" : destinationStep ?? "";
+      const destinationScene = sceneFromUrl(destination);
       if (isImmediateMobileAudienceTransition(previousSceneKey.current, destinationScene)) {
         pendingBridge.current = false;
         returningRows.current = [];
@@ -153,13 +161,13 @@ export function OnboardingTransitionController({
         applyHistory(detail);
         return;
       }
-      returningRows.current = direction === "backward" && destination.searchParams.get("substep") === "how-it-works"
+      returningRows.current = direction === "backward" && destinationScene === "how-leadreacher-works"
         ? Array.from(document.querySelectorAll<HTMLElement>("[data-prospect-row]")).map(stableBounds)
         : [];
       const illustrations = Array.from(document.querySelectorAll<HTMLElement>("[data-explanation-step] .how-it-works-illustration"));
-      pendingBridge.current = Boolean(illustrations.length && destination.searchParams.get("step") === "discovery" && !destination.searchParams.has("view"));
+      pendingBridge.current = Boolean(illustrations.length && destinationScene === "discovery");
 
-      if (pendingBridge.current || (destination.searchParams.get("step") === "strategy" && destination.searchParams.get("substep") === "how-it-works")) {
+      if (pendingBridge.current || destinationScene === "how-leadreacher-works") {
         setMotion({ direction, phase: "idle" });
         if (pendingBridge.current && !prefersReducedMotion()) {
           window.dispatchEvent(new Event("leadreacher:onboarding-story-handoff"));
@@ -263,7 +271,7 @@ export function OnboardingTransitionController({
 
     const formingAudience = pendingBridge.current && sceneKey === "discovery";
     pendingBridge.current = false;
-    if (formingAudience || sceneKey === "strategy:how-it-works") {
+    if (formingAudience || sceneKey === "how-leadreacher-works") {
       setMotion({ direction, phase: "idle" });
       const reveal = (node: HTMLElement | null, delay: number, duration: number, distance = 6) => {
         if (!node) return;

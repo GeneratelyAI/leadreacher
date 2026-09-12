@@ -1,66 +1,57 @@
 import { requestOnboardingNavigation } from "@/features/onboarding/components/OnboardingTransitionController";
 
-export const ONBOARDING_STEPS = [
-  { value: "strategy", label: "Strategy" },
-  { value: "discovery", label: "Discovery" },
-  { value: "campaign-content", label: "Campaign Content" },
-  { value: "personalized-video-style", label: "Personalized Video Style" },
-  { value: "ai-video-style", label: "AI Video Style" },
-  { value: "upload-video", label: "Upload Your Video" },
-  { value: "upload-document", label: "Upload Document" },
-  { value: "checkout", label: "Checkout" },
-  { value: "channels", label: "Channels" },
+export const ONBOARDING_ROUTES = [
+  { id: "how-leadreacher-works", label: "How LeadReacher Works", path: "/onboarding/how-leadreacher-works" },
+  { id: "discovery", label: "Discovery", path: "/onboarding/discovery" },
+  { id: "campaign-content", label: "Campaign Content", path: "/onboarding/campaign-content" },
+  { id: "personalized-video", label: "Personalized Video", path: "/onboarding/campaign-content/personalized-video" },
+  { id: "ai-video", label: "AI Video", path: "/onboarding/campaign-content/ai-video" },
+  { id: "your-video", label: "Your Video", path: "/onboarding/campaign-content/your-video" },
+  { id: "document", label: "Document", path: "/onboarding/campaign-content/document" },
+  { id: "cta", label: "Message and CTA", path: "/onboarding/cta" },
+  { id: "channels", label: "Channels", path: "/onboarding/channels" },
+  { id: "checkout", label: "Checkout", path: "/onboarding/checkout" },
+  { id: "connect-channels", label: "Connect Channels", path: "/onboarding/connect-channels" },
 ] as const;
 
-export const STRATEGY_SUBSTEPS = [
-  "how-it-works",
-  "targeting",
-  "channels",
-] as const;
+export type OnboardingRouteId = (typeof ONBOARDING_ROUTES)[number]["id"];
 
-export type OnboardingStepParam = (typeof ONBOARDING_STEPS)[number]["value"];
-export type StrategySubstepParam = (typeof STRATEGY_SUBSTEPS)[number];
+const routeById = new Map<OnboardingRouteId, string>(ONBOARDING_ROUTES.map((route) => [route.id, route.path]));
+const idByPath = new Map<string, OnboardingRouteId>(ONBOARDING_ROUTES.map((route) => [route.path, route.id]));
 
-export function isOnboardingStep(value: string | null | undefined): value is OnboardingStepParam {
-  return ONBOARDING_STEPS.some((step) => step.value === value);
+export function isOnboardingRoute(value: string | null | undefined): value is OnboardingRouteId {
+  return ONBOARDING_ROUTES.some((route) => route.id === value);
 }
 
-export function isStrategySubstep(value: string | null | undefined): value is StrategySubstepParam {
-  return STRATEGY_SUBSTEPS.some((substep) => substep === value);
+export function onboardingHref(route: OnboardingRouteId): string {
+  return routeById.get(route) ?? ONBOARDING_ROUTES[0].path;
 }
 
-export function getOnboardingStepIndex(step: OnboardingStepParam): number {
-  return ONBOARDING_STEPS.findIndex((item) => item.value === step);
+export function onboardingRouteFromPathname(pathname: string): OnboardingRouteId | null {
+  return idByPath.get(pathname.replace(/\/$/, "")) ?? null;
 }
 
-export function onboardingHref(step: OnboardingStepParam): string {
-  return `/onboarding?step=${step}`;
-}
-
-export function strategyHref(substep: StrategySubstepParam): string {
-  return `/onboarding?step=strategy&substep=${substep}`;
+export function getOnboardingRouteIndex(route: OnboardingRouteId): number {
+  const sharedStage = route === "personalized-video" || route === "ai-video" || route === "your-video" || route === "document"
+    ? "personalized-video"
+    : route;
+  return ONBOARDING_ROUTES.findIndex((item) => item.id === sharedStage);
 }
 
 /**
- * Moves between already-rendered onboarding screens without requesting a new
- * server component payload. Direct loads still go through the server guard.
+ * Lets the persistent onboarding canvas animate before Next processes the
+ * named route. Direct loads and browser history still pass through server guards.
  */
 export function navigateOnboarding(href: string, replace = false): void {
   if (typeof window === "undefined") return;
 
-  const pathname = window.location.pathname;
-  const destination = pathname === "/onboarding-preview"
+  const destination = window.location.pathname.startsWith("/onboarding-preview")
     ? href.replace(/^\/onboarding/, "/onboarding-preview")
-    : pathname === "/demo/onboarding"
+    : window.location.pathname.startsWith("/demo/onboarding")
       ? href.replace(/^\/onboarding/, "/demo/onboarding")
       : href;
 
   if (requestOnboardingNavigation(destination, replace)) return;
-
-  if (replace) {
-    window.history.replaceState(null, "", destination);
-    return;
-  }
-
-  window.history.pushState(null, "", destination);
+  if (replace) window.history.replaceState(null, "", destination);
+  else window.history.pushState(null, "", destination);
 }
