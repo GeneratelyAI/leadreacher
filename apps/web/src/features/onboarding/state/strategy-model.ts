@@ -1,6 +1,6 @@
 import type { ChannelRecommendation } from "./channel-recommendations";
 
-export type ChannelKey = ChannelRecommendation["channel"];
+export type ChannelKey = ChannelRecommendation["channel"] | "gmail" | "outlook";
 type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 type JsonRecord = { [key: string]: JsonValue };
 
@@ -18,9 +18,10 @@ export function selectedChannelsFromStrategy(strategy: StrategyResponse | null):
   if (!strategy?.channels || typeof strategy.channels !== "object" || Array.isArray(strategy.channels)) return [];
   const selected = strategy.channels.selected;
   if (!Array.isArray(selected)) return [];
-  return selected.filter((value): value is ChannelKey =>
-    value === "linkedin" || value === "email" || value === "whatsapp" || value === "instagram" || value === "facebook"
-  );
+  return selected.flatMap((value): ChannelKey[] => {
+    if (value === "email") return ["gmail"];
+    return value === "linkedin" || value === "gmail" || value === "outlook" || value === "whatsapp" || value === "instagram" || value === "facebook" ? [value] : [];
+  });
 }
 
 export type AudienceAnalysis = {

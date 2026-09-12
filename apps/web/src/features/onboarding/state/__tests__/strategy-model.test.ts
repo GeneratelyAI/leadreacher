@@ -44,8 +44,8 @@ it("retains the strict six-minute stale-run boundary", () => {
   expect(isStaleAudienceRun({ ...analysis, status: "completed" })).toBe(false);
 });
 
-it("keeps saved channel ordering and existing error messages", () => {
-  expect(selectedChannelsFromStrategy({ ...strategy({}), channels: { selected: ["email", "retired", "linkedin", "email"] } })).toEqual(["email", "linkedin", "email"]);
+it("normalizes legacy email values while keeping saved channel ordering", () => {
+  expect(selectedChannelsFromStrategy({ ...strategy({}), channels: { selected: ["email", "retired", "linkedin", "email"] } })).toEqual(["gmail", "linkedin", "gmail"]);
   expect(strategyErrorMessage(new Error("provider unavailable"))).toBe("provider unavailable");
   expect(strategyErrorMessage("expected object, received null")).toBe("We couldn't start the audience analysis. Please retry.");
 });

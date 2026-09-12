@@ -1,0 +1,441 @@
+.reviewCard {
+  display: flex;
+  flex-direction: column;
+  padding-block: .75rem;
+  border-color: #dedfeb;
+  box-shadow: 0 1rem 2.75rem rgb(83 58 222 / 7%);
+}
+
+.reviewHeader { margin-bottom: .5rem; }
+
+.editMessageButton {
+  min-height: 2.25rem;
+  border: 1px solid #ddd6ff;
+  border-radius: 999px;
+  padding: .45rem .75rem;
+  background: #f7f5ff;
+  box-shadow: 0 .25rem .7rem rgb(83 56 231 / 7%);
+  transition: color 180ms var(--onboarding-motion-ease), border-color 180ms var(--onboarding-motion-ease), background-color 180ms var(--onboarding-motion-ease), box-shadow 180ms var(--onboarding-motion-ease), transform 180ms var(--onboarding-motion-ease);
+}
+.editMessageButton:hover {
+  border-color: #a997ff;
+  background: #f0ecff;
+  box-shadow: 0 .4rem .9rem rgb(83 56 231 / 12%);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+.editMessageButton:disabled { cursor: wait; opacity: .82; }
+
+.conversation {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dfe1ee;
+  border-radius: .85rem;
+  background:
+    radial-gradient(circle at 85% 30%, rgb(117 84 255 / 7%), transparent 34%),
+    linear-gradient(145deg, #fdfdff 0%, #f7f6ff 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%);
+}
+
+.recipientRow {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .65rem .85rem;
+  border-bottom: 1px solid #e9e9f1;
+}
+
+.companyAvatar,
+.senderAvatar {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.companyAvatar { background: linear-gradient(145deg, #f0edff, #e4ddff); color: #5538e7; box-shadow: inset 0 0 0 1px rgb(94 66 232 / 8%); }
+.companyAvatar svg { width: 1.35rem; height: 1.35rem; }
+.companyAvatar:has(.companySiteIcon) { background: transparent; box-shadow: none; }
+.companySiteIcon { width: 100%; height: 100%; border-radius: .8rem; object-fit: cover; }
+.recipientRow strong { display: block; color: #080e28; font-size: .92rem; line-height: 1.2; }
+.recipientRow small { display: block; margin-top: .14rem; color: #737a96; font-size: .76rem; line-height: 1.2; }
+
+.conversationBody {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  padding: .9rem 0 1rem;
+}
+
+.previewLabel {
+  margin: .45rem 0 .35rem !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  color: #7b84a0 !important;
+  font-size: .72rem !important;
+  line-height: 1.2 !important;
+  text-align: center;
+}
+
+.outgoingMessage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: .7rem;
+  padding: 0 1.25rem;
+}
+
+.outgoingMessage > p {
+  position: relative;
+  max-width: min(80%, 40rem);
+  margin: 0 !important;
+  border-radius: 1.45rem 1.45rem .35rem 1.45rem !important;
+  padding: 1.05rem 1.15rem !important;
+  background: linear-gradient(145deg, #f0ebff 0%, #e2d8ff 54%, #d4c5ff 100%) !important;
+  color: #252d50 !important;
+  font-size: clamp(.85rem, 1.05vw, .98rem) !important;
+  line-height: 1.48 !important;
+  box-shadow: 0 .55rem 1.25rem rgb(86 55 220 / 14%), inset 0 1px 0 rgb(255 255 255 / 48%);
+}
+
+.outgoingMessage > p::after {
+  position: absolute;
+  right: .55rem;
+  bottom: -.38rem;
+  width: .82rem;
+  height: .82rem;
+  background: #d4c5ff;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+  content: "";
+}
+
+.senderAvatar {
+  z-index: 1;
+  margin: 0 0 .12rem;
+  background: linear-gradient(145deg, #6849f3, #4c2bd2);
+  color: #fff;
+  box-shadow: 0 .35rem .8rem rgb(83 56 231 / 20%);
+}
+.senderAvatar svg { width: 1.25rem; height: 1.25rem; transform: rotate(-16deg); }
+.senderAvatar:has(.senderSiteIcon) { background: transparent; box-shadow: none; }
+.senderSiteIcon { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+.messageThread {
+  display: grid;
+  width: 100%;
+  gap: .8rem;
+}
+
+.contentAttachment {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  width: min(62%, 23rem);
+  margin: 0 4.65rem 0 auto;
+  border: 1px solid #e0d9ff;
+  border-radius: .85rem;
+  padding: .65rem .75rem;
+  background: linear-gradient(135deg, #faf9ff, #f2efff);
+  box-shadow: 0 .35rem .85rem rgb(83 56 231 / 7%);
+}
+.contentAttachmentIcon,
+.contentAttachmentPlay {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  place-items: center;
+  border-radius: .62rem;
+  background: #eae5ff;
+  color: #5538e7;
+}
+.contentAttachmentIcon svg { width: 1.15rem; height: 1.15rem; }
+.contentAttachmentCopy { min-width: 0; }
+.contentAttachmentCopy strong,
+.contentAttachmentCopy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.contentAttachmentCopy strong { color: #171d39; font-size: .8rem; line-height: 1.2; }
+.contentAttachmentCopy small { margin-top: .13rem; color: #737a96; font-size: .7rem; line-height: 1.2; }
+.contentAttachmentPlay { width: 1.65rem; height: 1.65rem; border-radius: 50%; background: #5538e7; color: #fff; }
+.contentAttachmentPlay svg { width: .78rem; height: .78rem; }
+.contentAttachment[data-content-kind="document"] { border-color: #dbe4ff; background: linear-gradient(135deg, #fafcff, #f2f6ff); }
+.contentAttachment[data-content-kind="document"] .contentAttachmentIcon { background: #e8f0ff; color: #3265c8; }
+
+.bookingPreview {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .65rem;
+  width: min(62%, 23rem);
+  margin: 0 4.65rem 0 auto;
+  border: 1px solid #dedfee;
+  border-radius: .8rem;
+  padding: .72rem .85rem;
+  background: #fff;
+  color: #080e28;
+  text-decoration: none;
+  transition: transform var(--onboarding-motion-feedback) var(--onboarding-motion-ease), border-color var(--onboarding-motion-feedback) var(--onboarding-motion-ease), box-shadow var(--onboarding-motion-feedback) var(--onboarding-motion-ease);
+}
+.bookingPreview:hover { border-color: #9b89ff; box-shadow: 0 .55rem 1.25rem rgb(83 56 231 / 10%); transform: translateY(-1px); }
+.bookingPreview > svg { width: 1.35rem; height: 1.35rem; color: #5538e7; }
+.bookingPreview > svg:last-child { width: 1.05rem; height: 1.05rem; }
+.bookingPreview strong,
+.bookingPreview small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bookingPreview strong { font-size: .83rem; line-height: 1.2; }
+.bookingPreview small { margin-top: .12rem; color: #737a96; font-size: .72rem; line-height: 1.2; }
+.bookingPreview:focus-visible { outline: 3px solid rgb(91 63 240 / 28%); outline-offset: 3px; }
+
+.emptyCtaPreview { margin: 0 4.65rem 0 auto; color: #737a96 !important; font-size: .74rem !important; text-align: right; }
+
+.reviewFooter { gap: .5rem; margin-top: .4rem; }
+.reviewFooter .approvalNote { margin-left: auto; text-align: right; }
+
+.editorWorkspace {
+  grid-template-columns: minmax(0, .9fr) minmax(15rem, 1.1fr);
+  align-items: stretch;
+  gap: clamp(.75rem, 1.25vw, 1rem);
+  padding: .25rem;
+  border: 1px solid #eeecf7;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgb(248 247 255 / 82%), rgb(255 255 255 / 74%));
+  flex: 1;
+  transform-origin: 42% 50%;
+  animation: editor-workspace-enter 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.editorPanel {
+  display: grid;
+  align-content: start;
+  gap: .8rem;
+  border: 1px solid #e4e1f1;
+  border-radius: .85rem;
+  padding: .7rem;
+  background: #fff;
+  box-shadow: 0 .55rem 1.35rem rgb(83 56 231 / 5%);
+  transform-origin: left center;
+  animation: editor-panel-enter 240ms 30ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.editorIntro strong,
+.editorIntro span { display: block; }
+.editorIntro strong { color: #080e28; font-size: .92rem; letter-spacing: -.015em; }
+.editorIntro span { margin-top: .22rem; color: #737a96; font-size: .75rem; line-height: 1.35; }
+.editorPreview {
+  display: grid;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: .5rem;
+  border: 1px solid #e8e5f4;
+  border-radius: .85rem;
+  padding: .65rem;
+  background: linear-gradient(145deg, #fdfcff, #f8f7ff);
+  animation: editor-preview-enter 220ms 40ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.editorPreviewLabel { color: #6d55df; font-size: .68rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+.fieldLabelRow { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.messageCounter { color: #858da6; font-size: .68rem; font-variant-numeric: tabular-nums; font-weight: 600; }
+.ctaFieldGroup {
+  min-width: 0;
+  gap: .55rem;
+  border: 1px solid #ebe9f4;
+  border-radius: .75rem;
+  padding: .5rem;
+  background: #faf9ff;
+}
+.editorActions {
+  width: 100%;
+  margin-left: 0;
+  padding-top: .65rem;
+  border-top: 1px solid #eeeef4;
+}
+.editorActions :global(button:last-child) { box-shadow: 0 .4rem .9rem rgb(83 56 231 / 14%); }
+.editorWorkspace :global(textarea) {
+  min-height: clamp(6.25rem, 14cqh, 9.5rem);
+  resize: none;
+  border-color: #d8d7e6;
+  background: linear-gradient(180deg, #fff, #fdfcff);
+  box-shadow: inset 0 1px 2px rgb(8 14 40 / 3%);
+  transition: border-color 180ms var(--onboarding-motion-ease), box-shadow 180ms var(--onboarding-motion-ease), background-color 180ms var(--onboarding-motion-ease);
+}
+.editorWorkspace :global(textarea:focus),
+.editorWorkspace :global(input:focus) {
+  border-color: #765bff;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(103 71 255 / 13%), 0 .4rem 1rem rgb(83 56 231 / 7%);
+}
+.compactConversation { min-height: 0; }
+.compactConversation .recipientRow { padding: .55rem .65rem; }
+.compactConversation .companyAvatar,
+.compactConversation .senderAvatar { width: 1.85rem; height: 1.85rem; }
+.compactConversation .companyAvatar svg,
+.compactConversation .senderAvatar svg { width: 1rem; height: 1rem; }
+.compactConversation .previewLabel { margin-block: .3rem .2rem !important; }
+.compactConversation .conversationBody { padding-block: .25rem; }
+.compactConversation .messageThread { gap: .5rem; }
+.compactConversation .outgoingMessage { gap: .35rem; padding-inline: .55rem; }
+.compactConversation .outgoingMessage > p { max-width: 82%; padding: .6rem .7rem !important; font-size: .75rem !important; line-height: 1.35; }
+.compactConversation .contentAttachment { gap: .45rem; width: calc(82% - 2.2rem); margin: 0 2.2rem 0 auto; padding: .4rem .5rem; }
+.compactConversation .contentAttachmentIcon { width: 1.5rem; height: 1.5rem; border-radius: .45rem; }
+.compactConversation .contentAttachmentIcon svg { width: .9rem; height: .9rem; }
+.compactConversation .contentAttachmentCopy strong { font-size: .68rem; }
+.compactConversation .contentAttachmentCopy small { font-size: .61rem; }
+.compactConversation .contentAttachmentPlay { width: 1.3rem; height: 1.3rem; }
+.compactConversation .contentAttachmentPlay svg { width: .62rem; height: .62rem; }
+.compactConversation .bookingPreview { width: calc(82% - 2.2rem); margin: 0 2.2rem 0 auto; padding: .45rem .55rem; }
+.compactConversation .bookingPreview > svg { width: 1rem; height: 1rem; }
+.compactConversation .bookingPreview strong { font-size: .72rem; }
+.compactConversation .bookingPreview small { font-size: .66rem; }
+
+.reviewHeader,
+.reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter) {
+  opacity: 0;
+  transform: translate3d(0, .4rem, 0);
+  transition: opacity var(--onboarding-motion-state) var(--onboarding-motion-ease), transform var(--onboarding-motion-state) var(--onboarding-motion-ease);
+}
+.reviewCard .outgoingMessage { transform: translate3d(.7rem, 0, 0); }
+.reviewCard .senderAvatar { opacity: 0; transform: translate3d(.35rem, 0, 0); transition: opacity var(--onboarding-motion-state) var(--onboarding-motion-ease), transform var(--onboarding-motion-state) var(--onboarding-motion-ease); }
+.reviewCard[data-presented] .reviewHeader,
+.reviewCard[data-presented] :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter) { opacity: 1; transform: translate3d(0, 0, 0); }
+.reviewCard[data-presented] .senderAvatar { opacity: 1; transform: translate3d(0, 0, 0); transition-delay: 170ms; }
+.reviewCard[data-presented] .reviewHeader { transition-delay: 0ms; }
+.reviewCard[data-presented] .recipientRow { transition-delay: 40ms; }
+.reviewCard[data-presented] .previewLabel { transition-delay: 90ms; }
+.reviewCard[data-presented] .outgoingMessage { transition-delay: 140ms; }
+.reviewCard[data-presented] .bookingPreview { transition-delay: 190ms; }
+.reviewCard[data-presented] .reviewFooter { transition-delay: 240ms; }
+
+.reviewCard[data-editor-opening] .conversation {
+  transform-origin: 70% 54%;
+  animation: editor-preview-recede 240ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.reviewCard[data-editor-opening] .reviewFooter {
+  animation: editor-footer-recede 180ms 30ms cubic-bezier(.16, 1, .3, 1) both;
+}
+.reviewCard[data-editor-opening] .editMessageButton {
+  animation: editor-trigger-settle 180ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+@keyframes editor-workspace-enter {
+  from { opacity: 0; transform: translate3d(-.45rem, .45rem, 0) scale(.985); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes editor-panel-enter {
+  from { opacity: .2; clip-path: inset(0 100% 0 0 round 1rem); transform: translate3d(-.65rem, .15rem, 0) scale(.98); }
+  to { opacity: 1; clip-path: inset(0 0 0 0 round .65rem); transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes editor-preview-enter {
+  from { opacity: .15; transform: translate3d(.55rem, .2rem, 0) scale(.99); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes editor-preview-recede {
+  0% { opacity: 1; filter: blur(0); transform: translate3d(0, 0, 0) scale(1); }
+  60% { opacity: .86; filter: blur(0); transform: translate3d(-.12rem, -.08rem, 0) scale(.992); }
+  100% { opacity: 0; filter: blur(1.5px); transform: translate3d(-.38rem, -.32rem, 0) scale(.982); }
+}
+
+@keyframes editor-footer-recede {
+  from { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 0; transform: translate3d(0, -.18rem, 0); }
+}
+
+@keyframes editor-trigger-settle {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  55% { transform: translate3d(0, .05rem, 0) scale(.975); }
+  to { transform: translate3d(0, 0, 0) scale(.99); }
+}
+
+@media (max-width: 63rem) {
+  .outgoingMessage > p { max-width: 82%; }
+  .bookingPreview { width: calc(82% - 2.9rem); margin-right: 2.9rem; }
+  .reviewFooter { align-items: flex-start; flex-wrap: wrap; }
+  .reviewFooter .approvalNote { width: 100%; margin-left: 1.85rem; text-align: left; }
+  .editorWorkspace { grid-template-columns: 1fr; }
+  .editorPreview { min-height: 16rem; }
+  .editorWorkspace :global(textarea) { resize: vertical; }
+}
+
+@media (min-width: 63.0625rem) {
+  .reviewCard { min-height: 0; }
+  .reviewCard:not(:has(.editorWorkspace)):not(:has(.loadingCopy)) {
+    min-height: 29rem;
+  }
+  .conversationBody { min-height: 10rem; }
+}
+
+@media (min-width: 63.0625rem) and (max-height: 950px) {
+  .reviewHeader { min-height: 1.75rem; margin-bottom: .35rem; }
+  .editorWorkspace { gap: .55rem; margin-top: 0; padding: .2rem; }
+  .editorPanel { gap: .5rem; padding: .5rem; }
+  .editorPreview { gap: .35rem; padding: .45rem; }
+  .editorIntro span { margin-top: .1rem; line-height: 1.2; }
+  .editorWorkspace :global(textarea) { min-height: 5rem; padding: .55rem .65rem; line-height: 1.3; }
+  .editorWorkspace :global(input) { height: 2.25rem; padding-block: .35rem; }
+  .editorWorkspace :global(button) { min-height: 2.25rem; padding-block: .4rem; }
+  .ctaFieldGroup { gap: .4rem; padding: .4rem; }
+  .editorActions { padding-top: .45rem; }
+  .compactConversation .recipientRow { padding: .4rem .55rem; }
+  .compactConversation .conversationBody { min-height: 0; padding-block: .2rem; }
+  .compactConversation .outgoingMessage > p { padding: .45rem .6rem !important; line-height: 1.25; }
+  .compactConversation .bookingPreview { margin-top: .35rem; margin-bottom: .2rem; padding: .35rem .5rem; }
+  .reviewFooter { margin-top: .3rem; padding-top: .3rem; }
+}
+
+@media (min-width: 63.0625rem) and (max-height: 950px) {
+  .task { margin-top: 1rem; }
+  .reviewFooter { margin-top: .25rem; padding-top: .3rem; }
+  .reviewCard:not(:has(.editorWorkspace)):not(:has(.loadingCopy)) { min-height: 0; }
+  .reviewCard:not(:has(.editorWorkspace)) .recipientRow { padding: .5rem .65rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .companyAvatar,
+  .reviewCard:not(:has(.editorWorkspace)) .senderAvatar { width: 2rem; height: 2rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .companyAvatar svg,
+  .reviewCard:not(:has(.editorWorkspace)) .senderAvatar svg { width: 1.05rem; height: 1.05rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .conversationBody { padding-block: .45rem .55rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .previewLabel { margin-block: .3rem .2rem !important; }
+  .reviewCard:not(:has(.editorWorkspace)) .messageThread { gap: .55rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .outgoingMessage { gap: .45rem; padding-inline: .75rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .outgoingMessage > p { padding: .72rem .85rem !important; font-size: .82rem !important; line-height: 1.38 !important; }
+  .reviewCard:not(:has(.editorWorkspace)) .contentAttachment { gap: .5rem; width: calc(74% - 2.55rem); margin-right: 2.55rem; padding: .45rem .55rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .contentAttachmentIcon { width: 1.65rem; height: 1.65rem; border-radius: .5rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .contentAttachmentPlay { width: 1.4rem; height: 1.4rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .contentAttachmentCopy strong { font-size: .72rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .contentAttachmentCopy small { font-size: .64rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .bookingPreview { width: calc(74% - 2.55rem); margin-right: 2.55rem; padding: .5rem .6rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .bookingPreview > svg { width: 1.1rem; height: 1.1rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .bookingPreview strong { font-size: .76rem; }
+  .reviewCard:not(:has(.editorWorkspace)) .bookingPreview small { font-size: .68rem; }
+  .reviewCard:not(:has(.editorWorkspace)) + .error { margin-top: .35rem; }
+}
+
+@container onboarding-task (max-height: 300px) {
+  .reviewCard { min-height: 0; }
+  .reviewCard:not(:has(.editorWorkspace)):not(:has(.loadingCopy)) { min-height: 0; }
+  .conversationBody { min-height: 0; }
+  .outgoingMessage > p { padding: .6rem .72rem !important; font-size: .78rem !important; line-height: 1.35; }
+  .bookingPreview { margin-top: .5rem; }
+  .editorWorkspace { gap: .65rem; }
+  .editorWorkspace :global(textarea) { min-height: 5.5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reviewHeader,
+  .reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter),
+  .reviewCard .senderAvatar { opacity: 1; transform: none; transition: none; }
+  .bookingPreview,
+  .editMessageButton { transition: none; }
+  .editorWorkspace,
+  .editorPanel,
+  .editorPreview,
+  .reviewCard[data-editor-opening] .conversation,
+  .reviewCard[data-editor-opening] .reviewFooter,
+  .reviewCard[data-editor-opening] .editMessageButton { animation: none; }
+}
