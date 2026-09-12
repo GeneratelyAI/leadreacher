@@ -238,6 +238,27 @@ describe("onboarding preview isolation", () => {
     expect(sessionStorage.getItem("lr_mobile_reference_screen")).toBe("05");
   });
 
+  it("keeps discovery cache records scoped on named preview routes", () => {
+    const { sessionStorage, localStorage } = browserAt("/onboarding-preview/cta");
+    setDiscoveryOrgScope("onboarding-preview-org");
+    writeDiscoveryScrapeCache({
+      url: "https://acme.example",
+      status: "completed",
+      market: "Preview",
+      offer: "",
+      audience: "",
+      value: "",
+      strategyStatus: "ready",
+      error: null,
+    }, "org:onboarding-preview-org");
+
+    expect(sessionStorage.getItem("lr_discovery_org_id:/onboarding-preview")).toBe("onboarding-preview-org");
+    expect(localStorage.getItem("lr_discovery_scrape:/onboarding-preview")).not.toBeNull();
+
+    browserAt("/onboarding/discovery", sessionStorage, localStorage);
+    expect(readActiveScopedWebsiteUrl()).toBeNull();
+  });
+
   it("retains approved content and audience on step navigation, refresh, and Back to the same numbered fixture", async () => {
     const storage: MemoryStorage = memoryStorage();
     browserAt("/onboarding-preview?screen=08", storage);

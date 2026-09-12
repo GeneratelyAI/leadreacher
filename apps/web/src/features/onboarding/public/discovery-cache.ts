@@ -3,6 +3,13 @@ import { cleanWebsiteDomain } from "@/lib/website-url";
 const CACHE_KEY = "lr_discovery_scrape";
 const ORG_KEY = "lr_discovery_org_id";
 
+// Internal preview screens must never read or replace a signed-in campaign cache.
+function storageKey(key: string): string {
+  return typeof window !== "undefined" && window.location?.pathname.startsWith("/onboarding-preview")
+    ? `${key}:/onboarding-preview`
+    : key;
+}
+
 export type DiscoveryScrapeCache = {
   urlKey: string;
   url: string;
@@ -31,20 +38,20 @@ function isBrowser(): boolean {
 }
 
 export function setDiscoveryOrgScope(orgId: string): void {
-  if (isBrowser()) window.sessionStorage.setItem(ORG_KEY, orgId);
+  if (isBrowser()) window.sessionStorage.setItem(storageKey(ORG_KEY), orgId);
 }
 
 export function getDiscoveryOrgScope(): string | null {
-  return isBrowser() ? window.sessionStorage.getItem(ORG_KEY)?.trim() || null : null;
+  return isBrowser() ? window.sessionStorage.getItem(storageKey(ORG_KEY))?.trim() || null : null;
 }
 
 export function clearDiscoveryOrgScope(): void {
-  if (isBrowser()) window.sessionStorage.removeItem(ORG_KEY);
+  if (isBrowser()) window.sessionStorage.removeItem(storageKey(ORG_KEY));
 }
 
 export function readDiscoveryScrapeCache(): DiscoveryScrapeCache | null {
   if (!isBrowser()) return null;
-  const raw = window.localStorage.getItem(CACHE_KEY);
+  const raw = window.localStorage.getItem(storageKey(CACHE_KEY));
   if (!raw) return null;
   try {
     const value = JSON.parse(raw) as Partial<DiscoveryScrapeCache>;
@@ -118,7 +125,7 @@ export function writeDiscoveryScrapeCache(
     },
     error: status.error,
   };
-  window.localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  window.localStorage.setItem(storageKey(CACHE_KEY), JSON.stringify(cache));
 }
 
 export function promoteAnonymousDiscoveryCache(
@@ -135,7 +142,7 @@ export function promoteAnonymousDiscoveryCache(
 
   const cache = readDiscoveryScrapeCache();
   if (cache?.scope === `anon:${anonId ?? ""}`) {
-    window.localStorage.setItem(CACHE_KEY, JSON.stringify({ ...cache, scope: orgScope }));
+    window.localStorage.setItem(storageKey(CACHE_KEY), JSON.stringify({ ...cache, scope: orgScope }));
   }
 }
 
