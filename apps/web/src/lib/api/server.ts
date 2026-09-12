@@ -86,6 +86,8 @@ export async function getStrategyServer(
   icpDefinition: unknown;
   campaignType: string | null;
   videoConfig: unknown;
+  channels: unknown;
+  messagingAngles: unknown;
 } | null> {
   const response = await fetch(`${getApiBaseUrl()}/strategy/${orgId}`, {
     headers: {
@@ -105,6 +107,8 @@ export async function getStrategyServer(
         icpDefinition?: unknown;
         campaignType?: string | null;
         videoConfig?: unknown;
+        channels?: unknown;
+        messagingAngles?: unknown;
         message?: string;
       }
     | null;
@@ -125,5 +129,7 @@ export async function getStrategyServer(
     icpDefinition: payload.icpDefinition,
     campaignType: payload.campaignType ?? null,
     videoConfig: payload.videoConfig,
+    channels: payload.channels,
+    messagingAngles: payload.messagingAngles,
   };
 }
