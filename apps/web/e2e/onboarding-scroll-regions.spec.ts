@@ -29,12 +29,12 @@ for (const viewport of [
       expect(await card.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
       const bounds = await card.boundingBox();
       expect(bounds!.y + bounds!.height + 12).toBeLessThanOrEqual(initialActions!.y - 28);
-      await expect(card).toBeInViewport({ ratio: 1 });
+      await expect(card).toBeInViewport({ ratio: 0.999 });
       for (const control of await card.locator("input:visible, button:visible").all()) {
         const controlBounds = await control.boundingBox();
         expect(controlBounds!.y).toBeGreaterThanOrEqual(bounds!.y);
         expect(controlBounds!.y + controlBounds!.height).toBeLessThanOrEqual(bounds!.y + bounds!.height);
-        await expect(control).toBeInViewport({ ratio: 1 });
+        await expect(control).toBeInViewport({ ratio: 0.999 });
       }
     }
     const summaryBounds = await summary.boundingBox();

@@ -11,6 +11,7 @@ const removedEyebrows = ["Message Review", "Choose Channels", "Checkout", "Conne
 
 test.describe("production-ready onboarding continuation", () => {
   test("headline periods reuse the Prospect blink and respect reduced motion", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
     for (const route of ["cta", "channels", "checkout", "connect-channels"]) {
       await page.goto(`/onboarding-preview/${route}?capture=1`);
       const period = page.getByRole("heading", { level: 1 }).first().locator(".signup-campaign-period");
