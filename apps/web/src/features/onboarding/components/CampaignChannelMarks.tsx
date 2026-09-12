@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 import type { PillSection } from "../public/campaign-summary";
 
 type CampaignChannel = {
-  id: "linkedin" | "whatsapp" | "instagram" | "facebook" | "email";
-  label: "LinkedIn" | "WhatsApp" | "Instagram" | "Facebook" | "Email";
+  id: "linkedin" | "whatsapp" | "instagram" | "facebook" | "gmail" | "outlook";
+  label: "LinkedIn" | "WhatsApp" | "Instagram" | "Facebook" | "Gmail" | "Outlook";
   logo: ChannelLogoName;
 };
 
@@ -13,7 +13,8 @@ const CHANNELS: Record<CampaignChannel["id"], CampaignChannel> = {
   whatsapp: { id: "whatsapp", label: "WhatsApp", logo: "whatsapp-mark" },
   instagram: { id: "instagram", label: "Instagram", logo: "instagram" },
   facebook: { id: "facebook", label: "Facebook", logo: "facebook" },
-  email: { id: "email", label: "Email", logo: "gmail" },
+  gmail: { id: "gmail", label: "Gmail", logo: "gmail" },
+  outlook: { id: "outlook", label: "Outlook", logo: "outlook" },
 };
 
 function channelId(value: string): CampaignChannel["id"] | null {
@@ -27,10 +28,12 @@ function channelId(value: string): CampaignChannel["id"] | null {
     case "facebook":
     case "messenger":
       return "facebook";
-    case "email":
     case "gmail":
+      return "gmail";
     case "outlook":
-      return "email";
+      return "outlook";
+    case "email":
+      return "gmail";
     default:
       return null;
   }

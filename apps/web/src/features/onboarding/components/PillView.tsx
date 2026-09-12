@@ -28,6 +28,7 @@ export function PillView({
   className,
   defaultExpanded = true,
   responsiveDefaultCollapsed = false,
+  footer,
 }: PillProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [mobileSummaryOpen, setMobileSummaryOpen] = useState(false);
@@ -265,6 +266,9 @@ export function PillView({
             <div
               className={cn("campaign-pill-section-list", isDenseTimeline && "campaign-pill-section-list-dense")}
               ref={sectionListRef}
+              role="region"
+              aria-label="Campaign summary sections"
+              tabIndex={0}
             >
               {sections.map((section) => {
                 const state = section.state ?? "complete";
@@ -350,6 +354,7 @@ export function PillView({
                   </div>
                 );
               })}
+              {footer}
             </div>
           </div>
         ) : (
@@ -395,6 +400,7 @@ export function PillView({
             })}
             {!mobileSections.length ? <p>{campaign.statusLabel ?? "Building your campaign"}</p> : null}
           </div>
+          {footer ? <div className={mobileStyles.summaryFooter}>{footer}</div> : null}
           <SheetClose className={mobileStyles.primary}>Done</SheetClose>
         </SheetContent>
       </Sheet>

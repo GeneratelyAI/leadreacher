@@ -207,6 +207,7 @@
   opacity: 1;
   transform: none;
 }
+.summaryFooter { margin-top: 4px; }
 
 @media (max-width: 63rem) {
   .shell {

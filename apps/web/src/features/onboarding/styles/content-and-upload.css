@@ -89,8 +89,12 @@
 .campaign-content-actions { display: flex; align-items: center; justify-content: space-between; margin-top: clamp(1.75rem, 4.5vh, 3rem); }
 .campaign-content-back { width: 10.7rem; height: 4.2rem; font-size: 1rem; }
 .campaign-content-actions .onboarding-campaign-next { width: 13.2rem; flex: none; }
+.onboarding-campaign-action-row { display: flex; align-items: center; justify-content: space-between; margin-top: clamp(1.75rem, 4.5vh, 3rem); }
+.onboarding-campaign-action-row .campaign-content-back { width: 10.7rem; }
+.onboarding-campaign-action-row .onboarding-campaign-next { width: 13.2rem; flex: none; }
 
-.personalized-video-style-page {
+.personalized-video-style-page,
+.onboarding-scene-page {
   position: relative;
   height: 100dvh;
   overflow: hidden;
@@ -99,7 +103,8 @@
 }
 .personalized-video-style-page .signup-campaign-pill-column,
 .personalized-video-style-page .campaign-pill { animation: none; }
-.personalized-video-style-main {
+.personalized-video-style-main,
+.onboarding-scene-main {
   box-sizing: border-box;
   min-width: 0;
   height: 100%;
@@ -107,7 +112,11 @@
   margin-right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
   padding: clamp(5.5rem, 12vh, 7rem) 0 2rem;
 }
-.personalized-video-style-header h1 { margin: 0; color: #080e28; font-size: clamp(3rem, 5.2vw, 5.5rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.9; }
+.personalized-video-style-header h1,
+.onboarding-scene-heading h1 { margin: 0; color: #080e28; font-size: clamp(3rem, 5.2vw, 5.5rem); font-weight: 720; letter-spacing: -0.075em; line-height: 0.9; }
+.onboarding-scene-heading { position: relative; }
+.onboarding-scene-task-scroll:focus-visible { outline: 3px solid rgb(91 63 240 / 28%); outline-offset: 3px; }
+.onboarding-scene-heading p { margin: 1rem 0 0; color: #737a96; font-size: clamp(1.1rem, 1.55vw, 1.45rem); line-height: 1.4; }
 .personalized-video-style-status { display: flex; min-height: 3.2rem; align-items: center; gap: 0.9rem; margin-top: clamp(1.2rem, 2.3vh, 1.7rem); }
 .personalized-video-style-status-icon { width: 2rem; height: 2rem; flex: none; }
 .personalized-video-style-status-awaiting .personalized-video-style-status-icon,
@@ -325,6 +334,10 @@
 .upload-document-actions .onboarding-campaign-next { width: 13.2rem; flex: none; }
 
 @media (max-width: 63rem) {
+  .onboarding-scene-page { min-height: 0; height: auto; overflow: visible; padding: 1.75rem var(--mobile-gutter, 1.25rem) max(2rem, env(safe-area-inset-bottom)); background: #fff; }
+  .onboarding-scene-main { width: min(100%, 42rem); height: auto; min-height: 0; margin: 0 auto; padding: 0; }
+  .onboarding-scene-heading h1 { max-width: 16ch; font-size: 1.625rem; font-weight: 720; letter-spacing: -0.045em; line-height: 1.2; }
+  .onboarding-scene-heading p { margin-top: 0.55rem; color: #53526b; font-size: 0.9375rem; line-height: 1.5; }
   .how-it-works-campaign-page { min-height: 100dvh; height: auto; overflow: visible; padding: 7rem 1.5rem 3rem; }
   .how-it-works-campaign-main { height: auto; margin: 0; padding: 0; }
   .how-it-works-campaign-page .signup-campaign-pill-column { display: none; }

@@ -188,8 +188,9 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
+.campaign-pill-section-list:focus-visible { outline: 2px solid #b5a3ff; outline-offset: -2px; }
 .campaign-pill-section { position: relative; min-width: 0; padding: 1.15rem 0 1.1rem; border-top: 1px solid rgba(217, 223, 250, 0.18); opacity: 1; transform: none; transition: border-color 180ms ease, background 180ms ease; }
 .campaign-pill-section-list-dense .campaign-pill-section { padding-block: 0.65rem 0.6rem; }
 .campaign-pill-section p { display: flex; align-items: center; gap: 0.6rem; margin: 0; color: #f9faff; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.14em; line-height: 1.2; text-transform: uppercase; }
@@ -200,8 +201,9 @@
 .campaign-pill-section-list-dense .campaign-pill-section-next { margin-top: 0.4rem; }
 .campaign-pill-section-summary { transition: opacity 220ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
 .campaign-pill-channel-marks { display: inline-flex; align-items: center; gap: 0.48rem; min-height: 1.5rem; }
-.campaign-pill-channel-mark { display: inline-grid; width: 1.5rem; height: 1.5rem; place-items: center; transition: opacity 200ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
+.campaign-pill-channel-mark { display: inline-grid; width: 1.5rem; height: 1.5rem; place-items: center; animation: campaign-pill-channel-mark-enter 220ms cubic-bezier(.16, 1, .3, 1) both; transition: opacity 200ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
 .campaign-pill-channel-mark-icon { display: block; width: 1.3rem; height: 1.3rem; object-fit: contain; }
+@keyframes campaign-pill-channel-mark-enter { from { opacity: 0; transform: translateY(0.24rem) scale(0.82); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .campaign-pill-channel-summary { max-height: 2rem; overflow: hidden; transition: max-height 220ms cubic-bezier(.16, 1, .3, 1), margin 220ms cubic-bezier(.16, 1, .3, 1), opacity 200ms cubic-bezier(.16, 1, .3, 1), transform 220ms cubic-bezier(.16, 1, .3, 1); }
 .campaign-pill-section-expanded .campaign-pill-channel-summary { max-height: 0; margin-top: 0; opacity: 0; transform: translateY(-0.25rem); }
 .campaign-pill-channel-details { min-width: 0; }
@@ -343,5 +345,5 @@
   .campaign-pill-section-details,
   .campaign-pill-channel-mark,
   .campaign-pill-channel-summary,
-  .campaign-pill-channel-pill { transition: none; }
+  .campaign-pill-channel-pill { animation: none; transition: none; }
 }

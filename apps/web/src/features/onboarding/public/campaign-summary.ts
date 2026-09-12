@@ -5,6 +5,8 @@ export type PillProps = {
   defaultExpanded?: boolean;
   /** Keeps the shared summary compact before a phone user explicitly opens it. */
   responsiveDefaultCollapsed?: boolean;
+  /** Optional creative preview, kept inside the shared collapse boundary. */
+  footer?: import("react").ReactNode;
 };
 
 export type PillField = {

@@ -14,6 +14,8 @@ export type SavedCampaignSummary = {
   };
   videoConfig?: { tone?: string; uploadedVideoUrl?: string; source?: string };
   channels?: { selected?: string[] };
+  messagingAngles?: { outreachMessage?: string; outreachMessageApprovedAt?: string; cta?: { label?: string; url?: string } | null };
+  subscriptionStatus?: string | null;
 };
 
 /** Only persisted decisions can complete a section. Route names are not evidence. */
@@ -31,6 +33,11 @@ export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, save
     ? [content.type, content.style ? content.style[0].toUpperCase() + content.style.slice(1) : undefined, content.documentName].filter(Boolean).join(" · ")
     : approvedStyle ? `${choice === "ai-video" ? "AI video" : "Personalized video"} · ${saved!.videoConfig!.tone}` : "";
   const channels = saved?.channels?.selected ?? [];
+  const channelLabels = channels.map((channel) => channel === "email" ? "Gmail" : channel);
+  const message = saved?.messagingAngles?.outreachMessage?.trim();
+  const messageApproved = Boolean(message && saved?.messagingAngles?.outreachMessageApprovedAt);
+  const cta = saved?.messagingAngles?.cta;
+  const subscriptionActive = saved?.subscriptionStatus === "active" || saved?.subscriptionStatus === "trialing";
   const inactive = (id: string, label: string): PillSection => ({ id, label, state: "future", pendingLabel: "Not selected" });
   return {
     fields: [], site, status: status.status === "completed" ? "ready" : "learning",
@@ -42,7 +49,12 @@ export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, save
         ? { id: "targeting", label: "Prospects", state: "complete", summary: [profile.decisionMakers[0], profile.companyTypes[0], profile.industries[0], profile.locations[0]].filter((value) => value && value.length <= 45).join(" · ") || targetingSummary(profile), fields: targetingFields(profile) }
         : inactive("targeting", "Prospects"),
       contentText ? { id: "content", label: "Content", state: "complete", summary: contentText, value: contentText } : inactive("content", "Content"),
-      channels.length ? { id: "channels", label: "Channels", state: "complete", summary: channels.join(" · "), fields: [{ label: "Selected channels", values: channels }] } : inactive("channels", "Channels"),
+      messageApproved ? { id: "message", label: "Message", state: "complete", summary: cta?.label || "Message and CTA approved", fields: [
+        { label: "Message", value: message },
+        ...(cta?.label ? [{ label: "Call to action", value: cta.label }] : []),
+      ] } : { ...inactive("message", "Message"), pendingLabel: message ? "Awaiting approval" : "Not generated" },
+      channels.length ? { id: "channels", label: "Channels", state: "complete", summary: channelLabels.join(" · "), fields: [{ label: "Selected channels", values: channelLabels }] } : inactive("channels", "Channels"),
+      subscriptionActive ? { id: "subscription", label: "Subscription", state: "complete", summary: saved?.subscriptionStatus === "trialing" ? "Trial active" : "Active", value: saved?.subscriptionStatus === "trialing" ? "Trial active" : "Active" } : inactive("subscription", "Subscription"),
     ],
   };
 }

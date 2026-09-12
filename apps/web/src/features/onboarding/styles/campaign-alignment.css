@@ -1,8 +1,79 @@
-/* The campaign summary has one desktop viewport anchor across signup and onboarding. */
+@media (min-width: 63.0625rem) and (max-height: 900px) {
+  .onboarding-campaign-scene {
+    --onboarding-task-card-padding: 10px;
+    --onboarding-task-section-gap: 3px;
+    --onboarding-task-row-gap: 1.5px;
+    --onboarding-task-detail-size: 12px;
+    --onboarding-task-header-gap: 6px;
+  }
+
+}
+
+@media (min-width: 63.0625rem) and (max-height: 900px) {
+  .checkout-page > .onboarding-scene-heading h1 {
+    max-width: none;
+    font-size: clamp(2.75rem, 4vw, 3.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.055em;
+  }
+  .checkout-page > .onboarding-scene-heading p { margin-top: 0.5rem; }
+}
 @media (min-width: 63.0625rem) {
+  :where(.onboarding-campaign-scene) {
+    --onboarding-task-card-padding: 15px;
+    --onboarding-task-section-gap: 6px;
+    --onboarding-task-row-gap: 5px;
+    --onboarding-task-detail-size: 13px;
+    --onboarding-task-header-gap: 10px;
+  }
   /* Safari's shorter visual viewport otherwise lifts this compact style stack
      above the Campaign Content heading. Keep their headings aligned. */
-  .personalized-video-style-main { transform: translateY(0.923rem); }
+  .personalized-video-style-main,
+  .onboarding-scene-main { transform: translateY(0.923rem); }
+
+  /* Keep task content in the shared canvas. The scene scales as a whole on
+     constrained desktops, rather than making an individual task scroll. */
+  .onboarding-campaign-scene .onboarding-scene-main {
+    display: flex;
+    flex-direction: column;
+    height: calc(50dvh + var(--campaign-pill-height) / 2 - 4.2rem - 1.75rem - 0.923rem);
+    padding-bottom: 0;
+  }
+
+  .onboarding-scene-main > :not(.onboarding-scene-task-scroll) { flex-shrink: 0; }
+
+  .onboarding-scene-task-scroll {
+    flex: 1;
+    container: onboarding-task / size;
+    min-height: 0;
+    overflow: visible;
+    margin-top: clamp(1rem, 2vh, 1.25rem);
+    padding: 0.25rem 0.25rem 0.75rem;
+    margin-inline: -0.25rem;
+  }
+
+  .onboarding-scene-task-scroll > :first-child { margin-top: 0; }
+
+  @container onboarding-task (max-height: 350px) {
+    .onboarding-scene-task-scroll > * {
+      --onboarding-task-card-padding: 10px;
+      --onboarding-task-section-gap: 3px;
+      --onboarding-task-row-gap: 1.5px;
+      --onboarding-task-detail-size: 12px;
+      --onboarding-task-header-gap: 6px;
+    }
+  }
+
+  @container onboarding-task (max-height: 290px) {
+    .onboarding-scene-task-scroll > * {
+      --onboarding-task-card-padding: 8px;
+      --onboarding-task-section-gap: 2px;
+      --onboarding-task-row-gap: 0px;
+      --onboarding-task-header-gap: 4px;
+      --onboarding-task-title-size: 14px;
+      --onboarding-task-caption-size: 11px;
+    }
+  }
 
   .how-it-works-campaign-main { transform: translateY(-2.3625rem); }
 
@@ -50,13 +121,19 @@
 
   .campaign-content-options { transform: translateY(-1.625rem); }
 
-  .personalized-video-style-actions {
+  .personalized-video-style-actions,
+  .onboarding-campaign-action-row {
     position: fixed;
     z-index: 4;
     right: calc(var(--campaign-pill-width) + var(--campaign-pill-screen-right) + clamp(3rem, 5vw, 6rem));
     bottom: calc(50% - (var(--campaign-pill-height) / 2));
     left: var(--campaign-reference-gutter);
     margin-top: 0;
+  }
+
+  .onboarding-campaign-action-row .onboarding-campaign-next {
+    width: 13.2rem;
+    flex: none;
   }
 
   .upload-your-video-actions {
@@ -188,6 +265,16 @@
   }
 
   .personalized-video-style-card-description > span + span { margin-top: 0.12rem; }
+}
+
+@media (min-width: 63.0625rem) {
+  .onboarding-campaign-scene .checkout-page .onboarding-scene-task-scroll {
+    margin-top: 0.5rem;
+  }
+
+  .onboarding-campaign-scene .checkout-page .onboarding-scene-task-scroll > .relative.grid {
+    margin-top: 0;
+  }
 }
 
 @media (max-width: 63rem) {

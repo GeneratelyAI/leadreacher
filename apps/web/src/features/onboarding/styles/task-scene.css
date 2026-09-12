@@ -93,10 +93,7 @@
   overflow: hidden;
 }
 
-.onboarding-viewport-fit--scroll {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
+.onboarding-viewport-fit--scroll { overflow: hidden; }
 
 .onboarding-viewport-fit__canvas {
   --onboarding-fit-scale: 1;
