@@ -1,9 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-for (const [screen, step] of [
-  ["09", "personalized-video-style"],
-  ["10", "ai-video-style"],
-]) {
+for (const screen of ["09", "10"]) {
   test(`numbered style ${screen} shows the saved website from its first visible frame`, async ({
     page,
   }) => {
@@ -37,7 +34,7 @@ for (const [screen, step] of [
       requestAnimationFrame(sample);
     });
     await page.goto(
-      `/onboarding-preview?screen=${screen}&step=${step}&media=placeholder&capture=1`,
+      `/onboarding-preview?screen=${screen}&media=placeholder&capture=1`,
     );
     await expect(
       page.getByRole("button", {
@@ -80,11 +77,11 @@ test("numbered content preview preserves an approved Document choice through Bac
     }
   });
   await page.goto(
-    "/onboarding-preview?screen=08&step=campaign-content&capture=1",
+    "/onboarding-preview?screen=08&capture=1",
   );
   await page.getByRole("radio", { name: /^Document/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page).toHaveURL(/step=upload-document/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/campaign-content\/document/);
   await expect(page.locator("#upload-document-title")).toBeVisible();
 
   await page.goBack();
@@ -98,7 +95,7 @@ test("numbered content preview preserves an approved Document choice through Bac
     "true",
   );
   await page.goForward();
-  await expect(page).toHaveURL(/step=upload-document/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/campaign-content\/document/);
   await page.reload();
   await expect(page.locator("#upload-document-title")).toBeVisible();
   await expect(
@@ -114,7 +111,7 @@ test("ordinary preview keeps sample thumbnails while numbered style reference us
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(
-    "/onboarding-preview?step=personalized-video-style&capture=1",
+    "/onboarding-preview/campaign-content/personalized-video?capture=1",
   );
   const samplePanels = page.locator('[data-preview-kind="sample"]');
   await expect(samplePanels).toHaveCount(3);
@@ -132,7 +129,7 @@ test("ordinary preview keeps sample thumbnails while numbered style reference us
     )
     .toBe(true);
   await page.goto(
-    "/onboarding-preview?screen=09&step=personalized-video-style&media=placeholder&capture=1",
+    "/onboarding-preview?screen=09&media=placeholder&capture=1",
   );
   await expect(page.locator('[data-preview-kind="placeholder"]')).toHaveCount(
     3,
