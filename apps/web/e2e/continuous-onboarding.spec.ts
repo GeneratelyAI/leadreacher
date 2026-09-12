@@ -468,7 +468,7 @@ test("campaign pill collapse reverses the completed-section reveal", async ({ pa
   const body = pill.locator(".campaign-pill-body");
   const sections = pill.locator(".campaign-pill-section");
   const toggle = pill.locator(".campaign-pill-toggle");
-  await expect(sections).toHaveCount(9);
+  await expect(sections).toHaveCount(6);
   await page.waitForTimeout(500);
 
   await toggle.click();
@@ -483,7 +483,7 @@ test("campaign pill collapse reverses the completed-section reveal", async ({ pa
   expect(closing.transitionTiming).toContain("cubic-bezier(0.16, 1, 0.3, 1)");
 
   const reverseDelays = await sections.evaluateAll((nodes) => nodes.map((node) => getComputedStyle(node).transitionDelay));
-  expect(reverseDelays).toEqual(["0s, 0s", "0s, 0s", "0s, 0s", "0s, 0s", "0.192s", "0.144s", "0.096s", "0.048s", "0s, 0s"]);
+  expect(reverseDelays).toEqual(["0s, 0s", "0.192s", "0.144s", "0.096s", "0.048s", "0s, 0s"]);
 
   await page.waitForTimeout(500);
   await expect(page.getByRole("button", { name: "Expand your campaign" })).toBeVisible();
