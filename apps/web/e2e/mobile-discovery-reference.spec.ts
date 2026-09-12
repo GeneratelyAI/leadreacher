@@ -135,7 +135,7 @@ test.describe("mobile Discovery audience editing", () => {
   test("adds real values, deduplicates, promotes hidden chips and restores focus", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=05&step=discovery");
+    await page.goto("/onboarding-preview?screen=05");
     await expect(
       page.getByRole("heading", { name: /Your prospects/ }),
     ).toBeVisible();
@@ -190,7 +190,7 @@ test.describe("mobile Discovery audience editing", () => {
   test("supports every sheet dismissal and falls back to Edit after the final hidden value is removed", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=06&step=discovery");
+    await page.goto("/onboarding-preview?screen=06");
     await expect(sheet(page)).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(sheet(page)).toHaveCount(0);
@@ -245,7 +245,7 @@ test.describe("mobile Discovery audience editing", () => {
   test("requires an explicit mobile category approval and supports keyboard Cancel", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=07&step=discovery");
+    await page.goto("/onboarding-preview?screen=07");
     const choices = page.getByRole("group", {
       name: "Choose a category for Healthcare",
     });
@@ -303,7 +303,7 @@ test.describe("mobile Discovery audience editing", () => {
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.goto("/onboarding-preview?screen=06&step=discovery");
+    await page.goto("/onboarding-preview?screen=06");
     const remove = sheet(page).getByRole("button", {
       name: "Remove Operations Manager from Decision makers",
       exact: true,
@@ -328,7 +328,7 @@ test.describe("mobile Discovery audience editing", () => {
   test("keeps an uncommitted category choice usable after crossing the desktop breakpoint", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=05&step=discovery");
+    await page.goto("/onboarding-preview?screen=05");
     const input = page.getByRole("textbox", {
       name: "Did we miss anything?",
       exact: true,
@@ -363,7 +363,7 @@ test.describe("mobile Discovery audience editing", () => {
     page,
   }) => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
-    await page.goto("/onboarding-preview?screen=06&step=discovery");
+    await page.goto("/onboarding-preview?screen=06");
     await expect(
       sheet(page).getByRole("heading", {
         name: "Decision makers",
@@ -402,7 +402,7 @@ test.describe("mobile Discovery audience editing", () => {
       await page.setViewportSize({ width: 1194, height: 834 });
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.clock.install();
-      await page.goto("/onboarding-preview?screen=05&step=discovery");
+      await page.goto("/onboarding-preview?screen=05");
       const input = page.getByRole("textbox", {
         name: "Did we miss anything?",
         exact: true,
@@ -452,7 +452,7 @@ test.describe("mobile Discovery audience editing", () => {
   test("exposes the real saved campaign summary and synchronizes reduced-motion disclosure state", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=05&step=discovery");
+    await page.goto("/onboarding-preview?screen=05");
     const trigger = page.getByRole("button", {
       name: "Open campaign summary for acme.example",
       exact: true,
@@ -517,7 +517,7 @@ test.describe("mobile Discovery audience editing", () => {
         if (message.type() === "error") errors.push(message.text());
       });
       await page.setViewportSize(viewport);
-      await page.goto("/onboarding-preview?screen=05&step=discovery");
+      await page.goto("/onboarding-preview?screen=05");
       await populateLongRoles(page);
       await verifyTwoRows(page);
       const next = page.getByRole("button", { name: "Continue", exact: true });

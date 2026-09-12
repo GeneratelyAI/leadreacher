@@ -3,8 +3,8 @@ import { expect, test } from "@playwright/test";
 const routes = [
   "/signup",
   "/login",
-  "/onboarding-preview?step=discovery",
-  "/onboarding-preview?step=campaign-content",
+  "/onboarding-preview/discovery",
+  "/onboarding-preview/campaign-content",
 ];
 
 test.describe("light auth and onboarding browser surfaces", () => {

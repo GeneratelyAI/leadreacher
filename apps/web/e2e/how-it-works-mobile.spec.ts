@@ -80,7 +80,7 @@ test("mobile reduced motion shows final art and keeps the forward/back journey u
     ),
   ).toBe(0);
   await page.getByRole("button", { name: "Continue to prospects" }).click();
-  await expect(page).toHaveURL(/step=discovery/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/discovery/);
   await expect(
     page.getByRole("heading", { name: /Your prospects/ }),
   ).toBeVisible();
