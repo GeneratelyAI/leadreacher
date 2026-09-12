@@ -53,7 +53,7 @@ const CampaignTypeBodySchema = z.object({
   contentChoice: z.enum(CONTENT_CHOICES).optional(),
 });
 const ChannelSelectionBodySchema = z.object({
-  channels: z.array(z.enum(OUTREACH_CHANNELS)).min(1),
+  channels: z.array(z.enum(["linkedin", "whatsapp", "facebook", "instagram", "email", "gmail", "outlook"])).min(1),
 });
 export const StrategyGenerationBodySchema = z.object({
   force: z.boolean().optional().default(false),
@@ -65,6 +65,7 @@ const OutreachMessageBodySchema = z
     message: z.string().trim().min(1).max(1000),
     ctaLabel: z.string().trim().min(1).max(80).nullable().default(null),
     ctaUrl: z.string().url().nullable().default(null),
+    approved: z.boolean().optional().default(false),
   })
   .superRefine((value, ctx) => {
     if (Boolean(value.ctaLabel) !== Boolean(value.ctaUrl)) {
@@ -362,6 +363,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       message: recordString(messagingAngles, "outreachMessage") || null,
       ctaLabel: recordString(existingCta, "label") || null,
       ctaUrl: recordString(existingCta, "url") || null,
+      approved: Boolean(recordString(messagingAngles, "outreachMessageApprovedAt")),
     });
   });
 
@@ -391,7 +393,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     const ctaLabel = recordString(existingCta, "label") || null;
     const ctaUrl = recordString(existingCta, "url") || null;
     if (existingMessage) {
-      return reply.send({ message: existingMessage, ctaLabel, ctaUrl });
+      return reply.send({ message: existingMessage, ctaLabel, ctaUrl, approved: Boolean(recordString(messagingAngles, "outreachMessageApprovedAt")) });
     }
 
     const positioning = asRecord(strategy.positioning);
@@ -431,7 +433,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    return reply.send({ message: result.message, ctaLabel, ctaUrl });
+    return reply.send({ message: result.message, ctaLabel, ctaUrl, approved: false });
   });
 
   r.patch("/strategy/:orgId/outreach-message", {
@@ -447,7 +449,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw new ForbiddenError();
     }
 
-    const { message, ctaLabel, ctaUrl } = request.body;
+    const { message, ctaLabel, ctaUrl, approved } = request.body;
     const strategy = await prisma.strategy.findFirst({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
@@ -464,11 +466,12 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
           ...messagingAngles,
           outreachMessage: message,
           cta: ctaLabel && ctaUrl ? { label: ctaLabel, url: ctaUrl } : null,
+          outreachMessageApprovedAt: approved ? new Date().toISOString() : null,
         }),
       },
     });
 
-    return reply.send({ message, ctaLabel, ctaUrl });
+    return reply.send({ message, ctaLabel, ctaUrl, approved });
   });
 
   r.post("/strategy/:orgId/video-upload", {

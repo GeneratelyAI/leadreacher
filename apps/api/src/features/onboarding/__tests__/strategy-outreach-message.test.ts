@@ -94,6 +94,7 @@ describe("outreach message routes", () => {
       message: "Hi {{FirstName}}, I have an idea for {{Company}}.",
       ctaLabel: "See the walkthrough",
       ctaUrl: "https://leadreacher.com/demo",
+      approved: false,
     });
     expect(runOutreachMessageAgent).not.toHaveBeenCalled();
   });
@@ -109,6 +110,7 @@ describe("outreach message routes", () => {
       message: null,
       ctaLabel: null,
       ctaUrl: null,
+      approved: false,
     });
     expect(runOutreachMessageAgent).not.toHaveBeenCalled();
   });
@@ -144,10 +146,10 @@ describe("outreach message routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null });
+    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, approved: false });
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { messagingAngles: { outreachMessage: message, cta: null } },
+      data: { messagingAngles: { outreachMessage: message, cta: null, outreachMessageApprovedAt: null } },
     });
   });
 
@@ -168,6 +170,7 @@ describe("outreach message routes", () => {
       message,
       ctaLabel: "See the walkthrough",
       ctaUrl: "https://leadreacher.com/demo",
+      approved: false,
     });
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
@@ -178,9 +181,24 @@ describe("outreach message routes", () => {
             label: "See the walkthrough",
             url: "https://leadreacher.com/demo",
           },
+          outreachMessageApprovedAt: null,
         },
       },
     });
+  });
+
+  it("persists explicit message approval", async () => {
+    const message = "Hi {{FirstName}}, I have an idea for {{Company}}.";
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/outreach-message",
+      payload: { message, approved: true },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, approved: true });
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { messagingAngles: expect.objectContaining({ outreachMessageApprovedAt: expect.any(String) }) },
+    }));
   });
 
   it("rejects a partial CTA", async () => {
