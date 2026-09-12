@@ -28,7 +28,7 @@ export default function DemoDashboard() {
     const stored = readDemoState(window.sessionStorage);
     setState(stored);
     setLoaded(true);
-    if (!stored?.completed) router.replace("/demo/onboarding?step=signup");
+    if (!stored?.completed) router.replace("/demo/onboarding");
   }, [router]);
 
   function restart() {

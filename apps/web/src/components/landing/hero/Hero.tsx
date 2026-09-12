@@ -196,7 +196,7 @@ export default function Hero({ demoEnabled = false }: { demoEnabled?: boolean })
           await delay(460);
         }
         initializeDemoSession(domain);
-        router.push("/demo/onboarding?step=signup");
+        router.push("/demo/onboarding");
       } finally {
         submissionPending.current = false;
       }

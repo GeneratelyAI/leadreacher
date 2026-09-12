@@ -15,7 +15,7 @@ test("completes the demo without production side effects", async ({ page }, test
     if (isForbiddenRequest(request.url())) forbidden.push(request.url());
   });
 
-  await page.goto("/demo/onboarding?step=signup");
+  await page.goto("/demo/onboarding");
   const signup = page.getByTestId("desktop-auth-view");
   await expect(signup.getByRole("heading", { name: "Welcome to leadreacher" })).toBeVisible();
   await signup.getByLabel("Full name").fill("Alex Morgan");
@@ -32,17 +32,25 @@ test("completes the demo without production side effects", async ({ page }, test
   await expect(page.locator(".personalized-video-style-page")).toBeVisible();
   await page.getByRole("button", { name: "Use this", exact: true }).click();
 
+  await expect(page.getByRole("heading", { name: /Your message is ready/ })).toBeVisible();
+  await page.getByRole("button", { name: "Approve and continue" }).click();
+  await expect(page.getByRole("heading", { name: /Choose your channels/ })).toBeVisible();
+  await page.getByRole("button", { name: "Continue to checkout" }).click();
+
   const subscribe = page.getByRole("button", { name: "Subscribe to LeadReacher Pro" });
   await expect(subscribe).toBeVisible({ timeout: 10_000 });
   await subscribe.click();
   await expect(page.getByRole("heading", { name: "Connect your channels" })).toBeVisible();
-  const whatsapp = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "WhatsApp" }) });
-  await expect(whatsapp.getByText("Not in plan", { exact: true })).toBeVisible();
-  const linkedin = page.getByRole("article").filter({ has: page.getByRole("heading", { name: "LinkedIn", exact: true }) });
-  await expect(linkedin.getByText("Connected", { exact: true })).toBeVisible();
+  const whatsapp = page.locator('[data-channel="whatsapp"]');
+  await expect(whatsapp.getByRole("button", { name: "Not selected", exact: true })).toBeDisabled();
+  const linkedin = page.locator('[data-channel="linkedin"]');
+  await expect(linkedin.getByRole("button", { name: /Connected/ })).toBeVisible();
+  const gmail = page.locator('[data-channel="gmail"]');
+  await gmail.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(gmail.getByRole("button", { name: /Connected/ })).toBeVisible();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(linkedin.getByText("Connected", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Finish setup and review" }).click();
+  await expect(linkedin.getByRole("button", { name: /Connected/ })).toBeVisible();
+  await page.getByRole("button", { name: "Review campaign" }).click();
 
   await expect(page).toHaveURL(/\/demo\/dashboard$/);
   await expect(page.getByRole("heading", { name: "Your sample campaign workspace" })).toBeVisible();
@@ -52,7 +60,7 @@ test("completes the demo without production side effects", async ({ page }, test
 
 test("restores a demo session after refresh", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "One browser covers persistence");
-  await page.goto("/demo/onboarding?step=signup");
+  await page.goto("/demo/onboarding");
   const signup = page.getByTestId("desktop-auth-view");
   await signup.getByLabel("Full name").fill("Sam Demo");
   await signup.getByLabel("Work email").fill("sam@example.com");
@@ -76,7 +84,7 @@ test("starts the demo from the landing website field", async ({ page }, testInfo
   const website = page.locator("#top").getByLabel("Company website");
   await website.fill("leadreacher.ai/pricing");
   await page.locator("#top").getByRole("button", { name: "Get Started", exact: true }).click();
-  await expect(page).toHaveURL(/\/demo\/onboarding\?step=signup$/);
+  await expect(page).toHaveURL(/\/demo\/onboarding$/);
   await expect(page.getByText("https://leadreacher.ai", { exact: true })).toBeVisible();
   expect(productionRequests).toEqual([]);
 });

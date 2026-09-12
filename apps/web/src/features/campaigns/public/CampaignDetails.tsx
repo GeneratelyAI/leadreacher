@@ -576,7 +576,7 @@ export function CampaignDetails({
                     ) : detail.onboardingDiscovery.status === "failed" ? (
                       <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" asChild>
-                          <Link href="/onboarding?step=strategy&substep=targeting">Edit audience</Link>
+                          <Link href="/onboarding/discovery">Edit audience</Link>
                         </Button>
                         <Button size="sm" variant="brand" disabled={isRetryingDiscovery} onClick={() => void retryDiscovery()}>
                           <RefreshCw className={cn(isRetryingDiscovery && "animate-spin")} /> Retry
