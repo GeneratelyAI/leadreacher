@@ -3,6 +3,7 @@
 import { lazy, Suspense } from "react";
 import { CreditCard, Lock } from "@/components/ui/icons";
 import styles from "./steps/CheckoutMobile.module.css";
+import { isOnboardingPreview } from "../public/preview-api";
 
 const StripeCheckout = lazy(() => import("@/features/onboarding/components/StripeCheckout"));
 
@@ -26,53 +27,32 @@ function MastercardMark() {
   );
 }
 
-function AmexMark() {
-  return (
-    <span className="inline-flex h-5 w-8 items-center justify-center rounded-[2px] bg-[#009cde] text-[0.48rem] font-black italic tracking-[-0.08em] text-white" role="img" aria-label="American Express">
-      AMEX
-    </span>
-  );
-}
-
-function UnionPayMark() {
-  return (
-    <span className="inline-flex h-5 w-8 -skew-x-12 items-center justify-center rounded-[2px] bg-[linear-gradient(110deg,#e21836_0_34%,#0071bc_34%_67%,#00a651_67%)] text-[0.34rem] font-black tracking-[-0.08em] text-white" role="img" aria-label="UnionPay">
-      <span className="skew-x-12">UnionPay</span>
-    </span>
-  );
-}
-
 export function PaymentTrustBar() {
-  return (
-    <div className="checkout-accent-card checkout-accent-card--compact mb-5 flex flex-wrap items-center justify-between gap-x-5 gap-y-3 rounded-xl px-4 py-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        <span className="grid size-8 shrink-0 place-items-center text-onboarding-success-600 dark:text-onboarding-success-400">
-          <Lock className="size-6" aria-hidden />
-        </span>
-        <div>
-          <p className="text-xs font-semibold text-onboarding-ink dark:text-white">Protected checkout</p>
-          <p className="text-[0.68rem] text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Encrypted end to end</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-1" aria-label="Accepted cards: Visa, Mastercard, American Express, and UnionPay">
-        <VisaMark />
-        <MastercardMark />
-        <AmexMark />
-        <UnionPayMark />
-      </div>
-
-      <div className="flex items-center gap-1.5 border-onboarding-neutral-150 text-xs text-onboarding-neutral-500 sm:border-l sm:pl-5 dark:border-onboarding-neutral-750 dark:text-onboarding-neutral-400">
-        <span>Powered by</span>
-        <span className="text-base font-bold tracking-[-0.06em] text-[#635bff]">stripe</span>
-      </div>
-    </div>
-  );
+  return <header className={styles.protectedHeader}>
+    <Lock className={styles.protectedLock} aria-hidden />
+    <div><h2>Protected checkout</h2><p>Encrypted end to end</p></div>
+    <div className={styles.stripeBrand}><span>Powered by</span><strong>stripe</strong></div>
+  </header>;
 }
 
 function MockCheckout({ onSubmit }: { onSubmit?: () => void }) {
   return (
-    <div className={`checkout-mock checkout-accent-card rounded-2xl p-5 sm:p-7 h-short:sm:p-5 ${styles.mock}`}>
+    <>
+    <div className={`${styles.desktop} ${styles.previewPayment}`} aria-label="Preview payment form">
+      <label>Email<input aria-label="Sample email, preview only" value="you@example.com" readOnly /></label>
+      <label>Card information<input aria-label="Sample card number, preview only" value="4242 4242 4242 4242" readOnly /></label>
+      <div className={styles.previewPaymentSplit}>
+        <label>Expiration date<input aria-label="Sample expiry date, preview only" value="12 / 34" readOnly /></label>
+        <label>Security code<input aria-label="Sample CVC, preview only" value="CVC" readOnly /></label>
+      </div>
+      <div className={styles.previewPaymentSplit}>
+        <label>Country<input aria-label="Sample country, preview only" value="Canada" readOnly /></label>
+        <label>Postal code<input aria-label="Sample postal code, preview only" value="M5T 1T4" readOnly /></label>
+      </div>
+      <button type="button" disabled={!onSubmit} onClick={onSubmit}><Lock aria-hidden />Subscribe to LeadReacher Pro</button>
+      <p>Preview mode: no payment will be processed</p>
+    </div>
+    <div className={`checkout-mock checkout-accent-card rounded-2xl p-5 sm:p-7 h-short:sm:p-5 ${styles.mock} ${styles.mobile}`}>
       <div className={`flex items-center justify-between gap-4 border-b border-onboarding-neutral-150 pb-4 dark:border-onboarding-neutral-750 ${styles.mockHeader}`}>
         <div>
           <p className="text-sm font-semibold text-onboarding-ink dark:text-white">Card details</p>
@@ -112,6 +92,7 @@ function MockCheckout({ onSubmit }: { onSubmit?: () => void }) {
         <div className={styles.mobile}><p className={styles.mockFootnote}>Review your plan before paying.</p></div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -122,6 +103,8 @@ export function CheckoutCard({
   previewAmount,
   previewCurrency,
   onMockSubmit,
+  planName,
+  onRetry,
 }: {
   clientSecret: string;
   mockMode: boolean;
@@ -129,8 +112,10 @@ export function CheckoutCard({
   previewAmount?: number;
   previewCurrency?: string;
   onMockSubmit?: () => void;
+  planName?: string;
+  onRetry?: () => void;
 }) {
-  if (mockMode) return <MockCheckout onSubmit={onMockSubmit} />;
+  if (mockMode) return isOnboardingPreview() ? <MockCheckout onSubmit={onMockSubmit} /> : <p role="alert">Secure checkout is unavailable. Please contact support to enable Stripe billing.</p>;
 
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()) {
     return (
@@ -141,10 +126,12 @@ export function CheckoutCard({
   }
 
   return (
-    <div className={`checkout-accent-card checkout-accent-card--stripe overflow-hidden rounded-2xl p-4 sm:p-5 ${styles.stripe}`}>
+    <div className={`checkout-accent-card checkout-accent-card--stripe rounded-2xl p-4 sm:p-5 ${styles.stripe}`}>
       <Suspense fallback={<div className="min-h-72" role="status" aria-label="Loading secure checkout" />}>
         <StripeCheckout
           clientSecret={clientSecret}
+          planName={planName}
+          onRetry={onRetry}
           preview={mockMode && showStripePreview}
           previewAmount={previewAmount}
           previewCurrency={previewCurrency}

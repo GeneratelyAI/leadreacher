@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   CheckoutElementsProvider,
   ContactDetailsElement,
@@ -15,29 +15,35 @@ import {
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock } from "@/components/ui/icons";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import styles from "./steps/CheckoutMobile.module.css";
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
-function CheckoutForm() {
+export function CheckoutForm({ planName, onRetry }: { planName?: string; onRetry?: () => void }) {
   const result = useCheckoutElements();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const submissionPending = useRef(false);
 
   if (result.type === "loading") {
     return <div className="grid min-h-72 place-items-center" role="status"><Loader2 className="size-5 animate-spin text-onboarding-purple-600" aria-label="Loading secure payment form" /></div>;
   }
 
   if (result.type === "error") {
-    return <div className="rounded-xl border border-onboarding-warning-150 bg-onboarding-warning-50 p-4 text-sm text-onboarding-warning-900" role="alert">{result.error.message}</div>;
+    return <div className="rounded-xl border border-onboarding-warning-150 bg-onboarding-warning-50 p-4 text-sm text-onboarding-warning-900" role="alert">
+      <p>{result.error.message}</p>
+      {onRetry ? <button type="button" onClick={onRetry} className="mt-2 min-h-11 rounded-lg border px-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">Retry secure checkout</button> : null}
+    </div>;
   }
 
   const { checkout } = result;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!checkout.canConfirm || isSubmitting) return;
+    if (!checkout.canConfirm || submissionPending.current) return;
 
+    submissionPending.current = true;
     setIsSubmitting(true);
     setErrorMessage(null);
     try {
@@ -48,22 +54,14 @@ function CheckoutForm() {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Payment could not be completed.");
     } finally {
+      submissionPending.current = false;
       setIsSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3.5">
-      <div className="flex items-center justify-between gap-4 border-b border-onboarding-neutral-150 pb-3 dark:border-onboarding-neutral-750">
-        <div>
-          <p className="text-sm font-semibold text-onboarding-ink dark:text-white">Card details</p>
-          <p className="mt-1 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Your payment information is encrypted by Stripe</p>
-        </div>
-        <span className="grid size-9 shrink-0 place-items-center text-onboarding-success-600 dark:text-onboarding-success-400">
-          <Lock className="size-6" aria-hidden />
-        </span>
-      </div>
-
+    <form onSubmit={handleSubmit} className={styles.paymentForm}>
+      <p className="text-sm font-semibold text-[#080e28]">Card information</p>
       <ContactDetailsElement />
       <CheckoutPaymentElement options={{
         layout: "tabs",
@@ -77,9 +75,9 @@ function CheckoutForm() {
       <button
         type="submit"
         disabled={!checkout.canConfirm || isSubmitting}
-        className="h-12 rounded-xl bg-onboarding-purple-700 text-sm font-semibold text-white shadow-onboarding-button transition-[transform,box-shadow,background-color] duration-150 enabled:hover:-translate-y-0.5 enabled:hover:bg-onboarding-purple-800 enabled:active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-[13px] bg-[#5538e7] px-3 py-3 text-sm font-semibold text-white shadow-onboarding-button transition-colors hover:bg-[#452bc8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6747ff] disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
       >
-        {isSubmitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" aria-hidden />Processing payment</span> : "Subscribe securely"}
+        {isSubmitting ? <span className="inline-flex items-center gap-2"><Loader2 className="size-4 animate-spin" aria-hidden />Processing payment</span> : <><Lock className="size-4" aria-hidden />{planName ? `Subscribe to ${planName}` : "Subscribe securely"}</>}
       </button>
     </form>
   );
@@ -121,13 +119,20 @@ function StripePreviewForm({ onSubmit }: { onSubmit?: () => void }) {
 const lightAppearance = {
   theme: "stripe" as const,
   variables: {
-    colorPrimary: "#5b2bc6",
+    colorPrimary: "#6747ff",
     colorBackground: "#ffffff",
-    colorText: "#111527",
+    colorText: "#080e28",
     colorDanger: "#b42318",
-    borderRadius: "10px",
+    borderRadius: "8px",
     fontFamily: "Arial, sans-serif",
-    spacingUnit: "4px",
+    spacingUnit: "2px",
+    fontSizeBase: "16px",
+    fontLineHeight: "1.25",
+    gridRowSpacing: "6px",
+  },
+  rules: {
+    ".Input": { padding: "11px 12px" },
+    ".Label": { fontSize: "12px", marginBottom: "2px" },
   },
 };
 
@@ -150,12 +155,16 @@ export default function StripeCheckout({
   previewAmount = 19999,
   previewCurrency = "usd",
   onPreviewSubmit,
+  planName,
+  onRetry,
 }: {
   clientSecret: string;
   preview?: boolean;
   previewAmount?: number;
   previewCurrency?: string;
   onPreviewSubmit?: () => void;
+  planName?: string;
+  onRetry?: () => void;
 }) {
   const { isDark } = useThemeMode();
   const appearance = isDark ? darkAppearance : lightAppearance;
@@ -188,7 +197,7 @@ export default function StripeCheckout({
         },
       }}
     >
-      <CheckoutForm />
+      <CheckoutForm planName={planName} onRetry={onRetry} />
     </CheckoutElementsProvider>
   );
 }

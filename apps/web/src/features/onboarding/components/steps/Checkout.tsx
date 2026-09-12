@@ -1,33 +1,34 @@
 "use client";
 
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
-  ArrowRight,
-  CreditCard,
   Check,
-  Loader2,
   Lock,
   ShieldCheck,
 } from "@/components/ui/icons";
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
-import { ActionBar } from "@/components/ui/ActionBar";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Loading } from "@/components/ui/Loading";
-import { CheckoutCard, PaymentTrustBar } from "@/features/onboarding/components/Checkout";
+import { CheckoutCard } from "@/features/onboarding/components/Checkout";
 import { ChannelLogo, type ChannelLogoName } from "@/platform/branding/ChannelLogo";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { isOnboardingDemo, isOnboardingPreview } from "@/features/onboarding/public/preview-api";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { CAMPAIGN_SAVED_EVENT } from "../../public/campaign-events";
+import continuation from "../continuation/Continuation.module.css";
 import styles from "./CheckoutMobile.module.css";
+import { SecurePaymentCard } from "../SecurePaymentCard";
+import { OrderSummaryCard } from "../OrderSummaryCard";
 
 const PAYMENT_VERIFICATION_ATTEMPTS = 5;
 const PAYMENT_VERIFICATION_DELAY_MS = 2_000;
-const ACTIVE_SUBSCRIPTION_STATUS = "active";
+function isUsableSubscription(status: string | null | undefined): boolean {
+  return status === "active" || status === "trialing";
+}
 
 type BillingLineItem = {
   key: string;
@@ -42,6 +43,7 @@ type BillingLineItem = {
 
 type PricingResponse = {
   lineItems: BillingLineItem[];
+  includedChannels?: string[];
   features?: string[];
 };
 
@@ -63,7 +65,7 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function formatPrice(item: BillingLineItem): string {
   if (item.unitAmount === null || !item.currency) {
-    return "Usage-based";
+    return "Unavailable";
   }
 
   return new Intl.NumberFormat("en-US", {
@@ -75,7 +77,7 @@ function formatPrice(item: BillingLineItem): string {
 }
 
 function formatTotal(items: BillingLineItem[]): string {
-  if (items.length === 0) return "$0";
+  if (items.length === 0) return "Unavailable";
   const currency = items[0]?.currency;
   if (!currency || items.some((item) => item.unitAmount === null || item.currency !== currency)) {
     return "Calculated at checkout";
@@ -90,51 +92,26 @@ function formatTotal(items: BillingLineItem[]): string {
   }).format(total / 100);
 }
 
-function campaignTypeLabel(value: string | null): string {
-  switch (value) {
-    case "personalized_outreach":
-      return "Personalized outreach";
-    case "ai_video_ad":
-      return "AI campaign video";
-    case "uploaded_video":
-      return "Uploaded video";
-    default:
-      return "Not selected";
-  }
-}
-
-function videoLabel(config: StrategyResponse["videoConfig"]): string {
-  if (!config) return "Not selected";
-  if (config.tone) {
-    return `${config.tone.charAt(0).toUpperCase()}${config.tone.slice(1)} tone`;
-  }
-  if (config.source === "uploaded") return "Uploaded video";
-  if (config.source === "generated") return "AI generated";
-  return "Not selected";
-}
-
-function idealCustomerLabel(icpDefinition: StrategyResponse["icpDefinition"]): string {
-  return typeof icpDefinition.idealCustomer === "string" && icpDefinition.idealCustomer.trim()
-    ? icpDefinition.idealCustomer
-    : "Not available";
-}
-
 function selectedChannelsFromStrategy(strategy: StrategyResponse | null): string[] {
   if (!strategy?.channels || typeof strategy.channels !== "object" || Array.isArray(strategy.channels)) return [];
   const selected = (strategy.channels as Record<string, unknown>).selected;
   return Array.isArray(selected)
-    ? selected.filter((channel): channel is string => typeof channel === "string")
+    ? [...new Set(selected.filter((channel): channel is string => typeof channel === "string"))]
     : [];
 }
 
 function channelLabel(channel: string): string {
+  if (channel === "email") return "Gmail";
+  if (channel === "gmail") return "Gmail";
+  if (channel === "outlook") return "Outlook";
   if (channel === "linkedin") return "LinkedIn";
   if (channel === "whatsapp") return "WhatsApp";
   return `${channel.charAt(0).toUpperCase()}${channel.slice(1)}`;
 }
 
 function channelLogoName(channel: string): ChannelLogoName | null {
-  if (channel === "email") return "gmail";
+  if (channel === "email" || channel === "gmail") return "gmail";
+  if (channel === "outlook") return "outlook";
   if (channel === "whatsapp") return "whatsapp-mark";
   if (channel === "linkedin" || channel === "instagram" || channel === "facebook") return channel;
   return null;
@@ -147,6 +124,7 @@ export default function Checkout() {
 
   const searchParams = useSearchParams();
   const [lineItems, setLineItems] = useState<BillingLineItem[]>([]);
+  const [includedChannels, setIncludedChannels] = useState<string[]>([]);
   const [features, setFeatures] = useState<string[]>([]);
   const [strategy, setStrategy] = useState<StrategyResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -157,16 +135,32 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null);
   const [embeddedCheckout, setEmbeddedCheckout] = useState<{ clientSecret: string; mockMode: boolean } | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const sessionGeneration = useRef(0);
   const returnedFromCheckout = searchParams.get("status") === "success";
   const checkoutSessionId = searchParams.get("session_id");
-  const checkoutSucceeded = subscriptionStatus === ACTIVE_SUBSCRIPTION_STATUS;
+  const checkoutSucceeded = isUsableSubscription(subscriptionStatus);
   const selectedChannels = selectedChannelsFromStrategy(strategy);
   const primaryLineItems = lineItems.filter((item) => item.key !== "additional_channel");
   const additionalChannelItems = lineItems.filter((item) => item.key === "additional_channel");
 
   useEffect(() => {
+    const invalidate = () => {
+      sessionGeneration.current += 1;
+      setEmbeddedCheckout(null);
+      setIsRedirecting(false);
+      setIsLoading(true);
+      setLoadAttempt((attempt) => attempt + 1);
+    };
+    window.addEventListener(CAMPAIGN_SAVED_EVENT, invalidate);
+    return () => {
+      sessionGeneration.current += 1;
+      window.removeEventListener(CAMPAIGN_SAVED_EVENT, invalidate);
+    };
+  }, []);
+
+  useEffect(() => {
     if (checkoutSucceeded) {
-      navigateOnboarding(onboardingHref("channels"), true);
+      navigateOnboarding(onboardingHref("connect-channels"), true);
     }
   }, [checkoutSucceeded]);
 
@@ -185,6 +179,7 @@ export default function Checkout() {
           `/strategy/${bootstrap.orgId}`,
         );
         if (!cancelled) setLineItems(pricing.lineItems);
+        if (!cancelled) setIncludedChannels(pricing.includedChannels ?? []);
         if (!cancelled) {
           const planFeatures = pricing.features ?? pricing.lineItems.flatMap((item) => item.features ?? []);
           setFeatures(Array.isArray(planFeatures) ? planFeatures.filter((value): value is string => typeof value === "string" && Boolean(value.trim())) : []);
@@ -215,6 +210,9 @@ export default function Checkout() {
 
     async function verifyPayment() {
       if (checkoutSessionId) {
+        if (!isOnboardingPreview() && !checkoutSessionId.startsWith("cs_")) {
+          throw new Error("The payment return did not contain a valid Stripe Checkout Session.");
+        }
         const reconciliation = await apiFetch<{ subscriptionStatus: string | null }>(
           "/billing/checkout-session/reconcile",
           {
@@ -224,7 +222,7 @@ export default function Checkout() {
         );
         if (cancelled) return;
         setSubscriptionStatus(reconciliation.subscriptionStatus);
-        if (reconciliation.subscriptionStatus === ACTIVE_SUBSCRIPTION_STATUS) {
+        if (isUsableSubscription(reconciliation.subscriptionStatus)) {
           setIsVerifyingPayment(false);
           return;
         }
@@ -234,7 +232,7 @@ export default function Checkout() {
         const bootstrap = await bootstrapCurrentOrganization();
         if (cancelled) return;
         setSubscriptionStatus(bootstrap.subscriptionStatus);
-        if (bootstrap.subscriptionStatus === ACTIVE_SUBSCRIPTION_STATUS) {
+        if (isUsableSubscription(bootstrap.subscriptionStatus)) {
           setIsVerifyingPayment(false);
           return;
         }
@@ -264,18 +262,30 @@ export default function Checkout() {
 
   const handleCheckout = useCallback(async () => {
     if (isRedirecting) return;
+    const generation = sessionGeneration.current;
 
     setIsRedirecting(true);
     setError(null);
     try {
-      const session = await apiFetch<{ url: string | null; clientSecret: string | null; mockMode: boolean }>("/billing/checkout-session", {
+      const session = await apiFetch<{ url: string | null; clientSecret: string | null; mockMode: boolean; lineItems?: BillingLineItem[]; includedChannels?: string[]; configuration?: StrategyResponse }>("/billing/checkout-session", {
         method: "POST",
         body: JSON.stringify({ embedded: true }),
       });
+      if (generation !== sessionGeneration.current) return;
+      if (session.mockMode && !isOnboardingPreview()) {
+        throw new Error("Secure checkout is unavailable. Please contact support to enable Stripe billing.");
+      }
       if (!session.clientSecret) throw new Error("Stripe did not return an embedded checkout session.");
+      if (!isOnboardingPreview() && (!session.lineItems?.length || !session.configuration || !session.includedChannels)) {
+        throw new Error("The checkout pricing snapshot is unavailable. Please try again.");
+      }
+      if (session.lineItems) setLineItems(session.lineItems);
+      if (session.includedChannels) setIncludedChannels(session.includedChannels);
+      if (session.configuration) setStrategy(session.configuration);
       setEmbeddedCheckout({ clientSecret: session.clientSecret, mockMode: session.mockMode });
       setIsRedirecting(false);
     } catch (checkoutError) {
+      if (generation !== sessionGeneration.current) return;
       setError(errorMessage(checkoutError, "Unable to open secure checkout."));
       setIsRedirecting(false);
     }
@@ -305,8 +315,8 @@ export default function Checkout() {
   ]);
 
   return (
-    <div className={`onboarding-page relative flex min-h-dvh w-full flex-col ${styles.screen}`}>
-      <main className={`checkout-page mx-auto flex w-full max-w-[74rem] flex-1 flex-col justify-center px-5 pt-36 pb-44 h-compact:justify-start lg:px-8 lg:pt-24 lg:pb-24 h-short:lg:pt-20 h-short:lg:pb-20 ${styles.main}`}>
+    <div className={`onboarding-page ${continuation.page} ${continuation.responsiveTaskPage} ${styles.screen}`}>
+      <main className={`checkout-page continuation-main ${continuation.main} ${styles.main}`}>
         {error ? (
           <Alert
             tone="error"
@@ -317,18 +327,16 @@ export default function Checkout() {
           </Alert>
         ) : null}
 
-        {returnedFromCheckout ? (
-          <Alert tone="success" className="mx-auto mt-6 w-full max-w-5xl" title={checkoutSucceeded ? "Payment confirmed" : "Confirming payment"} aria-live="polite">
-            {checkoutSucceeded
-              ? "Your subscription is active. Continue to connect your channels."
-              : "We're waiting for the secure payment confirmation. This usually takes a few seconds."}
-          </Alert>
-        ) : null}
+        <header className={`${continuation.heading} ${styles.desktop}`}>
+          <h1 id="payment-heading">Complete your subscription<span className="signup-campaign-period">.</span></h1>
+          <p>Pay securely to continue. Your campaign stays in draft until you approve it.</p>
+        </header>
 
-        <div className={`relative mx-auto grid w-full max-w-[68rem] min-w-0 gap-10 lg:translate-y-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0 ${styles.grid}`}>
+        <div className="onboarding-scene-task-scroll" role="region" aria-label="Checkout content" tabIndex={0}>
+        <div className={`relative grid w-full min-w-0 gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-0 ${continuation.task} ${styles.grid}`}>
           <div className={styles.mobile}>
             <header className={styles.heading}>
-              <h1>Your campaign starts here.</h1>
+              <h1>Your campaign starts here<span className="signup-campaign-period">.</span></h1>
               <p>Review your plan before continuing.</p>
             </header>
             {isLoading ? <p role="status">Loading your plan...</p> : lineItems.length > 0 ? (
@@ -344,21 +352,14 @@ export default function Checkout() {
                   </ul> : null}
                 </div>
                 <dl className={styles.totals}>
-                  {lineItems.map((item) => <div key={item.priceId}><dt>{item.key === "platform" && item.interval === "month" ? "Monthly plan" : item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
+                  {lineItems.map((item, index) => <div key={`${item.key}-${item.channel ?? item.label}-${item.priceId}-${index}`}><dt>{item.key === "platform" && item.interval === "month" ? "Monthly plan" : item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
                   <div className={styles.total}><dt>Subtotal today</dt><dd>{formatTotal(lineItems)}</dd></div>
                 </dl>
                 <p className={styles.tax}>Taxes calculated by Stripe at checkout.</p>
               </section>
             ) : null}
           </div>
-          <section className="min-w-0 lg:pr-8 xl:pr-10" aria-labelledby="payment-heading">
-            <div className={`mb-7 h-short:mb-5 ${styles.desktop}`}>
-              <h1 id="payment-heading" className="text-3xl font-semibold tracking-[-0.035em] text-onboarding-ink dark:text-white sm:text-4xl">Complete your subscription</h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Pay securely to continue. Your campaign stays in draft until you review and approve it.</p>
-            </div>
-
-            <h2 className={`${styles.mobile} ${styles.paymentTitle}`}>Payment details</h2>
-            <div className={styles.trust}><PaymentTrustBar /></div>
+          <SecurePaymentCard>
 
             {isRedirecting && !embeddedCheckout ? (
               <EmptyState
@@ -374,143 +375,62 @@ export default function Checkout() {
             {embeddedCheckout ? (
               <CheckoutCard
                 {...embeddedCheckout}
+                onRetry={() => {
+                  sessionGeneration.current += 1;
+                  setEmbeddedCheckout(null);
+                  setIsLoading(true);
+                  setLoadAttempt((attempt) => attempt + 1);
+                }}
+                planName={primaryLineItems.find((item) => item.key !== "video_addon")?.label}
                 previewAmount={lineItems.reduce((total, item) => total + (item.unitAmount ?? 0), 0)}
                 previewCurrency={lineItems.find((item) => item.currency)?.currency ?? "usd"}
                 showStripePreview={isOnboardingPreview()}
-                onMockSubmit={isOnboardingDemo() || isOnboardingPreview() ? () => {
-                  navigateOnboarding(`${onboardingHref("checkout")}&status=success&session_id=${isOnboardingDemo() ? "demo" : "preview"}`, true);
+                onMockSubmit={isOnboardingPreview() ? () => {
+                  navigateOnboarding(`${onboardingHref("checkout")}?status=success&session_id=${isOnboardingDemo() ? "demo" : "preview"}`, true);
                 } : undefined}
               />
             ) : null}
 
-            <div className={`mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3 ${embeddedCheckout?.mockMode ? styles.desktop : styles.secureNote}`}>
+            {!embeddedCheckout?.mockMode ? <div className={`mt-5 flex items-center justify-center gap-2 text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400 h-short:mt-3 ${styles.secureNote}`}>
               <ShieldCheck className="size-4 text-onboarding-success-500" aria-hidden />
               Payment details never touch LeadReacher servers
-            </div>
-          </section>
-
-          <aside className={`min-w-0 lg:pl-8 xl:pl-10 ${styles.desktop}`} aria-labelledby="summary-heading">
-            <div className="lg:sticky lg:top-32">
-              <h2 id="summary-heading" className="text-2xl font-semibold tracking-[-0.025em] text-onboarding-ink dark:text-white sm:text-3xl">Order summary</h2>
-
-              <div className="checkout-accent-card mt-6 overflow-hidden rounded-2xl h-short:mt-5">
-                <div className="border-b border-onboarding-neutral-150 p-5 dark:border-onboarding-neutral-750">
-                  {isLoading ? (
-                    <div className="flex items-center gap-3 text-sm text-onboarding-neutral-500"><Loader2 className="size-4 animate-spin" aria-hidden /> Loading plan</div>
-                  ) : (
-                    <div className="grid gap-3">
-                      {primaryLineItems.map((item) => (
-                        <div key={item.priceId} className="flex min-h-11 items-center justify-between gap-4">
-                          <div className="flex min-w-0 items-center gap-3">
-                            <span className="grid size-10 shrink-0 place-items-center text-onboarding-purple-800 dark:text-onboarding-purple-300">
-                              {item.label === "LeadReacher Pro" ? (
-                                <Image
-                                  src="/logo/leadreacher_icon_colored.svg"
-                                  alt=""
-                                  width={40}
-                                  height={40}
-                                  className="size-10 object-contain"
-                                />
-                              ) : (
-                                <CreditCard className="size-7" aria-hidden />
-                              )}
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-onboarding-ink dark:text-white sm:text-base">{item.label}</p>
-                              <p className="mt-0.5 text-xs text-onboarding-neutral-500">{item.interval ? `Billed ${item.interval}ly` : "Subscription"}</p>
-                            </div>
-                          </div>
-                          <p className="shrink-0 text-lg font-semibold tracking-[-0.02em] text-onboarding-ink dark:text-white">{formatPrice(item)}<span className="ml-1 text-[0.7rem] font-normal text-onboarding-neutral-500">{item.interval ? `/${item.interval}` : ""}</span></p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {selectedChannels.length > 0 ? (
-                  <div className="border-b border-onboarding-neutral-150 p-5 dark:border-onboarding-neutral-750">
-                    <p className="text-xs font-semibold tracking-[0.12em] text-onboarding-neutral-500 uppercase">Channel billing</p>
-                    <div className="mt-3 grid gap-1.5">
-                      {selectedChannels.map((channel, index) => {
-                        const charge = additionalChannelItems.find((item) => item.channel === channel);
-                        const logoName = channelLogoName(channel);
-                        return (
-                          <div key={channel} className="flex min-h-8 items-center justify-between gap-4 rounded-lg px-1 text-sm">
-                            <span className="flex min-w-0 items-center gap-2.5 font-medium text-onboarding-ink dark:text-white">
-                              {logoName ? <ChannelLogo name={logoName} className="size-5 shrink-0" /> : null}
-                              <span>{channelLabel(channel)}</span>
-                            </span>
-                            <span className={index === 0 ? "text-onboarding-success-600" : "font-semibold text-onboarding-ink dark:text-white"}>
-                              {index === 0 ? "Included" : charge ? formatPrice(charge) : "Calculated at checkout"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="p-5">
-                  <p className="text-xs font-semibold tracking-[0.12em] text-onboarding-neutral-500 uppercase">Campaign setup</p>
-                  <dl className="mt-3 grid gap-2 text-sm">
-                    <div className="checkout-summary-row">
-                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Audience</dt>
-                      <dd className="max-w-52 text-right font-medium leading-5 text-onboarding-ink dark:text-onboarding-neutral-0">
-                        {isLoading ? "Loading..." : strategy ? idealCustomerLabel(strategy.icpDefinition) : "Unavailable"}
-                      </dd>
-                    </div>
-                    <div className="checkout-summary-row">
-                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Campaign</dt>
-                      <dd className="text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                        {isLoading ? "Loading..." : campaignTypeLabel(strategy?.campaignType ?? null)}
-                      </dd>
-                    </div>
-                    <div className="checkout-summary-row">
-                      <dt className="text-onboarding-neutral-600 dark:text-onboarding-neutral-400">Video</dt>
-                      <dd className="text-right font-medium text-onboarding-ink dark:text-onboarding-neutral-0">
-                        {isLoading ? "Loading..." : videoLabel(strategy?.videoConfig ?? null)}
-                      </dd>
-                    </div>
-                  </dl>
-
-                  <div className="my-5 border-t border-onboarding-neutral-150 dark:border-onboarding-neutral-750" />
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-base font-semibold text-onboarding-ink dark:text-white">Total due today</span>
-                    <span className="text-2xl font-semibold tracking-[-0.03em] text-onboarding-ink dark:text-white">{isLoading ? "…" : formatTotal(lineItems)}</span>
-                  </div>
-                  <p className="mt-1.5 text-right text-xs text-onboarding-neutral-500 dark:text-onboarding-neutral-400">Taxes calculated by Stripe at checkout</p>
-                </div>
-              </div>
-            </div>
-          </aside>
+            </div> : null}
+          </SecurePaymentCard>
+          <OrderSummaryCard
+            loading={isLoading}
+            products={primaryLineItems.map((item, index) => ({ key: `${item.key}-${item.priceId}-${index}`, label: item.label, value: formatPrice(item) + (item.interval ? ` / ${item.interval}` : "") }))}
+            channels={selectedChannels.map((channel) => {
+              const charge = additionalChannelItems.find((item) => item.channel === channel);
+              const logoName = channelLogoName(channel);
+              return { key: channel, label: <>{logoName ? <ChannelLogo name={logoName} className={styles.channelMark} /> : null}{channelLabel(channel)}</>, value: charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable" };
+            })}
+            subtotal={isLoading ? "Loading..." : formatTotal(lineItems)}
+          />
+        </div>
         </div>
       </main>
 
-      <ActionBar
-        className={styles.actions}
-        leading={<Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("campaign-content"))} className="h-13 px-7 text-base"><ArrowLeft className="size-5" aria-hidden />Back</Button>}
-        trailing={checkoutSucceeded || returnedFromCheckout ? (
+      <footer className={`onboarding-campaign-action-row ${styles.actions}`}>
+        <div>
+          <Button type="button" variant="secondary" onClick={() => navigateOnboarding(onboardingHref("channels"))} className="campaign-content-back"><ArrowLeft className="size-5" aria-hidden />Back</Button>
+        </div>
+        {returnedFromCheckout && !checkoutSucceeded ? <div>
           <Button
             type="button"
             variant="primary"
             disabled={isLoading || isRedirecting || isVerifyingPayment || lineItems.length === 0}
             onClick={() => {
-              if (checkoutSucceeded) {
-                navigateOnboarding(onboardingHref("channels"));
-                return;
-              }
               if (returnedFromCheckout) {
                 setVerificationAttempt((attempt) => attempt + 1);
-                return;
               }
             }}
-            className="h-13 px-8 text-base sm:px-10"
+            className="onboarding-campaign-next"
           >
-            {checkoutSucceeded ? "Continue to channels" : isVerifyingPayment ? "Confirming payment..." : "Check payment status"}
-            {checkoutSucceeded ? <ArrowRight className="size-5" aria-hidden /> : <Lock className="size-4" aria-hidden />}
+            {isVerifyingPayment ? "Confirming payment..." : "Check payment status"}
+            <Lock className="size-4" aria-hidden />
           </Button>
-        ) : null}
-      />
+        </div> : null}
+      </footer>
     </div>
   );
 }

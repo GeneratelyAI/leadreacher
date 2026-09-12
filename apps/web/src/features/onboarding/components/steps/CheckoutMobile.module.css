@@ -1,6 +1,68 @@
 .mobile {
   display: none;
 }
+.paymentForm { display: grid; gap: 14px; }
+
+.protectedHeader { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.protectedHeader h2 { margin: 0; color: #080e28; font-size: 16px; line-height: 1.25; font-weight: 700; letter-spacing: -0.025em; }
+.protectedHeader p { margin: 3px 0 0; color: #737a96; font-size: 13px; }
+.protectedLock { width: 24px; height: 24px; flex: none; color: #6747ff; }
+.stripeBrand { display: flex; align-items: center; gap: 7px; margin-left: auto; white-space: nowrap; }
+.stripeBrand span { color: #737a96; font-size: 11px; }
+.stripeBrand strong { color: #5538e7; font-size: 22px; font-weight: 800; letter-spacing: -0.06em; }
+.summaryCard h2 { margin: 0 0 20px; font-size: 20px; line-height: 1.2; color: #080e28; font-weight: 700; letter-spacing: -0.025em; }
+.summarySection { margin-top: 16px; padding-top: 16px; border-top: 1px solid #e6e7ef; }
+.summarySection h3 { margin: 0 0 12px; font-size: 11px; color: #737a96; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.priceRows { display: grid; gap: 12px; margin: 0; font-size: 14px; line-height: 1.4; }
+.priceRows > div { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.priceRows dt { display: flex; align-items: center; gap: 10px; }
+.priceRows dd { margin: 0; text-align: right; white-space: nowrap; }
+.summaryTax { margin: 8px 0 0; color: #737a96; font-size: 11px; line-height: 1.4; }
+.channelMark { width: 20px; height: 20px; flex: none; }
+.priceAmount { font-size: calc(var(--onboarding-task-detail-size, 14px) + 3px); line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+.previewPayment label { display: grid; gap: 2px; font-size: 12px; font-weight: 600; line-height: 16px; }
+.previewPayment input { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #e6e7ef; border-radius: 8px; background: white; color: #737a96; font-size: 14px; font-weight: 400; }
+.previewPaymentSplit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.previewPayment button { display: flex; justify-content: center; align-items: center; gap: 8px; width: 100%; min-height: 44px; border-radius: 10px; background: #5538e7; color: white; font-size: 13px; font-weight: 600; }
+.previewPayment button svg { width: 16px; height: 16px; }
+.previewPayment button:disabled { opacity: 0.6; cursor: not-allowed; }
+.previewPayment :is(input, button):focus-visible { outline: 2px solid #6747ff; outline-offset: 2px; }
+.previewPayment p { margin: 0; color: #737a96; font-size: 10px; line-height: 12px; text-align: center; }
+
+@media (min-width: 63.0625rem) {
+  .screen .grid {
+    --onboarding-task-card-padding: 10px;
+    --onboarding-task-header-gap: 4px;
+  }
+  .paymentForm { gap: var(--onboarding-task-header-gap); }
+  .paymentCard .secureNote { margin-top: var(--onboarding-task-header-gap); font-size: var(--onboarding-task-caption-size, 12px); line-height: 1.25; }
+  .previewPayment { display: grid; gap: 0; flex: 1; align-content: space-between; }
+  .screen .grid { margin-top: 0.5rem; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 12px; align-items: start; }
+  .paymentCard, .summaryCard { display: flex; flex-direction: column; }
+  .summaryCard { align-self: stretch; justify-content: space-between; gap: clamp(12px, 3cqh, 20px); }
+  .summaryCard .summaryProducts h2 { margin-bottom: clamp(12px, 3cqh, 20px); }
+  .summaryTotal { flex-shrink: 0; }
+  .screen .stripe { display: flex; flex-direction: column; }
+  .screen .stripe > form { align-content: start; }
+  .paymentCard, .summaryCard { min-width: 0; padding: var(--onboarding-task-card-padding); border: 1px solid #e6e7ef; border-radius: 14px; background: #fff; color: #080e28; box-shadow: 0 5px 16px rgb(83 58 222 / 6%); }
+  .protectedHeader { margin-bottom: var(--onboarding-task-header-gap); padding-bottom: var(--onboarding-task-header-gap); border-bottom: 1px solid #f0f0f5; }
+  .protectedHeader h2 { font-size: var(--onboarding-task-title-size, 16px); }
+  .protectedHeader p { font-size: var(--onboarding-task-caption-size, 13px); line-height: 1.25; }
+  .summaryCard h2 { margin-bottom: var(--onboarding-task-header-gap); }
+  .summaryProducts .priceRows > div:first-child { padding: 5px 6px; border-radius: 8px; background: #faf9ff; }
+  .summaryProducts .priceRows > div:first-child dt { font-weight: 600; }
+  .summarySection { margin-top: 0; padding-top: clamp(12px, 3cqh, 20px); }
+  .summarySection h3 { margin-bottom: 12px; color: #757d99; line-height: 1.2; }
+  .priceRows { gap: clamp(8px, 2cqh, 12px); font-size: var(--onboarding-task-detail-size); }
+  .summaryTotal { padding-top: clamp(8px, 2cqh, 12px); border-top-color: #dedfeb; }
+  .summaryTax { margin-top: 8px; }
+  .screen .stripe { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  .screen .stripe::before { content: none; }
+  .screen .mock { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .previewPayment label { gap: 1px; font-size: 11px; line-height: 13px; }
+  .previewPayment input { height: 36px; padding-inline: 10px; font-size: 13px; }
+  .previewPayment button { min-height: 38px; font-size: 12px; }
+}
 
 @media (max-width: 63rem) {
   .screen .mobile {
