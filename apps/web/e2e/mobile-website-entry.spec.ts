@@ -20,10 +20,10 @@ async function openWebsitePreview(page: Page) {
     }
   });
   await page.goto(
-    "/onboarding-preview?screen=03&step=discovery&view=website&capture=1",
+    "/onboarding-preview?screen=03&view=website&capture=1",
   );
   await expect(
-    page.getByRole("heading", { name: "Tell us about your business." }),
+    page.getByRole("heading", { name: /Tell us about your business/ }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Understand my business", exact: true }),
@@ -41,10 +41,8 @@ test("website preview accepts a bare domain without native URL validation blocki
   await page
     .getByRole("button", { name: "Understand my business", exact: true })
     .click();
-  await expect(page).toHaveURL(/step=strategy.*substep=how-it-works/);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName(
-    "How LeadReacher works",
-  );
+  await expect(page).toHaveURL(/\/onboarding-preview\/discovery/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName(/Your prospects/);
   expect(requests).toEqual([]);
 });
 

@@ -84,7 +84,7 @@ export function MobileWebsiteEntry({
   return (
     <div className={styles.website}>
       <header>
-        <h1>Tell us about your business.</h1>
+        <h1>Tell us about your business<span className="signup-campaign-period">.</span></h1>
         <p>We&apos;ll use your website to understand what you offer.</p>
       </header>
       <form onSubmit={onSubmit} noValidate>

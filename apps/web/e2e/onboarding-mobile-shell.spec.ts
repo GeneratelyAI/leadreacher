@@ -10,23 +10,23 @@ const phoneViewports = [
 ];
 
 const routes = [
-  "/onboarding-preview?step=discovery",
-  "/onboarding-preview?step=strategy&substep=how-it-works",
-  "/onboarding-preview?step=campaign-content",
-  "/onboarding-preview?step=personalized-video-style",
-  "/onboarding-preview?step=ai-video-style",
-  "/onboarding-preview?step=upload-video",
-  "/onboarding-preview?step=upload-document",
-  "/onboarding-preview?step=checkout",
-  "/onboarding-preview?step=channels",
-  "/onboarding-preview?step=strategy&substep=targeting",
-  "/onboarding-preview?step=strategy&substep=channels",
+  "/onboarding-preview/discovery",
+  "/onboarding-preview/how-leadreacher-works",
+  "/onboarding-preview/campaign-content",
+  "/onboarding-preview/campaign-content/personalized-video",
+  "/onboarding-preview/campaign-content/ai-video",
+  "/onboarding-preview/campaign-content/your-video",
+  "/onboarding-preview/campaign-content/document",
+  "/onboarding-preview/cta",
+  "/onboarding-preview/channels",
+  "/onboarding-preview/checkout",
+  "/onboarding-preview/connect-channels",
 ];
 
 test("mobile long-chip overflow supports touch removal and viewport-contained disclosure", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 500 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/onboarding-preview?step=discovery");
+  await page.goto("/onboarding-preview/discovery");
   await page.getByLabel("Did we miss anything?").fill("Chief Financial Officer; Chief Revenue Officer; Chief Operations Officer; Vice President of Marketing; Director of Sales; Head of Demand Generation");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   const trigger = page.getByRole("button", { name: /Show \d+ more decision makers/ });
@@ -66,7 +66,7 @@ test("mobile onboarding shell keeps the shared campaign disclosure and every tas
     for (const route of routes) {
       await page.goto(route);
       await expect(page.locator(".onboarding-persistent-pill .campaign-pill")).toHaveCount(1);
-      if (route.includes("step=checkout")) {
+      if (route.endsWith("/checkout")) {
         // The approved payment screen replaces the disclosure with its plan
         // summary, while retaining the shared campaign instance offscreen.
         await expect(page.locator(".onboarding-persistent-pill")).toBeHidden();
@@ -77,7 +77,7 @@ test("mobile onboarding shell keeps the shared campaign disclosure and every tas
       await expect(page.getByRole("link", { name: "LeadReacher home", exact: true }).filter({ visible: true })).toHaveCount(1);
       await expect(page.locator(".onboarding-viewport-fit")).toHaveCSS("overflow", "visible");
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-      const actions = page.locator('.onboarding-campaign-next, .onboarding-actions button, .checkout-mock button').filter({ visible: true });
+      const actions = page.locator('.onboarding-campaign-next, .campaign-content-back, .onboarding-actions button, .checkout-mock button').filter({ visible: true });
       await expect(actions.first()).toBeVisible();
       expect(await actions.count()).toBeGreaterThan(0);
       const reached = new Set<number>();
@@ -118,7 +118,7 @@ test("mobile onboarding shell keeps the shared campaign disclosure and every tas
 test("mobile campaign summary is an accessible compact disclosure", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-chromium", "Mobile interaction runs in Chromium.");
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/onboarding-preview?step=campaign-content");
+  await page.goto("/onboarding-preview/campaign-content");
 
   // The modal correctly hides its background from the accessibility tree.
   // Keep the trigger addressable only to inspect its synchronized ARIA state.
@@ -156,16 +156,16 @@ test("preview content choice survives Back and refresh without live API requests
   page.on("request", (request) => {
     if (/\/(social-accounts|billing|strategy)\//.test(request.url()) && request.resourceType() === "fetch") liveRequests.push(request.url());
   });
-  await page.goto("/onboarding-preview?step=campaign-content");
+  await page.goto("/onboarding-preview/campaign-content");
   await page.getByRole("radio", { name: /^Document/ }).click();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page).toHaveURL(/step=upload-document/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/campaign-content\/document/);
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page).toHaveURL(/step=campaign-content/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/campaign-content(?:\?|$)/);
   await expect(page.getByRole("radio", { name: /^Document/ })).toHaveAttribute("aria-checked", "true");
   await page.reload();
   await expect(page.getByRole("radio", { name: /^Document/ })).toHaveAttribute("aria-checked", "true");
-  await page.goto("/onboarding-preview?step=channels");
+  await page.goto("/onboarding-preview/connect-channels");
   await expect(page.locator(".campaign-pill-site-url")).toHaveText("acme.example");
   await expect(page.getByText("Not authenticated", { exact: true })).toHaveCount(0);
   expect(liveRequests).toEqual([]);
@@ -176,14 +176,14 @@ test("reduced-motion direct loads have no hydration errors and rails remain keyb
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/onboarding-preview?step=ai-video-style");
+  await page.goto("/onboarding-preview/campaign-content/ai-video");
   const next = page.getByRole("button", { name: "Next video style" });
   await next.focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".video-style-rail-controls")).toContainText("2 of 3");
   await page.keyboard.press("Enter");
   await expect(page.locator(".video-style-rail-controls")).toContainText("3 of 3");
-  await page.goto("/onboarding-preview?step=strategy&substep=how-it-works");
+  await page.goto("/onboarding-preview/how-leadreacher-works");
   await expect(page.locator("h1")).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -208,7 +208,7 @@ test("numbered AI style preview preserves an approved style through Back and ref
     };
     requestAnimationFrame(sample);
   });
-  await page.goto("/onboarding-preview?screen=10&step=ai-video-style&media=placeholder");
+  await page.goto("/onboarding-preview?screen=10&media=placeholder");
   await expect(page.getByRole("radio", { name: /^Casual/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("html")).toHaveAttribute("data-first-style-presented", /Casual/);
   const first = JSON.parse((await page.locator("html").getAttribute("data-first-style-presented"))!);
@@ -218,7 +218,7 @@ test("numbered AI style preview preserves an approved style through Back and ref
   await page.getByRole("button", { name: "Aggressive", exact: true }).click();
   await expect(page.getByRole("radio", { name: /^Aggressive/ })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Use this style", exact: true }).click();
-  await expect(page).toHaveURL(/step=checkout/);
+  await expect(page).toHaveURL(/\/onboarding-preview\/cta/);
   await page.goBack();
   await expect(page).toHaveURL(/screen=10/);
   await expect(page.getByRole("radio", { name: /^Aggressive/ })).toHaveAttribute("aria-checked", "true");
@@ -232,20 +232,20 @@ test("mobile actions, content choices, uploads, and reduced motion remain reacha
   test.skip(testInfo.project.name !== "desktop-chromium", "Mobile interaction runs in Chromium.");
   await page.setViewportSize({ width: 320, height: 640 });
 
-  await page.goto("/onboarding-preview?step=campaign-content");
+  await page.goto("/onboarding-preview/campaign-content");
   await page.getByRole("radio", { name: /^Document/ }).focus();
   await page.keyboard.press("Space");
   await expect(page.getByRole("radio", { name: /^Document/ })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeVisible();
 
-  await page.goto("/onboarding-preview?step=upload-video");
+  await page.goto("/onboarding-preview/campaign-content/your-video");
   await expect(page.getByRole("button", { name: "Browse files", exact: true })).toBeVisible();
   const dropZone = page.locator(".upload-your-video-drop-zone");
   await expect(dropZone).toBeVisible();
   expect(await dropZone.evaluate((node) => node.getBoundingClientRect().height)).toBeGreaterThanOrEqual(120);
 
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/onboarding-preview?step=personalized-video-style");
+  await page.goto("/onboarding-preview/campaign-content/personalized-video");
   await expect(page.getByRole("radio", { name: /^Professional/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

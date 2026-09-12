@@ -23,9 +23,7 @@
   .onboarding-campaign-scene .onboarding-chrome__stepper { grid-column: 2; }
   .onboarding-campaign-scene .onboarding-chrome__account { grid-column: 3; }
   .onboarding-campaign-scene .onboarding-connect-screen,
-  .onboarding-campaign-scene .checkout-page,
-  .onboarding-campaign-scene .strategy-targeting-screen,
-  .onboarding-campaign-scene .strategy-channels-screen {
+  .onboarding-campaign-scene .checkout-page {
     width: auto;
     max-width: none;
     margin-left: calc(var(--campaign-reference-gutter) * var(--onboarding-fit-inverse, 1));

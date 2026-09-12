@@ -31,9 +31,6 @@
   .onboarding-root .onboarding-page { padding: 0; }
   .signup-campaign-layout { padding-top: calc(5rem + env(safe-area-inset-top)); }
   .onboarding-campaign-scene .onboarding-campaign-layout { padding-top: 1.25rem; }
-  .onboarding-campaign-scene :is(.strategy-targeting-screen, .strategy-channels-screen) {
-    padding-top: 1.25rem !important;
-  }
   .onboarding-campaign-scene .onboarding-chrome { position: absolute; top: .5rem; }
   .onboarding-campaign-scene .campaign-pill-toggle {
     width: 44px; min-width: 44px; max-width: 44px;

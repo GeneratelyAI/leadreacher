@@ -580,24 +580,3 @@
     bottom: max(0.5rem, var(--safe-area-bottom));
   }
 }
-
-@media (max-width: 64rem) {
-  .strategy-channels-screen {
-    padding-top: 10rem !important;
-  }
-}
-
-@media (max-width: 64rem) and (max-height: 42.5rem) {
-  .strategy-channels-screen {
-    padding-top: 10.5rem !important;
-  }
-}
-
-@media (max-height: 42.5rem) {
-  .strategy-channels-actions {
-    position: static !important;
-    margin-top: auto;
-    padding-top: 1rem;
-    padding-bottom: max(1rem, var(--safe-area-bottom));
-  }
-}

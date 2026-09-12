@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 
 for (const width of [320, 390, 414]) {
-  for (const step of ["personalized-video-style", "ai-video-style"]) {
+  for (const [step, route] of [["personalized-video-style", "personalized-video"], ["ai-video-style", "ai-video"]] as const) {
     test(`${step} final card snaps without a previous-card sliver at ${width}px`, async ({
       page,
     }) => {
       await page.setViewportSize({ width, height: 844 });
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(
-        `/onboarding-preview?step=${step}&media=placeholder&capture=1`,
+        `/onboarding-preview/campaign-content/${route}?media=placeholder&capture=1`,
       );
       const aggressive = page.getByRole("radio", { name: /^Aggressive/ });
       await page
@@ -39,10 +39,10 @@ for (const width of [320, 390, 414]) {
       ).toBe(width);
     });
   }
-  for (const step of ["upload-video", "upload-document"]) {
+  for (const [step, route] of [["upload-video", "your-video"], ["upload-document", "document"]] as const) {
     test(`${step} keeps both borders inset at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 844 });
-      await page.goto(`/onboarding-preview?step=${step}&capture=1`);
+      await page.goto(`/onboarding-preview/campaign-content/${route}?capture=1`);
       const panel = page.locator('[class$="-drop-zone"]');
       await expect(panel).toBeVisible();
       const geometry = await panel.evaluate((element) => {
@@ -68,7 +68,7 @@ test("mobile audience navigation is immediate in both directions with a visible 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.goto(
-    "/onboarding-preview?step=strategy&substep=how-it-works&capture=1",
+    "/onboarding-preview/how-leadreacher-works?capture=1",
   );
   await page.getByRole("button", { name: "Continue to prospects" }).click();
   await expect(
