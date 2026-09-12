@@ -22,7 +22,7 @@ describe("CampaignChannelMarks", () => {
     expect(campaignChannels({
       ...section,
       fields: [{ label: "Selected channels", values: ["linkedin", "unknown", "email", "facebook"] }],
-    }).map((channel) => channel.id)).toEqual(["linkedin", "email", "facebook"]);
+    }).map((channel) => channel.id)).toEqual(["linkedin", "gmail", "facebook"]);
   });
 
   it("renders accessible compact marks and expanded channel labels", () => {
@@ -37,6 +37,6 @@ describe("CampaignChannelMarks", () => {
     expect(expanded).toContain("WhatsApp");
     expect(expanded).toContain("Instagram");
     expect(expanded).toContain("Facebook");
-    expect(expanded).toContain("Email");
+    expect(expanded).toContain("Gmail");
   });
 });

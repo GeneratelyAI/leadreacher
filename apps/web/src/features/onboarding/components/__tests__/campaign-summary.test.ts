@@ -125,7 +125,7 @@ describe("live campaign summary", () => {
 
     expect(campaign.sections?.find((section) => section.id === "channels")).toMatchObject({
       state: "complete",
-      fields: [{ label: "Selected channels", values: ["linkedin", "whatsapp", "instagram", "facebook", "email"] }],
+      fields: [{ label: "Selected channels", values: ["linkedin", "whatsapp", "instagram", "facebook", "Gmail"] }],
     });
   });
 });
