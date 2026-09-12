@@ -3,10 +3,9 @@ import type { Viewport } from "next";
 import { MobileReferencePreview } from "@/features/onboarding/public/mobile-reference-preview";
 import { Preview } from "@/features/onboarding/public/preview";
 import {
-  isOnboardingStep,
-  isStrategySubstep,
-  type OnboardingStepParam,
+  isOnboardingRoute,
 } from "@/features/onboarding/public/navigation";
+import { mobileReferenceState } from "@/features/onboarding/public/mobile-reference";
 
 type PreviewPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -38,14 +37,8 @@ export default async function OnboardingPreviewPage({
   }
 
   const params = searchParams ? await searchParams : {};
-  const requestedStep = first(params.step);
-  const requestedSubstep = first(params.substep);
-  const initialStep: OnboardingStepParam = isOnboardingStep(requestedStep)
-    ? requestedStep
-    : "strategy";
-  const initialStrategySubstep = isStrategySubstep(requestedSubstep)
-    ? requestedSubstep
-    : "how-it-works";
+  const reference = mobileReferenceState(first(params.screen));
+  const route = isOnboardingRoute(reference?.route) ? reference.route : "how-leadreacher-works";
 
   return (
     <div
@@ -53,8 +46,7 @@ export default async function OnboardingPreviewPage({
       className="onboarding-root min-h-dvh overflow-x-clip"
     >
       <MobileReferencePreview
-        initialStep={initialStep}
-        initialStrategySubstep={initialStrategySubstep}
+        route={route}
       />
       <Preview />
     </div>

@@ -10,21 +10,18 @@ import {
 import {
   mobileReferenceHref,
   mobileReferenceState,
-} from "@/features/onboarding/state/mobile-reference";
+} from "./mobile-reference";
 import OnboardingFlow from "./flow";
 import {
-  isOnboardingStep,
-  type OnboardingStepParam,
-  type StrategySubstepParam,
+  isOnboardingRoute,
+  type OnboardingRouteId,
 } from "./navigation";
 
 /** A fixture entry point, not a parallel application or production data fallback. */
 export function MobileReferencePreview({
-  initialStep,
-  initialStrategySubstep,
+  route,
 }: {
-  initialStep: OnboardingStepParam;
-  initialStrategySubstep: StrategySubstepParam;
+  route: OnboardingRouteId;
 }) {
   const params = useSearchParams();
   const router = useRouter();
@@ -45,10 +42,10 @@ export function MobileReferencePreview({
         aria-label="Preparing local preview"
       />
     );
-  if (reference?.step === "signup" || reference?.step === "login") {
+  if (reference?.route === "signup" || reference?.route === "login") {
     return (
       <AuthPreview
-        mode={reference.step}
+        mode={reference.route}
         onComplete={() => router.push(mobileReferenceHref("03"))}
         campaign={{
           site: {
@@ -62,15 +59,14 @@ export function MobileReferencePreview({
       />
     );
   }
-  const step = isOnboardingStep(reference?.step) ? reference.step : initialStep;
+  const activeRoute = isOnboardingRoute(reference?.route) ? reference.route : route;
   return (
     <OnboardingFlow
       preview
       initialPreviewWebsiteUrl={
         screen ? mobileReferenceWebsiteUrl() : undefined
       }
-      initialStep={step}
-      initialStrategySubstep={initialStrategySubstep}
+      route={activeRoute}
     />
   );
 }

@@ -1,46 +1,30 @@
-import {
-  mobileReferenceHref,
-  type MobileReferenceId,
-} from "@/features/onboarding/state/mobile-reference";
-import type { OnboardingStepParam, StrategySubstepParam } from "./navigation";
+import { mobileReferenceHref, mobileReferenceState, type MobileReferenceId } from "@/features/onboarding/state/mobile-reference";
+import { onboardingHref, onboardingRouteFromPathname, type OnboardingRouteId } from "./navigation";
 
-const FIXTURE_PARAMETERS = [
-  "screen",
-  "view",
-  "review",
-  "media",
-  "edit",
-  "placement",
-  "completed",
-] as const;
-
-function withParams(params: URLSearchParams): string {
-  const query = params.toString();
-  return `/onboarding-preview${query ? `?${query}` : ""}`;
+export function previewSelection(search: URLSearchParams, pathname = "/onboarding-preview") {
+  const reference = mobileReferenceState(search.get("screen"));
+  const routePath = pathname.replace(/^\/onboarding-preview/, "/onboarding");
+  return {
+    route: reference?.route ?? onboardingRouteFromPathname(routePath) ?? "how-leadreacher-works",
+    reference,
+  };
 }
 
-function withoutFixtureState(search: URLSearchParams): URLSearchParams {
-  const params = new URLSearchParams(search);
-  FIXTURE_PARAMETERS.forEach((parameter) => params.delete(parameter));
+function preservedParams(search: URLSearchParams): URLSearchParams {
+  const params = new URLSearchParams();
+  for (const key of ["capture", "media"] as const) {
+    const value = search.get(key);
+    if (value) params.set(key, value);
+  }
   return params;
 }
 
-/** Preview navigation is URL-only, so a copied URL reproduces the same scene. */
-export function previewStepHref(search: URLSearchParams, step: OnboardingStepParam): string {
-  const params = withoutFixtureState(search);
-  params.set("step", step);
-  if (step === "strategy") params.set("substep", "how-it-works");
-  else params.delete("substep");
-  return withParams(params);
+export function previewRouteHref(search: URLSearchParams, route: OnboardingRouteId): string {
+  const params = preservedParams(search);
+  const query = params.toString();
+  return `${onboardingHref(route).replace(/^\/onboarding/, "/onboarding-preview")}${query ? `?${query}` : ""}`;
 }
 
-export function previewStrategyHref(search: URLSearchParams, substep: StrategySubstepParam): string {
-  const params = withoutFixtureState(search);
-  params.set("step", "strategy");
-  params.set("substep", substep);
-  return withParams(params);
-}
-
-export function previewMobileReferenceHref(id: MobileReferenceId): string {
-  return mobileReferenceHref(id);
+export function previewMobileReferenceHref(id: MobileReferenceId | ""): string {
+  return id ? mobileReferenceHref(id) : "/onboarding-preview/how-leadreacher-works";
 }

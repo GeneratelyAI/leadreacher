@@ -1,32 +1,18 @@
 import { describe, expect, it } from "vitest";
-import {
-  previewMobileReferenceHref,
-  previewStepHref,
-  previewStrategyHref,
-} from "../preview-navigation";
+import { previewMobileReferenceHref, previewRouteHref, previewSelection } from "../preview-navigation";
 
 describe("preview navigation", () => {
-  it("clears a mobile fixture when an explicit onboarding step is selected", () => {
-    const href = previewStepHref(
-      new URLSearchParams("screen=08&step=campaign-content&media=placeholder&capture=1"),
-      "channels",
-    );
-
-    expect(href).toBe("/onboarding-preview?step=channels&capture=1");
+  it("derives a route from a named preview path", () => {
+    expect(previewSelection(new URLSearchParams(), "/onboarding-preview/cta").route).toBe("cta");
+    expect(previewSelection(new URLSearchParams("screen=01")).reference).toMatchObject({ route: "signup" });
   });
 
-  it("keeps the Strategy substep explicit in the URL", () => {
-    const href = previewStrategyHref(new URLSearchParams("screen=04&step=strategy"), "targeting");
-
-    expect(href).toBe("/onboarding-preview?step=strategy&substep=targeting");
+  it("uses named paths for explicit route selection", () => {
+    expect(previewRouteHref(new URLSearchParams("screen=08&capture=1"), "connect-channels")).toBe("/onboarding-preview/connect-channels?capture=1");
   });
 
-  it("returns a fully addressable mobile fixture URL", () => {
-    expect(previewMobileReferenceHref("04")).toBe(
-      "/onboarding-preview?screen=04&step=strategy&substep=how-it-works",
-    );
-    expect(previewMobileReferenceHref("10")).toBe(
-      "/onboarding-preview?screen=10&step=ai-video-style&media=placeholder",
-    );
+  it("keeps numbered fixtures addressable without route query parameters", () => {
+    expect(previewMobileReferenceHref("04")).toBe("/onboarding-preview?screen=04");
+    expect(previewMobileReferenceHref("10")).toBe("/onboarding-preview?screen=10");
   });
 });
