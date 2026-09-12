@@ -30,6 +30,10 @@ import { reconcileCompletedStripeCheckout } from "./subscription-sync.js";
 
 type BillingLineItem = CatalogLineItem & StripePriceDisplay;
 
+function isBillableOnboardingChannel(value: unknown): value is string {
+  return typeof value === "string" && (isOutreachChannel(value) || value === "gmail" || value === "outlook");
+}
+
 const CheckoutSessionBodySchema = z.object({
   embedded: z.boolean().optional().default(false),
 });
@@ -53,9 +57,9 @@ function pricingInputForStrategy(strategy: Pick<Strategy, "campaignType" | "vide
     ? strategy.channels as Record<string, unknown>
     : {};
   const selectedChannels = Array.isArray(channelConfig.selected)
-    ? channelConfig.selected.filter(
-        (value): value is string => typeof value === "string" && isOutreachChannel(value),
-      )
+    ? [...new Set(channelConfig.selected.filter(
+        isBillableOnboardingChannel,
+      ))]
     : [];
   if (selectedChannels.length === 0) {
     throw new ValidationError("Select at least one outreach channel before checkout");
@@ -67,6 +71,7 @@ async function buildLineItems(strategy: Pick<Strategy, "campaignType" | "videoCo
   campaignType: CampaignType;
   videoEnabled: boolean;
   lineItems: BillingLineItem[];
+  includedChannels: string[];
 }> {
   const pricingInput = pricingInputForStrategy(strategy);
   const catalog = buildPricingCatalog(pricingInput);
@@ -81,6 +86,7 @@ async function buildLineItems(strategy: Pick<Strategy, "campaignType" | "videoCo
     campaignType: pricingInput.campaignType,
     videoEnabled: pricingInput.videoConfig.enabled,
     lineItems,
+    includedChannels: catalog.includedChannels,
   };
 }
 
@@ -114,8 +120,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const orgId = requireOrgId(request);
       const strategy = await getLatestStrategy(orgId);
-      const { lineItems } = await buildLineItems(strategy);
-      return reply.send({ lineItems });
+      const { lineItems, includedChannels } = await buildLineItems(strategy);
+      return reply.send({ lineItems, includedChannels });
     },
   );
 
@@ -130,7 +136,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { orgId } = await requireOrganizationOwner(request);
       const strategy = await getLatestStrategy(orgId);
-      const { campaignType, videoEnabled, lineItems } = await buildLineItems(strategy);
+      const { campaignType, videoEnabled, lineItems, includedChannels } = await buildLineItems(strategy);
       const organization = await prisma.organization.findUnique({
         where: { id: orgId },
         select: { stripeCustomerId: true },
@@ -154,6 +160,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
             url: session.url,
             clientSecret: session.clientSecret,
             mockMode: session.mockMode ?? false,
+            lineItems,
+            includedChannels,
+            configuration: {
+              campaignType: strategy.campaignType,
+              videoConfig: strategy.videoConfig,
+              channels: strategy.channels,
+              icpDefinition: strategy.icpDefinition,
+            },
           })
         : reply.send({ url: session.url });
     },

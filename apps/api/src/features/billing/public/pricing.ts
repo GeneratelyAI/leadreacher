@@ -129,6 +129,7 @@ function resolvePriceId(
  */
 export function buildPricingCatalog(input: PricingCatalogInput): {
   lineItems: CatalogLineItem[];
+  includedChannels: string[];
 } {
   const campaign = CAMPAIGN_PRICE_CONFIG[input.campaignType];
   const lineItems: CatalogLineItem[] = [
@@ -139,7 +140,8 @@ export function buildPricingCatalog(input: PricingCatalogInput): {
     },
   ];
 
-  for (const channel of input.selectedChannels.slice(1)) {
+  const selectedChannels = [...new Set(input.selectedChannels)];
+  for (const channel of selectedChannels.filter((channel) => channel !== "linkedin")) {
     lineItems.push({
       key: "additional_channel",
       priceId: resolvePriceId(
@@ -159,7 +161,7 @@ export function buildPricingCatalog(input: PricingCatalogInput): {
     });
   }
 
-  return { lineItems };
+  return { lineItems, includedChannels: selectedChannels.filter((channel) => channel === "linkedin") };
 }
 
 export function parseVideoConfig(value: unknown): VideoConfig {

@@ -110,7 +110,7 @@ beforeEach(async () => {
   }));
   createSubscriptionCheckoutSession.mockResolvedValue({
     id: "mock_checkout_org-1",
-    url: "http://localhost:3000/onboarding?step=checkout&status=success",
+    url: "http://localhost:3000/onboarding/checkout?status=success",
   });
   createBillingPortalSession.mockResolvedValue({
     url: "http://localhost:3000/dashboard?billing=portal",
@@ -137,6 +137,7 @@ describe("billing routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
+      includedChannels: ["linkedin"],
       lineItems: [
         {
           key: "personalized_outreach",
@@ -186,7 +187,7 @@ describe("billing routes", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      url: "http://localhost:3000/onboarding?step=checkout&status=success",
+      url: "http://localhost:3000/onboarding/checkout?status=success",
     });
     expect(createSubscriptionCheckoutSession).toHaveBeenCalledWith({
       orgId: "org-1",
@@ -217,11 +218,16 @@ describe("billing routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
+    expect(response.json()).toMatchObject({
       url: null,
       clientSecret: "cs_embedded_secret_test",
       mockMode: false,
+      includedChannels: ["linkedin"],
+      configuration: { campaignType: "personalized_outreach" },
     });
+    expect(response.json().lineItems.map((item: { priceId: string }) => item.priceId)).toEqual(
+      createSubscriptionCheckoutSession.mock.calls[0][0].priceIds,
+    );
     expect(createSubscriptionCheckoutSession).toHaveBeenCalledWith(
       expect.objectContaining({ embedded: true }),
     );

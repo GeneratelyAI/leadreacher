@@ -82,7 +82,7 @@ export async function createSubscriptionCheckoutSession(
       id,
       url: input.embedded
         ? null
-        : `${env.APP_URL}/onboarding?step=checkout&status=success&session_id=${encodeURIComponent(id)}`,
+        : `${env.APP_URL}/onboarding/checkout?status=success&session_id=${encodeURIComponent(id)}`,
       clientSecret: input.embedded ? `mock_client_secret_${input.orgId}` : null,
       mockMode: true,
     };
@@ -109,11 +109,11 @@ export async function createSubscriptionCheckoutSession(
     ...(input.embedded
       ? {
           ui_mode: "elements" as const,
-          return_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
+          return_url: `${env.APP_URL}/onboarding/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
         }
       : {
-          success_url: `${env.APP_URL}/onboarding?step=checkout&status=success&session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${env.APP_URL}/onboarding?step=checkout&status=cancelled`,
+          success_url: `${env.APP_URL}/onboarding/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${env.APP_URL}/onboarding/checkout?status=cancelled`,
         }),
   });
 
