@@ -2,9 +2,7 @@
 
 import Image from "next/image";
 import type { CampaignType as PersistedCampaignType } from "@leadreacher/shared/campaign";
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, Check, Play, Upload, type AppIcon } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
@@ -114,14 +112,14 @@ export default function CampaignContent() {
       didNavigate = true;
       navigateOnboarding(onboardingHref(
         selectedId === "personalized-video"
-          ? "personalized-video-style"
+          ? "personalized-video"
           : selectedId === "ai-video"
-            ? "ai-video-style"
+            ? "ai-video"
             : selectedId === "your-video"
-              ? "upload-video"
+              ? "your-video"
             : selectedId === "document"
-              ? "upload-document"
-              : "checkout",
+              ? "document"
+              : "campaign-content",
       ));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to save your content choice.");
@@ -133,10 +131,6 @@ export default function CampaignContent() {
 
   return (
     <section className={cn("campaign-content-page", mobile.page)}>
-      <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
-        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
-      </Link>
-
       <main className="campaign-content-main" aria-labelledby="campaign-content-title">
         <header className="campaign-content-header">
           <h1 id="campaign-content-title">

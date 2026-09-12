@@ -2,9 +2,7 @@
 
 import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/features/onboarding/public/website-status";
@@ -12,7 +10,7 @@ import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
 import { cleanWebsiteDomain } from "@/lib/website-url";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
-import { navigateOnboarding, onboardingHref, strategyHref } from "../../public/navigation";
+import { navigateOnboarding, onboardingHref } from "../../public/navigation";
 import { cn } from "@/lib/utils";
 import { ProspectDetailInput } from "../ProspectDetailInput";
 import { getDiscoveryOrgScope } from "@/features/onboarding/public/discovery-cache";
@@ -58,7 +56,7 @@ export default function Discovery() {
   useEffect(() => {
     if (submittedWebsite.current && status.status === "completed") {
       submittedWebsite.current = false;
-      navigateOnboarding(strategyHref("how-it-works"));
+      navigateOnboarding(onboardingHref("discovery"), true);
     }
   }, [status.status]);
 
@@ -75,7 +73,8 @@ export default function Discovery() {
     }
 
     if (status.status === "completed" && normalized === cleanWebsiteDomain(websiteUrl ?? status.url ?? "")) {
-      navigateOnboarding(strategyHref("how-it-works"));
+      submittedWebsite.current = false;
+      navigateOnboarding(onboardingHref("discovery"), true);
       return;
     }
 
@@ -133,20 +132,13 @@ export default function Discovery() {
   }
 
   const showWebsiteForm = ready && (
-    searchParams.get("view") === "website" ||
+    searchParams.get("view") === "website" || searchParams.get("screen") === "03" ||
     status.status === "failed" ||
     (!websiteUrl && status.status === "idle")
   );
 
   return (
     <div className={cn("onboarding-page box-border h-dvh overflow-hidden bg-[#fdfdff] px-6 py-8 text-[#080e28] lg:px-10 xl:px-14", mobileStyles.screen)}>
-      <Link
-        href="/"
-        aria-label="LeadReacher home"
-        className="onboarding-brand-anchor inline-flex"
-      >
-        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
-      </Link>
       {showWebsiteForm ? (
           <WebsiteGate status={status} websiteInput={websiteInput} setWebsiteInput={setWebsiteInput} setError={setError} setMaterializeWebsiteIcon={setMaterializeWebsiteIcon} submitWebsite={submitWebsite} loading={loading} submittingWebsite={submittingWebsite} error={error} message={message} materializeWebsiteIcon={materializeWebsiteIcon} />
         ) : status.status !== "completed" ? (
@@ -225,7 +217,7 @@ export default function Discovery() {
               </div>
 
               <div className="onboarding-campaign-actions">
-                <Button type="button" variant="secondary" className="campaign-content-back discovery-back" onClick={() => navigateOnboarding(strategyHref("how-it-works"))}>
+                <Button type="button" variant="secondary" className="campaign-content-back discovery-back" onClick={() => navigateOnboarding(onboardingHref("how-leadreacher-works"))}>
                   <ArrowLeft className="size-5" aria-hidden />Back
                 </Button>
                 <Button

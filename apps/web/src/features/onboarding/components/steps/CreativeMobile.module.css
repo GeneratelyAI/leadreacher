@@ -229,10 +229,6 @@
     border-color: #6735ff;
     box-shadow: 0 0 0 1px rgb(103 53 255 / 18%);
   }
-  .page :global(.personalized-video-style-card:last-child) {
-    /* Let the final card snap to the same leading edge as earlier cards. */
-    margin-inline-end: 22%;
-  }
   .page :global(.personalized-video-style-art) {
     width: 100%;
     height: auto;

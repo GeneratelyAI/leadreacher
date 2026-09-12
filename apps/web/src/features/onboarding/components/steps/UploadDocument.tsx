@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useLayoutEffect, useRef, useState } from "react";
-import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, FileText, Upload, X } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { continueAfterContent } from "../../public/content-next";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { usesOnboardingFixtures } from "@/features/onboarding/public/preview-api";
@@ -73,15 +72,11 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
 
   return (
     <section className={cn("upload-document-page", mobile.page)}>
-      <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
-        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
-      </Link>
-
       <main className="upload-document-main" aria-labelledby="upload-document-title">
         <header className="upload-document-header">
           <h1 id="upload-document-title">
             <span className={mobile.desktopOnly}>Add your document<span className="signup-campaign-period">.</span></span>
-            <span className={mobile.mobileOnly}>Give them something worth opening.</span>
+            <span className={mobile.mobileOnly}>Give them something worth opening<span className="signup-campaign-period">.</span></span>
           </h1>
           <p><span className={mobile.desktopOnly}>Give prospects something worth opening.</span><span className={mobile.mobileOnly}>Share a useful deck, brochure, or PDF.</span></p>
         </header>
@@ -163,7 +158,7 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
             try {
               const { orgId } = await bootstrapCurrentOrganization();
               await apiFetch(`/strategy/${orgId}/content-approval`, { method: "PATCH", body: JSON.stringify({ type: "Document", documentName: selectedDocument?.name }) });
-              navigateOnboarding(onboardingHref("checkout"));
+              continueAfterContent();
             } catch (caught) {
               setApproved(false);
               setError(caught instanceof Error ? caught.message : "Unable to save your content selection. Please try again.");

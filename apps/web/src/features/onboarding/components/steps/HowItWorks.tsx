@@ -82,7 +82,7 @@ export default function HowItWorks() {
       {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
     </main>
     <div className="how-it-works-campaign-actions">
-      <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => navigateOnboarding(`${onboardingHref("discovery")}&view=website`)}>
+      <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => window.location.assign("/")}>
         <ArrowLeft className="size-5" aria-hidden />Back
       </Button>
       <Button type="button" className="onboarding-campaign-next" disabled={saving} onClick={continueToProspects}>

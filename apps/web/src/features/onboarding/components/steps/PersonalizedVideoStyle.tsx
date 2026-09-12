@@ -1,9 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
 import { useCampaignData } from "@/features/onboarding/public/pill";
 import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { Button } from "@/components/ui/Button";
@@ -12,6 +10,7 @@ import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { continueAfterContent } from "../../public/content-next";
 import type { VideoTone } from "./video-style-types";
 import {
   resolveVideoStylePreview,
@@ -193,7 +192,7 @@ export function VideoStyleSelection({
       if (!mounted.current) return;
       setPhase("approved");
       window.setTimeout(() => {
-        if (mounted.current) navigateOnboarding(onboardingHref("checkout"));
+        if (mounted.current) continueAfterContent();
       }, reducedMotionPreferred() ? 0 : 40);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Unable to save your video style.");
@@ -213,15 +212,11 @@ export function VideoStyleSelection({
 
   return (
     <section className={cn("personalized-video-style-page", mobile.page)}>
-      <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
-        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
-      </Link>
-
       <main className="personalized-video-style-main" aria-labelledby="personalized-video-style-title">
         <header className="personalized-video-style-header">
           <h1 id="personalized-video-style-title">
             <span className={mobile.desktopOnly}>Campaign Content<span className="signup-campaign-period">.</span></span>
-            <span className={mobile.mobileOnly}>{mode === "personalized" ? "Make it sound like you." : "Set the tone."}</span>
+            <span className={mobile.mobileOnly}>{mode === "personalized" ? <>Make it sound like you<span className="signup-campaign-period">.</span></> : <>Set the tone<span className="signup-campaign-period">.</span></>}</span>
           </h1>
           <p className={mobile.mobileOnly}>{mode === "personalized" ? "Choose a style for your personalized video." : "Choose the style of your campaign video."}</p>
         </header>

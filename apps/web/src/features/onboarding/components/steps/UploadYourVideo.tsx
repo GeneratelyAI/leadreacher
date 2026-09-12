@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { OnboardingLogo } from "@/platform/branding/OnboardingLogo";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, FileVideo, Lock, Upload, X } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { continueAfterContent } from "../../public/content-next";
 import { cn } from "@/lib/utils";
 import { FilePreviewIllustration } from "./CreativeIllustrations";
 import mobile from "./CreativeMobile.module.css";
@@ -160,15 +159,11 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
 
   return (
     <section className={cn("upload-your-video-page", mobile.page)}>
-      <Link href="/" aria-label="LeadReacher home" className="onboarding-brand-anchor inline-flex">
-        <OnboardingLogo className="landing-navbar-logo onboarding-brand-wordmark" />
-      </Link>
-
       <main className="upload-your-video-main" aria-labelledby="upload-your-video-title">
         <header className="upload-your-video-header">
           <h1 id="upload-your-video-title">
             <span className={mobile.desktopOnly}>Upload your video<span className="signup-campaign-period">.</span></span>
-            <span className={mobile.mobileOnly}>Put your video to work.</span>
+            <span className={mobile.mobileOnly}>Put your video to work<span className="signup-campaign-period">.</span></span>
           </h1>
           <p><span className={mobile.desktopOnly}>Add the video you want to send prospects.</span><span className={mobile.mobileOnly}>Add the creative you already have.</span></p>
         </header>
@@ -253,7 +248,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
           try {
             const { orgId } = await bootstrapCurrentOrganization();
             await apiFetch(`/strategy/${orgId}/content-approval`, { method: "PATCH", body: JSON.stringify({ type: "Your video" }) });
-            navigateOnboarding(onboardingHref("checkout"));
+            continueAfterContent();
           } catch (caught) {
             setApproved(false);
             setError(caught instanceof Error ? caught.message : "Unable to save your content selection. Please try again.");
