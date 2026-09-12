@@ -11,7 +11,7 @@ import UploadYourVideo from "../steps/UploadYourVideo";
 import UploadDocument from "../steps/UploadDocument";
 import Discovery from "../steps/Discovery";
 
-vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams(), usePathname: () => "/onboarding/discovery" }));
 vi.mock("next/link", () => ({ default: ({ children }: { children: ReactNode }) => <>{children}</> }));
 vi.mock("next/image", () => ({ default: () => null }));
 vi.mock("../../public/mobile-header", () => ({ default: () => null }));

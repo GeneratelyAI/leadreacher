@@ -1,29 +1,20 @@
 "use client";
 
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
-  Info,
-  Lock,
   RefreshCw,
-  ShieldCheck,
 } from "@/components/ui/icons";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChannelLogo } from "@/platform/branding/ChannelLogo";
-import { OnboardingCard } from "@/features/onboarding/components/OnboardingCard";
-import { ActionBar } from "@/components/ui/ActionBar";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Loading } from "@/components/ui/Loading";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { isOnboardingDemo, isOnboardingPreview } from "@/features/onboarding/public/preview-api";
 import {
-  getChannelRecommendations,
   type ChannelRecommendationKey,
   type JsonValue,
 } from "@/features/onboarding/state/channel-recommendations";
@@ -31,7 +22,9 @@ import { navigateOnboarding, onboardingHref } from "../../public/navigation";
 import { completeStoredDemoSession } from "@/features/onboarding/public/demo-store";
 import { FinalSetupReview } from "./FinalSetupReview";
 import { buildSetupReview, type ReviewStrategy } from "./setup-review";
+import continuation from "../continuation/Continuation.module.css";
 import styles from "./ChannelsMobile.module.css";
+import { ChannelList } from "../ChannelList";
 
 type SocialAccount = {
   id: string;
@@ -45,6 +38,8 @@ type SocialAccount = {
 type SocialAccountsResponse = {
   accounts: SocialAccount[];
 };
+
+type PurchasedChannel = ChannelRecommendationKey | "gmail" | "outlook";
 
 const CHANNELS = [
   {
@@ -138,7 +133,8 @@ function findAccountForChannel(
   accounts: SocialAccount[],
   channel: (typeof CHANNELS)[number],
 ): SocialAccount | undefined {
-  return accounts.find((account) => accountMatchesChannel(account, channel));
+  return accounts.find((account) => accountMatchesChannel(account, channel) && account.status === "active")
+    ?? accounts.find((account) => accountMatchesChannel(account, channel));
 }
 
 function hasActiveAccount(
@@ -170,7 +166,6 @@ export default function Channels() {
   }, []);
 
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -178,10 +173,7 @@ export default function Channels() {
   const [activationPendingChannelKey, setActivationPendingChannelKey] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recommendedChannels, setRecommendedChannels] = useState<Set<ChannelRecommendationKey>>(
-    new Set(),
-  );
-  const [purchasedChannels, setPurchasedChannels] = useState<Set<ChannelRecommendationKey>>(
+  const [purchasedChannels, setPurchasedChannels] = useState<Set<PurchasedChannel>>(
     new Set(),
   );
   const [isPlanLoading, setIsPlanLoading] = useState(true);
@@ -189,8 +181,8 @@ export default function Channels() {
   const [savedStrategy, setSavedStrategy] = useState<ReviewStrategy | null>(null);
   const completionStarted = useRef(false);
   const completedPreviewCampaign = useRef<string | null>(null);
-  const isReview = searchParams.get("review") === "true";
-  const completedCampaignId = pathname === "/onboarding-preview" ? searchParams.get("completed") : null;
+  const isReview = searchParams.get("review") === "true" || searchParams.get("screen") === "16";
+  const completedCampaignId = isOnboardingPreview() ? searchParams.get("completed") : null;
   const connectionFailed = searchParams.get("status") === "failed"
     || Boolean(searchParams.get("error_title"));
   const connectionReturned = searchParams.get("status") === "connected"
@@ -303,14 +295,14 @@ export default function Channels() {
           window.localStorage.removeItem("lr_pending_channel_key");
           window.localStorage.removeItem("lr_pending_connection_token");
           setActivationPendingChannelKey(null);
-          navigateOnboarding(onboardingHref("channels"), true);
+          navigateOnboarding(onboardingHref("connect-channels"), true);
           return;
         }
         await new Promise((resolve) => window.setTimeout(resolve, 2_000));
       }
       if (!cancelled) {
         setActivationPendingChannelKey(pendingKey);
-        navigateOnboarding(onboardingHref("channels"), true);
+        navigateOnboarding(onboardingHref("connect-channels"), true);
       }
     }
 
@@ -349,23 +341,15 @@ export default function Channels() {
         const strategy = await apiFetch<ReviewStrategy & { channels: JsonValue }>(`/strategy/${orgId}`);
         if (cancelled) return;
         setSavedStrategy(strategy);
-        const recommendations = getChannelRecommendations(strategy.channels);
         const selected = strategy.channels &&
           typeof strategy.channels === "object" &&
           !Array.isArray(strategy.channels) &&
           Array.isArray(strategy.channels.selected)
-          ? strategy.channels.selected.filter(
-              (value): value is ChannelRecommendationKey =>
-                value === "linkedin" ||
-                value === "email" ||
-                value === "whatsapp" ||
-                value === "instagram" ||
-                value === "facebook",
-            )
+          ? strategy.channels.selected.flatMap((value): PurchasedChannel[] => {
+              if (value === "email") return ["gmail"];
+              return value === "linkedin" || value === "gmail" || value === "outlook" || value === "whatsapp" || value === "instagram" || value === "facebook" ? [value] : [];
+            })
           : [];
-        setRecommendedChannels(new Set(
-          selected.length > 0 ? selected : recommendations.map((item) => item.channel),
-        ));
         setPurchasedChannels(new Set(selected));
       } catch (loadError) {
         // "Recommended" tags are a decorative enhancement layered on top of
@@ -420,10 +404,10 @@ export default function Channels() {
 
   async function handleComplete() {
     if (isOnboardingPreview() && completedPreviewCampaign.current) {
-      navigateOnboarding(`${onboardingHref("channels")}&review=true&completed=${encodeURIComponent(completedPreviewCampaign.current)}`, true);
+      navigateOnboarding(`${onboardingHref("connect-channels")}?review=true&completed=${encodeURIComponent(completedPreviewCampaign.current)}`, true);
       return;
     }
-    if (completionStarted.current || isCompleting || !linkedInConnected || isPlanLoading) return;
+    if (completionStarted.current || isCompleting || !allRequiredConnected || isPlanLoading) return;
 
     completionStarted.current = true;
     setIsCompleting(true);
@@ -450,7 +434,7 @@ export default function Channels() {
       if (isOnboardingPreview()) {
         completedPreviewCampaign.current = result.campaignId;
         setIsCompleting(false);
-        navigateOnboarding(`${onboardingHref("channels")}&review=true&completed=${encodeURIComponent(result.campaignId)}`, true);
+        navigateOnboarding(`${onboardingHref("connect-channels")}?review=true&completed=${encodeURIComponent(result.campaignId)}`, true);
         return;
       }
       if (isOnboardingDemo()) {
@@ -468,159 +452,64 @@ export default function Channels() {
     }
   }
 
-  const linkedInChannel = CHANNELS[0];
-  const linkedInConnected = hasActiveAccount(accounts, linkedInChannel);
+  const requiredConnectionKeys = [...purchasedChannels];
+  const connectedRequiredCount = requiredConnectionKeys.filter((key) => {
+    return CHANNELS.some((channel) => channel.key === key && hasActiveAccount(accounts, channel));
+  }).length;
+  const allRequiredConnected = requiredConnectionKeys.length > 0 && connectedRequiredCount === requiredConnectionKeys.length;
   const activeLinkedInAccounts = accounts.filter(
     (account) => account.platform.toLowerCase() === "linkedin" && account.status === "active",
   );
 
   if (isReview) {
     return (
-      <div className={`onboarding-page ${styles.screen}`}>
-        <FinalSetupReview
-          items={savedStrategy ? buildSetupReview(savedStrategy, accounts) : []}
-          isLoading={isLoading || isPlanLoading}
-          isCompleting={isCompleting && !completedCampaignId}
-          canComplete={linkedInConnected && Boolean(savedStrategy)}
-          error={error}
-          completedCampaignId={completedCampaignId}
-          onComplete={() => void handleComplete()}
-          onBack={() => navigateOnboarding(onboardingHref("channels"))}
-        />
-      </div>
+      <FinalSetupReview
+        items={savedStrategy ? buildSetupReview(savedStrategy, accounts) : []}
+        isLoading={isLoading || isPlanLoading}
+        isCompleting={isCompleting && !completedCampaignId}
+        canComplete={allRequiredConnected && Boolean(savedStrategy)}
+        error={error}
+        completedCampaignId={completedCampaignId}
+        onComplete={() => void handleComplete()}
+        onBack={() => navigateOnboarding(onboardingHref("connect-channels"))}
+      />
     );
   }
 
   return (
-    <div className={`onboarding-page relative flex min-h-dvh w-full flex-col ${styles.screen}`}>
-      <main className={`onboarding-connect-screen mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-5 pt-40 pb-44 h-compact:justify-start h-compact:pt-36 lg:pt-34 lg:pb-28 ${styles.main}`}>
-        <PageHeader
-          className={`mx-auto ${styles.header}`}
-          title={<><span className={styles.desktop}>Connect your channels</span><span className={styles.mobile}>Connect your channels.</span></>}
-          description={<><span className={styles.desktop}>Connect the channels included in your plan. LinkedIn is required for your first campaign.</span><span className={styles.mobile}>Choose where your outreach happens.</span></>}
-        />
+    <div className={`onboarding-page ${continuation.page} ${continuation.responsiveTaskPage} ${styles.screen}`}>
+      <main className={`onboarding-connect-screen continuation-main ${continuation.main} ${styles.main}`}>
+        <header className={`${continuation.heading} ${styles.header}`}>
+          <h1 id="connect-channels-title">Connect your channels<span className={`${styles.desktop} signup-campaign-period`}>.</span></h1>
+          <p>Choose where your outreach happens.</p>
+        </header>
 
+        <div className="onboarding-scene-task-scroll" role="region" aria-label="Channel connection content" tabIndex={0}>
         {connectionFailed ? (
           <Alert tone="warning" className="mx-auto mt-6 w-full max-w-3xl">The connection was not completed. You can try again whenever you&apos;re ready.</Alert>
         ) : null}
         {connectionReturned ? (
           <Alert tone="success" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">Connection request received. We&apos;re checking for the activated account now.</Alert>
         ) : null}
-        {activationPendingChannelKey ? (
-          <Alert
-            tone="info"
-            className="fixed top-20 right-4 left-4 z-50 px-3 py-2 text-xs shadow-lg sm:left-auto sm:w-80"
-            title="Activating your channel"
-            action={
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={isLoading}
-                onClick={() => void loadAccounts(false)}
-              >
-                Check now
-              </Button>
-            }
-          >
-            We&apos;re checking for the active account automatically. You can continue setup as soon as it appears.
-          </Alert>
-        ) : null}
         {error ? (
           <Alert tone="error" className="mx-auto mt-6 w-full max-w-3xl">{error}</Alert>
         ) : null}
 
-        <OnboardingCard className={`onboarding-connect-card mx-auto mt-8 w-full max-w-3xl overflow-hidden ${styles.card}`}>
-          {isLoading || isPlanLoading ? (
-            <EmptyState icon={<Loading tone="brand" label="Loading channels" className="-my-5" />} title="Loading channels" role="status" aria-live="polite" />
-          ) : (
-            <div className={`divide-y divide-onboarding-neutral-150 dark:divide-onboarding-neutral-750 ${styles.list}`}>
-              {CHANNELS.map((channel) => {
-                const connected = hasActiveAccount(accounts, channel);
-                const connectedAccountName = connected
-                  ? findAccountForChannel(accounts, channel)?.accountName
-                  : null;
-                const isRecommended =
-                  channel.recommendationKey !== null &&
-                  recommendedChannels.has(channel.recommendationKey);
-                const isPurchased =
-                  channel.recommendationKey !== null &&
-                  purchasedChannels.has(channel.recommendationKey);
-                return (
-                  <article key={channel.key} data-channel={channel.key} className={`onboarding-connect-row flex items-center gap-4 px-5 py-5 sm:px-6 ${styles.row}`}>
-                    <span className={`inline-flex shrink-0 items-center justify-center ${channel.iconClassName}`}>
-                      {channel.icon}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-base font-semibold text-onboarding-ink dark:text-onboarding-neutral-0">
-                          {channel.title}
-                        </h2>
-                        {!isPurchased && isRecommended ? (
-                          <span className={styles.desktop}>
-                          <StatusBadge>Recommended</StatusBadge>
-                          </span>
-                        ) : null}
-                      </div>
-                      <p className="mt-1 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-                        {connectedAccountName ?? channel.description}
-                      </p>
-                    </div>
-                    {connected ? (
-                      <div className="flex shrink-0 items-center gap-2">
-                        <StatusBadge tone="success" className={`${styles.connected} ${isPurchased ? styles.desktop : ""}`}>
-                          <Check className="size-3" aria-hidden />
-                          Connected
-                        </StatusBadge>
-                        {isPurchased ? <button type="button" className={`${styles.mobile} ${styles.connected}`} disabled={isConnecting} aria-label={`${channel.title} connected. Add another account`} onClick={() => void handleConnect(channel.provider, channel.key)}><Check className="size-3" aria-hidden />Connected</button> : null}
-                        {isPurchased ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className={styles.addAnother}
-                            disabled={isConnecting}
-                            onClick={() => void handleConnect(channel.provider, channel.key)}
-                          >
-                            Add another
-                          </Button>
-                        ) : null}
-                      </div>
-                    ) : channel.available && isPurchased ? (
-                      <Button
-                        type="button"
-                        variant="brand"
-                        size="sm"
-                        disabled={isConnecting}
-                        onClick={() => void handleConnect(channel.provider, channel.key)}
-                      >
-                        {isConnecting ? "Opening..." : "Connect"}
-                      </Button>
-                    ) : channel.available ? (
-                      <StatusBadge className={`gap-1 ${styles.notInPlan}`} aria-label={`${channel.title} is not included in your plan`}>
-                        <Lock className="size-3" aria-hidden />
-                        Not in plan
-                      </StatusBadge>
-                    ) : (
-                      <StatusBadge>Coming soon</StatusBadge>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-
-          <div className={`onboarding-connect-footer flex flex-wrap items-center justify-between gap-3 border-t border-onboarding-neutral-150 px-5 py-4 dark:border-onboarding-neutral-750 sm:px-6 ${styles.footer}`}>
-            <p className="flex items-center gap-2 text-sm text-onboarding-neutral-600 dark:text-onboarding-neutral-400">
-              <ShieldCheck className="size-4 text-onboarding-success-500" aria-hidden />
-              {linkedInConnected ? "1 required channel connected" : "1 required channel to connect"}
-            </p>
-            <Button type="button" variant="ghost" size="sm" disabled={isLoading} onClick={() => void loadAccounts(true)}>
-              <RefreshCw className="size-4" aria-hidden />
-              Refresh
-            </Button>
-          </div>
-        </OnboardingCard>
+        <ChannelList busy={isLoading || isPlanLoading}
+          notice="Nothing is sent until you approve your campaign."
+          footer={<><span>{connectedRequiredCount} of {requiredConnectionKeys.length} required {requiredConnectionKeys.length === 1 ? "channel" : "channels"} connected</span><button type="button" disabled={isLoading} onClick={() => void loadAccounts(true)}><RefreshCw aria-hidden />Refresh</button></>}
+          rows={[...CHANNELS].sort((a, b) => ["linkedin", "gmail", "outlook", "whatsapp", "instagram", "facebook"].indexOf(a.key) - ["linkedin", "gmail", "outlook", "whatsapp", "instagram", "facebook"].indexOf(b.key)).map((channel) => {
+            const connected = hasActiveAccount(accounts, channel);
+            const selected = purchasedChannels.has(channel.key);
+            const failed = findAccountForChannel(accounts, channel)?.status === "error";
+            return {
+              id: channel.key, name: channel.title, icon: channel.icon,
+              description: connected ? findAccountForChannel(accounts, channel)?.accountName || "Account connected" : failed ? <span role="status">Connection needs attention. Try again.</span> : channel.description,
+              control: connected ? <button type="button" data-connected="true" disabled={isConnecting || !selected} aria-label={`${channel.title} connected. Add another account`} onClick={() => void handleConnect(channel.provider, channel.key)}><Check aria-hidden />Connected</button>
+                : <button type="button" data-unavailable={!selected || undefined} disabled={isConnecting || isLoading || isPlanLoading || !selected} onClick={() => void handleConnect(channel.provider, channel.key)}>{!selected ? "Not selected" : isConnecting ? "Opening..." : failed ? "Retry" : "Connect"}</button>,
+            };
+          })}
+        />
 
         {activeLinkedInAccounts.length > 1 ? (
           <label className="mx-auto mt-4 grid w-full max-w-3xl gap-1.5 rounded-onboarding border border-onboarding-neutral-150 bg-card px-5 py-4 text-sm font-medium text-onboarding-ink dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-850 dark:text-onboarding-neutral-0">
@@ -642,19 +531,18 @@ export default function Channels() {
           </label>
         ) : null}
 
-        <p className={`onboarding-connect-note mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-onboarding-neutral-600 dark:text-onboarding-neutral-400 ${styles.desktop}`}>
-          Finishing setup creates a campaign draft. You will review the prospects and messages before anything is sent.
-        </p>
-        <div className={styles.mobile}><p className={styles.notice}><Info aria-hidden /><span>Nothing is sent until you approve your campaign.</span></p></div>
+        </div>
       </main>
 
-      <ActionBar
-        className={styles.actions}
-        trailing={<>
-          <Button type="button" variant="primary" disabled={!linkedInConnected || isCompleting} onClick={() => void handleComplete()} className={`h-13 px-8 text-base sm:px-10 ${styles.desktop}`}>{isCompleting ? "Preparing review..." : "Finish setup and review"}<ArrowRight className="size-5" aria-hidden /></Button>
-          <Button type="button" variant="primary" disabled={!linkedInConnected || isPlanLoading || !savedStrategy} onClick={() => navigateOnboarding(`${onboardingHref("channels")}&review=true`)} className={styles.mobile}>Review campaign</Button>
-        </>}
-      />
+      <footer className={`onboarding-campaign-action-row ${styles.actions}`}>
+        <div>
+          <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => navigateOnboarding(onboardingHref("checkout"))}><ArrowLeft aria-hidden />Back</Button>
+        </div>
+        <div>
+          <Button type="button" variant="primary" disabled={!allRequiredConnected || isCompleting} onClick={() => void handleComplete()} className={`onboarding-campaign-next ${styles.desktop}`}>{isCompleting ? "Preparing review..." : "Review campaign"}<ArrowRight className="size-5" aria-hidden /></Button>
+          <Button type="button" variant="primary" disabled={!allRequiredConnected || isPlanLoading || !savedStrategy} onClick={() => navigateOnboarding(`${onboardingHref("connect-channels")}?review=true`)} className={styles.mobile}>Review campaign</Button>
+        </div>
+      </footer>
     </div>
   );
 }

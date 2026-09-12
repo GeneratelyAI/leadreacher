@@ -1,6 +1,6 @@
 import { recoverContentChoice } from "@/features/onboarding/public/content-choice";
 import type { JsonValue } from "@/features/onboarding/state/channel-recommendations";
-import type { OnboardingStepParam } from "../../public/navigation";
+import type { OnboardingRouteId } from "../../public/navigation";
 
 export type ReviewStrategy = {
   campaignType?: string | null;
@@ -19,7 +19,7 @@ export type SetupReviewItem = {
   key: "audience" | "content" | "style" | "channels";
   label: string;
   value: string;
-  step: OnboardingStepParam;
+  step: OnboardingRouteId;
 };
 
 function record(value: unknown): Record<string, unknown> {
@@ -105,7 +105,7 @@ export function buildSetupReview(
       label: "Style",
       value: styleLabel || "No style approved yet",
       step:
-        choice === "ai-video" ? "ai-video-style" : "personalized-video-style",
+        choice === "ai-video" ? "ai-video" : "personalized-video",
     });
   }
   items.push({

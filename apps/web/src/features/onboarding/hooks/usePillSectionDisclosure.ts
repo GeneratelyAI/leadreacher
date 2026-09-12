@@ -61,7 +61,7 @@ export function usePillSectionDisclosure(sections: PillSection[], mobile: boolea
     if (naturalHeight <= availableHeight) return { height: naturalHeight };
 
     if (detail.querySelector("[data-campaign-pill-channel-details]")) {
-      return { height: Math.min(naturalHeight, availableHeight) };
+      return { height: Math.min(naturalHeight, Math.max(44, availableHeight)) };
     }
 
     const fieldElements = Array.from(detail.querySelectorAll<HTMLElement>(".campaign-pill-section-field"));

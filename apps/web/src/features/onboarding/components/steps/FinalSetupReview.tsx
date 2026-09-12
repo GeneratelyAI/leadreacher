@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { CheckCircle2, ChevronRight, Info, Users } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, ChevronRight, Info, Users } from "@/components/ui/icons";
 import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
 import type { SetupReviewItem } from "./setup-review";
+import continuation from "../continuation/Continuation.module.css";
 import styles from "./ChannelsMobile.module.css";
 
 const icons = {
@@ -63,17 +64,18 @@ export function FinalSetupReview({
     heading.current?.focus({ preventScroll: true });
   }, []);
   const hasSavedDetails = items.length > 0;
+  const title = completedCampaignId
+    ? "Your draft is ready"
+    : isLoading || hasSavedDetails
+      ? "Ready for your review"
+      : "Review your setup";
 
   return (
-    <main className={styles.review} aria-busy={isLoading || isCompleting}>
-      <header className={styles.reviewHeader}>
-        <CheckCircle2 aria-hidden className={styles.reviewCheck} />
+    <section className={`onboarding-page ${continuation.page} ${continuation.responsiveTaskPage} ${styles.screen}`}>
+      <main className={`continuation-main ${continuation.main} ${continuation.reviewMain}`} aria-busy={isLoading || isCompleting}>
+      <header className={continuation.heading}>
         <h1 ref={heading} tabIndex={-1}>
-          {completedCampaignId
-            ? "Your draft is ready."
-            : isLoading || hasSavedDetails
-              ? "Ready for your review."
-              : "Review your setup."}
+          {title}<span className="signup-campaign-period">.</span>
         </h1>
         <p>
           {completedCampaignId
@@ -84,71 +86,56 @@ export function FinalSetupReview({
           Nothing has been sent.
         </p>
       </header>
-      {error ? <Alert tone="error">{error}</Alert> : null}
-      {!isLoading && !hasSavedDetails ? (
-        <Alert tone="warning">
-          We couldn&apos;t load your campaign decisions. Return to setup to try
-          again.
-        </Alert>
-      ) : null}
-      {isLoading ? (
-        <p role="status" className={styles.reviewLoading}>
-          Loading your saved campaign...
-        </p>
-      ) : (
-        <div className={styles.reviewItems}>
-          {items.map((item) => (
-            <div key={item.key} className={styles.reviewItem}>
-              <span className={styles.reviewIcon}>{icons[item.key]}</span>
-              <div className={styles.reviewValue}>
-                <h2>{item.label}</h2>
-                <p>{item.value}</p>
+      <div className="onboarding-scene-task-scroll" role="region" aria-label="Campaign review content" tabIndex={0}>
+        {error ? <Alert tone="error">{error}</Alert> : null}
+        {!isLoading && !hasSavedDetails ? (
+          <Alert tone="warning">
+            We couldn&apos;t load your campaign decisions. Return to setup to try
+            again.
+          </Alert>
+        ) : null}
+        {isLoading ? (
+          <p role="status" className={styles.reviewLoading}>
+            Loading your saved campaign...
+          </p>
+        ) : (
+          <div className={`${continuation.card} ${styles.reviewItems}`}>
+            {items.map((item) => (
+              <div key={item.key} className={styles.reviewItem}>
+                <span className={styles.reviewIcon}>{icons[item.key]}</span>
+                <div className={styles.reviewValue}>
+                  <h2>{item.label}</h2>
+                  <p>{item.value}</p>
+                </div>
+                <button
+                  type="button"
+                  className={styles.edit}
+                  aria-label={`Edit ${item.label.toLowerCase()}`}
+                  onClick={() => navigateOnboarding(onboardingHref(item.step))}
+                >
+                  Edit
+                  <ChevronRight aria-hidden />
+                </button>
               </div>
-              <button
-                type="button"
-                className={styles.edit}
-                aria-label={`Edit ${item.label.toLowerCase()}`}
-                onClick={() =>
-                  item.key === "channels"
-                    ? onBack()
-                    : navigateOnboarding(onboardingHref(item.step))
-                }
-              >
-                Edit
-                <ChevronRight aria-hidden />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <p className={styles.notice}>
-        <Info aria-hidden />
-        <span>Review your prospects and messages before launching.</span>
-      </p>
-      {completedCampaignId ? (
-        <p className={styles.previewComplete} role="status">
-          Local preview only. Campaign ID: {completedCampaignId}. No campaign
-          was launched.
+            ))}
+          </div>
+        )}
+        <p className={styles.notice}>
+          <Info aria-hidden />
+          <span>Review your prospects and messages before launching.</span>
         </p>
-      ) : (
-        <Button
-          type="button"
-          variant="primary"
-          className={styles.reviewPrimary}
-          disabled={!canComplete || isLoading || isCompleting}
-          onClick={onComplete}
-        >
-          {isCompleting ? "Preparing your draft..." : "Open campaign draft"}
-        </Button>
-      )}
-      <Button
-        type="button"
-        variant="outline"
-        className={styles.reviewBack}
-        onClick={onBack}
-      >
-        Back to setup
-      </Button>
-    </main>
+        {completedCampaignId ? (
+          <p className={styles.previewComplete} role="status">
+            Local preview only. Campaign ID: {completedCampaignId}. No campaign
+            was launched.
+          </p>
+        ) : null}
+      </div>
+      </main>
+      <footer className={`onboarding-campaign-action-row ${styles.actions}`}>
+        <div><Button type="button" variant="secondary" className="campaign-content-back" onClick={onBack}><ArrowLeft aria-hidden />Back</Button></div>
+        {!completedCampaignId ? <div><Button type="button" variant="primary" className="onboarding-campaign-next" disabled={!canComplete || isLoading || isCompleting} onClick={onComplete}>{isCompleting ? "Preparing your draft..." : "Open campaign draft"}<ArrowRight aria-hidden /></Button></div> : null}
+      </footer>
+    </section>
   );
 }

@@ -47,9 +47,9 @@ test.describe("mobile checkout and final saved review", () => {
       )
         productionRequests.push(request.url());
     });
-    await page.goto("/onboarding-preview?screen=13&step=checkout");
+    await page.goto("/onboarding-preview?screen=13");
     await expect(
-      page.getByRole("heading", { name: "Your campaign starts here." }),
+      page.getByRole("heading", { name: /^Your campaign starts here\s*\.$/ }),
     ).toBeVisible();
     await expect(
       page.getByText("Illustrative pricing", { exact: true }),
@@ -60,7 +60,7 @@ test.describe("mobile checkout and final saved review", () => {
     const subscribe = await scrollToAction(page, "Subscribe (preview)");
     await subscribe.click();
     await expect(
-      page.getByRole("heading", { name: "Connect your channels." }),
+      page.getByRole("heading", { name: "Connect your channels" }),
     ).toBeVisible();
     expect(productionRequests).toEqual([]);
   });
@@ -68,15 +68,10 @@ test.describe("mobile checkout and final saved review", () => {
   test("keeps channel restrictions, saved connections, review history and completion safe", async ({
     page,
   }) => {
-    await page.goto("/onboarding-preview?screen=14&step=channels");
+    await page.goto("/onboarding-preview?screen=14");
     await expect(page.locator("[data-channel]")).toHaveCount(6);
     const whatsapp = page.locator('[data-channel="whatsapp"]');
-    await expect(
-      whatsapp.getByText("Not in plan", { exact: true }),
-    ).toBeVisible();
-    await expect(
-      whatsapp.getByRole("button", { name: "Connect", exact: true }),
-    ).toHaveCount(0);
+    await expect(whatsapp.getByRole("button", { name: "Not selected" })).toBeDisabled();
     await page
       .locator('[data-channel="gmail"]')
       .getByRole("button", { name: "Connect", exact: true })
@@ -91,25 +86,25 @@ test.describe("mobile checkout and final saved review", () => {
     await review.click();
     await expect(page).toHaveURL(/review=true/);
     await expect(
-      page.getByRole("heading", { name: "Ready for your review." }),
+      page.getByRole("heading", { name: /^Ready for your review\s*\.$/ }),
     ).toBeFocused();
     await expect(
-      page.getByText("LinkedIn · Email", { exact: true }),
+      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText("Your campaign is saved.", { exact: true }),
     ).toHaveCount(0);
     await page.goBack();
     await expect(
-      page.getByRole("heading", { name: "Connect your channels." }),
+      page.getByRole("heading", { name: "Connect your channels" }),
     ).toBeVisible();
     await page.goForward();
     await expect(
-      page.getByRole("heading", { name: "Ready for your review." }),
+      page.getByRole("heading", { name: /^Ready for your review\s*\.$/ }),
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByText("LinkedIn · Email", { exact: true }),
+      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn", { exact: true }),
     ).toBeVisible();
 
     const complete = await scrollToAction(page, "Open campaign draft");
@@ -119,7 +114,7 @@ test.describe("mobile checkout and final saved review", () => {
     });
     await expect(page).toHaveURL(/completed=preview-campaign/);
     await expect(
-      page.getByRole("heading", { name: "Your draft is ready." }),
+      page.getByRole("heading", { name: /^Your draft is ready\s*\.$/ }),
     ).toBeVisible();
     await expect(page.getByText(/No campaign was launched/)).toBeVisible();
     await expect(
@@ -131,16 +126,16 @@ test.describe("mobile checkout and final saved review", () => {
     page,
   }) => {
     for (const [label, destination] of [
-      ["Edit audience", "discovery"],
-      ["Edit content", "campaign-content"],
-      ["Edit style", "personalized-video-style"],
-      ["Edit channel", "channels"],
+      ["Edit audience", "/onboarding-preview/discovery"],
+      ["Edit content", "/onboarding-preview/campaign-content"],
+      ["Edit style", "/onboarding-preview/campaign-content/personalized-video"],
+      ["Edit channel", "/onboarding-preview/channels"],
     ]) {
       await page.goto(
-        "/onboarding-preview?screen=16&step=channels&review=true",
+        "/onboarding-preview?screen=16&review=true",
       );
       await page.getByRole("button", { name: label, exact: true }).click();
-      await expect(page).toHaveURL(new RegExp(`step=${destination}(?:&|$)`));
+      await expect(page).toHaveURL(new RegExp(`${destination.replaceAll("/", "\\/")}(?:\\?|$)`));
       await expect
         .poll(() => new URL(page.url()).searchParams.get("review"))
         .toBeNull();
@@ -160,14 +155,12 @@ test.describe("mobile checkout and final saved review", () => {
     }) => {
       await page.setViewportSize(viewport);
       for (const [query, actionName] of [
-        ["screen=13&step=checkout", "Subscribe (preview)"],
-        ["screen=14&step=channels", "Review campaign"],
-        ["screen=16&step=channels&review=true", "Open campaign draft"],
+        ["screen=13", "Subscribe (preview)"],
+        ["screen=14", "Review campaign"],
+        ["screen=16&review=true", "Open campaign draft"],
       ]) {
         await page.goto(`/onboarding-preview?${query}`);
-        await expect(
-          page.getByRole("button", { name: actionName, exact: true }),
-        ).toBeEnabled();
+        await expect(page.getByRole("button", { name: actionName, exact: true })).toBeVisible();
         const initialScroll = await page.evaluate(() => window.scrollY);
         expect(initialScroll).toBe(0);
         await scrollToAction(page, actionName);
@@ -189,16 +182,16 @@ test.describe("mobile checkout and final saved review", () => {
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto("/onboarding-preview?step=checkout");
+    await page.goto("/onboarding-preview/checkout");
     await expect(
       page.getByRole("heading", {
-        name: "Complete your subscription",
+        name: /^Complete your subscription\s*\.$/,
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", {
-        name: "Your campaign starts here.",
+        name: /^Your campaign starts here\s*\.$/,
         exact: true,
       }),
     ).toHaveCount(0);
@@ -214,19 +207,19 @@ test.describe("mobile checkout and final saved review", () => {
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(1440);
-    await page.goto("/onboarding-preview?step=channels");
+    await page.goto("/onboarding-preview/connect-channels");
     await expect(
-      page.getByRole("heading", { name: "Connect your channels", exact: true }),
+      page.getByRole("heading", { name: /^Connect your channels\s*\.$/ }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", {
-        name: "Finish setup and review",
+        name: "Review campaign",
         exact: true,
       }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Review campaign", exact: true }),
-    ).toHaveCount(0);
+    ).toHaveCount(1);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(1440);

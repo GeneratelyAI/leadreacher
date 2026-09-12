@@ -36,7 +36,7 @@ describe("saved final setup review", () => {
     expect(items.map((item) => item.step)).toEqual([
       "discovery",
       "campaign-content",
-      "personalized-video-style",
+      "personalized-video",
       "channels",
     ]);
   });
@@ -113,7 +113,7 @@ describe("saved final setup review", () => {
     );
     expect(items.find((item) => item.key === "audience")?.value).toBe(role);
     expect(items.find((item) => item.key === "style")?.step).toBe(
-      "ai-video-style",
+      "ai-video",
     );
   });
 });
