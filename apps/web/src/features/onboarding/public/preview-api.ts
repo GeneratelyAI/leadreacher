@@ -27,12 +27,18 @@ const DEFAULT_LINKEDIN_ACCOUNT: FixtureAccount = {
   status: "active",
 };
 
+const PREVIEW_OUTREACH_MESSAGE = "Hi {{FirstName}}, I noticed {{Company}} is growing its sales motion. LeadReacher helps teams find the right buyers and start relevant conversations with personalized outreach. Would it be useful to compare your current process with a campaign built around your audience?";
+
 export function isOnboardingPreview(): boolean {
-  return typeof window !== "undefined" && window.location.pathname === "/onboarding-preview";
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/onboarding-preview");
 }
 
 export function isOnboardingDemo(): boolean {
-  return typeof window !== "undefined" && window.location.pathname === "/demo/onboarding";
+  return typeof window !== "undefined" && window.location.pathname.startsWith("/demo/onboarding");
+}
+
+function fixtureScope(): string {
+  return isOnboardingDemo() ? "/demo/onboarding" : "/onboarding-preview";
 }
 
 export function usesOnboardingFixtures(): boolean {
@@ -125,6 +131,14 @@ const initialStrategy = {
       { channel: "whatsapp", label: "WhatsApp", confidence: 61, signalCount: 74, totalProfiles: 180, tag: "Selective", description: "Useful where consent and mobile data are available." },
     ],
   },
+  messagingAngles: {
+    outreachMessage: PREVIEW_OUTREACH_MESSAGE as string | null,
+    outreachMessageApprovedAt: null as string | null,
+    cta: {
+      label: "Book a quick call",
+      url: "https://example.com/demo",
+    } as { label: string; url: string } | null,
+  },
   updatedAt: new Date(0).toISOString(),
 };
 
@@ -155,7 +169,7 @@ export function seedMobileReference(screen: string) {
   status.prospectProfile.industries = ["Technology", "Consulting", "Finance"];
   if (screen === "06") status.prospectProfile.decisionMakers.push("Marketing Director", "Operations Manager", "Revenue Leader");
   const strategy = structuredClone(initialStrategy);
-  strategy.channels.selected = ["linkedin", "email"];
+  strategy.channels.selected = ["linkedin", "gmail"];
   Object.assign(strategy.icpDefinition, {
     websiteUrl: status.url,
     discoverySummary: status,
@@ -170,7 +184,14 @@ export function seedMobileReference(screen: string) {
   window.sessionStorage.setItem("lr_fixture_strategy:/onboarding-preview", JSON.stringify(strategy));
   window.sessionStorage.removeItem("lr_fixture_content_choice:/onboarding-preview");
   window.sessionStorage.removeItem(`lr_prospect_review:${PREVIEW_ORG_ID}:${status.url}`);
-  window.sessionStorage.removeItem(DEMO_ACCOUNTS_KEY);
+  if (screen === "16") {
+    window.sessionStorage.setItem(DEMO_ACCOUNTS_KEY, JSON.stringify([
+      DEFAULT_LINKEDIN_ACCOUNT,
+      { id: "preview-email", platform: "email", providerType: "google", accountName: "alex@example.com", avatarUrl: null, status: "active" },
+    ]));
+  } else {
+    window.sessionStorage.removeItem(DEMO_ACCOUNTS_KEY);
+  }
 }
 
 function fixtureScrapeStatus() {
@@ -240,6 +261,7 @@ function connectDemoAccount(provider: unknown): FixtureAccount {
     LINKEDIN: { platform: "linkedin", providerType: "linkedin", accountName: "Demo LinkedIn account", avatarUrl: null, status: "active" },
     WHATSAPP: { platform: "whatsapp", providerType: "whatsapp", accountName: "Demo WhatsApp account", avatarUrl: null, status: "active" },
     INSTAGRAM: { platform: "instagram", providerType: "instagram", accountName: "Demo Instagram account", avatarUrl: null, status: "active" },
+    MESSENGER: { platform: "facebook", providerType: "messenger", accountName: "Demo Messenger account", avatarUrl: null, status: "active" },
     GOOGLE: { platform: "email", providerType: "google", accountName: "demo@gmail.com", avatarUrl: null, status: "active" },
     OUTLOOK: { platform: "email", providerType: "outlook", accountName: "demo@outlook.com", avatarUrl: null, status: "active" },
   };
@@ -256,7 +278,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   if (!usesOnboardingFixtures()) throw new Error("Preview fixtures are unavailable outside preview routes.");
   await new Promise<void>((resolve) => window.setTimeout(resolve, 80));
   const method = (options.method ?? "GET").toUpperCase();
-  const strategyKey = `lr_fixture_strategy:${window.location.pathname}`;
+  const strategyKey = `lr_fixture_strategy:${fixtureScope()}`;
   const strategy = structuredClone(initialStrategy);
   try {
     const saved = window.sessionStorage.getItem(strategyKey);
@@ -265,11 +287,32 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   const saveStrategy = () => {
     try { window.sessionStorage.setItem(strategyKey, JSON.stringify(strategy)); } catch { /* Optional fixture persistence. */ }
   };
-  const savedChoiceKey = `lr_fixture_content_choice:${window.location.pathname}`;
+  const savedChoiceKey = `lr_fixture_content_choice:${fixtureScope()}`;
   try {
     const savedChoice = window.sessionStorage.getItem(savedChoiceKey);
     if (savedChoice) Object.assign(strategy.icpDefinition, { contentChoice: savedChoice });
   } catch { /* Fixtures remain usable when browser storage is unavailable. */ }
+  const namedRoute = window.location.pathname
+    .replace(/^\/onboarding-preview/, "")
+    .replace(/^\/demo\/onboarding/, "");
+  const routeNeedsContent = ["/cta", "/channels", "/checkout", "/connect-channels"].includes(namedRoute);
+  if (routeNeedsContent) {
+    const definition = strategy.icpDefinition as typeof strategy.icpDefinition & {
+      contentChoice?: string;
+      approvedContent?: { type: string; style: string | null };
+    };
+    Object.assign(strategy.icpDefinition, {
+      contentChoice: definition.contentChoice ?? "personalized-video",
+      approvedContent: definition.approvedContent ?? { type: "Personalized video", style: strategy.videoConfig.tone },
+      onboarding: { introductionSeen: true, prospectsApproved: true },
+    });
+  }
+  if (["/channels", "/checkout", "/connect-channels"].includes(namedRoute)) {
+    strategy.messagingAngles.outreachMessageApprovedAt ??= new Date(0).toISOString();
+  }
+  if (["/checkout", "/connect-channels"].includes(namedRoute) && strategy.channels.selected.length === 0) {
+    strategy.channels.selected = ["linkedin", "gmail"];
+  }
 
   if (path === "/auth/bootstrap") {
     return {
@@ -305,11 +348,21 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   }
   if (path === "/strategy/generate" || /^\/strategy\/[^/]+$/.test(path)) return strategy as T;
   if (path.endsWith("/outreach-message")) {
+    if (method === "PATCH") {
+      const body = parseRequestBody(options);
+      strategy.messagingAngles.outreachMessage = typeof body.message === "string" ? body.message : null;
+      strategy.messagingAngles.cta = typeof body.ctaLabel === "string" && typeof body.ctaUrl === "string"
+        ? { label: body.ctaLabel, url: body.ctaUrl }
+        : null;
+      strategy.messagingAngles.outreachMessageApprovedAt = body.approved === true ? new Date(0).toISOString() : null;
+      saveStrategy();
+    }
+    const cta = strategy.messagingAngles.cta;
     return {
-      message:
-        "Hi {{First Name}}, I noticed your team is scaling revenue without adding more manual prospecting work. LeadReacher helps coordinate personalized outreach across the channels your buyers already use, while keeping every message reviewable before launch.",
-      ctaLabel: "Book a short call",
-      ctaUrl: "https://leadreacher.ai/demo",
+      message: strategy.messagingAngles.outreachMessage,
+      ctaLabel: cta?.label ?? null,
+      ctaUrl: cta?.url ?? null,
+      approved: Boolean(strategy.messagingAngles.outreachMessageApprovedAt),
     } as T;
   }
   if (path.includes("/campaign-type")) {
@@ -356,7 +409,8 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   }
   if (path.endsWith("/channels")) {
     if (method === "PATCH") {
-      Object.assign(strategy.channels, { selected: parseRequestBody(options).channels });
+      const body = parseRequestBody(options);
+      Object.assign(strategy.channels, { selected: body.channels });
       saveStrategy();
     }
     return strategy as T;
@@ -368,14 +422,14 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   }
   if (path === "/billing/pricing") {
     if (isOnboardingPreview() && window.sessionStorage.getItem("lr_mobile_reference_screen")) {
-      return { lineItems: [{ key: "platform", priceId: "illustrative-preview", label: "LeadReacher Pro", unitAmount: 9900, currency: "usd", interval: "month", features: ["Personalized outreach", "Audience targeting", "Campaign reporting"] }] } as T;
+      return { includedChannels: ["linkedin"], lineItems: [{ key: "platform", priceId: "illustrative-preview", label: "LeadReacher Pro", unitAmount: 9900, currency: "usd", interval: "month", features: ["Personalized outreach", "Audience targeting", "Campaign reporting"] }] } as T;
     }
     return {
+      includedChannels: strategy.channels.selected.filter((channel) => channel === "linkedin"),
       lineItems: [
         { key: "platform", priceId: "preview", label: "LeadReacher Pro", unitAmount: 19999, currency: "usd", interval: "month" },
-        { key: "additional_channel", priceId: "preview-channel-email", label: "Email channel", channel: "email", unitAmount: 5000, currency: "usd", interval: "month" },
-        { key: "additional_channel", priceId: "preview-channel-whatsapp", label: "Whatsapp channel", channel: "whatsapp", unitAmount: 5000, currency: "usd", interval: "month" },
-        { key: "video_addon", priceId: "preview-video", label: "Personalized video", unitAmount: 3000, currency: "usd", interval: "month" },
+        ...strategy.channels.selected.filter((channel) => channel !== "linkedin").map((channel) => ({ key: "additional_channel", priceId: `preview-channel-${channel}`, label: `${channel} channel`, channel, unitAmount: 5000, currency: "usd", interval: "month" })),
+        ...(strategy.videoConfig ? [{ key: "video_addon", priceId: "preview-video", label: "Personalized video", unitAmount: 3000, currency: "usd", interval: "month" }] : []),
       ],
     } as T;
   }
@@ -393,7 +447,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     if (usesOnboardingFixtures()) {
       const account = connectDemoAccount(parseRequestBody(options).provider);
       return {
-        url: `/demo/onboarding?step=channels&status=connected&account_id=${account.id}`,
+        url: `${isOnboardingDemo() ? "/demo/onboarding" : "/onboarding-preview"}/connect-channels?status=connected&account_id=${account.id}`,
         connectionToken: `demo-${account.id}`,
         account,
       } as T;
