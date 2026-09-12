@@ -17,6 +17,9 @@ const {
   campaignFindFirst,
   campaignCreate,
   campaignUpdate,
+  campaignChannelAccountDeleteMany,
+  campaignChannelAccountUpsert,
+  prismaTransaction,
   leadFindMany,
   leadUpdateMany,
   campaignLeadCreateMany,
@@ -35,6 +38,9 @@ const {
   campaignFindFirst: vi.fn(),
   campaignCreate: vi.fn(),
   campaignUpdate: vi.fn(),
+  campaignChannelAccountDeleteMany: vi.fn(),
+  campaignChannelAccountUpsert: vi.fn(),
+  prismaTransaction: vi.fn(),
   leadFindMany: vi.fn(),
   leadUpdateMany: vi.fn(),
   campaignLeadCreateMany: vi.fn(),
@@ -96,6 +102,11 @@ vi.mock("../../../platform/persistence/prisma.js", () => ({
       create: campaignCreate,
       update: campaignUpdate,
     },
+    campaignChannelAccount: {
+      deleteMany: campaignChannelAccountDeleteMany,
+      upsert: campaignChannelAccountUpsert,
+    },
+    $transaction: prismaTransaction,
     lead: { findMany: leadFindMany, updateMany: leadUpdateMany },
     campaignLead: { createMany: campaignLeadCreateMany, count: campaignLeadCount },
   },
@@ -167,6 +178,9 @@ beforeEach(async () => {
   campaignFindFirst.mockReset();
   campaignCreate.mockReset();
   campaignUpdate.mockReset();
+  campaignChannelAccountDeleteMany.mockReset().mockResolvedValue({ count: 0 });
+  campaignChannelAccountUpsert.mockReset().mockResolvedValue({});
+  prismaTransaction.mockReset().mockImplementation(async (operations: Promise<unknown>[]) => Promise.all(operations));
   leadFindMany.mockReset();
   leadUpdateMany.mockReset();
   campaignLeadCreateMany.mockReset();
@@ -223,11 +237,12 @@ beforeEach(async () => {
   });
   strategyFindFirst.mockResolvedValue({
     id: "strategy-1",
-    channels: { selected: ["linkedin", "email", "whatsapp"] },
+    channels: { selected: ["linkedin"] },
     positioning: { businessModel: "B2B lead generation" },
     icpDefinition: { idealCustomer: "Revenue leaders" },
     messagingAngles: {
       outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
+      outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
     },
     videoConfig: { tone: "professional" },
   });
@@ -370,7 +385,7 @@ describe("channel connection and onboarding completion", () => {
     expect(createHostedAuthLink).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: ["linkedin"],
-        redirectUri: "http://localhost:3000/onboarding?step=channels&status=connected",
+        redirectUri: "http://localhost:3000/onboarding/connect-channels?status=connected",
         state: expect.any(String),
       }),
     );
@@ -387,7 +402,7 @@ describe("channel connection and onboarding completion", () => {
     expect(createHostedAuthLink).toHaveBeenCalledWith(
       expect.objectContaining({
         providers: ["linkedin"],
-        redirectUri: "http://localhost:3000/onboarding-preview?step=channels&status=connected",
+        redirectUri: "http://localhost:3000/onboarding-preview/connect-channels?status=connected",
       }),
     );
     expect(strategyFindFirst).not.toHaveBeenCalled();
@@ -433,6 +448,7 @@ describe("channel connection and onboarding completion", () => {
   it.each(["GOOGLE", "OUTLOOK"] as const)(
     "allows %s when the email channel is included in the purchased plan",
     async (provider) => {
+      strategyFindFirst.mockResolvedValueOnce({ channels: { selected: ["linkedin", "email"] } });
       const response = await app.inject({
         method: "POST",
         url: "/social-accounts/connect",
@@ -553,8 +569,10 @@ describe("channel connection and onboarding completion", () => {
       icpDefinition: { idealCustomer: "Revenue leaders" },
       messagingAngles: {
         outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
+        outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
         cta: { label: "Watch the overview", url: "https://leadreacher.com/overview" },
       },
+      channels: { selected: ["linkedin"] },
       videoConfig: { tone: "professional" },
     });
     const response = await app.inject({
@@ -601,13 +619,46 @@ describe("channel connection and onboarding completion", () => {
     }, {
       jobId: "onboarding-prospect-discovery-campaign-onboarding-1",
     });
-    expect(socialAccountFindFirst).toHaveBeenCalledWith({
-      where: { orgId: "org-1", platform: "linkedin", status: "active", id: "sa-1" },
-      select: { id: true },
+    expect(campaignChannelAccountUpsert).toHaveBeenCalledWith(expect.objectContaining({ create: { campaignId: "campaign-onboarding-1", channel: "linkedin", socialAccountId: "sa-1" } }));
+    expect(campaignChannelAccountDeleteMany).toHaveBeenCalledWith({
+      where: { campaignId: "campaign-onboarding-1", channel: { notIn: ["linkedin"] } },
     });
     expect(campaignLeadCreateMany).not.toHaveBeenCalled();
     expect(searchAndImportLinkedInProspects).not.toHaveBeenCalled();
     expect(launchCampaign).not.toHaveBeenCalled();
+  });
+
+  it("rejects completion until the campaign message is explicitly approved", async () => {
+    strategyFindFirst.mockResolvedValueOnce({
+      id: "strategy-1",
+      positioning: { businessModel: "B2B lead generation" },
+      icpDefinition: { idealCustomer: "Revenue leaders" },
+      messagingAngles: {
+        outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
+      },
+      channels: { selected: ["linkedin"] },
+      videoConfig: { tone: "professional" },
+    });
+
+    const response = await app.inject({ method: "POST", url: "/onboarding/complete", payload: {} });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ message: "Approve the campaign message before completing onboarding" });
+    expect(campaignCreate).not.toHaveBeenCalled();
+  });
+
+  it("accepts a trialing subscription as an entitled checkout result", async () => {
+    organizationFindUnique.mockResolvedValueOnce({
+      id: "org-1",
+      name: "Ada's workspace",
+      subscriptionStatus: "trialing",
+      onboardedAt: null,
+    });
+
+    const response = await app.inject({ method: "POST", url: "/onboarding/complete", payload: {} });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ completed: true, reviewRequired: true });
   });
 
   it("queues audience discovery even when the scraper has not yet found prospects", async () => {
@@ -733,7 +784,7 @@ describe("channel connection and onboarding completion", () => {
   });
 
   it("refuses completion when no channel has become active", async () => {
-    socialAccountCount.mockResolvedValue(0);
+    socialAccountFindMany.mockResolvedValue([]);
 
     const response = await app.inject({
       method: "POST",

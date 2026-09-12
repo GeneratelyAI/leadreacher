@@ -100,10 +100,10 @@ type ConnectionReturnTo = "onboarding" | "home" | "dashboard" | "preview";
 
 function channelsRedirect(returnTo: ConnectionReturnTo, status: "connected" | "failed"): string {
   if (returnTo === "preview") {
-    return `${env.APP_URL}/onboarding-preview?step=channels&status=${status}`;
+    return `${env.APP_URL}/onboarding-preview/connect-channels?status=${status}`;
   }
   if (returnTo === "onboarding") {
-    return `${env.APP_URL}/onboarding?step=channels&status=${status}`;
+    return `${env.APP_URL}/onboarding/connect-channels?status=${status}`;
   }
   return `${env.APP_URL}/dashboard/channels?status=${status}`;
 }

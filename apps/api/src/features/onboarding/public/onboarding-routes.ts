@@ -11,12 +11,12 @@ import {
 import { prisma } from "../../../platform/persistence/prisma.js";
 import { requireOrgId } from "../../../platform/auth/request-org.js";
 import { onboardingProspectDiscoveryQueue } from "../../../lib/queue.js";
-import { runOutreachMessageAgent } from "../../../modules/agents/outreach-message-agent.js";
 import {
   onboardingStrategyFingerprint,
   withOnboardingDiscovery,
 } from "../../prospects/public/onboarding-prospect-discovery.js";
 import { formatCampaignName } from "../../../lib/campaign-naming.js";
+import { OUTREACH_CHANNELS, type OutreachChannel } from "../../../lib/channels.js";
 
 const CompleteOnboardingResponseSchema = z.object({
   completed: z.literal(true),
@@ -51,11 +51,6 @@ function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-function videoTone(strategyVideoConfig: unknown): "professional" | "casual" | "aggressive" {
-  const tone = recordString(asRecord(strategyVideoConfig), "tone");
-  return tone === "casual" || tone === "aggressive" ? tone : "professional";
-}
-
 function buildConnectionNote(product: string): string {
   const compactProduct = product.replace(/\s+/g, " ").trim().slice(0, 170);
   return `Hi {{FirstName}}, I thought {{Company}} might benefit from ${compactProduct}. Open to connecting?`;
@@ -73,6 +68,48 @@ function onboardingCampaignGoal(messagingAngles: Record<string, unknown>): strin
   return recordString(cta, "label") || "Start conversations";
 }
 
+function selectedOutreachChannels(value: unknown): OutreachChannel[] {
+  const selected = asRecord(value).selected;
+  if (!Array.isArray(selected)) return [];
+  return [...new Set(selected.flatMap((channel): OutreachChannel[] => {
+    if (channel === "gmail" || channel === "outlook") return ["email"];
+    return typeof channel === "string" && OUTREACH_CHANNELS.includes(channel as OutreachChannel) ? [channel as OutreachChannel] : [];
+  }))];
+}
+
+function onboardingSequence(channels: OutreachChannel[], message: string, messagingAngles: Record<string, unknown>, product: string) {
+  const finalMessage = outreachMessageWithCta(message, messagingAngles);
+  return channels.flatMap((channel) => {
+    if (channel === "linkedin") return [
+      { type: "linkedin_invite", message: buildConnectionNote(product), delayHours: 0 },
+      { type: "linkedin_message", message: finalMessage, delayHours: 24 },
+    ];
+    if (channel === "email") return [{ type: "email", subject: "A quick idea for {{Company}}", message: finalMessage, delayHours: 0 }];
+    return [{ type: `${channel}_message`, message: finalMessage, delayHours: 0 }];
+  });
+}
+
+async function syncOnboardingChannelAccounts(campaignId: string, accounts: Partial<Record<OutreachChannel, string>>): Promise<void> {
+  const entries = Object.entries(accounts) as Array<[OutreachChannel, string]>;
+  await prisma.$transaction([
+    prisma.campaignChannelAccount.deleteMany({
+      where: {
+        campaignId,
+        ...(entries.length > 0
+          ? { channel: { notIn: entries.map(([channel]) => channel) } }
+          : {}),
+      },
+    }),
+    ...entries.map(([channel, socialAccountId]) =>
+      prisma.campaignChannelAccount.upsert({
+        where: { campaignId_channel: { campaignId, channel } },
+        create: { campaignId, channel, socialAccountId },
+        update: { socialAccountId },
+      }),
+    ),
+  ]);
+}
+
 async function ensureOnboardingCampaign(input: {
   orgId: string;
   organizationName: string;
@@ -83,7 +120,8 @@ async function ensureOnboardingCampaign(input: {
     icpDefinition: unknown;
     messagingAngles: unknown;
   };
-  linkedinSenderId: string;
+  channelAccounts: Partial<Record<OutreachChannel, string>>;
+  selectedChannels: OutreachChannel[];
 }): Promise<OnboardingCampaign> {
   const positioning = asRecord(input.strategy.positioning);
   const icpDefinition = asRecord(input.strategy.icpDefinition);
@@ -114,7 +152,9 @@ async function ensureOnboardingCampaign(input: {
       await prisma.campaign.update({
         where: { id: existing.id },
         data: {
-          socialAccountId: input.linkedinSenderId,
+          socialAccountId: input.channelAccounts.linkedin ?? null,
+          channels: input.selectedChannels,
+          sequence: toJson(onboardingSequence(input.selectedChannels, recordString(asRecord(input.strategy.messagingAngles), "outreachMessage"), asRecord(input.strategy.messagingAngles), product)),
           aiConfig: withOnboardingDiscovery(
             {
               ...asRecord(existing.aiConfig),
@@ -126,6 +166,7 @@ async function ensureOnboardingCampaign(input: {
         },
       });
     }
+    await syncOnboardingChannelAccounts(existing.id, input.channelAccounts);
     return { id: existing.id, status: existing.status };
   }
 
@@ -136,24 +177,11 @@ async function ensureOnboardingCampaign(input: {
     });
   }
 
-  let outreachMessage = recordString(messagingAngles, "outreachMessage");
-  if (!outreachMessage) {
-    const generated = await runOutreachMessageAgent({
-      orgId: input.orgId,
-      product,
-      audience,
-      tone: videoTone(input.strategy.videoConfig),
-    });
-    outreachMessage = generated.message;
-    await prisma.strategy.update({
-      where: { id: input.strategy.id },
-      data: { messagingAngles: toJson({ ...messagingAngles, outreachMessage }) },
-    });
-  }
+  const outreachMessage = recordString(messagingAngles, "outreachMessage");
 
   const naming = {
     audience: audience.replace(/\s+/g, " ").trim().slice(0, 72) || input.organizationName,
-    channelLabel: "LinkedIn",
+    channelLabel: input.selectedChannels.map((channel) => channel === "email" ? "Email" : channel.charAt(0).toUpperCase() + channel.slice(1)).join(" + "),
     goal: onboardingCampaignGoal(messagingAngles),
   };
   const campaignName = formatCampaignName(naming);
@@ -164,20 +192,9 @@ async function ensureOnboardingCampaign(input: {
       name: campaignName,
       naming,
       status: "review",
-      channels: ["linkedin"],
-      socialAccountId: input.linkedinSenderId,
-      sequence: toJson([
-        {
-          type: "linkedin_invite",
-          message: buildConnectionNote(product),
-          delayHours: 0,
-        },
-        {
-          type: "linkedin_message",
-          message: outreachMessageWithCta(outreachMessage, messagingAngles),
-          delayHours: 24,
-        },
-      ]),
+      channels: input.selectedChannels,
+      socialAccountId: input.channelAccounts.linkedin ?? null,
+      sequence: toJson(onboardingSequence(input.selectedChannels, outreachMessage, messagingAngles, product)),
       aiConfig: toJson({
         source: "onboarding",
         requiresSequenceReview: true,
@@ -192,6 +209,8 @@ async function ensureOnboardingCampaign(input: {
     },
     select: { id: true, status: true },
   });
+
+  await syncOnboardingChannelAccounts(campaign.id, input.channelAccounts);
 
   return campaign;
 }
@@ -237,32 +256,8 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         select: { name: true, subscriptionStatus: true, onboardedAt: true },
       });
 
-      if (!organization || organization.subscriptionStatus !== "active") {
+      if (!organization || (organization.subscriptionStatus !== "active" && organization.subscriptionStatus !== "trialing")) {
         throw new ForbiddenError("An active subscription is required to complete onboarding");
-      }
-
-      const connectedAccountCount = await prisma.socialAccount.count({
-        where: { orgId, status: "active" },
-      });
-      if (connectedAccountCount < 1) {
-        throw new ValidationError(
-          "Connect at least one active channel before completing onboarding",
-        );
-      }
-
-      const linkedinSender = await prisma.socialAccount.findFirst({
-        where: {
-          orgId,
-          platform: "linkedin",
-          status: "active",
-          ...(requestedSenderId ? { id: requestedSenderId } : {}),
-        },
-        select: { id: true },
-      });
-      if (!linkedinSender) {
-        throw new ValidationError(
-          "Connect an active LinkedIn channel before creating your first campaign",
-        );
       }
 
       const strategy = await prisma.strategy.findFirst({
@@ -274,6 +269,7 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
           positioning: true,
           icpDefinition: true,
           messagingAngles: true,
+          channels: true,
         },
       });
       if (!strategy) {
@@ -282,11 +278,30 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         );
       }
 
+      const selectedChannels = selectedOutreachChannels(strategy.channels);
+      if (selectedChannels.length === 0) throw new ValidationError("Select at least one campaign channel before completing onboarding");
+      const messagingAngles = asRecord(strategy.messagingAngles);
+      if (!recordString(messagingAngles, "outreachMessage") || !recordString(messagingAngles, "outreachMessageApprovedAt")) {
+        throw new ValidationError("Approve the campaign message before completing onboarding");
+      }
+      const activeAccounts = await prisma.socialAccount.findMany({
+        where: { orgId, status: "active", platform: { in: selectedChannels } },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, platform: true },
+      });
+      const channelAccounts: Partial<Record<OutreachChannel, string>> = {};
+      for (const channel of selectedChannels) {
+        const selected = activeAccounts.find((account) => account.platform === channel && (channel !== "linkedin" || !requestedSenderId || account.id === requestedSenderId));
+        if (!selected) throw new ValidationError(`Connect an active ${channel} account before creating your first campaign`);
+        channelAccounts[channel] = selected.id;
+      }
+
       const campaign = await ensureOnboardingCampaign({
         orgId,
         organizationName: organization.name,
         strategy,
-        linkedinSenderId: linkedinSender.id,
+        channelAccounts,
+        selectedChannels,
       });
 
       if (campaign.status !== "active") {

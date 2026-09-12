@@ -28,7 +28,9 @@ const state = {
     messagingAngles: {
       outreachMessage:
         "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",
+      outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
     },
+    channels: { selected: ["linkedin"] },
   },
   socialAccounts: [] as Array<{
     orgId: string;
@@ -135,6 +137,11 @@ vi.mock("../../../platform/persistence/prisma.js", () => ({
       updateMany: vi.fn(async () => ({ count: 0 })),
       create: vi.fn(async () => ({ id: "campaign-onboarding-e2e" })),
     },
+    campaignChannelAccount: {
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      upsert: vi.fn(async () => ({})),
+    },
+    $transaction: vi.fn(async (operations: Promise<unknown>[]) => Promise.all(operations)),
     lead: {
       findFirst: vi.fn(async () => null),
       findMany: vi.fn(async () => [{ id: "lead-e2e", reviewStatus: "pending" }]),
@@ -246,6 +253,7 @@ beforeEach(async () => {
   state.strategy.messagingAngles = {
     outreachMessage:
       "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",
+    outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
   };
   state.socialAccounts.splice(0);
   state.eventIds.clear();
@@ -263,7 +271,7 @@ beforeEach(async () => {
   }));
   createSubscriptionCheckoutSession.mockResolvedValue({
     id: "mock_checkout_org-e2e",
-    url: "http://localhost:3000/onboarding?step=checkout&status=success",
+    url: "http://localhost:3000/onboarding/checkout?status=success",
   });
   verifyStripeWebhookEvent.mockReturnValue({
     id: "evt_subscription_active",
@@ -345,7 +353,7 @@ describe("onboarding backend in Stripe mock mode", () => {
     expect(videoDecision.statusCode).toBe(200);
     expect(pricing.statusCode).toBe(200);
     expect(checkout.json()).toEqual({
-      url: "http://localhost:3000/onboarding?step=checkout&status=success",
+      url: "http://localhost:3000/onboarding/checkout?status=success",
     });
     expect(activation.json()).toEqual({ received: true });
     expect(replay.json()).toEqual({ received: true, duplicate: true });
