@@ -3,7 +3,7 @@
 import { lazy, Suspense } from "react";
 import { CreditCard, Lock } from "@/components/ui/icons";
 import styles from "./steps/CheckoutMobile.module.css";
-import { isOnboardingPreview } from "../public/preview-api";
+import { isOnboardingDemo, isOnboardingPreview } from "../public/preview-api";
 
 const StripeCheckout = lazy(() => import("@/features/onboarding/components/StripeCheckout"));
 
@@ -115,7 +115,7 @@ export function CheckoutCard({
   planName?: string;
   onRetry?: () => void;
 }) {
-  if (mockMode) return isOnboardingPreview() ? <MockCheckout onSubmit={onMockSubmit} /> : <p role="alert">Secure checkout is unavailable. Please contact support to enable Stripe billing.</p>;
+  if (mockMode) return isOnboardingPreview() || isOnboardingDemo() ? <MockCheckout onSubmit={onMockSubmit} /> : <p role="alert">Secure checkout is unavailable. Please contact support to enable Stripe billing.</p>;
 
   if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim()) {
     return (

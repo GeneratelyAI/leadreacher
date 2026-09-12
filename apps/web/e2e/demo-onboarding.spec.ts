@@ -44,12 +44,12 @@ test("completes the demo without production side effects", async ({ page }, test
   const whatsapp = page.locator('[data-channel="whatsapp"]');
   await expect(whatsapp.getByRole("button", { name: "Not selected", exact: true })).toBeDisabled();
   const linkedin = page.locator('[data-channel="linkedin"]');
-  await expect(linkedin.getByRole("button", { name: /Connected/ })).toBeVisible();
+  await expect(linkedin.getByRole("button", { name: /connected/i })).toBeVisible();
   const gmail = page.locator('[data-channel="gmail"]');
   await gmail.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(gmail.getByRole("button", { name: /Connected/ })).toBeVisible();
+  await expect(gmail.getByRole("button", { name: /connected/i })).toBeVisible();
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(linkedin.getByRole("button", { name: /Connected/ })).toBeVisible();
+  await expect(linkedin.getByRole("button", { name: /connected/i })).toBeVisible();
   await page.getByRole("button", { name: "Review campaign" }).click();
 
   await expect(page).toHaveURL(/\/demo\/dashboard$/);

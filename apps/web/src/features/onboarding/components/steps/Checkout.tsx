@@ -30,6 +30,10 @@ function isUsableSubscription(status: string | null | undefined): boolean {
   return status === "active" || status === "trialing";
 }
 
+function usesFixtureCheckout(): boolean {
+  return isOnboardingPreview() || isOnboardingDemo();
+}
+
 type BillingLineItem = {
   key: string;
   priceId: string;
@@ -210,7 +214,7 @@ export default function Checkout() {
 
     async function verifyPayment() {
       if (checkoutSessionId) {
-        if (!isOnboardingPreview() && !checkoutSessionId.startsWith("cs_")) {
+        if (!usesFixtureCheckout() && !checkoutSessionId.startsWith("cs_")) {
           throw new Error("The payment return did not contain a valid Stripe Checkout Session.");
         }
         const reconciliation = await apiFetch<{ subscriptionStatus: string | null }>(
@@ -272,11 +276,11 @@ export default function Checkout() {
         body: JSON.stringify({ embedded: true }),
       });
       if (generation !== sessionGeneration.current) return;
-      if (session.mockMode && !isOnboardingPreview()) {
+      if (session.mockMode && !usesFixtureCheckout()) {
         throw new Error("Secure checkout is unavailable. Please contact support to enable Stripe billing.");
       }
       if (!session.clientSecret) throw new Error("Stripe did not return an embedded checkout session.");
-      if (!isOnboardingPreview() && (!session.lineItems?.length || !session.configuration || !session.includedChannels)) {
+      if (!usesFixtureCheckout() && (!session.lineItems?.length || !session.configuration || !session.includedChannels)) {
         throw new Error("The checkout pricing snapshot is unavailable. Please try again.");
       }
       if (session.lineItems) setLineItems(session.lineItems);
@@ -385,7 +389,7 @@ export default function Checkout() {
                 previewAmount={lineItems.reduce((total, item) => total + (item.unitAmount ?? 0), 0)}
                 previewCurrency={lineItems.find((item) => item.currency)?.currency ?? "usd"}
                 showStripePreview={isOnboardingPreview()}
-                onMockSubmit={isOnboardingPreview() ? () => {
+                onMockSubmit={usesFixtureCheckout() ? () => {
                   navigateOnboarding(`${onboardingHref("checkout")}?status=success&session_id=${isOnboardingDemo() ? "demo" : "preview"}`, true);
                 } : undefined}
               />
