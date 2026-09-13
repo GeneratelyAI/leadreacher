@@ -9,7 +9,8 @@ import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { recoverContentChoice, type ContentChoice } from "@/features/onboarding/public/content-choice";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
+import { useCampaignPillDraft } from "../../state/campaign-context";
 import { CreativeIllustration } from "./CreativeIllustrations";
 import mobile from "./CreativeMobile.module.css";
 
@@ -94,10 +95,23 @@ export default function CampaignContent() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const { setDraft } = useCampaignPillDraft();
 
   async function handleContinue() {
     if (isSaving) return;
 
+    const destination = onboardingHref(
+      selectedId === "personalized-video"
+        ? "personalized-video"
+        : selectedId === "ai-video"
+          ? "ai-video"
+          : selectedId === "your-video"
+            ? "your-video"
+            : selectedId === "document"
+              ? "document"
+              : "campaign-content",
+    );
+    if (!beginOnboardingNavigation(destination)) return;
     setIsSaving(true);
     setError(null);
     setIsTransitioning(true);
@@ -110,18 +124,9 @@ export default function CampaignContent() {
       });
       if (!mounted.current) return;
       didNavigate = true;
-      navigateOnboarding(onboardingHref(
-        selectedId === "personalized-video"
-          ? "personalized-video"
-          : selectedId === "ai-video"
-            ? "ai-video"
-            : selectedId === "your-video"
-              ? "your-video"
-            : selectedId === "document"
-              ? "document"
-              : "campaign-content",
-      ));
+      navigateOnboarding(destination);
     } catch (cause) {
+      restoreOnboardingNavigation();
       setError(cause instanceof Error ? cause.message : "Unable to save your content choice.");
     } finally {
       setIsSaving(false);
@@ -170,7 +175,7 @@ export default function CampaignContent() {
                     selected && "campaign-content-option-selected",
                     isTransitioning && selected && "campaign-content-option-approving",
                   )}
-                  onClick={() => { choiceTouched.current = true; setSelectedId(option.id); }}
+                  onClick={() => { choiceTouched.current = true; setSelectedId(option.id); setDraft({ sectionId: "content", summary: option.title, value: option.title }); }}
                   onKeyDown={(event) => {
                     const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
                     if (!direction && event.key !== "Home" && event.key !== "End") return;
@@ -179,12 +184,14 @@ export default function CampaignContent() {
                     const index = event.key === "Home" ? 0 : event.key === "End" ? CONTENT_OPTIONS.length - 1 : (current + direction + CONTENT_OPTIONS.length) % CONTENT_OPTIONS.length;
                     choiceTouched.current = true;
                     setSelectedId(CONTENT_OPTIONS[index].id);
+                    const next = CONTENT_OPTIONS[index];
+                    setDraft({ sectionId: "content", summary: next.title, value: next.title });
                     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[index]?.focus({ preventScroll: true });
                   }}
                 >
                   <span className={mobile.optionRadio} aria-hidden />
                   <CreativeIllustration kind={option.id} className={mobile.mobileArt} />
-                  <span className="campaign-content-option-art" aria-hidden>
+                  <span className="campaign-content-option-art" data-story-object={option.image ? "media" : option.id === "your-video" ? "content:upload" : undefined} data-story-asset={option.image ? `media:${option.image}` : undefined} aria-hidden>
                     {option.image ? (
                       <>
                         <Image src={option.image} alt="" fill sizes="(min-width: 63rem) 12rem, 45vw" className="object-cover" />

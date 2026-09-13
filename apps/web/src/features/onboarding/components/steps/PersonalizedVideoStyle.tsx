@@ -3,13 +3,14 @@
 import Image from "next/image";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useCampaignData } from "@/features/onboarding/public/pill";
+import { useCampaignPillDraft } from "../../state/campaign-context";
 import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, CheckCircle2, Play } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 import { continueAfterContent } from "../../public/content-next";
 import type { VideoTone } from "./video-style-types";
 import {
@@ -59,6 +60,17 @@ function reducedMotionPreferred(): boolean {
     && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
+function styleScrollPosition(rail: HTMLDivElement, index: number): number | null {
+  const card = rail.children[index] as HTMLElement | undefined;
+  const first = rail.children[0] as HTMLElement | undefined;
+  if (!card || !first) return null;
+  const start = card.offsetLeft - first.offsetLeft;
+  if (index !== STYLE_OPTIONS.length - 1) return start;
+  const style = getComputedStyle(rail);
+  // Use the final snap position directly so interrupted focus scrolls cannot overshoot it.
+  return Math.max(0, start + (parseFloat(style.paddingLeft) || 0) + card.offsetWidth - rail.clientWidth + (parseFloat(style.scrollPaddingRight) || 0));
+}
+
 export function VideoStyleSelection({
   mode,
   styleLabel,
@@ -82,6 +94,7 @@ export function VideoStyleSelection({
   }, []);
 
   const savedCampaign = useCampaignData();
+  const { setDraft } = useCampaignPillDraft();
   const savedContent = savedCampaign?.sections?.find((section) => section.id === "content")?.value;
   const savedContentStyle = STYLE_OPTIONS.find((option) => savedContent?.endsWith(` · ${option.title}`));
   const [selectedStyle, setSelectedStyle] = useState<VideoTone>(
@@ -91,9 +104,10 @@ export function VideoStyleSelection({
   const [railIndex, setRailIndex] = useState(() => STYLE_OPTIONS.findIndex((option) => option.id === selectedStyle));
   function showStyle(index: number) {
     const rail = railRef.current;
-    const card = rail?.children[index] as HTMLElement | undefined;
-    if (!rail || !card) return;
-    rail.scrollTo({ left: card.offsetLeft - (rail.children[0] as HTMLElement).offsetLeft, behavior: reducedMotionPreferred() ? "instant" : "smooth" });
+    if (!rail) return;
+    const left = styleScrollPosition(rail, index);
+    if (left === null) return;
+    rail.scrollTo({ left, behavior: reducedMotionPreferred() ? "instant" : "smooth" });
     setRailIndex(index);
   }
   const hasChosenStyle = useRef(false);
@@ -101,11 +115,11 @@ export function VideoStyleSelection({
     if (hasChosenStyle.current || !window.matchMedia("(max-width: 63rem)").matches) return;
     const index = STYLE_OPTIONS.findIndex((option) => option.id === selectedStyle);
     const rail = railRef.current;
-    const card = rail?.children[index] as HTMLElement | undefined;
-    const first = rail?.children[0] as HTMLElement | undefined;
-    if (!rail || !card || !first) return;
+    if (!rail) return;
+    const left = styleScrollPosition(rail, index);
+    if (left === null) return;
     // Place restored selections before paint, using untransformed layout widths.
-    rail.scrollTo({ left: card.offsetLeft - first.offsetLeft, behavior: "instant" });
+    rail.scrollTo({ left, behavior: "instant" });
     setRailIndex(index);
   }, [selectedStyle]);
   useEffect(() => {
@@ -175,6 +189,7 @@ export function VideoStyleSelection({
   async function handleContinue() {
     if (isSaving || phase === "generating") return;
 
+    if (!beginOnboardingNavigation(onboardingHref("cta"))) return;
     setIsSaving(true);
     setError(null);
     try {
@@ -195,6 +210,7 @@ export function VideoStyleSelection({
         if (mounted.current) continueAfterContent();
       }, reducedMotionPreferred() ? 0 : 40);
     } catch (saveError) {
+      restoreOnboardingNavigation();
       setError(saveError instanceof Error ? saveError.message : "Unable to save your video style.");
     } finally {
       setIsSaving(false);
@@ -209,10 +225,15 @@ export function VideoStyleSelection({
       ? "generating"
       : "ready";
   const contentTypeLabel = mode === "personalized" ? "personalized videos" : "AI video";
+  const previewPillSelection = (tone: VideoTone) => {
+    const type = mode === "personalized" ? "Personalized video" : "AI video";
+    const style = STYLE_OPTIONS.find((option) => option.id === tone)?.title ?? tone;
+    setDraft({ sectionId: "content", summary: `${type} · ${style}`, value: `${type} · ${style}` });
+  };
 
   return (
     <section className={cn("personalized-video-style-page", mobile.page)}>
-      <main className="personalized-video-style-main" aria-labelledby="personalized-video-style-title">
+      <main className="personalized-video-style-main" aria-labelledby="personalized-video-style-title" data-story-ready={phase !== "generating"}>
         <header className="personalized-video-style-header">
           <h1 id="personalized-video-style-title">
             <span className={mobile.desktopOnly}>Campaign Content<span className="signup-campaign-period">.</span></span>
@@ -282,10 +303,16 @@ export function VideoStyleSelection({
                   onClick={() => {
                     hasChosenStyle.current = true;
                     setSelectedStyle(option.id);
+                    previewPillSelection(option.id);
                     if (window.matchMedia("(max-width: 63rem)").matches) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
                   }}
-                  onFocus={() => {
-                    if (window.matchMedia("(max-width: 63rem)").matches) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
+                  onFocus={(event) => {
+                    if (!window.matchMedia("(max-width: 63rem)").matches) return;
+                    const card = event.currentTarget;
+                    // Let native focus scrolling finish before aligning the selected snap target.
+                    window.requestAnimationFrame(() => {
+                      if (mounted.current && document.activeElement === card) showStyle(STYLE_OPTIONS.findIndex((style) => style.id === option.id));
+                    });
                   }}
                   onKeyDown={(event) => {
                     const direction = event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : event.key === "ArrowLeft" || event.key === "ArrowUp" ? -1 : 0;
@@ -295,6 +322,7 @@ export function VideoStyleSelection({
                     const index = event.key === "Home" ? 0 : event.key === "End" ? STYLE_OPTIONS.length - 1 : (current + direction + STYLE_OPTIONS.length) % STYLE_OPTIONS.length;
                     hasChosenStyle.current = true;
                     setSelectedStyle(STYLE_OPTIONS[index].id);
+                    previewPillSelection(STYLE_OPTIONS[index].id);
                     (railRef.current?.children[index] as HTMLElement | undefined)?.focus({ preventScroll: true });
                   }}
                 >
@@ -304,6 +332,8 @@ export function VideoStyleSelection({
                       preview.kind === "placeholder" && "personalized-video-style-art-placeholder",
                     )}
                     data-preview-kind={preview.kind}
+                    data-story-object={selected && preview.kind !== "placeholder" ? "media" : undefined}
+                    data-story-asset={preview.kind !== "placeholder" ? `media:${preview.kind === "generated-video" ? preview.posterUrl ?? preview.src : preview.src}` : undefined}
                     aria-hidden
                   >
                     {preview.kind === "sample" ? (
@@ -367,7 +397,7 @@ export function VideoStyleSelection({
             })}
           </div>
           <div className={mobile.styleTabs} aria-label="Choose a video style">
-            {STYLE_OPTIONS.map((option, index) => <button key={option.id} type="button" aria-pressed={selectedStyle === option.id} disabled={isSaving || phase === "approved"} onClick={() => { hasChosenStyle.current = true; setSelectedStyle(option.id); showStyle(index); }}>{option.title}</button>)}
+            {STYLE_OPTIONS.map((option, index) => <button key={option.id} type="button" aria-pressed={selectedStyle === option.id} disabled={isSaving || phase === "approved"} onClick={() => { hasChosenStyle.current = true; setSelectedStyle(option.id); previewPillSelection(option.id); showStyle(index); }}>{option.title}</button>)}
           </div>
           <div className="video-style-rail-controls">
             <button type="button" aria-label="Previous video style" disabled={railIndex === 0} onClick={() => showStyle(railIndex - 1)}><span className={mobile.desktopOnly}>Previous</span><ArrowLeft className={mobile.mobileOnly} aria-hidden /></button>

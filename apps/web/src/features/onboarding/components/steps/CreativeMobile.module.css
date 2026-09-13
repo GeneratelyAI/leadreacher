@@ -229,8 +229,12 @@
     border-color: #6735ff;
     box-shadow: 0 0 0 1px rgb(103 53 255 / 18%);
   }
+  .page :global(.personalized-video-style-card:focus-visible) {
+    border-color: #6735ff;
+    box-shadow: inset 0 0 0 2px rgb(103 53 255 / 60%);
+  }
   .page :global(.personalized-video-style-card:last-child) {
-    margin-inline-end: 22%;
+    scroll-snap-align: end;
   }
   .page :global(.personalized-video-style-art) {
     width: 100%;
@@ -619,9 +623,6 @@
   }
   .page :global(.personalized-video-style-card) {
     flex-basis: 86%;
-  }
-  .page :global(.personalized-video-style-card:last-child) {
-    margin-inline-end: 14%;
   }
   .page :global(.upload-your-video-actions),
   .page :global(.upload-document-actions) {

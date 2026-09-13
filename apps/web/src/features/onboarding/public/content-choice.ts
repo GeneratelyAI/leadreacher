@@ -8,3 +8,10 @@ export function recoverContentChoice(strategy: { campaignType?: string; icpDefin
   if (strategy.campaignType === "uploaded_video") return "your-video";
   return "personalized-video";
 }
+
+export function contentWorkflowRoute(strategy: { campaignType?: string | null; icpDefinition?: unknown }): ContentChoice {
+  const icpDefinition = strategy.icpDefinition && typeof strategy.icpDefinition === "object" && !Array.isArray(strategy.icpDefinition)
+    ? strategy.icpDefinition as { contentChoice?: unknown }
+    : undefined;
+  return recoverContentChoice({ campaignType: strategy.campaignType ?? undefined, icpDefinition });
+}
