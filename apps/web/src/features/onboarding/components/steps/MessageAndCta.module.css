@@ -196,9 +196,6 @@
 
 .emptyCtaPreview { margin: 0 4.65rem 0 auto; color: #737a96 !important; font-size: .74rem !important; text-align: right; }
 
-.reviewFooter { gap: .5rem; margin-top: .4rem; }
-.reviewFooter .approvalNote { margin-left: auto; text-align: right; }
-
 .editorWorkspace {
   grid-template-columns: minmax(0, .9fr) minmax(15rem, 1.1fr);
   align-items: stretch;
@@ -294,7 +291,7 @@
 .compactConversation .bookingPreview small { font-size: .66rem; }
 
 .reviewHeader,
-.reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter) {
+.reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview) {
   opacity: 0;
   transform: translate3d(0, .4rem, 0);
   transition: opacity var(--onboarding-motion-state) var(--onboarding-motion-ease), transform var(--onboarding-motion-state) var(--onboarding-motion-ease);
@@ -302,21 +299,16 @@
 .reviewCard .outgoingMessage { transform: translate3d(.7rem, 0, 0); }
 .reviewCard .senderAvatar { opacity: 0; transform: translate3d(.35rem, 0, 0); transition: opacity var(--onboarding-motion-state) var(--onboarding-motion-ease), transform var(--onboarding-motion-state) var(--onboarding-motion-ease); }
 .reviewCard[data-presented] .reviewHeader,
-.reviewCard[data-presented] :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter) { opacity: 1; transform: translate3d(0, 0, 0); }
+.reviewCard[data-presented] :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview) { opacity: 1; transform: translate3d(0, 0, 0); }
 .reviewCard[data-presented] .senderAvatar { opacity: 1; transform: translate3d(0, 0, 0); transition-delay: 170ms; }
 .reviewCard[data-presented] .reviewHeader { transition-delay: 0ms; }
 .reviewCard[data-presented] .recipientRow { transition-delay: 40ms; }
 .reviewCard[data-presented] .previewLabel { transition-delay: 90ms; }
 .reviewCard[data-presented] .outgoingMessage { transition-delay: 140ms; }
 .reviewCard[data-presented] .bookingPreview { transition-delay: 190ms; }
-.reviewCard[data-presented] .reviewFooter { transition-delay: 240ms; }
-
 .reviewCard[data-editor-opening] .conversation {
   transform-origin: 70% 54%;
   animation: editor-preview-recede 240ms cubic-bezier(.16, 1, .3, 1) both;
-}
-.reviewCard[data-editor-opening] .reviewFooter {
-  animation: editor-footer-recede 180ms 30ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .reviewCard[data-editor-opening] .editMessageButton {
   animation: editor-trigger-settle 180ms cubic-bezier(.16, 1, .3, 1) both;
@@ -343,11 +335,6 @@
   100% { opacity: 0; filter: blur(1.5px); transform: translate3d(-.38rem, -.32rem, 0) scale(.982); }
 }
 
-@keyframes editor-footer-recede {
-  from { opacity: 1; transform: translate3d(0, 0, 0); }
-  to { opacity: 0; transform: translate3d(0, -.18rem, 0); }
-}
-
 @keyframes editor-trigger-settle {
   from { transform: translate3d(0, 0, 0) scale(1); }
   55% { transform: translate3d(0, .05rem, 0) scale(.975); }
@@ -357,8 +344,6 @@
 @media (max-width: 63rem) {
   .outgoingMessage > p { max-width: 82%; }
   .bookingPreview { width: calc(82% - 2.9rem); margin-right: 2.9rem; }
-  .reviewFooter { align-items: flex-start; flex-wrap: wrap; }
-  .reviewFooter .approvalNote { width: 100%; margin-left: 1.85rem; text-align: left; }
   .editorWorkspace { grid-template-columns: 1fr; }
   .editorPreview { min-height: 16rem; }
   .editorWorkspace :global(textarea) { resize: vertical; }
@@ -387,12 +372,10 @@
   .compactConversation .conversationBody { min-height: 0; padding-block: .2rem; }
   .compactConversation .outgoingMessage > p { padding: .45rem .6rem !important; line-height: 1.25; }
   .compactConversation .bookingPreview { margin-top: .35rem; margin-bottom: .2rem; padding: .35rem .5rem; }
-  .reviewFooter { margin-top: .3rem; padding-top: .3rem; }
 }
 
 @media (min-width: 63.0625rem) and (max-height: 950px) {
   .task { margin-top: 1rem; }
-  .reviewFooter { margin-top: .25rem; padding-top: .3rem; }
   .reviewCard:not(:has(.editorWorkspace)):not(:has(.loadingCopy)) { min-height: 0; }
   .reviewCard:not(:has(.editorWorkspace)) .recipientRow { padding: .5rem .65rem; }
   .reviewCard:not(:has(.editorWorkspace)) .companyAvatar,
@@ -428,7 +411,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .reviewHeader,
-  .reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .reviewFooter),
+  .reviewCard :is(.recipientRow, .previewLabel, .outgoingMessage, .bookingPreview),
   .reviewCard .senderAvatar { opacity: 1; transform: none; transition: none; }
   .bookingPreview,
   .editMessageButton { transition: none; }
@@ -436,6 +419,5 @@
   .editorPanel,
   .editorPreview,
   .reviewCard[data-editor-opening] .conversation,
-  .reviewCard[data-editor-opening] .reviewFooter,
   .reviewCard[data-editor-opening] .editMessageButton { animation: none; }
 }

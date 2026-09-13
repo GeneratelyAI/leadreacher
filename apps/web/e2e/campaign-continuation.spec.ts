@@ -186,12 +186,10 @@ test.describe("production-ready onboarding continuation", () => {
     const content = page.getByRole("region", { name: "Message review content", exact: true });
     await content.focus();
     await page.keyboard.press("End");
-    const footer = card.locator("footer");
-    await expect(footer).toContainText("Personalization: {{FirstName}} · {{Company}}");
-    await expect(footer).toBeInViewport();
-    const footerBounds = await footer.boundingBox();
+    await expect(card.locator("footer")).toHaveCount(0);
+    const cardBounds = await card.boundingBox();
     const actionBounds = await page.locator(".onboarding-campaign-action-row").boundingBox();
-    expect(footerBounds!.y + footerBounds!.height).toBeLessThanOrEqual(actionBounds!.y - 28);
+    expect(cardBounds!.y + cardBounds!.height).toBeLessThanOrEqual(actionBounds!.y - 28);
   });
 
   test("CTA review and live editor stay inside the desktop canvas", async ({ page }) => {
