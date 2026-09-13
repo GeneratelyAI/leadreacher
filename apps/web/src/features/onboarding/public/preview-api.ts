@@ -354,6 +354,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       strategy.messagingAngles.cta = typeof body.ctaLabel === "string" && typeof body.ctaUrl === "string"
         ? { label: body.ctaLabel, url: body.ctaUrl }
         : null;
+      Object.assign(strategy.messagingAngles, { ctaExplicitlySaved: true });
       strategy.messagingAngles.outreachMessageApprovedAt = body.approved === true ? new Date(0).toISOString() : null;
       saveStrategy();
     }
@@ -362,6 +363,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       message: strategy.messagingAngles.outreachMessage,
       ctaLabel: cta?.label ?? null,
       ctaUrl: cta?.url ?? null,
+      ctaExplicitlySaved: (strategy.messagingAngles as typeof strategy.messagingAngles & { ctaExplicitlySaved?: boolean }).ctaExplicitlySaved === true,
       approved: Boolean(strategy.messagingAngles.outreachMessageApprovedAt),
     } as T;
   }
@@ -416,7 +418,19 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     return strategy as T;
   }
   if (path.endsWith("/content-approval")) {
-    Object.assign(strategy.icpDefinition, { approvedContent: parseRequestBody(options) });
+    const approval = parseRequestBody(options);
+    Object.assign(strategy.icpDefinition, { approvedContent: approval });
+    if (approval.type === "Your video" && !strategy.videoConfig.uploadedVideoUrl) {
+      Object.assign(strategy.videoConfig, {
+        enabled: true,
+        mode: null,
+        source: "uploaded",
+        tone: null,
+        uploadedVideoUrl: `${window.location.origin}/landing/product-story/personalized-video-outreach.mp4`,
+        uploadedVideoName: "Acme-product-introduction.mp4",
+        uploadedVideoSize: 18 * 1024 * 1024,
+      });
+    }
     saveStrategy();
     return strategy as T;
   }
@@ -434,6 +448,9 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     } as T;
   }
   if (path === "/billing/checkout-session") {
+    const requestedDelay = Number(new URLSearchParams(window.location.search).get("stripe_delay") ?? 0);
+    const delay = Number.isFinite(requestedDelay) ? Math.min(Math.max(requestedDelay, 0), 2_000) : 0;
+    if (delay) await new Promise<void>((resolve) => window.setTimeout(resolve, delay));
     return { url: null, clientSecret: "preview", mockMode: true } as T;
   }
   if (path === "/billing/checkout-session/reconcile") return { subscriptionStatus: "active" } as T;

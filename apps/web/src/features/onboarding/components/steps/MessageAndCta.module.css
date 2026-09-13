@@ -61,8 +61,6 @@
 
 .companyAvatar { background: linear-gradient(145deg, #f0edff, #e4ddff); color: #5538e7; box-shadow: inset 0 0 0 1px rgb(94 66 232 / 8%); }
 .companyAvatar svg { width: 1.35rem; height: 1.35rem; }
-.companyAvatar:has(.companySiteIcon) { background: transparent; box-shadow: none; }
-.companySiteIcon { width: 100%; height: 100%; border-radius: .8rem; object-fit: cover; }
 .recipientRow strong { display: block; color: #080e28; font-size: .92rem; line-height: 1.2; }
 .recipientRow small { display: block; margin-top: .14rem; color: #737a96; font-size: .76rem; line-height: 1.2; }
 
@@ -87,16 +85,22 @@
 }
 
 .outgoingMessage {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 40rem) 2.35rem;
+  grid-template-rows: auto auto;
   align-items: flex-end;
-  justify-content: flex-end;
-  gap: .7rem;
+  justify-content: end;
+  column-gap: .7rem;
+  row-gap: .5rem;
   padding: 0 1.25rem;
 }
 
 .outgoingMessage > p {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
   position: relative;
-  max-width: min(80%, 40rem);
+  max-width: 100%;
   margin: 0 !important;
   border-radius: 1.45rem 1.45rem .35rem 1.45rem !important;
   padding: 1.05rem 1.15rem !important;
@@ -104,6 +108,8 @@
   color: #252d50 !important;
   font-size: clamp(.85rem, 1.05vw, .98rem) !important;
   line-height: 1.48 !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   box-shadow: 0 .55rem 1.25rem rgb(86 55 220 / 14%), inset 0 1px 0 rgb(255 255 255 / 48%);
 }
 
@@ -119,6 +125,8 @@
 }
 
 .senderAvatar {
+  grid-column: 2;
+  grid-row: 1;
   z-index: 1;
   margin: 0 0 .12rem;
   background: linear-gradient(145deg, #6849f3, #4c2bd2);
@@ -148,6 +156,80 @@
   background: linear-gradient(135deg, #faf9ff, #f2efff);
   box-shadow: 0 .35rem .85rem rgb(83 56 231 / 7%);
 }
+.mediaThumbnail {
+  position: relative;
+  width: 8.5rem;
+  height: 4.75rem;
+  margin: 0 2.55rem 0 auto;
+  border: 1px solid #e0d9ff;
+  border-radius: .65rem;
+  background: #f3f0ff;
+  box-shadow: 0 .2rem .5rem rgb(83 56 231 / 7%);
+}
+.mediaThumbnail img { object-fit: cover; border-radius: inherit; }
+.mediaStatus {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  width: min(100%, 14rem);
+  min-height: 2.75rem;
+  padding: .55rem .7rem;
+  border: 1px dashed #d8d3ec;
+  border-radius: .7rem;
+  background: #faf9ff;
+  color: #68708c;
+  font-size: .72rem;
+  text-align: left;
+}
+button.mediaStatus { cursor: pointer; }
+button.mediaStatus:hover { border-color: #9b89ff; background: #f6f3ff; }
+button.mediaStatus:focus-visible { outline: 2px solid #6747ff; outline-offset: 2px; }
+.mediaStatus span { display: grid; place-items: center; color: #6747ff; }
+.mediaStatus svg { width: 1rem; height: 1rem; }
+.documentFile { display: grid; width: 100%; height: 100%; place-items: center; gap: .15rem; padding: .4rem; color: #4f3dd0; font-size: .62rem; text-align: center; }
+.documentFile svg { width: 1.25rem; height: 1.25rem; }
+.conversationBody { position: relative; }
+.interactiveMedia { position: static; }
+.mediaDialog { position: fixed; inset: auto; margin: 0; max-width: none; max-height: none; padding: 0; border: 0; overflow: visible; background: transparent; color: white; }
+.mediaDialog::backdrop { background: transparent; }
+.expandedMedia { position: relative; width: 100%; height: 100%; border-radius: 14px; background: #080e28; transform-origin: top left; box-shadow: 0 2px 6px rgb(44 24 120 / 18%); }
+.expandedMedia video { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; }
+.expandedMedia img { object-fit: contain; padding: 3.5rem 1rem; }
+.documentNotice { position: absolute; bottom: .5rem; left: 1rem; right: 1rem; font-size: .85rem; text-align: center; }
+.videoSurface { position: relative; width: 100%; height: 100%; border-radius: inherit; transform-origin: top left; }
+.thumbnailFrame { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.thumbnailPoster { z-index: 1; object-fit: contain !important; background: #080e28; }
+.videoSurface video[data-thumbnail-ready="true"] { visibility: hidden; }
+.videoSurface[data-expanded] { position: absolute; inset: .5rem; width: auto; height: auto; z-index: 2; border-radius: 14px; background: rgb(8 14 40 / 94%); backdrop-filter: blur(8px); }
+.videoTrigger { position: absolute; inset: 0; z-index: 2; width: 100%; border: 0; border-radius: inherit; cursor: pointer; background: transparent; transition: background 220ms, box-shadow 220ms, transform 220ms; }
+.videoTrigger:hover, .videoTrigger:focus-visible { background: linear-gradient(transparent, rgb(8 14 40 / 35%)); box-shadow: 0 .25rem .75rem rgb(83 56 231 / 25%); transform: translateY(-1px); }
+.videoPlay { display: grid; place-items: center; position: absolute; inset: 50% auto auto 50%; width: 2rem; height: 2rem; border-radius: 50%; background: #5538e7; color: white; opacity: 0; transform: translate(-50%, -50%) scale(.7); box-shadow: 0 0 .7rem rgb(103 71 255 / 50%); transition: opacity 200ms, transform 240ms; }
+.videoPlay svg { width: 1rem; height: 1rem; }
+.videoTrigger:hover .videoPlay, .videoTrigger:focus-visible .videoPlay { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.videoMinimize { position: absolute; top: .35rem; right: .35rem; min-height: 2.75rem; padding: .35rem .65rem; border: 1px solid #b6a8ff; border-radius: .6rem; background: #080e28; color: white; cursor: pointer; }
+.videoTrigger:focus-visible, .videoMinimize:focus-visible { outline: 2px solid #6747ff; outline-offset: 2px; }
+.videoFailure { position: absolute; top: 3rem; left: .5rem; right: .5rem; color: white; font-size: .75rem; }
+@media (prefers-reduced-motion: reduce) { .videoTrigger, .videoPlay { transition: opacity 60ms; } .videoTrigger:hover, .videoTrigger:focus-visible { transform: none; } .videoPlay { transform: translate(-50%, -50%); } }
+.mediaThumbnail[data-content-kind="document"] img { object-fit: contain; padding: .2rem; }
+.mediaThumbnail video { width: 100%; height: 100%; border-radius: inherit; object-fit: contain; }
+.mediaThumbnail figcaption { position: absolute; inset: auto 0 0; padding: .2rem .4rem; border-radius: 0 0 .6rem .6rem; background: rgb(8 14 40 / 80%); color: white; font-size: .6rem; line-height: 1.3; }
+.thumbnailPlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -65%); display: grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: #5538e7; color: white; }
+.thumbnailPlay svg { width: .8rem; height: .8rem; }
+.compactConversation .mediaThumbnail { width: 7rem; height: 3.9rem; margin-right: 2.2rem; }
+.reviewCard .attachmentGroup {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .5rem;
+  margin: 0;
+}
+.reviewCard .attachmentGroup .mediaThumbnail { flex: none; width: 7rem; height: 3.9rem; margin: 0; }
+.reviewCard .attachmentGroup .bookingPreview { width: min(100%, 16rem); min-width: 0; margin: 0; flex: none; }
+.reviewCard .compactConversation .attachmentGroup { margin-right: 0; gap: .4rem; }
+.reviewCard .compactConversation .attachmentGroup .mediaThumbnail { width: 5rem; height: 2.8rem; }
 .contentAttachmentIcon,
 .contentAttachmentPlay {
   display: grid;
@@ -206,7 +288,7 @@
   background: linear-gradient(135deg, rgb(248 247 255 / 82%), rgb(255 255 255 / 74%));
   flex: 1;
   transform-origin: 42% 50%;
-  animation: editor-workspace-enter 240ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: editor-workspace-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) both;
 }
 .editorPanel {
   display: grid;
@@ -218,7 +300,7 @@
   background: #fff;
   box-shadow: 0 .55rem 1.35rem rgb(83 56 231 / 5%);
   transform-origin: left center;
-  animation: editor-panel-enter 240ms 30ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: editor-panel-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) both;
 }
 .editorIntro strong,
 .editorIntro span { display: block; }
@@ -233,7 +315,7 @@
   border-radius: .85rem;
   padding: .65rem;
   background: linear-gradient(145deg, #fdfcff, #f8f7ff);
-  animation: editor-preview-enter 220ms 40ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: editor-preview-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) both;
 }
 .editorPreviewLabel { color: #6d55df; font-size: .68rem; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
 .fieldLabelRow { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
@@ -253,7 +335,7 @@
   border-top: 1px solid #eeeef4;
 }
 .editorActions :global(button:last-child) { box-shadow: 0 .4rem .9rem rgb(83 56 231 / 14%); }
-.editorWorkspace :global(textarea) {
+.editorPanel :global(textarea) {
   min-height: clamp(6.25rem, 14cqh, 9.5rem);
   resize: none;
   border-color: #d8d7e6;
@@ -261,8 +343,8 @@
   box-shadow: inset 0 1px 2px rgb(8 14 40 / 3%);
   transition: border-color 180ms var(--onboarding-motion-ease), box-shadow 180ms var(--onboarding-motion-ease), background-color 180ms var(--onboarding-motion-ease);
 }
-.editorWorkspace :global(textarea:focus),
-.editorWorkspace :global(input:focus) {
+.editorPanel :global(textarea:focus),
+.editorPanel :global(input:focus) {
   border-color: #765bff;
   outline: none;
   box-shadow: 0 0 0 3px rgb(103 71 255 / 13%), 0 .4rem 1rem rgb(83 56 231 / 7%);
@@ -308,14 +390,26 @@
 .reviewCard[data-presented] .bookingPreview { transition-delay: 190ms; }
 .reviewCard[data-editor-opening] .conversation {
   transform-origin: 70% 54%;
-  animation: editor-preview-recede 240ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: review-to-editor-handoff var(--onboarding-motion-state) var(--onboarding-motion-ease) both;
 }
 .reviewCard[data-editor-opening] .editMessageButton {
-  animation: editor-trigger-settle 180ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: editor-trigger-settle var(--onboarding-motion-state) var(--onboarding-motion-ease) both;
 }
+.reviewCard[data-editor-closing] .editorWorkspace {
+  pointer-events: none;
+  transform-origin: 50% 50%;
+  animation: editor-workspace-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) reverse both;
+}
+.reviewCard[data-editor-closing] .editorPanel { animation: editor-panel-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) reverse both; }
+.reviewCard[data-editor-closing] .editorPreview { animation: editor-preview-enter var(--onboarding-motion-state) var(--onboarding-motion-ease) reverse both; }
+.reviewCard[data-editor-closing] > .conversation {
+  transform-origin: 70% 54%;
+  animation: review-to-editor-handoff var(--onboarding-motion-state) var(--onboarding-motion-ease) reverse both;
+}
+.reviewCard[data-editor-closing] .editMessageButton { animation: editor-trigger-settle var(--onboarding-motion-state) var(--onboarding-motion-ease) reverse both; }
 
 @keyframes editor-workspace-enter {
-  from { opacity: 0; transform: translate3d(-.45rem, .45rem, 0) scale(.985); }
+  from { opacity: .85; clip-path: inset(0 0 0 0 round 1rem); transform: translate3d(.25rem, .3rem, 0) scale(.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
@@ -325,14 +419,35 @@
 }
 
 @keyframes editor-preview-enter {
-  from { opacity: .15; transform: translate3d(.55rem, .2rem, 0) scale(.99); }
+  from { opacity: .8; transform: translate3d(.45rem, .15rem, 0) scale(.985); }
   to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-@keyframes editor-preview-recede {
+@keyframes review-to-editor-handoff {
   0% { opacity: 1; filter: blur(0); transform: translate3d(0, 0, 0) scale(1); }
-  60% { opacity: .86; filter: blur(0); transform: translate3d(-.12rem, -.08rem, 0) scale(.992); }
-  100% { opacity: 0; filter: blur(1.5px); transform: translate3d(-.38rem, -.32rem, 0) scale(.982); }
+  58% { opacity: .86; filter: blur(0); transform: translate3d(.3rem, -.05rem, 0) scale(.988); }
+  100% { opacity: .8; filter: blur(0); transform: translate3d(.72rem, -.12rem, 0) scale(.972); }
+}
+
+@keyframes editor-workspace-exit {
+  from { opacity: 1; clip-path: inset(0 0 0 0 round 1rem); transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; clip-path: inset(0 20% 0 0 round 1rem); transform: translate3d(.2rem, .2rem, 0) scale(.985); }
+}
+
+@keyframes editor-panel-exit {
+  from { opacity: 1; clip-path: inset(0 0 0 0 round .85rem); transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; clip-path: inset(0 0 0 100% round .85rem); transform: translate3d(.3rem, 0, 0) scale(.985); }
+}
+
+@keyframes editor-preview-exit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: .15; transform: translate3d(.35rem, -.08rem, 0) scale(.985); }
+}
+
+@keyframes editor-to-review-return {
+  from { opacity: 0; filter: blur(1px); transform: translate3d(.72rem, -.12rem, 0) scale(.972); }
+  55% { opacity: .88; filter: blur(0); transform: translate3d(.24rem, -.03rem, 0) scale(.99); }
+  to { opacity: 1; filter: blur(0); transform: translate3d(0, 0, 0) scale(1); }
 }
 
 @keyframes editor-trigger-settle {
@@ -341,12 +456,17 @@
   to { transform: translate3d(0, 0, 0) scale(.99); }
 }
 
+@keyframes editor-trigger-return {
+  from { opacity: 0; transform: translate3d(.18rem, 0, 0) scale(.97); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
 @media (max-width: 63rem) {
   .outgoingMessage > p { max-width: 82%; }
   .bookingPreview { width: calc(82% - 2.9rem); margin-right: 2.9rem; }
   .editorWorkspace { grid-template-columns: 1fr; }
   .editorPreview { min-height: 16rem; }
-  .editorWorkspace :global(textarea) { resize: vertical; }
+  .reviewCard .editorPanel :global(textarea) { min-height: 13rem; font-size: 1rem; line-height: 1.5; resize: vertical; }
 }
 
 @media (min-width: 63.0625rem) {
@@ -363,9 +483,9 @@
   .editorPanel { gap: .5rem; padding: .5rem; }
   .editorPreview { gap: .35rem; padding: .45rem; }
   .editorIntro span { margin-top: .1rem; line-height: 1.2; }
-  .editorWorkspace :global(textarea) { min-height: 5rem; padding: .55rem .65rem; line-height: 1.3; }
-  .editorWorkspace :global(input) { height: 2.25rem; padding-block: .35rem; }
-  .editorWorkspace :global(button) { min-height: 2.25rem; padding-block: .4rem; }
+  .editorPanel :global(textarea) { min-height: 5rem; padding: .55rem .65rem; line-height: 1.3; }
+  .editorPanel :global(input) { height: 2.25rem; padding-block: .35rem; }
+  .editorPanel :global(button) { min-height: 2.25rem; padding-block: .4rem; }
   .ctaFieldGroup { gap: .4rem; padding: .4rem; }
   .editorActions { padding-top: .45rem; }
   .compactConversation .recipientRow { padding: .4rem .55rem; }
@@ -406,8 +526,15 @@
   .outgoingMessage > p { padding: .6rem .72rem !important; font-size: .78rem !important; line-height: 1.35; }
   .bookingPreview { margin-top: .5rem; }
   .editorWorkspace { gap: .65rem; }
-  .editorWorkspace :global(textarea) { min-height: 5.5rem; }
+  .editorPanel :global(textarea) { min-height: 5.5rem; }
 }
+
+@media (min-width: 63.0625rem) and (max-height: 820px) {
+  .reviewCard .attachmentGroup .mediaThumbnail { width: 5.4rem; height: 3rem; }
+  .reviewCard .attachmentGroup { gap: .35rem; }
+}
+
+.reviewCard:not(:has(.editorWorkspace)) .attachmentGroup .bookingPreview { width: min(100%, 16rem); margin: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .reviewHeader,
@@ -419,5 +546,113 @@
   .editorPanel,
   .editorPreview,
   .reviewCard[data-editor-opening] .conversation,
-  .reviewCard[data-editor-opening] .editMessageButton { animation: none; }
+  .reviewCard[data-editor-opening] .editMessageButton,
+  .reviewCard[data-editor-closing] .editorWorkspace,
+  .reviewCard[data-editor-closing] .editorPanel,
+  .reviewCard[data-editor-closing] .editorPreview,
+  .reviewCard[data-editor-closing] > .conversation,
+  .reviewCard[data-editor-closing] .editMessageButton { animation: none; }
+}
+
+/* One mounted preview and one coordinated local transition. */
+.reviewCard .composerWorkspace {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  animation: none;
+}
+.reviewCard .composerWorkspace[data-editing="true"] { grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); }
+.composerPreview { display: flex; flex-direction: column; min-width: 0; min-height: 0; transform-origin: top left; }
+.reviewCard .composerPreview { animation: none; }
+.reviewCard .composerWorkspace > .editorPanel {
+  min-width: 0;
+  min-height: 0;
+  animation: none;
+  transition: opacity 180ms var(--onboarding-motion-ease), transform 180ms var(--onboarding-motion-ease);
+}
+.composerWorkspace[data-editing="false"] > .editorPanel {
+  display: none;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 46%;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-8px);
+  pointer-events: none;
+}
+.reviewCard[data-editor-opening] .conversation,
+.reviewCard[data-editor-closing] .conversation,
+.reviewCard[data-editor-opening] .editMessageButton,
+.reviewCard[data-editor-closing] .editMessageButton { animation: none; }
+.reviewCard :is(.reviewHeader, .recipientRow, .previewLabel, .outgoingMessage, .bookingPreview, .senderAvatar) {
+  opacity: 1;
+  transform: none;
+  transition: none;
+}
+.reviewCard .compactConversation .outgoingMessage > p { max-width: 100%; line-height: 1.3 !important; }
+.reviewCard .compactConversation .previewLabel { display: none; }
+.reviewCard .compactConversation .conversationBody { padding-block: 0; }
+.reviewCard .compactConversation .recipientRow { padding-block: .25rem; }
+.reviewCard .compactConversation .recipientRow strong { font-size: .8rem; }
+.reviewCard .compactConversation .recipientRow small { margin-top: .08rem; font-size: .68rem; }
+.reviewCard .recipientRow { flex-shrink: 0; }
+@media (min-width: 63.0625rem) {
+  .reviewCard[data-editor-closing] .composerWorkspace > .editorPanel {
+    display: grid;
+    width: var(--editor-exit-width);
+    height: var(--editor-exit-height);
+    visibility: visible;
+  }
+  .reviewCard,
+  .reviewCard:not(:has(.editorWorkspace)):not(:has(.loadingCopy)) { height: 100%; min-height: 0; }
+  .reviewCard .composerPreview { min-height: 0; }
+}
+@media (max-width: 63rem) {
+  .reviewCard .composerWorkspace[data-editing="true"] { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; }
+  .composerWorkspace[data-editing="false"] > .editorPanel { width: 100%; }
+  .reviewCard { padding: 1rem; }
+  .reviewCard .conversation { overflow: visible; }
+  .reviewCard .reviewHeader { flex-wrap: wrap; gap: .5rem; margin-bottom: .85rem; }
+  .reviewCard .recipientRow { padding: .75rem; gap: .6rem; }
+  .reviewCard .recipientRow strong { font-size: .875rem; }
+  .reviewCard .recipientRow small { font-size: .75rem; }
+  .reviewCard .companyAvatar { width: 2rem; height: 2rem; }
+  .reviewCard .conversationBody { flex: none; justify-content: flex-start; padding: .85rem 0; }
+  .reviewCard .previewLabel { margin: 0 0 .65rem !important; }
+  .reviewCard .outgoingMessage {
+    grid-template-columns: minmax(0, 1fr) 1.75rem;
+    gap: .65rem .5rem;
+    padding-inline: .65rem;
+  }
+  .reviewCard .outgoingMessage > p {
+    max-width: 100%;
+    padding: .85rem !important;
+    border-radius: 1rem 1rem .3rem 1rem !important;
+    font-size: .9375rem !important;
+    line-height: 1.5 !important;
+  }
+  .reviewCard .senderAvatar { width: 1.75rem; height: 1.75rem; margin-bottom: .15rem; }
+  .reviewCard .attachmentGroup { gap: .6rem; }
+  .reviewCard .attachmentGroup .mediaThumbnail { width: 8rem; height: 4.5rem; }
+  .reviewCard .attachmentGroup .bookingPreview {
+    width: 100%;
+    min-height: 3.25rem;
+    padding: .6rem .7rem;
+    gap: .5rem;
+  }
+  .reviewCard .bookingPreview strong { font-size: .8125rem; }
+  .reviewCard .bookingPreview small { font-size: .75rem; }
+  .reviewCard .editorPreview { padding: 0; border: 0; background: none; }
+  .reviewCard .editorPanel { padding: .85rem; gap: .85rem; }
+  .reviewCard .ctaFieldGroup { grid-template-columns: minmax(0, 1fr); gap: .75rem; padding: .65rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reviewCard .composerWorkspace > .editorPanel { transition: none; transform: none; }
 }

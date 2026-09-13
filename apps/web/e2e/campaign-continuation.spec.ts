@@ -192,6 +192,23 @@ test.describe("production-ready onboarding continuation", () => {
     expect(cardBounds!.y + cardBounds!.height).toBeLessThanOrEqual(actionBounds!.y - 28);
   });
 
+  test("a saved custom CTA survives refresh and browser history", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/onboarding-preview/cta?capture=1");
+    await page.getByRole("button", { name: "Edit message" }).click();
+    await page.getByRole("textbox", { name: "CTA label" }).fill("Read our services");
+    await page.getByRole("textbox", { name: "CTA destination" }).fill("https://acme.example/services");
+    await page.getByRole("button", { name: "Save changes" }).click();
+    await expect(page.getByRole("button", { name: "Edit message" })).toBeFocused();
+    await expect(page.getByRole("link", { name: /Read our services/ })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole("link", { name: /Read our services/ })).toHaveAttribute("href", "https://acme.example/services");
+    await page.getByRole("button", { name: "Approve and continue" }).click();
+    await expect(page).toHaveURL(/\/onboarding-preview\/channels/);
+    await page.goBack();
+    await expect(page.getByRole("link", { name: /Read our services/ })).toHaveAttribute("href", "https://acme.example/services");
+  });
+
   test("CTA review and live editor stay inside the desktop canvas", async ({ page }) => {
     for (const viewport of [
       { width: 1280, height: 800 },
@@ -207,9 +224,17 @@ test.describe("production-ready onboarding continuation", () => {
       await expect(conversation.locator('[class*="outgoingMessage"]')).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight)).toBe(0);
 
+      await page.evaluate(() => {
+        const animate = Element.prototype.animate;
+        Element.prototype.animate = function (frames, options) {
+          if (this.className.toString().includes("composerPreview") && typeof options === "object") {
+            document.body.dataset.editorDuration = String(options.duration);
+          }
+          return animate.call(this, frames, options);
+        };
+      });
       await page.getByRole("button", { name: "Edit message" }).click();
       const message = page.getByRole("textbox", { name: "Campaign message" });
-      const editor = page.getByTestId("message-editor-workspace");
       await expect(message).toBeFocused();
       await message.fill("A live direct message update for {{Company}}.");
       await page.getByRole("textbox", { name: "CTA label" }).fill("Book a quick call");
@@ -218,7 +243,7 @@ test.describe("production-ready onboarding continuation", () => {
       await expect(livePreview).toContainText("A live direct message update for {{Company}}.");
       await expect(livePreview.getByRole("link", { name: /Book a quick call/ })).toBeVisible();
       await expect(card).toContainText("45 / 1000");
-      const duration = await editor.evaluate((element) => parseFloat(getComputedStyle(element).animationDuration) * 1000);
+      const duration = Number(await page.locator("body").getAttribute("data-editor-duration"));
       expect(duration).toBeGreaterThanOrEqual(180);
       expect(duration).toBeLessThanOrEqual(280);
       const cardBounds = await card.boundingBox();
