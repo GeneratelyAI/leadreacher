@@ -6,6 +6,20 @@ import {
 import type { PillData } from "../../public/pill";
 
 describe("mobile saved campaign presentation", () => {
+  it("keeps an unapproved style draft unapproved in the mobile summary", () => {
+    const campaign: PillData = {
+      fields: [],
+      sections: [{ id: "content", label: "Content", state: "draft", value: "Personalized video · Casual" }],
+    };
+    const sections = mobileCampaignSections(campaign);
+    expect(sections.map(({ id, state }) => ({ id, state }))).toEqual([
+      { id: "content", state: "draft" },
+      { id: "style", state: "draft" },
+    ]);
+    expect(campaign.sections).toHaveLength(1);
+    expect(campaign.sections?.[0].value).toBe("Personalized video · Casual");
+  });
+
   it("does not invent business details for a new campaign", () => {
     expect(mobileCampaignSections({ fields: [], status: "learning" })).toEqual(
       [],

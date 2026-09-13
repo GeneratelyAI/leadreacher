@@ -47,7 +47,7 @@ export function mobileCampaignSections(campaign: PillData): PillSection[] {
             label: "Style",
             summary: style,
             value: style,
-            state: "complete",
+            state: section.state ?? "complete",
           },
         ];
       }

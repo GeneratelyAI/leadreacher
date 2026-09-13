@@ -289,6 +289,7 @@ export function PillView({
                     key={section.id}
                     tabIndex={isExpandable && !mobile ? 0 : undefined}
                     data-campaign-section-id={section.id}
+                    data-campaign-state={state}
                     data-campaign-expandable={isExpandable || undefined}
                     ref={(node) => { sectionRefs.current[section.id] = node; }}
                     onMouseEnter={isExpandable && !mobile ? () => expandSection(section.id) : undefined}
@@ -311,6 +312,7 @@ export function PillView({
                         onClick={() => isSectionExpanded ? collapseSection(section.id) : expandSection(section.id)}
                       >{section.label}<CheckCircle2 className="size-4" weight="fill" aria-hidden /></button> : <>
                       {section.label}
+                      {state === "draft" ? <span className="sr-only"> (Unsaved preview)</span> : null}
                       {state === "complete"
                         ? <CheckCircle2 className="size-4" weight="fill" aria-hidden />
                         : <span className="campaign-pill-pending-indicator" aria-hidden />}

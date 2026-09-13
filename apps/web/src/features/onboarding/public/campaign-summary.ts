@@ -21,7 +21,7 @@ export type PillSection = {
   summary?: string;
   value?: string;
   fields?: PillField[];
-  state?: "complete" | "pending" | "future";
+  state?: "complete" | "draft" | "pending" | "future";
   pendingLabel?: string;
 };
 
