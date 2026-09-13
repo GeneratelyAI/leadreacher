@@ -1,10 +1,10 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight, FileText, Upload, X } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 import { continueAfterContent } from "../../public/content-next";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ const ACCEPTED_DOCUMENT_EXTENSIONS = [".pdf", ".ppt", ".pptx", ".doc", ".docx"];
 
 type SelectedDocument = {
   name: string;
-  size: number;
+  size?: number;
 };
 
 function formatBytes(bytes: number): string {
@@ -43,6 +43,23 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
   const [isDragging, setIsDragging] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { orgId } = await bootstrapCurrentOrganization();
+        const strategy = await apiFetch<{ icpDefinition?: { approvedContent?: { type?: unknown; documentName?: unknown; documentSize?: unknown } } }>(`/strategy/${orgId}`);
+        const approved = strategy.icpDefinition?.approvedContent;
+        if (!cancelled && approved?.type === "Document" && typeof approved.documentName === "string" && approved.documentName.trim()) {
+          setSelectedDocument((current) => current ?? { name: approved.documentName as string, size: typeof approved.documentSize === "number" && approved.documentSize >= 0 ? approved.documentSize : undefined });
+        }
+      } catch {
+        // The document picker remains available when saved metadata cannot be restored.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   function clearSelection() {
     setSelectedDocument(null);
@@ -100,7 +117,7 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
                 <FilePreviewIllustration document className={cn("upload-document-file-icon", mobile.mobileOnly)} />
                 <div>
                   <p>{selectedDocument.name}</p>
-                  <span>{selectedDocument.name.split(".").pop()?.toUpperCase()} · {formatBytes(selectedDocument.size)}</span>
+                  <span>{[selectedDocument.name.split(".").pop()?.toUpperCase(), selectedDocument.size === undefined ? undefined : formatBytes(selectedDocument.size)].filter(Boolean).join(" · ")}</span>
                 </div>
                 <Button type="button" variant="secondary" className="upload-document-remove" disabled={approved} onClick={clearSelection}>
                   <X className="size-4" aria-hidden />
@@ -154,12 +171,14 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
           disabled={!selectedDocument || approved || !preview}
           onClick={async () => {
             if (!preview || !usesOnboardingFixtures()) return;
+            if (!beginOnboardingNavigation(onboardingHref("cta"))) return;
             setApproved(true);
             try {
               const { orgId } = await bootstrapCurrentOrganization();
-              await apiFetch(`/strategy/${orgId}/content-approval`, { method: "PATCH", body: JSON.stringify({ type: "Document", documentName: selectedDocument?.name }) });
+              await apiFetch(`/strategy/${orgId}/content-approval`, { method: "PATCH", body: JSON.stringify({ type: "Document", documentName: selectedDocument?.name, documentSize: selectedDocument?.size }) });
               continueAfterContent();
             } catch (caught) {
+              restoreOnboardingNavigation();
               setApproved(false);
               setError(caught instanceof Error ? caught.message : "Unable to save your content selection. Please try again.");
             }

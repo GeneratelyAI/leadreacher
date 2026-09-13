@@ -2,8 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { ArrowLeft, ArrowRight, FileVideo, Lock, Upload, X } from "@/components/ui/icons";
+import { ArrowLeft, ArrowRight, FileVideo, Lock, Play, Upload, X } from "@/components/ui/icons";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
+import { useStableReducedMotion } from "@/hooks/useStableReducedMotion";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { navigateOnboarding, onboardingHref } from "../../public/navigation";
 import { continueAfterContent } from "../../public/content-next";
@@ -17,17 +18,106 @@ const ACCEPTED_VIDEO_EXTENSIONS = [".mp4", ".mov", ".webm"];
 
 type UploadedVideo = {
   name: string;
-  size: number;
-  duration: string;
+  size?: number;
+  duration?: string;
   previewUrl: string;
+  assetUrl?: string;
   fixture?: boolean;
 };
 
 type UploadResponse = {
   videoConfig?: {
     uploadedVideoUrl?: unknown;
+    uploadedVideoName?: unknown;
+    uploadedVideoSize?: unknown;
   };
 };
+
+function ExpandableVideoPreview({ video }: { video: UploadedVideo }) {
+  const [expanded, setExpanded] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const thumbnailRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const minimizeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const originRef = useRef<DOMRect | null>(null);
+  const reducedMotion = useStableReducedMotion();
+
+  useEffect(() => {
+    if (!expanded || !dialogRef.current || !playerRef.current || !originRef.current) return;
+    const dialog = dialogRef.current;
+    const player = playerRef.current;
+    dialog.showModal();
+    const target = player.getBoundingClientRect();
+    const origin = originRef.current;
+    const from = `translate(${origin.x - target.x}px, ${origin.y - target.y}px) scale(${origin.width / target.width}, ${origin.height / target.height})`;
+    const animation = player.animate([
+      { transform: reducedMotion ? "none" : from, opacity: 0.75, borderRadius: "10px" },
+      { transform: "none", opacity: 1, borderRadius: "14px" },
+    ], { duration: reducedMotion ? 60 : 240, easing: "cubic-bezier(.2, .8, .2, 1)" });
+    let cancelled = false;
+    void animation.finished.then(async () => {
+      if (cancelled) return;
+      setReady(true);
+      minimizeRef.current?.focus({ preventScroll: true });
+      try {
+        await videoRef.current?.play();
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+      animation.cancel();
+    };
+  }, [expanded, reducedMotion]);
+
+  async function minimize() {
+    const player = playerRef.current;
+    const thumbnail = thumbnailRef.current;
+    videoRef.current?.pause();
+    if (player && thumbnail) {
+      const from = player.getBoundingClientRect();
+      const target = thumbnail.getBoundingClientRect();
+      const animation = player.animate([
+        { transform: "none", opacity: 1 },
+        { transform: reducedMotion ? "none" : `translate(${target.x - from.x}px, ${target.y - from.y}px) scale(${target.width / from.width}, ${target.height / from.height})`, opacity: 0.75 },
+      ], { duration: reducedMotion ? 60 : 220, easing: "ease-in-out", fill: "forwards" });
+      await animation.finished.catch(() => {});
+      animation.cancel();
+    }
+    dialogRef.current?.close();
+    setReady(false);
+    setExpanded(false);
+    requestAnimationFrame(() => triggerRef.current?.focus({ preventScroll: true }));
+  }
+
+  return <>
+    <div ref={thumbnailRef} className="upload-your-video-thumbnail" data-story-object={video.assetUrl ? "media" : undefined} data-story-asset={video.assetUrl ? `media:${video.assetUrl}` : undefined}>
+      <video data-story-visual="true" className="upload-your-video-preview" src={video.previewUrl} muted preload="auto" playsInline aria-hidden tabIndex={-1} onLoadedData={(event) => { if (event.currentTarget.duration > .05 && event.currentTarget.currentTime < .01) event.currentTarget.currentTime = .05; }} />
+      <button ref={triggerRef} className="upload-your-video-expand" type="button" onClick={() => {
+        originRef.current = thumbnailRef.current?.getBoundingClientRect() ?? null;
+        setFailed(false);
+        setExpanded(true);
+      }} aria-label={`Play ${video.name}`}>
+        <span aria-hidden><Play weight="fill" /></span>
+      </button>
+    </div>
+    <dialog ref={dialogRef} className="upload-your-video-dialog" aria-label={`Video preview for ${video.name}`} onCancel={(event) => {
+      event.preventDefault();
+      void minimize();
+    }}>
+      <div ref={playerRef} className="upload-your-video-expanded-player">
+        <video ref={videoRef} src={video.previewUrl} controls={ready} preload="metadata" playsInline aria-label={`Preview of ${video.name}`} />
+        <button ref={minimizeRef} type="button" className="upload-your-video-minimize" onClick={() => void minimize()}>Minimize</button>
+        {failed ? <p role="alert" className="upload-your-video-playback-error">Playback could not start. Use the video controls to retry.</p> : null}
+      </div>
+    </dialog>
+  </>;
+}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -74,13 +164,37 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
     name: "Acme-product-introduction.mp4",
     size: 18 * 1024 * 1024,
     duration: "0:30",
-    previewUrl: "",
+    previewUrl: "/landing/product-story/personalized-video-outreach.mp4",
     fixture: true,
   } : null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [approved, setApproved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (selectedVideo) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const { orgId } = await bootstrapCurrentOrganization();
+        const strategy = await apiFetch<UploadResponse>(`/strategy/${orgId}`);
+        const url = strategy.videoConfig?.uploadedVideoUrl;
+        if (cancelled || typeof url !== "string" || !url.trim()) return;
+        const savedName = strategy.videoConfig?.uploadedVideoName;
+        const savedSize = strategy.videoConfig?.uploadedVideoSize;
+        setSelectedVideo({
+          name: typeof savedName === "string" && savedName.trim() ? savedName : "Uploaded campaign video",
+          size: typeof savedSize === "number" && savedSize >= 0 ? savedSize : undefined,
+          previewUrl: url,
+          assetUrl: url,
+        });
+      } catch {
+        // The upload surface remains available when no persisted asset can be restored.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selectedVideo]);
 
   useEffect(() => () => {
     uploadAbortRef.current?.abort();
@@ -144,6 +258,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
         size: file.size,
         duration,
         previewUrl,
+        assetUrl: strategy.videoConfig.uploadedVideoUrl,
       });
     } catch (uploadError) {
       URL.revokeObjectURL(previewUrl);
@@ -181,20 +296,12 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
         <section className="upload-your-video-section" aria-label="Campaign video upload">
           {selectedVideo ? (
             <div className="upload-your-video-selected">
-              {selectedVideo.fixture ? <div className={mobile.filePreview} aria-label="Sample selected video, preview unavailable"><FilePreviewIllustration /></div> : <video
-                className="upload-your-video-preview"
-                controls
-                preload="metadata"
-                src={selectedVideo.previewUrl}
-                aria-label={`Preview of ${selectedVideo.name}`}
-              >
-                Your browser does not support video playback.
-              </video>}
+              {selectedVideo.previewUrl ? <ExpandableVideoPreview video={selectedVideo} /> : <div className={mobile.filePreview} aria-label="Sample selected video, preview unavailable"><FilePreviewIllustration /></div>}
               <div className="upload-your-video-file-details">
                 <FileVideo className="upload-your-video-file-icon" weight="fill" aria-hidden />
                 <div>
                   <p>{selectedVideo.name}</p>
-                  <span><span className={mobile.desktopOnly}>{selectedVideo.duration}</span><span className={mobile.mobileOnly}>{selectedVideo.name.split(".").pop()?.toUpperCase()}</span> · {formatBytes(selectedVideo.size)}</span>
+                  <span>{[selectedVideo.duration, selectedVideo.name.includes(".") ? selectedVideo.name.split(".").pop()?.toUpperCase() : undefined, selectedVideo.size === undefined ? undefined : formatBytes(selectedVideo.size)].filter(Boolean).join(" · ") || "Saved campaign asset"}</span>
                 </div>
                 <Button type="button" variant="secondary" className="upload-your-video-remove" disabled={approved} onClick={clearSelection}>
                   <X className="size-4" aria-hidden />
@@ -223,7 +330,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
               data-dragging={isDragging || undefined}
               aria-busy={isUploading}
             >
-              <span className="upload-your-video-icon" aria-hidden>
+              <span className="upload-your-video-icon" data-story-object="content:upload" aria-hidden>
                 <Upload className="size-10" weight="bold" />
               </span>
               <p>{isUploading ? "Uploading your video" : "Drag and drop your video here"}</p>
