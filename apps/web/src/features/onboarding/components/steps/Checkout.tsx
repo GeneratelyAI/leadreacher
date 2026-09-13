@@ -10,9 +10,8 @@ import {
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/EmptyState";
-import { Loading } from "@/components/ui/Loading";
 import { CheckoutCard } from "@/features/onboarding/components/Checkout";
+import { StripeLoadingSkeleton } from "@/features/onboarding/components/StripeLoadingSkeleton";
 import { ChannelLogo, type ChannelLogoName } from "@/platform/branding/ChannelLogo";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
@@ -351,12 +350,21 @@ export default function Checkout() {
                     {isOnboardingPreview() || isOnboardingDemo() ? <span className={styles.sample}>Illustrative pricing</span> : null}
                   </div>
                   <p className={styles.price}>{formatPrice(primaryLineItems[0] ?? lineItems[0])}<span>{(primaryLineItems[0] ?? lineItems[0]).interval ? `/ ${(primaryLineItems[0] ?? lineItems[0]).interval}` : ""}</span></p>
-                  {features.length || lineItems.length > 1 ? <ul className={styles.features}>
-                    {(features.length ? features : lineItems.filter((item) => item !== (primaryLineItems[0] ?? lineItems[0])).map((item) => item.label)).map((feature) => <li key={feature}><Check aria-hidden />{feature}</li>)}
+                  {features.length ? <ul className={styles.features}>
+                    {[...new Set(features)].map((feature) => <li key={feature}><Check aria-hidden />{feature}</li>)}
                   </ul> : null}
                 </div>
                 <dl className={styles.totals}>
-                  {lineItems.map((item, index) => <div key={`${item.key}-${item.channel ?? item.label}-${item.priceId}-${index}`}><dt>{item.key === "platform" && item.interval === "month" ? "Monthly plan" : item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
+                  {primaryLineItems.map((item, index) => <div key={`${item.key}-${item.priceId}-${index}`}><dt>{item.key === "platform" && item.interval === "month" ? "Monthly plan" : item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
+                  {selectedChannels.map((channel) => {
+                    const charge = additionalChannelItems.find((item) => item.channel === channel);
+                    const logoName = channelLogoName(channel);
+                    return <div key={`channel:${channel}`}>
+                      <dt>{logoName ? <span data-story-object={`channel:${channel}`}><ChannelLogo name={logoName} className={styles.channelMark} /></span> : null}{channelLabel(channel)}</dt>
+                      <dd>{charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable"}</dd>
+                    </div>;
+                  })}
+                  {additionalChannelItems.filter((item) => !item.channel || !selectedChannels.includes(item.channel)).map((item, index) => <div key={`${item.key}-${item.priceId}-${index}`}><dt>{item.label}</dt><dd>{formatPrice(item)}</dd></div>)}
                   <div className={styles.total}><dt>Subtotal today</dt><dd>{formatTotal(lineItems)}</dd></div>
                 </dl>
                 <p className={styles.tax}>Taxes calculated by Stripe at checkout.</p>
@@ -366,14 +374,7 @@ export default function Checkout() {
           <SecurePaymentCard>
 
             {isRedirecting && !embeddedCheckout ? (
-              <EmptyState
-                className="min-h-64 w-full rounded-2xl border border-onboarding-neutral-150 bg-white dark:border-onboarding-neutral-750 dark:bg-onboarding-neutral-900"
-                icon={<Loading tone="brand" label="Loading secure checkout" className="-my-5" />}
-                title="Loading secure checkout"
-                description="Stripe is preparing your encrypted payment form."
-                role="status"
-                aria-live="polite"
-              />
+              <StripeLoadingSkeleton label="Stripe is preparing your encrypted payment form" />
             ) : null}
 
             {embeddedCheckout ? (
@@ -406,7 +407,7 @@ export default function Checkout() {
             channels={selectedChannels.map((channel) => {
               const charge = additionalChannelItems.find((item) => item.channel === channel);
               const logoName = channelLogoName(channel);
-              return { key: channel, label: <>{logoName ? <ChannelLogo name={logoName} className={styles.channelMark} /> : null}{channelLabel(channel)}</>, value: charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable" };
+              return { key: channel, label: <>{logoName ? <span data-story-object={`channel:${channel}`}><ChannelLogo name={logoName} className={styles.channelMark} /></span> : null}{channelLabel(channel)}</>, value: charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable" };
             })}
             subtotal={isLoading ? "Loading..." : formatTotal(lineItems)}
           />

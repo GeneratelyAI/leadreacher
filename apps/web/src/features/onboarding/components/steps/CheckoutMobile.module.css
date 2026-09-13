@@ -2,6 +2,14 @@
   display: none;
 }
 .paymentForm { display: grid; gap: 14px; }
+.stripeSkeleton { display: grid; min-width: 0; min-height: 276px; align-content: start; gap: 4px; }
+.stripeSkeleton > span { display: block; border-radius: 7px; background: linear-gradient(90deg, #f1f0f7 20%, #faf9ff 48%, #f1f0f7 76%); background-size: 220% 100%; animation: checkoutSkeleton 1.4s ease-in-out infinite; }
+.skeletonLabel { width: 28%; height: 8px; margin-top: 1px; }
+.skeletonField { width: 100%; height: 34px; margin-bottom: 1px; }
+.skeletonSplit { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; background: none !important; animation: none !important; }
+.skeletonSplit i { display: block; height: 34px; border-radius: 7px; background: #f1f0f7; }
+.skeletonButton { width: 100%; height: 38px; margin-top: 3px; background: #e8e3ff !important; }
+@keyframes checkoutSkeleton { to { background-position: -220% 0; } }
 
 .protectedHeader { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
 .protectedHeader h2 { margin: 0; color: #080e28; font-size: 16px; line-height: 1.25; font-weight: 700; letter-spacing: -0.025em; }
@@ -30,6 +38,7 @@
 .previewPayment p { margin: 0; color: #737a96; font-size: 10px; line-height: 12px; text-align: center; }
 
 @media (min-width: 63.0625rem) {
+  .stripeSkeleton { min-height: 208px; }
   .screen .grid {
     --onboarding-task-card-padding: 10px;
     --onboarding-task-header-gap: 4px;
@@ -39,6 +48,7 @@
   .previewPayment { display: grid; gap: 0; flex: 1; align-content: space-between; }
   .screen .grid { margin-top: 0.5rem; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 12px; align-items: start; }
   .paymentCard, .summaryCard { display: flex; flex-direction: column; }
+  .paymentCard { min-height: 321px; }
   .summaryCard { align-self: stretch; justify-content: space-between; gap: clamp(12px, 3cqh, 20px); }
   .summaryCard .summaryProducts h2 { margin-bottom: clamp(12px, 3cqh, 20px); }
   .summaryTotal { flex-shrink: 0; }
@@ -65,6 +75,7 @@
 }
 
 @media (max-width: 63rem) {
+  .stripeSkeleton { min-height: 276px; }
   .screen .mobile {
     display: block;
   }
@@ -103,18 +114,19 @@
   }
   .plan {
     border: 1px solid #dcdfe8;
-    border-radius: 9px;
-    overflow: hidden;
+    border-radius: 14px;
     background: #fff;
+    box-shadow: 0 6px 20px rgb(83 58 222 / 5%);
   }
   .planBody {
-    padding: 15px 15px 18px;
+    padding: 18px 18px 16px;
   }
   .planHeading {
     display: flex;
     justify-content: space-between;
     gap: 8px;
     align-items: flex-start;
+    flex-wrap: wrap;
   }
   .planHeading h2 {
     font-size: 19px;
@@ -123,7 +135,7 @@
     letter-spacing: -0.02em;
   }
   .sample {
-    padding: 7px 9px;
+    padding: 5px 7px;
     color: #352080;
     background: #efe9ff;
     font-size: 11px;
@@ -133,11 +145,12 @@
     white-space: nowrap;
   }
   .price {
-    font-size: 27px;
+    font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.025em;
     margin-top: 6px;
     line-height: 1.3;
+    font-variant-numeric: tabular-nums;
   }
   .price span {
     font-size: 16px;
@@ -169,7 +182,7 @@
   }
   .totals {
     border-top: 1px solid #dcdfe8;
-    padding: 0 16px;
+    padding: 4px 18px 0;
     font-size: 15px;
     line-height: 1.3;
   }
@@ -177,22 +190,39 @@
     display: flex;
     justify-content: space-between;
     gap: 16px;
-    padding-block: 9px;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 10px;
   }
+  .totals dt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: #596078;
+  }
+  .totals dt > span { display: flex; flex: none; }
   .totals > div + div {
     border-top: 1px solid #e4e6ed;
   }
   .totals dd {
     white-space: nowrap;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+    color: #0a0d2b;
   }
   .total {
     font-weight: 650;
   }
+  .totals .total { padding-block: 14px 10px; }
+  .totals .total dt { color: #0a0d2b; }
+  .totals .total dd { font-size: 20px; }
   .tax {
     color: #656d82;
     font-size: 11px;
     line-height: 1.4;
-    padding: 0 16px 12px;
+    padding: 0 18px 16px;
   }
   .screen .paymentTitle {
     font-size: 16px;
@@ -218,8 +248,8 @@
     border: 0;
     box-shadow: none;
     background: transparent;
-    color: #655b84;
-    font-size: 14px;
+    color: #5538e7;
+    font-size: 16px;
   }
   .screen .actions > div:only-child button::after {
     content: "";
@@ -347,6 +377,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .stripeSkeleton > span { animation: none; }
   .screen button {
     animation: none;
     transition: none;

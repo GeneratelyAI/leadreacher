@@ -17,6 +17,8 @@ describe("secure checkout states", () => {
     const html = renderToStaticMarkup(<CheckoutForm />);
     expect(html).toContain('role="status"');
     expect(html).not.toContain("<button");
+    expect(html).toContain("stripeSkeleton");
+    expect(html).toContain("skeletonButton");
   });
 
   it("offers an explicit retry when secure initialization fails", () => {

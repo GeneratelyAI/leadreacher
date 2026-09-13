@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react";
 import { CreditCard, Lock } from "@/components/ui/icons";
 import styles from "./steps/CheckoutMobile.module.css";
 import { isOnboardingDemo, isOnboardingPreview } from "../public/preview-api";
+import { StripeLoadingSkeleton } from "./StripeLoadingSkeleton";
 
 const StripeCheckout = lazy(() => import("@/features/onboarding/components/StripeCheckout"));
 
@@ -127,7 +128,7 @@ export function CheckoutCard({
 
   return (
     <div className={`checkout-accent-card checkout-accent-card--stripe rounded-2xl p-4 sm:p-5 ${styles.stripe}`}>
-      <Suspense fallback={<div className="min-h-72" role="status" aria-label="Loading secure checkout" />}>
+      <Suspense fallback={<StripeLoadingSkeleton label="Loading secure checkout" />}>
         <StripeCheckout
           clientSecret={clientSecret}
           planName={planName}

@@ -1,5 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 }]) {
+  test(`checkout reserves its final geometry while Stripe initializes at ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/onboarding-preview/checkout?stripe_delay=800");
+    const payment = page.locator('section[aria-labelledby="payment-heading"]');
+    const summary = page.locator('aside[aria-labelledby="summary-heading"]');
+    const skeleton = page.getByRole("status", { name: "Stripe is preparing your encrypted payment form" });
+    await expect(skeleton).toBeVisible();
+    const beforePayment = await payment.boundingBox();
+    const beforeSummary = await summary.boundingBox();
+    await expect(page.getByRole("button", { name: "Subscribe to LeadReacher Pro", exact: true })).toBeVisible();
+    const afterPayment = await payment.boundingBox();
+    const afterSummary = await summary.boundingBox();
+    expect(afterPayment?.x).toBeCloseTo(beforePayment!.x, 1);
+    expect(afterPayment?.width).toBeCloseTo(beforePayment!.width, 1);
+    expect(afterPayment?.height).toBeGreaterThanOrEqual(beforePayment!.height - 1);
+    expect(afterSummary).toEqual(beforeSummary);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
+  });
+}
+
 for (const viewport of [
   { width: 1366, height: 900 }, { width: 1440, height: 900 }, { width: 1280, height: 800 },
   { width: 1512, height: 858 }, { width: 1440, height: 798 }, { width: 1920, height: 990 },

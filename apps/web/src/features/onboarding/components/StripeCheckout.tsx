@@ -16,6 +16,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Loader2, Lock } from "@/components/ui/icons";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import styles from "./steps/CheckoutMobile.module.css";
+import { StripeLoadingSkeleton } from "./StripeLoadingSkeleton";
 
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim();
 const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
@@ -27,7 +28,7 @@ export function CheckoutForm({ planName, onRetry }: { planName?: string; onRetry
   const submissionPending = useRef(false);
 
   if (result.type === "loading") {
-    return <div className="grid min-h-72 place-items-center" role="status"><Loader2 className="size-5 animate-spin text-onboarding-purple-600" aria-label="Loading secure payment form" /></div>;
+    return <StripeLoadingSkeleton />;
   }
 
   if (result.type === "error") {
