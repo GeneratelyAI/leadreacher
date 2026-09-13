@@ -407,11 +407,11 @@ export default function MessageAndCta() {
                 <div className={messageStyles.editorIntro}><strong>Edit your direct message</strong><span>Changes appear in the preview as you type.</span></div>
                 <label className={messageStyles.messageInputLabel}>
                   <span className={messageStyles.fieldLabelRow}><span>Campaign message</span><span className={messageStyles.messageCounter}>{draft.message?.length ?? 0} / 1000</span></span>
-                  <textarea ref={messageInput} value={draft.message ?? ""} maxLength={1000} onChange={(event) => setDraft({ ...draft, message: event.target.value })} />
+                  <textarea ref={messageInput} value={draft.message ?? ""} maxLength={1000} onChange={(event) => setDraft((current) => ({ ...current, message: event.target.value }))} />
                 </label>
               <div className={`${styles.ctaFields} ${messageStyles.ctaFieldGroup}`}>
-                <label>CTA label<input value={draft.ctaLabel ?? ""} maxLength={80} onChange={(event) => setDraft({ ...draft, ctaLabel: event.target.value })} placeholder="Book a quick call" /></label>
-                <label>CTA destination<input type="url" value={draft.ctaUrl ?? ""} onChange={(event) => setDraft({ ...draft, ctaUrl: event.target.value })} placeholder="https://example.com/demo" /></label>
+                <label>CTA label<input value={draft.ctaLabel ?? ""} maxLength={80} onChange={(event) => setDraft((current) => ({ ...current, ctaLabel: event.target.value }))} placeholder="Book a quick call" /></label>
+                <label>CTA destination<input type="url" value={draft.ctaUrl ?? ""} onChange={(event) => setDraft((current) => ({ ...current, ctaUrl: event.target.value }))} placeholder="https://example.com/demo" /></label>
               </div>
               <div className={`${styles.editActions} ${messageStyles.editorActions}`}>
                 <Button type="button" variant="secondary" disabled={saving || closingEditor} onClick={() => closeEditor()}>Cancel</Button>
