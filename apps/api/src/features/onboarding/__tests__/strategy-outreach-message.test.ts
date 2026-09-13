@@ -3,15 +3,21 @@ import { applyZodCompilers } from "../../../platform/http/zod-compilers.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../../platform/http/errors.js";
 
-const { findFirst, update, runOutreachMessageAgent } = vi.hoisted(() => ({
+const { findFirst, update, findCampaign, findVideoAsset, findVideoTemplate, runOutreachMessageAgent } = vi.hoisted(() => ({
   findFirst: vi.fn(),
   update: vi.fn(),
+  findCampaign: vi.fn(),
+  findVideoAsset: vi.fn(),
+  findVideoTemplate: vi.fn(),
   runOutreachMessageAgent: vi.fn(),
 }));
 
 vi.mock("../../../platform/persistence/prisma.js", () => ({
   prisma: {
     strategy: { findFirst, update },
+    campaign: { findFirst: findCampaign },
+    videoAsset: { findFirst: findVideoAsset },
+    campaignVideoTemplate: { findFirst: findVideoTemplate },
   },
 }));
 vi.mock("../../../platform/redis/connection.js", () => ({
@@ -32,7 +38,7 @@ const originalStrategy = {
   positioning: { businessModel: "Lead generation platform" },
   icpDefinition: { idealCustomer: "Revenue leaders" },
   messagingAngles: {},
-  videoConfig: { tone: "professional" },
+  videoConfig: { tone: "professional" } as { tone: string; source?: string },
 };
 
 async function buildTestApp() {
@@ -59,6 +65,9 @@ let strategy: typeof originalStrategy;
 beforeEach(async () => {
   findFirst.mockReset();
   update.mockReset();
+  findCampaign.mockReset();
+  findVideoAsset.mockReset();
+  findVideoTemplate.mockReset();
   runOutreachMessageAgent.mockReset();
   strategy = structuredClone(originalStrategy);
   findFirst.mockImplementation(async () => strategy);
@@ -78,6 +87,23 @@ afterEach(async () => {
 });
 
 describe("outreach message routes", () => {
+  it("returns the persisted generated campaign asset with the strategy", async () => {
+    strategy.videoConfig = { source: "generated", tone: "professional" };
+    findCampaign.mockResolvedValue({ id: "campaign-1" });
+    findVideoAsset.mockResolvedValue({ status: "ready", videoUrl: "https://cdn.example/generated.mp4", thumbnailUrl: "https://cdn.example/generated.webp" });
+    findVideoTemplate.mockResolvedValue(null);
+
+    const response = await app.inject({ method: "GET", url: "/strategy/org-1" });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().campaignMedia).toEqual({
+      kind: "video",
+      status: "ready",
+      videoUrl: "https://cdn.example/generated.mp4",
+      thumbnailUrl: "https://cdn.example/generated.webp",
+    });
+  });
+
   it("reads persisted outreach copy without generating it", async () => {
     strategy.messagingAngles = {
       outreachMessage: "Hi {{FirstName}}, I have an idea for {{Company}}.",
@@ -94,6 +120,7 @@ describe("outreach message routes", () => {
       message: "Hi {{FirstName}}, I have an idea for {{Company}}.",
       ctaLabel: "See the walkthrough",
       ctaUrl: "https://leadreacher.com/demo",
+      ctaExplicitlySaved: false,
       approved: false,
     });
     expect(runOutreachMessageAgent).not.toHaveBeenCalled();
@@ -110,6 +137,7 @@ describe("outreach message routes", () => {
       message: null,
       ctaLabel: null,
       ctaUrl: null,
+      ctaExplicitlySaved: false,
       approved: false,
     });
     expect(runOutreachMessageAgent).not.toHaveBeenCalled();
@@ -146,10 +174,10 @@ describe("outreach message routes", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, approved: false });
+    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, ctaExplicitlySaved: true, approved: false });
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { messagingAngles: { outreachMessage: message, cta: null, outreachMessageApprovedAt: null } },
+      data: { messagingAngles: { outreachMessage: message, cta: null, ctaExplicitlySaved: true, outreachMessageApprovedAt: null } },
     });
   });
 
@@ -170,6 +198,7 @@ describe("outreach message routes", () => {
       message,
       ctaLabel: "See the walkthrough",
       ctaUrl: "https://leadreacher.com/demo",
+      ctaExplicitlySaved: true,
       approved: false,
     });
     expect(update).toHaveBeenCalledWith({
@@ -181,6 +210,7 @@ describe("outreach message routes", () => {
             label: "See the walkthrough",
             url: "https://leadreacher.com/demo",
           },
+          ctaExplicitlySaved: true,
           outreachMessageApprovedAt: null,
         },
       },
@@ -195,7 +225,7 @@ describe("outreach message routes", () => {
       payload: { message, approved: true },
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, approved: true });
+    expect(response.json()).toEqual({ message, ctaLabel: null, ctaUrl: null, ctaExplicitlySaved: true, approved: true });
     expect(update).toHaveBeenCalledWith(expect.objectContaining({
       data: { messagingAngles: expect.objectContaining({ outreachMessageApprovedAt: expect.any(String) }) },
     }));

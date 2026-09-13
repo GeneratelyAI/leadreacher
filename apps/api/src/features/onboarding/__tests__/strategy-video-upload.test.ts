@@ -114,6 +114,8 @@ describe("POST /strategy/:orgId/video-upload", () => {
       source: "uploaded",
       tone: null,
       uploadedVideoUrl: "https://cdn.example/strategy-uploads/org-1/video.mp4",
+      uploadedVideoName: "campaign.mp4",
+      uploadedVideoSize: 11,
     };
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ videoConfig });

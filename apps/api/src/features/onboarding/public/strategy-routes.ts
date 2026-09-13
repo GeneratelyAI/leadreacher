@@ -162,6 +162,33 @@ function validateVideoDecisionForCampaign(
   }
 }
 
+async function persistedGeneratedCampaignMedia(orgId: string, strategyId: string) {
+  const campaign = await prisma.campaign.findFirst({
+    where: { orgId, strategyId },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+  if (!campaign) return null;
+
+  const [asset, template] = await Promise.all([
+    prisma.videoAsset.findFirst({
+      where: { orgId, campaignId: campaign.id },
+      orderBy: [{ updatedAt: "desc" }, { generation: "asc" }],
+      select: { status: true, videoUrl: true, thumbnailUrl: true },
+    }),
+    prisma.campaignVideoTemplate.findFirst({
+      where: { orgId, campaignId: campaign.id },
+      orderBy: { version: "desc" },
+      select: { status: true, masterVideoUrl: true, seedImageUrl: true },
+    }),
+  ]);
+  const readyAsset = asset?.videoUrl ? asset : null;
+  const readyTemplate = template?.masterVideoUrl ? template : null;
+  if (readyAsset) return { kind: "video", status: readyAsset.status, videoUrl: readyAsset.videoUrl, thumbnailUrl: readyAsset.thumbnailUrl };
+  if (readyTemplate) return { kind: "video", status: readyTemplate.status, videoUrl: readyTemplate.masterVideoUrl, thumbnailUrl: readyTemplate.seedImageUrl };
+  return { kind: "video", status: asset?.status ?? template?.status ?? "processing", videoUrl: null, thumbnailUrl: asset?.thumbnailUrl ?? template?.seedImageUrl ?? null };
+}
+
 function extensionForUpload(filename: string, contentType: string): string {
   const extension = extname(filename).toLowerCase();
   if (/^\.[a-z0-9]{1,10}$/.test(extension)) {
@@ -214,7 +241,11 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw new NotFoundError("Strategy");
     }
 
-    return reply.send(strategy);
+    const videoConfig = asRecord(strategy.videoConfig);
+    const campaignMedia = videoConfig.source === "generated"
+      ? await persistedGeneratedCampaignMedia(orgId, strategy.id)
+      : null;
+    return reply.send({ ...strategy, campaignMedia });
   });
 
   r.patch("/strategy/:orgId/campaign-type", {
@@ -363,6 +394,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       message: recordString(messagingAngles, "outreachMessage") || null,
       ctaLabel: recordString(existingCta, "label") || null,
       ctaUrl: recordString(existingCta, "url") || null,
+      ctaExplicitlySaved: messagingAngles.ctaExplicitlySaved === true,
       approved: Boolean(recordString(messagingAngles, "outreachMessageApprovedAt")),
     });
   });
@@ -393,7 +425,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
     const ctaLabel = recordString(existingCta, "label") || null;
     const ctaUrl = recordString(existingCta, "url") || null;
     if (existingMessage) {
-      return reply.send({ message: existingMessage, ctaLabel, ctaUrl, approved: Boolean(recordString(messagingAngles, "outreachMessageApprovedAt")) });
+      return reply.send({ message: existingMessage, ctaLabel, ctaUrl, ctaExplicitlySaved: messagingAngles.ctaExplicitlySaved === true, approved: Boolean(recordString(messagingAngles, "outreachMessageApprovedAt")) });
     }
 
     const positioning = asRecord(strategy.positioning);
@@ -433,7 +465,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       },
     });
 
-    return reply.send({ message: result.message, ctaLabel, ctaUrl, approved: false });
+    return reply.send({ message: result.message, ctaLabel, ctaUrl, ctaExplicitlySaved: messagingAngles.ctaExplicitlySaved === true, approved: false });
   });
 
   r.patch("/strategy/:orgId/outreach-message", {
@@ -466,12 +498,13 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
           ...messagingAngles,
           outreachMessage: message,
           cta: ctaLabel && ctaUrl ? { label: ctaLabel, url: ctaUrl } : null,
+          ctaExplicitlySaved: true,
           outreachMessageApprovedAt: approved ? new Date().toISOString() : null,
         }),
       },
     });
 
-    return reply.send({ message, ctaLabel, ctaUrl, approved });
+    return reply.send({ message, ctaLabel, ctaUrl, ctaExplicitlySaved: true, approved });
   });
 
   r.post("/strategy/:orgId/video-upload", {
@@ -534,6 +567,8 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       source: "uploaded" as const,
       tone: null,
       uploadedVideoUrl: url,
+      uploadedVideoName: file.filename,
+      uploadedVideoSize: buffer.byteLength,
     };
 
     const updated = await prisma.strategy.update({
