@@ -11,7 +11,7 @@ import styles from "./HowItWorks.module.css";
 import { useWebsiteScrapeStatus } from "@/features/onboarding/public/website-status";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 
 const EXPLANATION = [
   { text: "We find the right prospects.", title: "Find the right prospects", description: "We find and qualify prospects that match your ideal customer profile." },
@@ -35,6 +35,7 @@ export default function HowItWorks() {
 
   async function continueToProspects() {
     if (saving) return;
+    if (!beginOnboardingNavigation(onboardingHref("discovery"))) return;
     setSaving(true);
     setError(null);
     try {
@@ -56,6 +57,7 @@ export default function HowItWorks() {
       });
       navigateOnboarding(onboardingHref("discovery"));
     } catch (caught) {
+      restoreOnboardingNavigation();
       setError(caught instanceof Error ? caught.message : "Unable to restore your campaign. Please try again.");
       setSaving(false);
     }

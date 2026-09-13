@@ -10,7 +10,7 @@ import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
 import { cleanWebsiteDomain } from "@/lib/website-url";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 import { cn } from "@/lib/utils";
 import { ProspectDetailInput } from "../ProspectDetailInput";
 import { getDiscoveryOrgScope } from "@/features/onboarding/public/discovery-cache";
@@ -102,6 +102,7 @@ export default function Discovery() {
       return;
     }
 
+    if (!beginOnboardingNavigation(onboardingHref("campaign-content"))) return;
     setSaving(true);
     try {
       const result = await apiFetch<{ strategyId: string }>("/discovery/complete", {
@@ -121,6 +122,7 @@ export default function Discovery() {
       } catch { /* The server already saved the audience. */ }
       navigateOnboarding(onboardingHref("campaign-content"));
     } catch (caught) {
+      restoreOnboardingNavigation();
       setError(
         caught instanceof Error
           ? caught.message
