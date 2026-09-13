@@ -1,4 +1,4 @@
-import { requestOnboardingNavigation } from "@/features/onboarding/components/OnboardingTransitionController";
+import { cancelOnboardingNavigation, prepareOnboardingNavigation, requestOnboardingNavigation } from "@/features/onboarding/components/OnboardingTransitionController";
 
 export const ONBOARDING_ROUTES = [
   { id: "how-leadreacher-works", label: "How LeadReacher Works", path: "/onboarding/how-leadreacher-works" },
@@ -44,14 +44,27 @@ export function getOnboardingRouteIndex(route: OnboardingRouteId): number {
  */
 export function navigateOnboarding(href: string, replace = false): void {
   if (typeof window === "undefined") return;
-
-  const destination = window.location.pathname.startsWith("/onboarding-preview")
-    ? href.replace(/^\/onboarding/, "/onboarding-preview")
-    : window.location.pathname.startsWith("/demo/onboarding")
-      ? href.replace(/^\/onboarding/, "/demo/onboarding")
-      : href;
+  const destination = destinationForCurrentCanvas(href);
 
   if (requestOnboardingNavigation(destination, replace)) return;
   if (replace) window.history.replaceState(null, "", destination);
   else window.history.pushState(null, "", destination);
+}
+
+function destinationForCurrentCanvas(href: string): string {
+  if (typeof window === "undefined") return href;
+  return window.location.pathname.startsWith("/onboarding-preview")
+    ? href.replace(/^\/onboarding/, "/onboarding-preview")
+    : window.location.pathname.startsWith("/demo/onboarding")
+      ? href.replace(/^\/onboarding/, "/demo/onboarding")
+      : href;
+}
+
+export function beginOnboardingNavigation(href: string): boolean {
+  const destination = destinationForCurrentCanvas(href);
+  return prepareOnboardingNavigation(destination);
+}
+
+export function restoreOnboardingNavigation(): void {
+  cancelOnboardingNavigation();
 }
