@@ -52,6 +52,16 @@ label.row { cursor: pointer; }
     .icon > :is(img, svg) { width: 36px; height: 36px; }
   }
 }
+@media (min-width: 63.0625rem) and (max-height: 850px) {
+  .composition { min-height: 0; }
+  .card { flex: none; }
+  .rows { flex: none; grid-auto-rows: minmax(36px, 1fr); }
+  .row { min-height: 36px; }
+  .footer { min-height: 36px; }
+  .control button,
+  .footer button { min-height: 32px; }
+  .icon > :is(img, svg) { width: 28px; height: 28px; }
+}
 @media (prefers-reduced-motion: reduce) {
   .row, .control input, .control input::after { transition: none; }
   .control input:checked { animation: none; }
