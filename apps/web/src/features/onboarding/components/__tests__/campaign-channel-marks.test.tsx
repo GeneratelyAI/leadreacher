@@ -25,6 +25,14 @@ describe("CampaignChannelMarks", () => {
     }).map((channel) => channel.id)).toEqual(["linkedin", "gmail", "facebook"]);
   });
 
+  it("prefers live draft channels over persisted channel fields", () => {
+    expect(campaignChannels({
+      ...section,
+      state: "draft",
+      summary: "LinkedIn · Outlook",
+    }).map((channel) => channel.id)).toEqual(["linkedin", "outlook"]);
+  });
+
   it("renders accessible compact marks and expanded channel labels", () => {
     const channels = campaignChannels(section);
     const compact = renderToStaticMarkup(<CampaignChannelMarks channels={channels} />);

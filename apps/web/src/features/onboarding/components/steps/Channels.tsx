@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,6 +11,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { toast } from "@/components/ui/sonner";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { ApiError, apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { isOnboardingDemo, isOnboardingPreview } from "@/features/onboarding/public/preview-api";
@@ -160,19 +161,54 @@ export function returnedConnectionIsActive(
   return accounts.some((account) => account.status === "active");
 }
 
+export function connectionControlLabel({
+  selected,
+  opening,
+  retry,
+}: {
+  selected: boolean;
+  opening: boolean;
+  retry: boolean;
+}): "Not selected" | "Opening..." | "Retry" | "Connect" {
+  if (!selected) return "Not selected";
+  if (opening) return "Opening...";
+  return retry ? "Retry" : "Connect";
+}
+
 export default function Channels() {
   useLayoutEffect(() => {
     applyStoredTheme();
   }, []);
 
+  useEffect(() => {
+    const reminderId = "onboarding-campaign-approval-reminder";
+    const desktop = window.matchMedia("(min-width: 63.0625rem)");
+    const dismissOnMobile = () => { if (!desktop.matches) toast.dismiss(reminderId); };
+    desktop.addEventListener("change", dismissOnMobile);
+    const timer = window.setTimeout(() => {
+      if (!desktop.matches) return;
+      toast.info("Nothing is sent until you approve your campaign.", {
+        id: reminderId,
+        duration: 5_000,
+      });
+    }, 1_000);
+    return () => {
+      window.clearTimeout(timer);
+      desktop.removeEventListener("change", dismissOnMobile);
+      toast.dismiss(reminderId);
+    };
+  }, []);
+
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectingChannelKey, setConnectingChannelKey] = useState<string | null>(null);
   const [activationPendingChannelKey, setActivationPendingChannelKey] = useState<string | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [completionError, setCompletionError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<{ channelKey: string; message: string } | null>(null);
   const [purchasedChannels, setPurchasedChannels] = useState<Set<PurchasedChannel>>(
     new Set(),
   );
@@ -182,7 +218,7 @@ export default function Channels() {
   const completionStarted = useRef(false);
   const completedPreviewCampaign = useRef<string | null>(null);
   const isReview = searchParams.get("review") === "true" || searchParams.get("screen") === "16";
-  const completedCampaignId = isOnboardingPreview() ? searchParams.get("completed") : null;
+  const completedCampaignId = pathname.startsWith("/onboarding-preview") ? searchParams.get("completed") : null;
   const connectionFailed = searchParams.get("status") === "failed"
     || Boolean(searchParams.get("error_title"));
   const connectionReturned = searchParams.get("status") === "connected"
@@ -198,12 +234,11 @@ export default function Channels() {
       }
       const response = await apiFetch<SocialAccountsResponse>("/social-accounts");
       setAccounts(response.accounts);
-      setError(null);
       return response.accounts;
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error ? loadError.message : "Unable to load connected channels.",
-      );
+    } catch {
+      // A connection provider can be unavailable while onboarding still has
+      // useful local state. Keep the list usable and expose failures only on
+      // the provider the user explicitly tries to connect.
     } finally {
       if (showLoading) setIsLoading(false);
     }
@@ -245,7 +280,7 @@ export default function Channels() {
           window.localStorage.removeItem("lr_pending_channel_key");
           window.localStorage.removeItem("lr_pending_connection_token");
           setActivationPendingChannelKey(null);
-          setError(null);
+          setConnectionError(null);
         }
       } finally {
         checking = false;
@@ -306,13 +341,12 @@ export default function Channels() {
       }
     }
 
-    void pollForConnection().catch((pollError: unknown) => {
+    void pollForConnection().catch(() => {
       if (!cancelled) {
-        setError(
-          pollError instanceof Error
-            ? pollError.message
-            : "Unable to confirm the channel connection.",
-        );
+        setConnectionError({
+          channelKey: pendingKey ?? "",
+          message: "We could not confirm this connection yet. You can retry it when you are ready.",
+        });
       }
     });
     return () => {
@@ -371,10 +405,10 @@ export default function Channels() {
     provider: "LINKEDIN" | "WHATSAPP" | "INSTAGRAM" | "MESSENGER" | "GOOGLE" | "OUTLOOK",
     channelKey: string,
   ) {
-    if (isConnecting) return;
+    if (connectingChannelKey) return;
 
-    setIsConnecting(true);
-    setError(null);
+    setConnectingChannelKey(channelKey);
+    setConnectionError(null);
     try {
       const result = await apiFetch<{ url: string; connectionToken: string }>("/social-accounts/connect", {
         method: "POST",
@@ -394,11 +428,14 @@ export default function Channels() {
       setActivationPendingChannelKey(channelKey);
       window.location.assign(result.url);
     } catch (connectError) {
-      setError(
-        connectError instanceof Error ? connectError.message : "Unable to start channel connection.",
-      );
+      setConnectionError({
+        channelKey,
+        message: connectError instanceof Error && connectError.message.includes("disabled in onboarding preview")
+          ? "This connection is unavailable in preview mode."
+          : "We could not open this connection. Check the provider and try again.",
+      });
     } finally {
-      setIsConnecting(false);
+      setConnectingChannelKey(null);
     }
   }
 
@@ -411,7 +448,7 @@ export default function Channels() {
 
     completionStarted.current = true;
     setIsCompleting(true);
-    setError(null);
+    setCompletionError(null);
     try {
       const result = await apiFetch<{
         completed: true;
@@ -446,7 +483,7 @@ export default function Channels() {
     } catch (completeError) {
       completionStarted.current = false;
       setIsCompleting(false);
-      setError(
+      setCompletionError(
         completeError instanceof Error ? completeError.message : "Unable to complete onboarding.",
       );
     }
@@ -468,7 +505,7 @@ export default function Channels() {
         isLoading={isLoading || isPlanLoading}
         isCompleting={isCompleting && !completedCampaignId}
         canComplete={allRequiredConnected && Boolean(savedStrategy)}
-        error={error}
+        error={completionError}
         completedCampaignId={completedCampaignId}
         onComplete={() => void handleComplete()}
         onBack={() => navigateOnboarding(onboardingHref("connect-channels"))}
@@ -491,22 +528,20 @@ export default function Channels() {
         {connectionReturned ? (
           <Alert tone="success" className="mx-auto mt-6 w-full max-w-3xl" aria-live="polite">Connection request received. We&apos;re checking for the activated account now.</Alert>
         ) : null}
-        {error ? (
-          <Alert tone="error" className="mx-auto mt-6 w-full max-w-3xl">{error}</Alert>
-        ) : null}
-
         <ChannelList busy={isLoading || isPlanLoading}
-          notice="Nothing is sent until you approve your campaign."
           footer={<><span>{connectedRequiredCount} of {requiredConnectionKeys.length} required {requiredConnectionKeys.length === 1 ? "channel" : "channels"} connected</span><button type="button" disabled={isLoading} onClick={() => void loadAccounts(true)}><RefreshCw aria-hidden />Refresh</button></>}
           rows={[...CHANNELS].sort((a, b) => ["linkedin", "gmail", "outlook", "whatsapp", "instagram", "facebook"].indexOf(a.key) - ["linkedin", "gmail", "outlook", "whatsapp", "instagram", "facebook"].indexOf(b.key)).map((channel) => {
             const connected = hasActiveAccount(accounts, channel);
             const selected = purchasedChannels.has(channel.key);
             const failed = findAccountForChannel(accounts, channel)?.status === "error";
+            const rowError = connectionError?.channelKey === channel.key ? connectionError.message : null;
+            const opening = connectingChannelKey === channel.key;
+            const connectionInProgress = Boolean(connectingChannelKey);
             return {
-              id: channel.key, name: channel.title, icon: channel.icon,
-              description: connected ? findAccountForChannel(accounts, channel)?.accountName || "Account connected" : failed ? <span role="status">Connection needs attention. Try again.</span> : channel.description,
-              control: connected ? <button type="button" data-connected="true" disabled={isConnecting || !selected} aria-label={`${channel.title} connected. Add another account`} onClick={() => void handleConnect(channel.provider, channel.key)}><Check aria-hidden />Connected</button>
-                : <button type="button" data-unavailable={!selected || undefined} disabled={isConnecting || isLoading || isPlanLoading || !selected} onClick={() => void handleConnect(channel.provider, channel.key)}>{!selected ? "Not selected" : isConnecting ? "Opening..." : failed ? "Retry" : "Connect"}</button>,
+              id: channel.key, name: channel.title, icon: channel.icon, storySelected: selected,
+              description: connected ? findAccountForChannel(accounts, channel)?.accountName || "Account connected" : rowError ? <span role="status">{rowError}</span> : failed ? <span role="status">Connection needs attention. Try again.</span> : channel.description,
+              control: connected ? <button type="button" data-connected="true" disabled={connectionInProgress || !selected} aria-label={`${channel.title} connected. Add another account`} onClick={() => void handleConnect(channel.provider, channel.key)}><Check aria-hidden />Connected</button>
+                : <button type="button" data-unavailable={!selected || undefined} disabled={connectionInProgress || isLoading || isPlanLoading || !selected} onClick={() => void handleConnect(channel.provider, channel.key)}>{connectionControlLabel({ selected, opening, retry: Boolean(rowError) || failed })}</button>,
             };
           })}
         />

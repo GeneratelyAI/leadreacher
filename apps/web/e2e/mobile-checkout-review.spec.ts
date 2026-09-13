@@ -89,7 +89,7 @@ test.describe("mobile checkout and final saved review", () => {
       page.getByRole("heading", { name: /^Ready for your review\s*\.$/ }),
     ).toBeFocused();
     await expect(
-      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn", { exact: true }),
+      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn · Gmail", { exact: true }),
     ).toBeVisible();
     await expect(
       page.getByText("Your campaign is saved.", { exact: true }),
@@ -104,7 +104,7 @@ test.describe("mobile checkout and final saved review", () => {
     ).toBeVisible();
     await page.reload();
     await expect(
-      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn", { exact: true }),
+      page.getByRole("region", { name: "Campaign review content", exact: true }).getByText("LinkedIn · Gmail", { exact: true }),
     ).toBeVisible();
 
     const complete = await scrollToAction(page, "Open campaign draft");

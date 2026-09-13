@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { ArrowLeft, ArrowRight } from "@/components/ui/icons";
+import { toast } from "@/components/ui/sonner";
 import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { getChannelRecommendations } from "../../state/channel-recommendations";
 import { selectedChannelsFromStrategy, type ChannelKey, type StrategyResponse } from "../../state/strategy-model";
-import { navigateOnboarding, onboardingHref } from "../../public/navigation";
-import { announceCampaignChannelSelection } from "../../public/campaign-events";
+import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
+import { useCampaignPillDraft } from "../../state/campaign-context";
 import { ChannelList } from "../ChannelList";
 import styles from "../continuation/Continuation.module.css";
 
@@ -27,6 +28,14 @@ export default function ChannelSelection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const orgId = useRef<string | null>(null);
+  const { setDraft } = useCampaignPillDraft();
+  const applySelection = useCallback((next: ChannelKey[]) => {
+    setSelected(next);
+    setDraft({
+      sectionId: "channels",
+      summary: next.map((id) => CHANNELS.find((item) => item.id === id)?.label ?? id).join(" · ") || "No channels selected",
+    });
+  }, [setDraft]);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,7 +47,7 @@ export default function ChannelSelection() {
         if (cancelled) return;
         const persisted = selectedChannelsFromStrategy(saved);
         const recommendations = getChannelRecommendations(saved.channels).slice(0, 2).map((item) => item.channel);
-        setSelected(persisted.length ? persisted : recommendations.length ? recommendations.map((channel) => channel === "email" ? "gmail" : channel) : ["linkedin", "gmail"]);
+        applySelection(persisted.length ? persisted : recommendations.length ? recommendations.map((channel) => channel === "email" ? "gmail" : channel) : ["linkedin", "gmail"]);
       } catch (cause) {
         if (!cancelled) setError(cause instanceof Error ? cause.message : "Unable to load campaign channels.");
       } finally {
@@ -46,25 +55,48 @@ export default function ChannelSelection() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [applySelection]);
 
   useEffect(() => {
-    if (loading || !orgId.current) return;
-    announceCampaignChannelSelection(selected);
-  }, [loading, selected]);
+    const reminderId = "onboarding-channel-connection-reminder";
+    const desktop = window.matchMedia("(min-width: 63.0625rem)");
+    const dismissOnMobile = () => { if (!desktop.matches) toast.dismiss(reminderId); };
+    desktop.addEventListener("change", dismissOnMobile);
+    const timer = window.setTimeout(() => {
+      if (!desktop.matches) return;
+      toast.info("You will connect your accounts after checkout.", {
+        id: reminderId,
+        duration: 5_000,
+      });
+    }, 1_000);
+    return () => {
+      window.clearTimeout(timer);
+      desktop.removeEventListener("change", dismissOnMobile);
+      toast.dismiss(reminderId);
+    };
+  }, []);
 
   async function continueToCheckout() {
     if (!selected.length || saving) return;
+    if (!beginOnboardingNavigation(onboardingHref("checkout"))) return;
     setSaving(true);
     setError(null);
     try {
       await apiFetch(`/strategy/${orgId.current ?? "onboarding-preview-org"}/channels`, { method: "PATCH", body: JSON.stringify({ channels: selected }) });
       navigateOnboarding(onboardingHref("checkout"));
     } catch (cause) {
+      restoreOnboardingNavigation();
       setError(cause instanceof Error ? cause.message : "Unable to save campaign channels.");
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggleChannel(channelId: ChannelKey) {
+    const next = selected.includes(channelId)
+      ? selected.filter((item) => item !== channelId)
+      : [...selected, channelId];
+    applySelection(next);
   }
 
   return (
@@ -75,13 +107,13 @@ export default function ChannelSelection() {
           <p>Choose where your outreach happens.</p>
         </header>
         <div className="onboarding-scene-task-scroll" role="region" aria-label="Channel selection content" tabIndex={0}>
-        <ChannelList busy={loading} notice="You will connect your accounts after checkout." footer={<span>{selected.length} channels selected</span>} rows={CHANNELS.map((channel) => ({
+        <ChannelList busy={loading} footer={<span>{selected.length} channels selected</span>} rows={CHANNELS.map((channel) => ({
           id: channel.id, name: channel.label, description: channel.description,
           icon: <ChannelLogo name={channel.id === "whatsapp" ? "whatsapp-mark" : channel.id === "email" ? "gmail" : channel.id} />,
           selection: {
             checked: selected.includes(channel.id),
             disabled: loading || saving,
-            onChange: () => setSelected((current) => current.includes(channel.id) ? current.filter((item) => item !== channel.id) : [...current, channel.id]),
+            onChange: () => toggleChannel(channel.id),
           },
         }))} />
         {error ? <p className={styles.error} role="alert">{error}</p> : null}

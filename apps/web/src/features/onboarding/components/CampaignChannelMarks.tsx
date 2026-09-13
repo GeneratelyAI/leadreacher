@@ -44,7 +44,9 @@ export function campaignChannels(section: PillSection): CampaignChannel[] {
   const selectedField = section.fields?.find(
     (field) => field.label.trim().toLowerCase() === "selected channels",
   );
-  const selected = selectedField?.values
+  const draftSelection = section.state === "draft" ? section.summary?.split(" · ") : undefined;
+  const selected = draftSelection
+    ?? selectedField?.values
     ?? selectedField?.value?.split(" · ")
     ?? section.summary?.split(" · ")
     ?? [];

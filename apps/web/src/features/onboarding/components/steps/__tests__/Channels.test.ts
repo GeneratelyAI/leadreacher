@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { returnedConnectionIsActive } from "../Channels";
+import { connectionControlLabel, returnedConnectionIsActive } from "../Channels";
 
 const linkedInAccount = {
   id: "account-linkedin",
@@ -45,5 +45,17 @@ describe("returnedConnectionIsActive", () => {
         null,
       ),
     ).toBe(false);
+  });
+});
+
+describe("connectionControlLabel", () => {
+  it("marks only the provider that started connection as opening", () => {
+    expect(connectionControlLabel({ selected: true, opening: true, retry: false })).toBe("Opening...");
+    expect(connectionControlLabel({ selected: true, opening: false, retry: false })).toBe("Connect");
+  });
+
+  it("keeps unavailable and retry states explicit", () => {
+    expect(connectionControlLabel({ selected: false, opening: false, retry: false })).toBe("Not selected");
+    expect(connectionControlLabel({ selected: true, opening: false, retry: true })).toBe("Retry");
   });
 });

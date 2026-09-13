@@ -11,6 +11,7 @@ export type ReviewStrategy = {
 
 export type ReviewAccount = {
   platform: string;
+  providerType?: string | null;
   accountName: string | null;
   status: string;
 };
@@ -63,10 +64,11 @@ export function buildSetupReview(
     (text(icp.contentChoice) || strategy.campaignType ? labels[choice] : "");
   const tone = text(approved.style) || text(strategy.videoConfig?.tone);
   const styleLabel = tone ? tone.charAt(0).toUpperCase() + tone.slice(1) : "";
-  const selectedChannels = values(record(strategy.channels).selected);
+  const selectedChannels = values(record(strategy.channels).selected).map((channel) => channel === "email" ? "gmail" : channel);
   const channelNames: Record<string, string> = {
     linkedin: "LinkedIn",
-    email: "Email",
+    gmail: "Gmail",
+    outlook: "Outlook",
     whatsapp: "WhatsApp",
     instagram: "Instagram",
     facebook: "Facebook",
@@ -74,15 +76,19 @@ export function buildSetupReview(
   const connected = [
     ...new Set(
       accounts
-        .filter(
-          (account) =>
-            account.status === "active" &&
-            selectedChannels.includes(account.platform.toLowerCase()),
-        )
-        .map(
-          (account) =>
-            channelNames[account.platform.toLowerCase()] ?? account.platform,
-        ),
+        .flatMap((account) => {
+          if (account.status !== "active") return [];
+          const platform = account.platform.toLowerCase();
+          const provider = account.providerType?.toLowerCase();
+          const channel = platform === "email"
+            ? provider === "google" || provider === "gmail" ? "gmail"
+              : provider === "outlook" || provider === "microsoft" ? "outlook"
+                : "email"
+            : platform;
+          return selectedChannels.includes(channel)
+            ? [channelNames[channel] ?? account.platform]
+            : [];
+        }),
     ),
   ];
   const items: SetupReviewItem[] = [

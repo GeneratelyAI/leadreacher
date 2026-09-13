@@ -8,6 +8,54 @@ const linkedIn = {
 };
 
 describe("saved final setup review", () => {
+  it.each([
+    ["google", "gmail", "Gmail"],
+    ["gmail", "gmail", "Gmail"],
+    ["outlook", "outlook", "Outlook"],
+    ["microsoft", "outlook", "Outlook"],
+  ])("resolves the %s email provider as its own selected channel", (providerType, channel, label) => {
+    const items = buildSetupReview(
+      { channels: { selected: ["linkedin", channel] } },
+      [linkedIn, { platform: "email", providerType, accountName: null, status: "active" }],
+    );
+    expect(items.find((item) => item.key === "channels")?.value).toBe(`LinkedIn · ${label}`);
+  });
+
+  it("shows Gmail and Outlook independently without duplicating accounts or counting other providers", () => {
+    const gmail = { platform: "email", providerType: "GOOGLE", accountName: null, status: "active" };
+    const outlook = { ...gmail, providerType: "OUTLOOK" };
+    const accounts = [linkedIn, gmail, gmail, outlook];
+    const selected = buildSetupReview({ channels: { selected: ["linkedin", "gmail", "outlook"] } }, accounts);
+    expect(selected.find((item) => item.key === "channels")?.value).toBe("LinkedIn · Gmail · Outlook");
+    const gmailOnly = buildSetupReview({ channels: { selected: ["gmail"] } }, accounts);
+    expect(gmailOnly.find((item) => item.key === "channels")?.value).toBe("Gmail");
+    const outlookOnly = buildSetupReview({ channels: { selected: ["outlook"] } }, [gmail]);
+    expect(outlookOnly.find((item) => item.key === "channels")?.value).toBe("No purchased channel connected yet");
+  });
+
+  it("does not guess an email provider when provider details are missing or the account is pending", () => {
+    const items = buildSetupReview(
+      { channels: { selected: ["gmail", "outlook"] } },
+      [
+        { platform: "email", accountName: null, status: "active" },
+        { platform: "email", providerType: "google", accountName: null, status: "reconnecting" },
+        { platform: "email", providerType: "outlook", accountName: null, status: "error" },
+      ],
+    );
+    expect(items.find((item) => item.key === "channels")?.value).toBe("No purchased channel connected yet");
+  });
+
+  it("matches the connection screen's legacy email selection without including Outlook", () => {
+    const items = buildSetupReview(
+      { channels: { selected: ["email"] } },
+      [
+        { platform: "email", providerType: "google", accountName: null, status: "active" },
+        { platform: "email", providerType: "outlook", accountName: null, status: "active" },
+      ],
+    );
+    expect(items.find((item) => item.key === "channels")?.value).toBe("Gmail");
+  });
+
   it("uses saved audience, explicit content, approved style and purchased active channels", () => {
     const items = buildSetupReview(
       {

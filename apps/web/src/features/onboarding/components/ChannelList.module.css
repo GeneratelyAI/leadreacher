@@ -33,13 +33,14 @@ label.row { cursor: pointer; }
 .notice svg { width: 20px; height: 20px; flex: none; }
 @keyframes channel-check-pop { 0% { transform: scale(.78); } 65% { transform: scale(1.12); } 100% { transform: scale(1); } }
 @media (min-width: 63.0625rem) {
+  article.row { grid-template-columns: 40px minmax(132px, .8fr) minmax(0, 1.7fr) 116px; }
   .composition { min-height: 100cqh; }
   .card { flex: 1; }
   .row { padding-block: 0; }
   @container onboarding-task (max-height: 400px) {
-    .composition { min-height: 0; }
-    .card { flex: none; }
-    .rows { flex: none; grid-auto-rows: 36px; }
+    .composition { min-height: 100cqh; }
+    .card { flex: 1; }
+    .rows { flex: 1; grid-auto-rows: minmax(36px, 1fr); }
     .row { min-height: 36px; padding-block: 0; }
     .control input { margin: 5px; }
     .footer { min-height: 36px; }
@@ -62,5 +63,14 @@ label.row { cursor: pointer; }
   .description { grid-column: 2; }
   .control { grid-column: 3; grid-row: 1 / span 2; }
   .control button { width: 100px; }
+  .card[data-selection-card="true"] .row {
+    grid-template-columns: 32px minmax(0, 1fr) 44px;
+    gap: 4px 12px;
+    padding: 14px 16px;
+    min-height: 84px;
+  }
+  .card[data-selection-card="true"] .name { font-size: 16px; }
+  .card[data-selection-card="true"] .description { font-size: 13px; line-height: 1.4; }
+  .card[data-selection-card="true"] .footer { padding-inline: 16px; }
   .notice { align-items: flex-start; }
 }

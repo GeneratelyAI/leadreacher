@@ -12,8 +12,8 @@ for (const viewport of [{ width: 1366, height: 900 }, { width: 1440, height: 900
       const task = page.locator(".onboarding-scene-task-scroll");
       expect(await task.evaluate((element) => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(1);
       const nav = await page.locator(".onboarding-campaign-action-row").boundingBox();
-      const notice = page.getByText(route === "channels" ? "You will connect your accounts after checkout." : "Nothing is sent until you approve your campaign.", { exact: true });
-      const end = await notice.boundingBox();
+      const card = page.getByRole("group", { name: "Campaign channels" }).locator("..");
+      const end = await card.boundingBox();
       expect(end!.y + end!.height).toBeLessThanOrEqual(nav!.y - 28);
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(viewport.width);
       geometries.push(await page.evaluate(() => Object.fromEntries([".onboarding-persistent-logo", ".onboarding-persistent-pill", ".onboarding-campaign-action-row"].map((selector) => {
