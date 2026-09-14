@@ -360,7 +360,7 @@ export default function Checkout() {
                     const charge = additionalChannelItems.find((item) => item.channel === channel);
                     const logoName = channelLogoName(channel);
                     return <div key={`channel:${channel}`}>
-                      <dt>{logoName ? <span data-story-object={`channel:${channel}`}><ChannelLogo name={logoName} className={styles.channelMark} /></span> : null}{channelLabel(channel)}</dt>
+                      <dt>{logoName ? <ChannelLogo name={logoName} className={styles.channelMark} /> : null}{channelLabel(channel)}</dt>
                       <dd>{charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable"}</dd>
                     </div>;
                   })}
@@ -407,7 +407,7 @@ export default function Checkout() {
             channels={selectedChannels.map((channel) => {
               const charge = additionalChannelItems.find((item) => item.channel === channel);
               const logoName = channelLogoName(channel);
-              return { key: channel, label: <>{logoName ? <span data-story-object={`channel:${channel}`}><ChannelLogo name={logoName} className={styles.channelMark} /></span> : null}{channelLabel(channel)}</>, value: charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable" };
+              return { key: channel, label: <>{logoName ? <ChannelLogo name={logoName} className={styles.channelMark} /> : null}{channelLabel(channel)}</>, value: charge ? formatPrice(charge) : includedChannels.includes(channel) ? "Included" : "Unavailable" };
             })}
             subtotal={isLoading ? "Loading..." : formatTotal(lineItems)}
           />

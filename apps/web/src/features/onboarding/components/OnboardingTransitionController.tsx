@@ -26,10 +26,6 @@ function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function usesMobileLayout(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 63rem)").matches;
-}
-
 function isImmediateMobileAudienceTransition(from: string, to: string): boolean {
   return window.matchMedia("(max-width: 63rem)").matches && (
     (from === "how-leadreacher-works" && to === "discovery") ||
@@ -61,6 +57,7 @@ function scenePosition(href: string): number {
   if (scene === "channels") return 5;
   if (scene === "checkout") return 6;
   if (scene === "connect-channels") return 7;
+  if (scene === "live") return 8;
   return 0;
 }
 
@@ -72,18 +69,15 @@ function carriesObject(object: StoryObject, source: string, destination: string)
   if (source === destination) return false;
   if (object.key === "content:upload") return (source === "campaign-content" && destination === "your-video") || (source === "your-video" && destination === "campaign-content");
   const creative = ["personalized-video", "ai-video", "your-video", "document"];
-  if (object.key === "media") return (creative.includes(source) && ["cta", "campaign-content"].includes(destination)) || (["cta", "campaign-content"].includes(source) && creative.includes(destination));
-  return !usesMobileLayout() && object.key.startsWith("channel:") && isChannelHandoff(source, destination);
+  if (object.key === "media") {
+    if (source === "cta" || destination === "cta") return false;
+    return (creative.includes(source) && destination === "campaign-content") || (source === "campaign-content" && creative.includes(destination));
+  }
+  return false;
 }
 
 function isDeliberateStoryHandoff(objects: StoryObject[], source: string, destination: string) {
-  if ((source === "cta" || destination === "cta") && objects.some((object) => object.key === "media")) return true;
-  const carriesChannels = objects.some((object) => object.key.startsWith("channel:"));
-  return carriesChannels && isChannelHandoff(source, destination);
-}
-
-function isChannelHandoff(source: string, destination: string): boolean {
-  return (source === "channels" && destination === "checkout") || (source === "checkout" && destination === "channels");
+  return (source === "cta" || destination === "cta") && objects.some((object) => object.key === "media");
 }
 
 function sampledStoryPath({
@@ -109,8 +103,9 @@ function sampledStoryPath({
 }): Keyframe[] {
   const controlX = dx * .5;
   const controlY = Math.max(0, dy) + arc;
-  return Array.from({ length: 13 }, (_, point) => {
-    const progress = point / 12;
+  const frameCount = 13;
+  return Array.from({ length: frameCount }, (_, point) => {
+    const progress = point / (frameCount - 1);
     const eased = progress ** 3 * (progress * (progress * 6 - 15) + 10);
     const inverse = 1 - eased;
     const x = 2 * inverse * eased * controlX + eased * eased * dx;
@@ -156,6 +151,10 @@ function stableBounds(node: HTMLElement) {
     top -= parent.scrollTop;
   }
   return { left: left - window.scrollX, top: top - window.scrollY, width: node.offsetWidth, height: node.offsetHeight };
+}
+
+function hasFiniteStoryBounds(bounds: Pick<DOMRect, "left" | "top" | "width" | "height">): boolean {
+  return [bounds.left, bounds.top, bounds.width, bounds.height].every(Number.isFinite) && bounds.width > 0 && bounds.height > 0;
 }
 
 /** Owns route-level motion. The persistent canvas and campaign pill never animate here. */
@@ -416,11 +415,7 @@ export function OnboardingTransitionController({
       }
 
       storyObjects.current = captureStoryObjects().filter((object) => carriesObject(object, sourceScene, destinationScene));
-      const customPixelHandoff = storyObjects.current.some((object) => (
-        object.key === "media" && (sourceScene === "cta" || destinationScene === "cta")
-      ) || (
-        object.key.startsWith("channel:") && isChannelHandoff(sourceScene, destinationScene)
-      ));
+      const customPixelHandoff = storyObjects.current.some((object) => object.key === "media" && (sourceScene === "cta" || destinationScene === "cta"));
       if (storyObjects.current.length && typeof document.startViewTransition === "function" && !customPixelHandoff) {
         const objects = storyObjects.current;
         storyObjects.current = [];
@@ -729,7 +724,6 @@ export function OnboardingTransitionController({
       acknowledge();
       setMotion({ direction, phase: "idle" });
       const mediaHandoff = (previous === "cta" || sceneKey === "cta") && storyObjects.current.some((object) => object.key === "media");
-      const channelHandoff = isChannelHandoff(previous, sceneKey);
       const deliberateHandoff = isDeliberateStoryHandoff(storyObjects.current, previous, sceneKey);
       const timing = storyTiming(direction === "backward", false, deliberateHandoff);
       const started = performance.now();
@@ -737,9 +731,6 @@ export function OnboardingTransitionController({
       const flights = new Map<StoryObject, { target: HTMLElement; landed: boolean; restore: () => void }>();
       const fading = new Set<StoryObject>();
       const candidateBounds = new Map<StoryObject, DOMRect>();
-      const channelOrder = [...storyObjects.current]
-        .filter((object) => object.key.startsWith("channel:"))
-        .sort((left, right) => left.key.localeCompare(right.key));
       const match = () => {
         for (const [object, flight] of flights) {
           if (!flight.target.isConnected || (flight.landed && isStoryObjectReady(flight.target)) || performance.now() - started > 12_000) {
@@ -750,7 +741,12 @@ export function OnboardingTransitionController({
         for (const object of pending) {
           const target = Array.from(document.querySelectorAll<HTMLElement>("[data-story-object]")).find((node) => node.dataset.storyObject === object.key && (node.dataset.storyAsset ?? "") === object.asset && !node.closest("[aria-checked='false'], [data-selected='false'], [data-story-selected='false'], .personalized-video-style-card-preparing") && node.getBoundingClientRect().width > 0);
           const bounds = target?.getBoundingClientRect();
-          if (!target || !bounds?.width || !bounds.height) continue;
+          if (!hasFiniteStoryBounds(object.bounds)) {
+            pending.delete(object);
+            object.layer.remove();
+            continue;
+          }
+          if (!target || !bounds || !hasFiniteStoryBounds(bounds)) continue;
           const previousBounds = candidateBounds.get(object);
           candidateBounds.set(object, bounds);
           if (performance.now() - started < (deliberateHandoff ? 100 : 32) || !previousBounds || Math.abs(previousBounds.x - bounds.x) > .5 || Math.abs(previousBounds.y - bounds.y) > .5 || Math.abs(previousBounds.width - bounds.width) > .5 || Math.abs(previousBounds.height - bounds.height) > .5) continue;
@@ -762,42 +758,37 @@ export function OnboardingTransitionController({
           storyRestores.current.push(restore);
           const flight = { target, landed: false, restore };
           flights.set(object, flight);
-          const channelIndex = channelOrder.findIndex((candidate) => candidate.key === object.key);
-          const staggerIndex = direction === "backward" ? channelOrder.length - 1 - channelIndex : channelIndex;
-          const stagger = channelHandoff && channelIndex >= 0 ? staggerIndex * 24 : 0;
-          const duration = Math.max(1, timing.duration - stagger);
+          const stagger = 0;
+          const duration = timing.duration;
           const targetScaleX = bounds.width / object.bounds.width;
           const targetScaleY = bounds.height / object.bounds.height;
-          const preservesArtworkRatio = object.key.startsWith("channel:");
-          const uniformScale = Math.min(targetScaleX, targetScaleY);
-          const scaleX = preservesArtworkRatio ? uniformScale : targetScaleX;
-          const scaleY = preservesArtworkRatio ? uniformScale : targetScaleY;
-          const dx = preservesArtworkRatio
-            ? bounds.left + bounds.width / 2 - object.bounds.left - object.bounds.width * uniformScale / 2
-            : bounds.left - object.bounds.left;
-          const dy = preservesArtworkRatio
-            ? bounds.top + bounds.height / 2 - object.bounds.top - object.bounds.height * uniformScale / 2
-            : bounds.top - object.bounds.top;
-          if (channelHandoff || (mediaHandoff && object.key === "media")) {
+          const dx = bounds.left - object.bounds.left;
+          const dy = bounds.top - object.bounds.top;
+          if (![targetScaleX, targetScaleY, dx, dy].every(Number.isFinite)) {
+            restore();
+            flights.delete(object);
+            continue;
+          }
+          if (mediaHandoff && object.key === "media") {
             object.layer.dataset.storyDirection = direction;
             object.layer.dataset.storyDuration = `${timing.duration}`;
           }
-          const isTravelStory = (channelHandoff && object.key.startsWith("channel:")) || (mediaHandoff && object.key === "media");
+          const isTravelStory = mediaHandoff && object.key === "media";
           const keyframes = isTravelStory
             ? sampledStoryPath({
                 dx,
                 dy,
                 sourceWidth: object.bounds.width,
                 sourceHeight: object.bounds.height,
-                targetWidth: preservesArtworkRatio ? object.bounds.width * uniformScale : bounds.width,
-                targetHeight: preservesArtworkRatio ? object.bounds.height * uniformScale : bounds.height,
+                targetWidth: bounds.width,
+                targetHeight: bounds.height,
                 sourceRadius: object.layer.style.borderRadius || "0px",
                 targetRadius: getComputedStyle(target).borderRadius,
                 arc: object.key === "media" ? 18 : 20,
               })
             : [
                 { transform: "translate3d(0, 0, 0) scale(1, 1)", opacity: 1 },
-                { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${scaleX}, ${scaleY})`, opacity: 1 },
+                { transform: `translate3d(${dx}px, ${dy}px, 0) scale(${targetScaleX}, ${targetScaleY})`, opacity: 1 },
               ];
           const animation = object.layer.animate(keyframes, { ...timing, duration, delay: stagger, easing: isTravelStory ? "linear" : timing.easing, fill: "forwards" });
           animations.current.push(animation);

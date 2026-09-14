@@ -9,7 +9,6 @@ export type ChannelListRow = {
   description: ReactNode;
   control?: ReactNode;
   selection?: { checked: boolean; disabled: boolean; onChange: () => void };
-  storySelected?: boolean;
 };
 
 export function ChannelList({ rows, footer, notice, busy = false }: {
@@ -24,7 +23,7 @@ export function ChannelList({ rows, footer, notice, busy = false }: {
       <div className={styles.rows} role="group" aria-label="Campaign channels">
         {rows.map((row) => {
           const contents = <>
-            <span className={styles.icon} data-story-object={`channel:${row.id}`} data-story-selected={row.storySelected ?? row.selection?.checked}>{row.icon}</span>
+            <span className={styles.icon}>{row.icon}</span>
             <strong className={styles.name}>{row.name}</strong>
             <span className={styles.description}>{row.description}</span>
             <span className={styles.control}>{row.selection ? <input type="checkbox" aria-label={row.name} checked={row.selection.checked} disabled={row.selection.disabled} onChange={row.selection.onChange} /> : row.control}</span>

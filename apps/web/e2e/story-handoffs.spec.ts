@@ -31,37 +31,16 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900
   });
 }
 
-test("media handoff preserves its pixels and lands on the exact attachment frame", async ({ page }, testInfo) => {
+test("campaign content reaches the CTA attachment without a shared-media flight", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/onboarding-preview/campaign-content/personalized-video");
   const source = page.locator('[data-story-object="media"]');
   await expect(source).toBeVisible();
-  const sourceBox = await source.boundingBox();
   await page.getByRole("button", { name: "Use this", exact: true }).click();
   const travelling = page.locator('[data-story-snapshot="media"]');
-  await expect(travelling).toHaveAttribute("data-story-duration", "1400");
-
-  await travelling.evaluate((node) => node.getAnimations().forEach((animation) => animation.pause()));
-  for (const [label, progress] of [["00", 0], ["20", .2], ["50", .5], ["80", .8]] as const) {
-    await travelling.evaluate((node, value) => node.getAnimations().forEach((animation) => { animation.currentTime = 1400 * value; }), progress);
-    await page.screenshot({ path: testInfo.outputPath(`media-handoff-${label}.png`) });
-    const frame = await travelling.boundingBox();
-    const pixels = await travelling.locator("canvas").evaluate((node) => ({ width: (node as HTMLCanvasElement).width, height: (node as HTMLCanvasElement).height }));
-    expect(Math.abs(pixels.width / pixels.height - sourceBox!.width / sourceBox!.height)).toBeLessThan(.01);
-    expect(frame!.width).toBeGreaterThan(0);
-    expect(frame!.height).toBeGreaterThan(0);
-  }
-  await travelling.evaluate((node) => node.getAnimations().forEach((animation) => animation.play()));
-
-  const destination = page.locator('[data-story-object="media"]');
-  const destinationBox = await destination.boundingBox();
-  await expect(travelling).toHaveCount(0, { timeout: 2_500 });
-  await page.screenshot({ path: testInfo.outputPath("media-handoff-100.png") });
-  const visibleBox = await destination.boundingBox();
-  expect(Math.abs(visibleBox!.x - destinationBox!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(visibleBox!.y - destinationBox!.y)).toBeLessThanOrEqual(1);
-  expect(Math.abs(visibleBox!.width - destinationBox!.width)).toBeLessThanOrEqual(1);
-  expect(Math.abs(visibleBox!.height - destinationBox!.height)).toBeLessThanOrEqual(1);
+  await expect(page).toHaveURL(/\/cta$/);
+  await expect(page.locator('[data-story-object="media"]')).toBeVisible();
+  await expect(travelling).toHaveCount(0);
 });
 
 for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 }, { width: 390, height: 844 }]) {
@@ -75,16 +54,12 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900
     const asset = await source.getAttribute("data-story-asset");
     await useStyle.click();
     const travelling = page.locator('[data-story-snapshot="media"]');
-    await expect.poll(async () => await travelling.count() === 1 && await travelling.getAttribute("data-story-duration") === "1400").toBe(true);
-    await expect(travelling).toHaveAttribute("data-story-asset", asset!);
     await expect(page).toHaveURL(/\/cta$/);
     await expect(page.locator('[data-story-object="media"]')).toHaveAttribute("data-story-asset", asset!);
-    await expect(travelling).toHaveCount(0, { timeout: 2_500 });
+    await expect(travelling).toHaveCount(0);
     await page.getByRole("button", { name: "Back", exact: true }).click();
-    await expect(travelling).toHaveAttribute("data-story-duration", "1400");
-    await expect(travelling).toHaveAttribute("data-story-asset", asset!);
-    await expect(travelling).toHaveAttribute("data-story-direction", "backward");
-    await expect(travelling).toHaveCount(0, { timeout: 2_500 });
+    await expect(page).toHaveURL(/\/personalized-video$/);
+    await expect(travelling).toHaveCount(0);
   });
 
   test(`uploaded media carries its identity into the DM at ${viewport.width}`, async ({ page }, testInfo) => {
@@ -95,32 +70,15 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900
     await page.locator("input[type=file]").setInputFiles(video);
     const source = page.locator('[data-story-object="media"]');
     await expect(source).toBeVisible({ timeout: 15000 });
+    await expect(source).toHaveAttribute("data-story-source", "uploaded-video");
     await expect.poll(() => source.locator("video").evaluate((element) => (element as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
     const asset = await source.getAttribute("data-story-asset");
     const logo = await page.locator(".onboarding-persistent-logo").boundingBox();
-    await page.evaluate(() => {
-      const observer = new MutationObserver((records) => {
-        for (const record of records) for (const node of record.addedNodes) {
-          if (node instanceof HTMLElement && node.hasAttribute("data-story-snapshot")) {
-            document.body.dataset.storyObserved = String(node.inert && node.getAttribute("aria-hidden") === "true" && !node.querySelector("video, button, [id]"));
-          }
-        }
-      });
-      observer.observe(document.body, { childList: true });
-      new MutationObserver(() => {
-        if (document.documentElement.dataset.storyNative === "carrying") {
-          document.body.dataset.storyObserved = "true";
-          document.body.dataset.storyDuration = document.documentElement.style.getPropertyValue("--onboarding-story-duration");
-        }
-      }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-story-native"] });
-    });
     await page.getByRole("button", { name: /^(Continue|Use this video)$/ }).click();
     const travellingMedia = page.locator('[data-story-snapshot="media"]');
-    await expect.poll(async () => await travellingMedia.count() > 0 && await travellingMedia.first().getAttribute("data-story-duration") === "1400").toBe(true);
     await expect(page).toHaveURL(/\/cta$/);
     const destination = page.locator('[data-story-object="media"]');
     await expect(destination).toHaveAttribute("data-story-asset", asset!);
-    await expect(page.locator("body")).toHaveAttribute("data-story-observed", "true");
     await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
     await expect(page.locator("html")).not.toHaveAttribute("data-story-native", /.+/);
     await expect(destination).toBeVisible();
@@ -138,9 +96,7 @@ for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900
     }
     await page.goBack();
     await expect(page).toHaveURL(/\/your-video$/);
-    await expect(travellingMedia).toHaveAttribute("data-story-duration", "1400");
-    await expect(travellingMedia).toHaveAttribute("data-story-asset", asset!);
-    await expect(travellingMedia).toHaveCount(0, { timeout: 2_500 });
+    await expect(travellingMedia).toHaveCount(0);
   });
 }
 
@@ -157,7 +113,7 @@ test("reduced motion bypasses visual clones and delayed access", async ({ page }
   await expect(page.getByRole("button", { name: "Edit message" })).toBeEnabled();
 });
 
-test("a delayed uploaded thumbnail keeps the captured frame until the attachment is painted", async ({ page }, testInfo) => {
+test("a delayed uploaded thumbnail never creates a shared-media flight", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   let releaseMedia!: () => void;
   const mediaAvailable = new Promise<void>((resolve) => { releaseMedia = resolve; });
@@ -171,40 +127,25 @@ test("a delayed uploaded thumbnail keeps the captured frame until the attachment
   const source = page.locator('[data-story-object="media"]');
   await expect.poll(() => source.locator("video").evaluate((node) => (node as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
   await page.getByRole("button", { name: /^(Continue|Use this video)$/ }).click();
-  const snapshot = page.locator('[data-story-snapshot="media"]');
-  await expect(snapshot).toHaveAttribute("data-story-duration", "1400");
-  await expect(snapshot).toHaveAttribute("data-story-state", "holding", { timeout: 3_000 });
-  await expect(snapshot).toBeVisible();
   const attachment = page.locator('[data-story-object="media"]');
+  await expect(page).toHaveURL(/\/cta$/);
+  await expect(page.locator('[data-story-snapshot="media"]')).toHaveCount(0);
   await expect(attachment).toHaveAttribute("data-story-ready", "false");
-  await page.screenshot({ path: testInfo.outputPath("delayed-media-held-frame.png") });
+  await page.screenshot({ path: testInfo.outputPath("delayed-media-cta-arrival.png") });
   releaseMedia();
   await expect(attachment).toHaveAttribute("data-story-ready", "true", { timeout: 10_000 });
-  await expect(snapshot).toHaveCount(0);
   await expect(attachment.locator("canvas[data-story-visual]")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("delayed-media-decoded.png") });
 });
 
-test("reverse media captures the visible poster instead of another decoded video frame", async ({ page }) => {
+test("CTA Back returns to campaign content without a shared-media flight", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/onboarding-preview/campaign-content/personalized-video");
   await page.getByRole("button", { name: "Use this", exact: true }).click();
   await expect(page).toHaveURL(/\/cta$/);
   await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
-  const attachment = page.locator('[data-story-object="media"]');
-  await expect(attachment).toHaveAttribute("data-story-ready", "true");
-  const poster = await attachment.locator("img[data-story-visual]").getAttribute("src");
-  await page.evaluate(() => {
-    const original = CanvasRenderingContext2D.prototype.drawImage;
-    CanvasRenderingContext2D.prototype.drawImage = function (...args: unknown[]) {
-      const source = args[0];
-      if (source instanceof HTMLImageElement) document.body.dataset.capturedPoster = source.getAttribute("src") ?? "";
-      return Reflect.apply(original, this, args);
-    };
-  });
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.locator("body")).toHaveAttribute("data-captured-poster", poster!);
-  await expect(page.locator('[data-story-snapshot="media"]')).toHaveAttribute("data-story-direction", "backward");
+  await expect(page).toHaveURL(/\/personalized-video$/);
   await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
 });
 
@@ -222,140 +163,27 @@ test("same-scene query navigation leaves no snapshots or hidden provider marks",
   await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
 });
 
-test("channel handoff waits for delayed destination identities and restores all targets", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto("/onboarding-preview/channels");
-  await page.evaluate(() => {
-    const delayed = new WeakSet<Element>();
-    new MutationObserver(() => {
-      if (!location.pathname.endsWith("/checkout")) return;
-      for (const node of document.querySelectorAll<HTMLElement>('[data-story-object^="channel:"]')) {
-        if (delayed.has(node)) continue;
-        delayed.add(node);
-        const key = node.dataset.storyObject!;
-        delete node.dataset.storyObject;
-        setTimeout(() => { node.dataset.storyObject = key; }, 250);
-      }
-    }).observe(document.body, { childList: true, subtree: true });
-  });
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
-  const travelling = page.locator('[data-story-snapshot^="channel:"]');
-  await expect.poll(() => travelling.count()).toBeGreaterThan(0);
-  await expect.poll(() => travelling.evaluateAll((nodes) => nodes.length > 0 && nodes.every((node) => (node as HTMLElement).dataset.storyDuration === "1400"))).toBe(true);
-  await expect(travelling).toHaveCount(0, { timeout: 2_500 });
-  await expect(page.locator("html")).not.toHaveAttribute("data-story-native", /.+/);
-  expect(await page.locator('[data-story-object]').evaluateAll((nodes) => nodes.every((node) => !(node as HTMLElement).style.viewTransitionName))).toBe(true);
-  await expect(page.locator('[data-story-snapshot]')).toHaveCount(0);
-});
 
-test("selected channel identities become billing rows and reverse cleanly", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto("/onboarding-preview/channels");
-  await page.getByRole("checkbox", { name: "Outlook", exact: true }).check();
-  const selected = await page.locator('[data-selected="true"] [data-story-object]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-story-object")));
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
-  await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
-  for (const key of selected) await expect(page.locator(`[data-story-object="${key}"]:visible`)).toBeVisible();
-  await page.goBack();
-  await expect(page).toHaveURL(/\/channels$/);
-  await expect(page.locator("[data-story-snapshot]")).toHaveCount(0);
-  await expect(page.getByRole("checkbox", { name: "Outlook", exact: true })).toBeChecked();
-});
-
-test("confirmed checkout enters connection rows without channel-mark travel", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto("/onboarding-preview/channels");
-  const outlook = page.getByRole("checkbox", { name: "Outlook", exact: true });
-  if (!await outlook.isChecked()) await outlook.check();
-  const selected = await page.locator('[data-selected="true"] [data-story-object]').evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.storyObject!).sort());
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page).toHaveURL(/\/checkout$/);
-  await expect(page.locator('[data-story-snapshot]')).toHaveCount(0, { timeout: 2_500 });
-  await page.getByRole("button", { name: /Subscribe/ }).click();
-  const travelling = page.locator('[data-story-snapshot^="channel:"]');
-  await expect(page).toHaveURL(/\/connect-channels$/);
-  await expect(travelling).toHaveCount(0);
-  for (const key of selected) await expect(page.locator(`[data-story-object="${key}"]`)).toBeVisible();
-});
-
-for (const viewport of [{ width: 1280, height: 800 }, { width: 1366, height: 900 }, { width: 1440, height: 900 }]) {
-  test(`Checkout Back returns selected channel marks by identity at ${viewport.width}`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await page.goto("/onboarding-preview/channels");
-    const gmail = page.getByRole("checkbox", { name: "Gmail", exact: true });
-    await expect(gmail).toBeEnabled();
-    if (!await gmail.isChecked()) await gmail.check();
-    const outlook = page.getByRole("checkbox", { name: "Outlook", exact: true });
-    if (!await outlook.isChecked()) await outlook.check();
-    const instagram = page.getByRole("checkbox", { name: "Instagram", exact: true });
-    if (!await instagram.isChecked()) await instagram.check();
-    await page.getByRole("button", { name: "Continue to checkout" }).click();
-    await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
-
-    const sourceMarks = page.locator('[data-story-object^="channel:"]:visible');
-    await expect.poll(() => sourceMarks.count(), { timeout: 15_000 }).toBeGreaterThan(0);
-    const sourceKeys = await sourceMarks.evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.storyObject!).sort());
-    expect(sourceKeys).toContain("channel:linkedin");
-    expect(sourceKeys).toContain("channel:gmail");
-    expect(sourceKeys).toContain("channel:outlook");
-    expect(sourceKeys).toContain("channel:instagram");
-    expect(sourceKeys).not.toContain("channel:facebook");
-
-    const historyLength = await page.evaluate(() => history.length);
-    const back = page.getByRole("button", { name: "Back", exact: true });
-    await Promise.allSettled([back.click(), back.click()]);
-    await expect(page).toHaveURL(/\/channels$/);
-    const travelling = page.locator('[data-story-direction="backward"]');
-    await expect(travelling).toHaveCount(sourceKeys.length);
-    expect(await travelling.evaluateAll((nodes) => nodes.map((node) => (node as HTMLElement).dataset.storySnapshot).sort())).toEqual(sourceKeys);
-    expect(await travelling.evaluateAll((nodes) => nodes.every((node) => (node as HTMLElement).dataset.storyDuration === "1400"))).toBe(true);
-    for (const key of sourceKeys) {
-      const channel = key.replace("channel:", "");
-      await expect(page.locator(`[data-channel="${channel}"] input[type="checkbox"]`)).toBeChecked();
-    }
-    await expect(page.locator('[data-channel="facebook"] input[type="checkbox"]')).not.toBeChecked();
-    expect(await page.evaluate(() => history.length)).toBe(historyLength + 1);
-    await expect(travelling).toHaveCount(0, { timeout: 2_000 });
-    await expect(page.locator('[data-story-snapshot]')).toHaveCount(0);
-    expect(await page.locator('[style*="view-transition-name"]').count()).toBe(0);
-  });
-}
-
-test("reduced motion returns from Checkout without channel clones", async ({ page }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
+test("channel marks remain static through checkout and browser history", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/onboarding-preview/channels");
   await page.getByRole("checkbox", { name: "Outlook", exact: true }).check();
   await page.getByRole("button", { name: "Continue to checkout" }).click();
   await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
-  await expect(page.locator('[data-story-object="channel:outlook"]:visible')).toBeVisible();
+  await expect(page.locator('[data-story-object^="channel:"]')).toHaveCount(0);
+  await expect(page.locator('[data-story-snapshot^="channel:"]')).toHaveCount(0);
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/channels$/);
   await expect(page.getByRole("checkbox", { name: "Outlook", exact: true })).toBeChecked();
-  await expect(page.locator('[data-story-snapshot]')).toHaveCount(0);
-  await expect(page.locator("html")).not.toHaveAttribute("data-story-native", /.+/);
-});
-
-test("Checkout reverse handoff remains stable through browser history", async ({ page }) => {
-  await page.setViewportSize({ width: 1366, height: 900 });
-  await page.goto("/onboarding-preview/channels");
-  await expect(page.getByRole("checkbox", { name: "Outlook", exact: true })).toBeEnabled();
-  await page.getByRole("checkbox", { name: "Outlook", exact: true }).check();
-  await page.getByRole("button", { name: "Continue to checkout" }).click();
-  await expect(page.getByRole("heading", { name: "Order summary" })).toBeVisible();
-  await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page).toHaveURL(/\/channels$/);
-  await expect(page.locator('[data-story-snapshot]')).toHaveCount(0, { timeout: 2_000 });
   await page.goBack();
   await expect(page).toHaveURL(/\/checkout$/);
   await page.goForward();
   await expect(page).toHaveURL(/\/channels$/);
   await expect(page.getByRole("checkbox", { name: "Outlook", exact: true })).toBeChecked();
+  await expect(page.locator('[data-story-snapshot^="channel:"]')).toHaveCount(0);
 });
 
-test("mobile channel navigation skips brand-mark travel and preserves selections", async ({ page }) => {
+test("mobile channel navigation preserves selections without brand-mark travel", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/onboarding-preview/channels");
   await expect(page.getByRole("checkbox", { name: "Outlook", exact: true })).toBeEnabled();

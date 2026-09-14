@@ -441,7 +441,7 @@ export default function Channels() {
 
   async function handleComplete() {
     if (isOnboardingPreview() && completedPreviewCampaign.current) {
-      navigateOnboarding(`${onboardingHref("connect-channels")}?review=true&completed=${encodeURIComponent(completedPreviewCampaign.current)}`, true);
+      navigateOnboarding(`${onboardingHref("live")}?reviewCampaignId=${encodeURIComponent(completedPreviewCampaign.current)}`, true);
       return;
     }
     if (completionStarted.current || isCompleting || !allRequiredConnected || isPlanLoading) return;
@@ -471,7 +471,7 @@ export default function Channels() {
       if (isOnboardingPreview()) {
         completedPreviewCampaign.current = result.campaignId;
         setIsCompleting(false);
-        navigateOnboarding(`${onboardingHref("connect-channels")}?review=true&completed=${encodeURIComponent(result.campaignId)}`, true);
+        navigateOnboarding(`${onboardingHref("live")}?${params.toString()}`, true);
         return;
       }
       if (isOnboardingDemo()) {
@@ -479,7 +479,7 @@ export default function Channels() {
         router.push("/demo/dashboard");
         return;
       }
-      router.push(`/dashboard/campaigns?${params.toString()}`);
+      navigateOnboarding(`${onboardingHref("live")}?${params.toString()}`);
     } catch (completeError) {
       completionStarted.current = false;
       setIsCompleting(false);
@@ -538,7 +538,7 @@ export default function Channels() {
             const opening = connectingChannelKey === channel.key;
             const connectionInProgress = Boolean(connectingChannelKey);
             return {
-              id: channel.key, name: channel.title, icon: channel.icon, storySelected: selected,
+              id: channel.key, name: channel.title, icon: channel.icon,
               description: connected ? findAccountForChannel(accounts, channel)?.accountName || "Account connected" : rowError ? <span role="status">{rowError}</span> : failed ? <span role="status">Connection needs attention. Try again.</span> : channel.description,
               control: connected ? <button type="button" data-connected="true" disabled={connectionInProgress || !selected} aria-label={`${channel.title} connected. Add another account`} onClick={() => void handleConnect(channel.provider, channel.key)}><Check aria-hidden />Connected</button>
                 : <button type="button" data-unavailable={!selected || undefined} disabled={connectionInProgress || isLoading || isPlanLoading || !selected} onClick={() => void handleConnect(channel.provider, channel.key)}>{connectionControlLabel({ selected, opening, retry: Boolean(rowError) || failed })}</button>,

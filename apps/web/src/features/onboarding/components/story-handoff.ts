@@ -39,9 +39,8 @@ export function isStoryObjectReady(node: HTMLElement): boolean {
   return visual instanceof SVGElement;
 }
 
-function sourceFrame(node: HTMLElement, visual: Element) {
+function sourceFrame(node: HTMLElement) {
   const bounds = node.getBoundingClientRect();
-  if (node.dataset.storyObject?.startsWith("channel:") && visual.isConnected) return { bounds: visual.getBoundingClientRect(), style: getComputedStyle(node) };
   const parent = node.parentElement;
   const parentBounds = parent?.getBoundingClientRect();
   const style = getComputedStyle(node);
@@ -88,8 +87,8 @@ export function captureStoryObjects(): StoryObject[] {
     if (!isStoryObjectReady(node)) return [];
     const visual = storyVisual(node);
     if (!visual) return [];
-    const { bounds, style: frameStyle } = sourceFrame(node, visual);
-    if (!bounds.width || !bounds.height || bounds.bottom <= 0 || bounds.top >= innerHeight || getComputedStyle(node).visibility === "hidden") return [];
+    const { bounds, style: frameStyle } = sourceFrame(node);
+    if (![bounds.left, bounds.top, bounds.width, bounds.height, bounds.bottom].every(Number.isFinite) || !bounds.width || !bounds.height || bounds.bottom <= 0 || bounds.top >= innerHeight || getComputedStyle(node).visibility === "hidden") return [];
     let layer: HTMLElement;
     if (visual instanceof HTMLCanvasElement || visual instanceof HTMLImageElement || visual instanceof HTMLVideoElement) {
       const width = visual instanceof HTMLCanvasElement ? visual.width : visual instanceof HTMLVideoElement ? visual.videoWidth : visual.naturalWidth;
