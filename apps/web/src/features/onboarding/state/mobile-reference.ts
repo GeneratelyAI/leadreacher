@@ -32,6 +32,7 @@ export const MOBILE_REFERENCE_STATES = [
   { id: "16", name: "Final setup review", route: "connect-channels", review: true },
   { id: "17", name: "Message and CTA", route: "cta" },
   { id: "18", name: "Channel selection", route: "channels" },
+  { id: "19", name: "Campaign live", route: "live" },
 ] as const;
 
 export type MobileReferenceId = (typeof MOBILE_REFERENCE_STATES)[number]["id"];

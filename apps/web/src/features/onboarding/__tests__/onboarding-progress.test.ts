@@ -32,5 +32,6 @@ describe("resolveAllowedOnboardingRoute", () => {
   it("allows revisiting completed routes and blocks future routes", () => {
     expect(resolveAllowedOnboardingRoute("discovery", "checkout")).toBe("discovery");
     expect(resolveAllowedOnboardingRoute("connect-channels", "cta")).toBe("cta");
+    expect(resolveAllowedOnboardingRoute("live", "checkout")).toBe("checkout");
   });
 });

@@ -18,6 +18,7 @@ import UploadYourVideo from "@/features/onboarding/components/steps/UploadYourVi
 import UploadDocument from "@/features/onboarding/components/steps/UploadDocument";
 import MessageAndCta from "@/features/onboarding/components/steps/MessageAndCta";
 import ChannelSelection from "@/features/onboarding/components/steps/ChannelSelection";
+import CampaignLive from "@/features/onboarding/components/steps/CampaignLive";
 import {
   onboardingRouteFromPathname,
   type OnboardingRouteId,
@@ -150,6 +151,8 @@ export default function OnboardingFlow({
     activeStepContent = <ChannelSelection />;
   } else if (activeRoute === "checkout") {
     activeStepContent = <Checkout />;
+  } else if (activeRoute === "live") {
+    activeStepContent = <CampaignLive />;
   } else {
     activeStepContent = <Channels />;
   }
@@ -158,7 +161,16 @@ export default function OnboardingFlow({
         ? "website"
         : activeRoute;
 
-  const scene = (
+  const scene = activeRoute === "live" ? (
+    <OnboardingTransitionController sceneKey={sceneKey}>
+      <StepMotion
+        transitionKey={sceneKey}
+        className="onboarding-flow-step h-dvh min-h-0"
+      >
+        {activeStepContent}
+      </StepMotion>
+    </OnboardingTransitionController>
+  ) : (
     <CampaignCanvas initialWebsiteUrl={preview ? initialPreviewWebsiteUrl : undefined}>
       <OnboardingTransitionController sceneKey={sceneKey}>
         <StepMotion

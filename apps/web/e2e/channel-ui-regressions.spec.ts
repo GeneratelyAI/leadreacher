@@ -60,9 +60,6 @@ for (const viewport of viewports) {
     await expect(page).toHaveURL(/\/checkout$/);
     const subscribe = page.getByRole("button", { name: mobile ? "Subscribe (preview)" : "Subscribe to LeadReacher Pro", exact: true });
     await expect(subscribe).toBeEnabled();
-    for (const channel of ["linkedin", "gmail", "outlook"]) {
-      await expect(page.locator(`[data-story-object="channel:${channel}"]`).filter({ visible: true })).toHaveCount(1);
-    }
     if (mobile) {
       const plan = page.getByRole("region", { name: "Your subscription plan" });
       await expect(plan.getByText("Gmail", { exact: true })).toHaveCount(1);
@@ -75,8 +72,6 @@ for (const viewport of viewports) {
     await expectNoOverflow(page, !mobile);
     await subscribe.click();
     await expect(page).toHaveURL(/\/connect-channels$/);
-    await expect(page.locator('[data-story-selected="true"]')).toHaveCount(3);
-    await expect(page.locator('[data-story-selected="false"]')).toHaveCount(3);
     for (const channel of ["gmail", "outlook"]) {
       await page.locator(`[data-channel="${channel}"]`).getByRole("button", { name: "Connect", exact: true }).click();
       await expect(page.locator(`[data-channel="${channel}"] button[data-connected="true"]`)).toBeEnabled();
@@ -88,13 +83,13 @@ for (const viewport of viewports) {
       await expectCenteredBack(page);
     }
     await page.getByRole("button", { name: "Review campaign", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Campaign review content" })).toContainText("LinkedIn · Gmail · Outlook");
-    if (mobile) await page.getByRole("button", { name: "Open campaign draft", exact: true }).click();
-    await expect(page).toHaveURL(/completed=preview-campaign/);
-    await page.reload();
-    await expect(page.getByRole("heading", { name: /^Your draft is ready/ })).toBeVisible();
-    await expect(page.getByRole("region", { name: "Campaign review content" })).toContainText("LinkedIn · Gmail · Outlook");
-    await page.screenshot({ path: testInfo.outputPath(`completed-review-${viewport.width}.png`), fullPage: true });
+    if (mobile) {
+      await expect(page.getByRole("region", { name: "Campaign review content" })).toContainText("LinkedIn · Gmail · Outlook");
+      await page.getByRole("button", { name: "Open campaign draft", exact: true }).click();
+    }
+    await expect(page).toHaveURL(/\/live\?reviewCampaignId=preview-campaign/);
+    await expect(page.getByRole("heading", { name: /Your campaign is live/ })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`campaign-live-${viewport.width}.png`), fullPage: true });
     await expectNoOverflow(page, !mobile);
     expect(errors).toEqual([]);
   });

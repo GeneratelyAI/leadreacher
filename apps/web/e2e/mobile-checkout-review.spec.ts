@@ -112,14 +112,9 @@ test.describe("mobile checkout and final saved review", () => {
       element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       element.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    await expect(page).toHaveURL(/completed=preview-campaign/);
-    await expect(
-      page.getByRole("heading", { name: /^Your draft is ready\s*\.$/ }),
-    ).toBeVisible();
-    await expect(page.getByText(/No campaign was launched/)).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: "Open campaign draft", exact: true }),
-    ).toHaveCount(0);
+    await expect(page).toHaveURL(/\/live\?reviewCampaignId=preview-campaign/);
+    await expect(page.getByRole("heading", { name: /Your campaign is live/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: "View campaign", exact: true })).toBeVisible();
   });
 
   test("review Edit links return to the real saved decision steps", async ({

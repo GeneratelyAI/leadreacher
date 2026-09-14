@@ -94,4 +94,15 @@ describe("guardOnboardingRoute", () => {
     });
     await expect(guardOnboardingRoute("discovery")).resolves.toEqual(expect.objectContaining({ orgId: "org-1" }));
   });
+
+  it("allows an onboarded workspace to view its campaign live handoff", async () => {
+    mocks.bootstrapOrganizationServer.mockResolvedValue(workspace({ onboardedAt: "2026-09-13T00:00:00.000Z" }));
+
+    await expect(guardOnboardingRoute("live")).resolves.toEqual({
+      accessToken: "token",
+      orgId: "org-1",
+      subscriptionStatus: null,
+    });
+    expect(mocks.getStrategyServer).not.toHaveBeenCalled();
+  });
 });

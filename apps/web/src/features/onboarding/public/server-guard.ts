@@ -24,7 +24,12 @@ export async function guardOnboardingRoute(requested?: OnboardingRouteId): Promi
   const workspace = await bootstrapOrganizationServer(accessToken, defaultOrgNameFromEmail(user.email ?? ""));
   if (workspace.disabledAt) redirect("/recover-organization");
   if (!workspace.legalAccepted) redirect("/legal-consent");
-  if (workspace.onboardedAt) redirect("/dashboard");
+  if (workspace.onboardedAt) {
+    if (requested === "live") {
+      return { accessToken, orgId: workspace.orgId, subscriptionStatus: workspace.subscriptionStatus };
+    }
+    redirect("/dashboard");
+  }
 
   const strategy = await getStrategyServer(accessToken, workspace.orgId);
   const earliest = resolveOnboardingResumeRoute({ strategy, subscriptionStatus: workspace.subscriptionStatus });

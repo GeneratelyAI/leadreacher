@@ -4,11 +4,13 @@ import { previewMobileReferenceHref, previewRouteHref, previewSelection } from "
 describe("preview navigation", () => {
   it("derives a route from a named preview path", () => {
     expect(previewSelection(new URLSearchParams(), "/onboarding-preview/cta").route).toBe("cta");
+    expect(previewSelection(new URLSearchParams(), "/onboarding-preview/live").route).toBe("live");
     expect(previewSelection(new URLSearchParams("screen=01")).reference).toMatchObject({ route: "signup" });
   });
 
   it("uses named paths for explicit route selection", () => {
     expect(previewRouteHref(new URLSearchParams("screen=08&capture=1"), "connect-channels")).toBe("/onboarding-preview/connect-channels?capture=1");
+    expect(previewRouteHref(new URLSearchParams("capture=1"), "live")).toBe("/onboarding-preview/live?capture=1");
   });
 
   it("keeps numbered fixtures addressable without route query parameters", () => {

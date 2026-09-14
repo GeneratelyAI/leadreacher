@@ -12,6 +12,7 @@ export const ONBOARDING_ROUTES = [
   { id: "channels", label: "Channels", path: "/onboarding/channels" },
   { id: "checkout", label: "Checkout", path: "/onboarding/checkout" },
   { id: "connect-channels", label: "Connect Channels", path: "/onboarding/connect-channels" },
+  { id: "live", label: "Campaign Live", path: "/onboarding/live" },
 ] as const;
 
 export type OnboardingRouteId = (typeof ONBOARDING_ROUTES)[number]["id"];

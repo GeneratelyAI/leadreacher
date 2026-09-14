@@ -292,10 +292,10 @@ test.describe("production-ready onboarding continuation", () => {
     }
   });
 
-  test("preview exposes no retired live or dashboard continuation", async ({ page, request }) => {
+  test("preview exposes the final campaign live scene without a dashboard shell", async ({ page, request }) => {
     const response = await request.get("/onboarding-preview/live");
-    expect(response.status()).toBe(404);
-    await page.goto("/onboarding-preview");
-    await expect(page.getByRole("option", { name: /Live|Dashboard/ })).toHaveCount(0);
+    expect(response.status()).toBe(200);
+    await page.goto("/onboarding-preview/live");
+    await expect(page.getByRole("heading", { name: /Your campaign is live/ })).toBeVisible();
   });
 });
