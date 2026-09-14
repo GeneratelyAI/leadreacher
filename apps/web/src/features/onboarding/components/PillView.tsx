@@ -12,6 +12,7 @@ import { isOnboardingPreview } from "../public/preview-api";
 import mobileStyles from "./MobileOnboarding.module.css";
 import { mobileCampaignSections, shortSavedCustomerSegments } from "./mobile-campaign-summary";
 import type { PillField, PillSection, PillProps } from "../public/campaign-summary";
+import { presentCampaignSectionSummary } from "../public/summary";
 import {
   CampaignChannelDetails,
   CampaignChannelMarks,
@@ -159,7 +160,8 @@ export function PillView({
     if (channels.length) {
       return <CampaignChannelMarks channels={channels} />;
     }
-    if (section.summary) return section.summary;
+    const summary = presentCampaignSectionSummary(section);
+    if (summary) return summary;
     if (section.value) return section.value;
     const firstField = section.fields?.find((field) => field.value || field.values?.length);
     if (!firstField) return "Complete";
@@ -274,7 +276,9 @@ export function PillView({
                 const state = section.state ?? "complete";
                 const entering = enteringSectionIds.has(section.id);
                 const isSectionExpanded = expandedSectionId === section.id;
-                const isExpandable = state === "complete" && Boolean(section.fields?.length || section.value);
+                const hasChannelDetails = section.id === "channels" && campaignChannels(section).length > 0;
+                const isExpandable = (state === "complete" || state === "draft")
+                  && Boolean(section.fields?.length || section.value || hasChannelDetails);
                 const detailPresentation = detailPresentations[section.id];
                 return (
                   <div
@@ -388,12 +392,13 @@ export function PillView({
               const hasDetails = (section.state ?? "complete") === "complete" && Boolean(section.fields?.length || section.value);
               const active = mobileSection === section.id;
               const completed = (section.state ?? "complete") === "complete";
+              const summary = presentCampaignSectionSummary(section) ?? section.summary;
               const channels = section.id === "channels" ? campaignChannels(section) : [];
               const Icon = section.id === "targeting" ? Users : section.id === "content" ? Video : section.id === "style" ? CampaignStyleIcon : CheckCircle2;
               return <section className={mobileStyles.summarySection} data-business={section.id === "business" || undefined} key={section.id}>
                 <button type="button" disabled={!hasDetails} aria-expanded={hasDetails ? active : undefined} aria-controls={hasDetails ? `${contentId}-mobile-${section.id}` : undefined} onClick={() => setMobileSection(active ? "" : section.id)}>
                   {completed && section.id === "business" ? <span className={mobileStyles.summaryPrimaryCheck}><Check className="size-6" aria-hidden /></span> : completed ? <Icon className={cn("size-6", section.id === "channels" ? mobileStyles.summaryCheck : mobileStyles.summarySectionIcon)} aria-hidden /> : <span className={mobileStyles.summaryPending} aria-hidden />}
-                  <span className={channels.length ? mobileStyles.channelSummary : undefined}>{section.id === "business" && section.summary ? section.summary : channels.length ? <><span>{section.label}</span><CampaignChannelMarks channels={channels} /></> : <>{section.label}{section.summary || section.pendingLabel ? <> · {section.summary ?? section.pendingLabel}</> : null}</>}</span>
+                  <span className={channels.length ? mobileStyles.channelSummary : undefined}>{section.id === "business" && summary ? summary : channels.length ? <><span>{section.label}</span><CampaignChannelMarks channels={channels} /></> : <>{section.label}{summary || section.pendingLabel ? <> · {summary ?? section.pendingLabel}</> : null}</>}</span>
                   {completed && section.id !== "business" && section.id !== "channels" ? <CheckCircle2 className={cn("size-4", mobileStyles.summaryCheck)} aria-label="Complete" /> : null}
                   {hasDetails ? <ChevronDown className="size-4" aria-hidden /> : null}
                 </button>

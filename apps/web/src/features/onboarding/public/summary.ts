@@ -22,6 +22,7 @@ export type SavedCampaignSummary = {
 export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, saved: SavedCampaignSummary | null, websiteUrl?: string | null): PillData {
   const { site } = siteFrom(status, websiteUrl);
   const business = fullBusinessFields(status);
+  const hasBusinessAnalysis = Boolean(clean(status.market) || clean(status.offer) || clean(status.audience) || clean(status.value));
   const profile = saved?.icpDefinition?.prospectProfile;
   const approved = saved?.icpDefinition?.onboarding?.prospectsApproved
     ?? Boolean(profile && !saved?.icpDefinition?.onboarding);
@@ -29,9 +30,8 @@ export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, save
   const content = saved?.icpDefinition?.approvedContent;
   const approvedStyle = !saved?.icpDefinition?.onboarding && (choice === "personalized-video" || choice === "ai-video")
     && ["professional", "casual", "aggressive"].includes(saved?.videoConfig?.tone ?? "");
-  const contentText = content
-    ? [content.type, content.style ? content.style[0].toUpperCase() + content.style.slice(1) : undefined, content.documentName].filter(Boolean).join(" · ")
-    : approvedStyle ? `${choice === "ai-video" ? "AI video" : "Personalized video"} · ${saved!.videoConfig!.tone}` : "";
+  const contentType = content?.type ?? (approvedStyle ? choice === "ai-video" ? "AI video" : "Personalized video" : "");
+  const contentStyle = content?.style ?? (approvedStyle ? saved?.videoConfig?.tone : undefined);
   const channels = saved?.channels?.selected ?? [];
   const channelLabels = channels.map((channel) => channel === "email" ? "Gmail" : channel);
   const message = saved?.messagingAngles?.outreachMessage?.trim();
@@ -42,19 +42,29 @@ export function createConfirmedCampaignSummary(status: WebsiteScrapeStatus, save
   return {
     fields: [], site, status: status.status === "completed" ? "ready" : "learning",
     sections: [
-      status.status === "completed" && business.length
-        ? { id: "business", label: "Business", state: "complete", summary: concisePhrase(status.offer, 14, 110) ?? clean(status.market), fields: business }
-        : { ...inactive("business", "Business"), pendingLabel: "Awaiting website analysis" },
+      status.status === "completed" && hasBusinessAnalysis && business.length
+        ? { id: "business", label: "Business", state: "complete", summary: businessBrief(status), fields: business }
+        : { ...inactive("business", "Business"), pendingLabel: "Campaign details are being prepared" },
       approved && profile
-        ? { id: "targeting", label: "Prospects", state: "complete", summary: [profile.decisionMakers[0], profile.companyTypes[0], profile.industries[0], profile.locations[0]].filter((value) => value && value.length <= 45).join(" · ") || targetingSummary(profile), fields: targetingFields(profile) }
-        : inactive("targeting", "Prospects"),
-      contentText ? { id: "content", label: "Content", state: "complete", summary: contentText, value: contentText } : inactive("content", "Content"),
-      messageApproved ? { id: "message", label: "Message", state: "complete", summary: cta?.label || "Message and CTA approved", fields: [
+        ? { id: "targeting", label: "Prospects", state: "complete", summary: prospectsBrief(profile), fields: targetingFields(profile) }
+        : { ...inactive("targeting", "Prospects"), pendingLabel: "Campaign details are being prepared" },
+      contentType ? { id: "content", label: "Content", state: "complete", summary: contentBrief(contentType, contentStyle, content?.documentName), fields: contentFields(contentType, contentStyle, content?.documentName) } : inactive("content", "Content"),
+      messageApproved ? { id: "message", label: "Message", state: "complete", summary: messageBrief(cta?.label, message), fields: [
         { label: "Message", value: message },
         ...(cta?.label ? [{ label: "Call to action", value: cta.label }] : []),
+        ...(cta?.url ? [{ label: "Destination", value: cta.url }] : []),
       ] } : { ...inactive("message", "Message"), pendingLabel: message ? "Awaiting approval" : "Not generated" },
       channels.length ? { id: "channels", label: "Channels", state: "complete", summary: channelLabels.join(" · "), fields: [{ label: "Selected channels", values: channelLabels }] } : inactive("channels", "Channels"),
-      subscriptionActive ? { id: "subscription", label: "Subscription", state: "complete", summary: saved?.subscriptionStatus === "trialing" ? "Trial active" : "Active", value: saved?.subscriptionStatus === "trialing" ? "Trial active" : "Active" } : inactive("subscription", "Subscription"),
+      subscriptionActive ? {
+        id: "subscription",
+        label: "Subscription",
+        state: "complete",
+        summary: saved?.subscriptionStatus === "trialing" ? "Trial is active." : "Subscription is active.",
+        fields: [
+          { label: "Status", value: saved?.subscriptionStatus === "trialing" ? "Trial active" : "Active" },
+          { label: "Next step", value: "Connect delivery channels" },
+        ],
+      } : { ...inactive("subscription", "Subscription"), pendingLabel: "Choose a subscription to continue" },
     ],
   };
 }
@@ -88,6 +98,87 @@ function concisePhrase(value: string, maxWords: number, maxCharacters: number): 
     .map(clean)
     .filter(Boolean);
   return candidates.find((candidate) => words(candidate) <= maxWords && candidate.length <= maxCharacters) ?? null;
+}
+
+function sentence(value: string): string {
+  const normalized = clean(value);
+  if (!normalized) return "Campaign details are being prepared.";
+  return /[.!?]$/.test(normalized) ? normalized : `${normalized}.`;
+}
+
+function lowerFirst(value: string): string {
+  return value ? `${value[0].toLowerCase()}${value.slice(1)}` : value;
+}
+
+function briefValue(value: string, maxWords: number, maxCharacters: number): string {
+  return concisePhrase(value, maxWords, maxCharacters) ?? "";
+}
+
+function businessBrief(source: CampaignSummarySource): string {
+  const offer = briefValue(source.offer, 10, 76);
+  const value = briefValue(source.value, 10, 76);
+  if (offer && value) return sentence(`${offer} for ${lowerFirst(value)}`);
+  return sentence(offer || value || briefValue(source.market, 9, 70));
+}
+
+function companyPhrase(value: string): string {
+  const normalized = clean(value);
+  if (!normalized) return "";
+  return /\b(compan(?:y|ies)|teams?|business(?:es)?|firms?|organizations?)\b/i.test(normalized)
+    ? normalized
+    : `${normalized} companies`;
+}
+
+function prospectsBrief(profile: WebsiteScrapeStatus["prospectProfile"]): string {
+  if (!profile) return "Campaign details are being prepared.";
+  const role = briefValue(profile.decisionMakers[0] ?? "", 5, 48);
+  const companyType = companyPhrase(briefValue(profile.companyTypes[0] ?? "", 5, 48));
+  const industry = briefValue(profile.industries[0] ?? "", 5, 42);
+  const location = briefValue(profile.locations[0] ?? "", 5, 42);
+  const audience = [role, companyType ? `at ${companyType}` : ""].filter(Boolean).join(" ");
+  if (!audience && !industry && !location) return "Campaign details are being prepared.";
+  return sentence(`Reaches ${audience || "priority prospects"}${industry ? ` in ${industry}` : ""}${location ? ` across ${location}` : ""}`);
+}
+
+function contentBrief(type: string, style?: string, documentName?: string): string {
+  const format = clean(type);
+  if (!format) return "Campaign details are being prepared.";
+  const tone = clean(style ?? "");
+  const asset = clean(documentName ?? "");
+  if (format.toLowerCase() === "document" && asset) return sentence(`${format}: ${asset}`);
+  return sentence(tone ? `${format} in a ${lowerFirst(tone)} style` : `${format} selected`);
+}
+
+function contentFields(type: string, style?: string, documentName?: string): PillField[] {
+  const format = clean(type);
+  const tone = clean(style ?? "");
+  const name = clean(documentName ?? "");
+  const fields: Array<PillField | null> = [
+    format ? { label: "Format", value: format } : null,
+    tone ? { label: "Style", value: tone } : null,
+    name ? { label: "Asset", value: name } : null,
+  ];
+  return fields.filter((field): field is PillField => Boolean(field));
+}
+
+function messageBrief(ctaLabel?: string, message?: string): string {
+  const cta = clean(ctaLabel ?? "");
+  if (cta) return sentence(`Invites prospects to ${lowerFirst(cta)}`);
+  if (clean(message ?? "")) return "Approved outreach message.";
+  return "Campaign details are being prepared.";
+}
+
+/** Converts transient UI selections into the same concise voice used by persisted campaign data. */
+export function presentCampaignSectionSummary(section: Pick<PillSection, "id" | "summary" | "value">): string | undefined {
+  const summary = clean(section.summary ?? "");
+  if (!summary) return undefined;
+  if (["business", "targeting", "message", "subscription"].includes(section.id)) return sentence(summary);
+  if (section.id !== "content") return summary;
+  if (/\bin a .+ style$/i.test(summary) || / selected$/i.test(summary)) return sentence(summary);
+  const [type, ...details] = clean(section.value ?? summary).split(" · ").map(clean);
+  return clean(type).toLowerCase() === "document"
+    ? contentBrief(type, undefined, details.join(" · "))
+    : contentBrief(type, details[0]);
 }
 
 function has(value: string, expression: RegExp): boolean {
@@ -205,9 +296,7 @@ function fullBusinessFields(status: CampaignSummarySource): PillField[] {
 }
 
 function businessSummary(status: CampaignSummarySource): string {
-  return [compactMarket(status.market), compactOfferParagraph(status.offer)]
-    .filter(Boolean)
-    .join(" · ");
+  return businessBrief(status);
 }
 
 function targetingFields(profile: WebsiteScrapeStatus["prospectProfile"]): PillField[] {
@@ -221,25 +310,7 @@ function targetingFields(profile: WebsiteScrapeStatus["prospectProfile"]): PillF
 }
 
 function targetingSummary(profile: WebsiteScrapeStatus["prospectProfile"]): string {
-  if (!profile) return "";
-  const counts = [
-    [profile.decisionMakers.length, "decision maker"],
-    [profile.companyTypes.length, "company type"],
-    [profile.industries.length, "industry"],
-    [profile.locations.length, "location"],
-  ] as const;
-
-  return counts
-    .filter(([count]) => count > 0)
-    .map(([count, label]) => {
-      const plural = count === 1
-        ? label
-        : label.endsWith("y")
-          ? `${label.slice(0, -1)}ies`
-          : `${label}s`;
-      return `${count} ${plural}`;
-    })
-    .join(" · ");
+  return prospectsBrief(profile);
 }
 
 function sectionSummary(fields: readonly PillField[], count = 2): string {
@@ -308,11 +379,11 @@ export function createLiveCampaignSummary(
 
   const sections: PillSection[] = [business];
   if (stage === "how-it-works") {
-    sections.push(pendingSection("targeting", "Targeting", "Preparing your audience"));
+    sections.push(pendingSection("targeting", "Prospects", "Preparing your audience"));
   }
 
   if (stage === "campaign-content" || stage === "chosen-content") {
-    const targeting = completedSection("targeting", "Targeting", targetingFields(profile), targetingSummary(profile));
+    const targeting = completedSection("targeting", "Prospects", targetingFields(profile), targetingSummary(profile));
     if (targeting) sections.push(targeting);
     sections.push(
       stage === "chosen-content" && content
@@ -320,7 +391,8 @@ export function createLiveCampaignSummary(
             id: "content",
             label: "Content",
             value: [content.type, content.style].filter(Boolean).join(" · "),
-            summary: [content.type, content.style].filter(Boolean).join(" · "),
+            summary: contentBrief(content.type, content.style),
+            fields: contentFields(content.type, content.style),
             state: "complete",
           }
         : pendingSection("content", "Content", "Choosing content"),

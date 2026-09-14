@@ -88,14 +88,14 @@ test("content approval preserves the canvas, summary and browser history", async
   await expect(casual).toHaveAttribute("aria-checked", "true");
   const content = pill.locator('[data-campaign-section-id="content"]');
   await expect(content).toHaveAttribute("data-campaign-state", "draft");
-  await expect(content).toContainText("Personalized video · Casual");
+  await expect(content).toContainText("Personalized video in a casual style.");
   await expect(content.locator("p svg")).toHaveCount(0);
   expect(await business.textContent()).toEqual(previousBusiness);
   expect(await pill.boundingBox()).toEqual(bounds);
   await page.getByRole("button", { name: "Use this", exact: true }).click();
   await expect(page).toHaveURL(/\/onboarding-preview\/cta/);
   await expect(pill).toHaveAttribute("data-instance", "persistent");
-  await expect(pill).toContainText("Personalized video · Casual");
+  await expect(pill).toContainText("Personalized video in a casual style.");
   await expect(content).toHaveAttribute("data-campaign-state", "complete");
   await page.goBack();
   await expect(page.locator(".personalized-video-style-page")).toBeVisible();
@@ -206,9 +206,9 @@ test("live campaign pill completes only persisted approvals across the revised f
   await page.getByRole("button", { name: "Use this", exact: true }).click();
   await expect(page).toHaveURL(/\/onboarding-preview\/cta/);
   await expect(content).toHaveAttribute("data-campaign-state", "complete");
-  await expect(content).toContainText("Professional");
+  await expect(content).toContainText("Personalized video in a professional style.");
   await page.reload();
-  await expect(content).toContainText("Professional");
+  await expect(content).toContainText("Personalized video in a professional style.");
   await expect(pill.locator(".campaign-pill-site-url")).toHaveText("acme.example");
 });
 
@@ -249,6 +249,49 @@ test("completed channels use compact brand marks and reveal named marks as one s
   await expect(section).not.toHaveClass(/campaign-pill-section-expanded/);
   await section.focus();
   await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("draft channel selections keep their campaign pill disclosure available", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 900 });
+  await page.goto("/onboarding-preview/channels");
+
+  const section = page.locator("[data-campaign-section-id='channels']");
+  const instagram = page.getByRole("checkbox", { name: "Instagram", exact: true });
+  if (await instagram.isChecked()) await instagram.uncheck();
+  else await instagram.check();
+
+  await expect(section).toHaveAttribute("data-campaign-state", "draft");
+  await section.hover();
+  await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+  await expect.poll(() => section.locator(".campaign-pill-section-details .campaign-pill-channel-pill").count()).toBeGreaterThan(0);
+  await section.focus();
+  await expect(section).toHaveClass(/campaign-pill-section-expanded/);
+});
+
+test("campaign brief summaries retain their rationale through focus and mobile disclosure", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/onboarding-preview/connect-channels");
+
+  const pill = page.locator(".onboarding-persistent-pill .campaign-pill");
+  const business = pill.locator("[data-campaign-section-id='business']");
+  await expect(business).toContainText("Automated personalized outreach for more qualified conversations with less manual work.");
+  await business.focus();
+  await expect(business).toHaveClass(/campaign-pill-section-expanded/);
+  const businessDetails = business.locator(".campaign-pill-section-details");
+  await expect(businessDetails.getByText("Market", { exact: true })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page.getByRole("button", { name: /Open campaign summary/i }).click();
+  const summary = page.getByRole("dialog");
+  const content = summary.getByRole("button", { name: /^Content/ });
+  await expect(content).toContainText("Personalized video in a professional style.");
+  await content.focus();
+  await page.keyboard.press("Enter");
+  await expect(content).toHaveAttribute("aria-expanded", "true");
+  await expect(summary.getByText("Format", { exact: true })).toBeVisible();
+  await expect(summary.getByText("Style", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

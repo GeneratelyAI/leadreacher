@@ -6,16 +6,13 @@ import {
 import type { PillData } from "../../public/pill";
 
 describe("mobile saved campaign presentation", () => {
-  it("keeps an unapproved style draft unapproved in the mobile summary", () => {
+  it("keeps an unapproved style draft intact in the mobile summary", () => {
     const campaign: PillData = {
       fields: [],
       sections: [{ id: "content", label: "Content", state: "draft", value: "Personalized video · Casual" }],
     };
     const sections = mobileCampaignSections(campaign);
-    expect(sections.map(({ id, state }) => ({ id, state }))).toEqual([
-      { id: "content", state: "draft" },
-      { id: "style", state: "draft" },
-    ]);
+    expect(sections).toEqual(campaign.sections);
     expect(campaign.sections).toHaveLength(1);
     expect(campaign.sections?.[0].value).toBe("Personalized video · Casual");
   });
@@ -44,7 +41,7 @@ describe("mobile saved campaign presentation", () => {
     expect(campaign.sections).toBeUndefined();
   });
 
-  it("summarizes saved targeting counts while retaining every underlying detail", () => {
+  it("keeps the saved prospect brief and every supporting detail", () => {
     const fields = [
       {
         label: "Decision makers",
@@ -57,38 +54,23 @@ describe("mobile saved campaign presentation", () => {
     const campaign: PillData = {
       fields: [],
       sections: [
-        { id: "targeting", label: "Targeting", fields, state: "complete" },
+        { id: "targeting", label: "Prospects", summary: "Reaches operations leaders in professional services.", fields, state: "complete" },
       ],
     };
     expect(mobileCampaignSections(campaign)).toEqual([
       {
         id: "targeting",
-        label: "Audience",
-        summary: "3 roles, 2 locations",
+        label: "Prospects",
+        summary: "Reaches operations leaders in professional services.",
         fields,
         state: "complete",
       },
     ]);
-    expect(campaign.sections?.[0].label).toBe("Targeting");
+    expect(campaign.sections?.[0].label).toBe("Prospects");
     expect(mobileCampaignSections(campaign)[0].fields).toBe(fields);
-    expect(
-      mobileCampaignSections({
-        fields: [],
-        sections: [
-          {
-            id: "targeting",
-            label: "Targeting",
-            fields: [
-              { label: "Decision makers", value: "Founder" },
-              { label: "Locations", value: "Canada" },
-            ],
-          },
-        ],
-      })[0].summary,
-    ).toBe("1 role, 1 location");
   });
 
-  it("separates an approved style without inventing a style for uploaded content", () => {
+  it("keeps content type and style together in the saved brief", () => {
     const sections = [
       {
         id: "content",
@@ -103,32 +85,7 @@ describe("mobile saved campaign presentation", () => {
         pendingLabel: "Next",
       },
     ];
-    expect(mobileCampaignSections({ fields: [], sections })).toEqual([
-      {
-        ...sections[0],
-        summary: "Personalized video",
-        value: "Personalized video",
-      },
-      {
-        id: "style",
-        label: "Style",
-        summary: "Professional",
-        value: "Professional",
-        state: "complete",
-      },
-      sections[1],
-    ]);
-    for (const value of [
-      "Document",
-      "Your video",
-      "AI video · Pending",
-      "Personalized video · Professional · Extra saved detail",
-    ]) {
-      const original = { id: "content", label: "Content", value };
-      expect(
-        mobileCampaignSections({ fields: [], sections: [original] }),
-      ).toEqual([original]);
-    }
+    expect(mobileCampaignSections({ fields: [], sections })).toEqual(sections);
     expect(sections[0].value).toBe("Personalized video · Professional");
   });
 });

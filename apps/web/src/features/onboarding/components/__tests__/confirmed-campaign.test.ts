@@ -11,7 +11,7 @@ describe("confirmed campaign sections", () => {
     expect(pill.sections?.map((section) => [section.label, section.state])).toEqual([
       ["Business", "complete"], ["Prospects", "future"], ["Content", "future"], ["Message", "future"], ["Channels", "future"], ["Subscription", "future"],
     ]);
-    expect(pill.sections?.[0].summary).toBe("Sales planning software");
+    expect(pill.sections?.[0].summary).toBe("Sales planning software for less manual planning.");
   });
   it("reads saved decisions and never equates channel selection with connection", () => {
     const pill = createConfirmedCampaignSummary(status, {
@@ -20,7 +20,7 @@ describe("confirmed campaign sections", () => {
     });
     expect(pill.sections?.slice(0, 3).every((section) => section.state === "complete")).toBe(true);
     expect(pill.sections?.[1].summary).toContain("Founder");
-    expect(pill.sections?.[2].summary).toBe("Document · Case study.pdf");
+    expect(pill.sections?.[2].summary).toBe("Document: Case study.pdf.");
     expect(pill.sections?.some((section) => section.id === "connections" || section.id === "review" || section.id === "live")).toBe(false);
     expect(pill.site?.label).toBe("acme.example");
   });

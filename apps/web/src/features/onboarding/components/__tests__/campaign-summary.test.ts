@@ -4,6 +4,7 @@ import {
   createConfirmedCampaignSummary,
   createFutureCampaignSections,
   createLiveCampaignSummary,
+  presentCampaignSectionSummary,
 } from "../../public/summary";
 
 const status = {
@@ -127,5 +128,84 @@ describe("live campaign summary", () => {
       state: "complete",
       fields: [{ label: "Selected channels", values: ["linkedin", "whatsapp", "instagram", "facebook", "Gmail"] }],
     });
+  });
+
+  it("writes concise brief sentences from varied saved analysis without company-specific copy", () => {
+    const campaign = createConfirmedCampaignSummary({
+      ...status,
+      offer: "A workflow platform that coordinates customer support operations",
+      value: "Faster, more consistent customer responses",
+      prospectProfile: {
+        decisionMakers: ["Head of Customer Experience"],
+        companyTypes: ["Mid-market"],
+        industries: ["Retail"],
+        locations: ["United Kingdom"],
+      },
+    }, {
+      icpDefinition: {
+        onboarding: { prospectsApproved: true },
+        prospectProfile: {
+          decisionMakers: ["Head of Customer Experience"],
+          companyTypes: ["Mid-market"],
+          industries: ["Retail"],
+          locations: ["United Kingdom"],
+        },
+        approvedContent: { type: "Personalized video", style: "professional" },
+      },
+      videoConfig: { tone: "professional", source: "generated" },
+      messagingAngles: {
+        outreachMessage: "A short approved message.",
+        outreachMessageApprovedAt: "2026-09-13T00:00:00.000Z",
+        cta: { label: "Book a conversation", url: "https://example.test/demo" },
+      },
+      subscriptionStatus: "active",
+    });
+
+    const summaries = Object.fromEntries(campaign.sections!.map((section) => [section.id, section.summary]));
+    expect(summaries.business).toBe("A workflow platform that coordinates customer support operations for faster, more consistent customer responses.");
+    expect(summaries.targeting).toBe("Reaches Head of Customer Experience at Mid-market companies in Retail across United Kingdom.");
+    expect(summaries.content).toBe("Personalized video in a professional style.");
+    expect(summaries.message).toBe("Invites prospects to book a conversation.");
+    expect(summaries.subscription).toBe("Subscription is active.");
+    expect(JSON.stringify(campaign)).not.toMatch(/clay/i);
+  });
+
+  it("uses an honest fallback when saved website analysis is incomplete", () => {
+    const campaign = createConfirmedCampaignSummary({
+      ...status,
+      status: "completed",
+      market: "",
+      offer: "",
+      audience: "",
+      value: "",
+      strategyStatus: "",
+      prospectProfile: { decisionMakers: [], companyTypes: [], industries: [], locations: [] },
+    }, null);
+
+    expect(campaign.sections?.find((section) => section.id === "business")).toMatchObject({
+      state: "future",
+      pendingLabel: "Campaign details are being prepared",
+    });
+    expect(campaign.sections?.find((section) => section.id === "subscription")).toMatchObject({
+      pendingLabel: "Choose a subscription to continue",
+    });
+  });
+
+  it("normalizes transient content selections without changing their saved identity", () => {
+    expect(presentCampaignSectionSummary({
+      id: "content",
+      summary: "Personalized video · Casual",
+      value: "Personalized video · Casual",
+    })).toBe("Personalized video in a casual style.");
+    expect(presentCampaignSectionSummary({
+      id: "content",
+      summary: "Personalized video in a casual style.",
+      value: "Personalized video · Casual",
+    })).toBe("Personalized video in a casual style.");
+    expect(presentCampaignSectionSummary({
+      id: "content",
+      summary: "Document · Case study.pdf",
+      value: "Document · Case study.pdf",
+    })).toBe("Document: Case study.pdf.");
   });
 });
