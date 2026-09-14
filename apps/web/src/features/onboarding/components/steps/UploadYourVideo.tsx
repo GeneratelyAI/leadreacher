@@ -22,12 +22,14 @@ type UploadedVideo = {
   duration?: string;
   previewUrl: string;
   assetUrl?: string;
+  assetId?: string;
   fixture?: boolean;
 };
 
 type UploadResponse = {
   videoConfig?: {
     uploadedVideoUrl?: unknown;
+    uploadedVideoId?: unknown;
     uploadedVideoName?: unknown;
     uploadedVideoSize?: unknown;
   };
@@ -45,6 +47,7 @@ function ExpandableVideoPreview({ video }: { video: UploadedVideo }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const originRef = useRef<DOMRect | null>(null);
   const reducedMotion = useStableReducedMotion();
+  const storyAsset = video.assetId ? `media:${video.assetId}` : video.assetUrl ? `media:${video.assetUrl}` : undefined;
 
   useEffect(() => {
     if (!expanded || !dialogRef.current || !playerRef.current || !originRef.current) return;
@@ -96,7 +99,7 @@ function ExpandableVideoPreview({ video }: { video: UploadedVideo }) {
   }
 
   return <>
-    <div ref={thumbnailRef} className="upload-your-video-thumbnail" data-story-object={video.assetUrl ? "media" : undefined} data-story-asset={video.assetUrl ? `media:${video.assetUrl}` : undefined}>
+    <div ref={thumbnailRef} className="upload-your-video-thumbnail" data-story-object={storyAsset ? "media" : undefined} data-story-asset={storyAsset} data-story-source={storyAsset ? "uploaded-video" : undefined}>
       <video data-story-visual="true" className="upload-your-video-preview" src={video.previewUrl} muted preload="auto" playsInline aria-hidden tabIndex={-1} onLoadedData={(event) => { if (event.currentTarget.duration > .05 && event.currentTarget.currentTime < .01) event.currentTarget.currentTime = .05; }} />
       <button ref={triggerRef} className="upload-your-video-expand" type="button" onClick={() => {
         originRef.current = thumbnailRef.current?.getBoundingClientRect() ?? null;
@@ -158,22 +161,27 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
   useLayoutEffect(() => applyStoredTheme(), []);
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const browseRef = useRef<HTMLButtonElement>(null);
   const previewUrlRef = useRef<string | null>(null);
   const uploadAbortRef = useRef<AbortController | null>(null);
+  const removalRequestedRef = useRef(false);
   const [selectedVideo, setSelectedVideo] = useState<UploadedVideo | null>(() => preview && selectedFileFixture ? {
     name: "Acme-product-introduction.mp4",
     size: 18 * 1024 * 1024,
     duration: "0:30",
     previewUrl: "/landing/product-story/personalized-video-outreach.mp4",
+    assetUrl: "/landing/product-story/personalized-video-outreach.mp4",
+    assetId: "preview-uploaded-video",
     fixture: true,
   } : null);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (selectedVideo) return;
+    if (selectedVideo || removalRequestedRef.current) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -188,6 +196,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
           size: typeof savedSize === "number" && savedSize >= 0 ? savedSize : undefined,
           previewUrl: url,
           assetUrl: url,
+          assetId: typeof strategy.videoConfig?.uploadedVideoId === "string" && strategy.videoConfig.uploadedVideoId.trim() ? strategy.videoConfig.uploadedVideoId : undefined,
         });
       } catch {
         // The upload surface remains available when no persisted asset can be restored.
@@ -201,19 +210,39 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
-  function clearSelection() {
+  async function clearSelection() {
+    const video = selectedVideo;
+    if (!video || approved || isRemoving) return;
     uploadAbortRef.current?.abort();
     uploadAbortRef.current = null;
     setIsUploading(false);
-    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-    previewUrlRef.current = null;
+    removalRequestedRef.current = true;
     setSelectedVideo(null);
     setError(null);
     if (inputRef.current) inputRef.current.value = "";
+    requestAnimationFrame(() => browseRef.current?.focus({ preventScroll: true }));
+    setIsRemoving(true);
+    try {
+      const { orgId } = await bootstrapCurrentOrganization();
+      await apiFetch(`/strategy/${orgId}/video-decision`, {
+        method: "PATCH",
+        body: JSON.stringify({ enabled: false, mode: null, source: null, tone: null, uploadedVideoUrl: null }),
+      });
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    } catch (cause) {
+      removalRequestedRef.current = false;
+      setSelectedVideo(video);
+      setError(cause instanceof Error ? cause.message : "Unable to remove your video. Please try again.");
+    } finally {
+      setIsRemoving(false);
+    }
   }
 
   async function uploadFile(file: File | undefined) {
     if (!file || isUploading || approved) return;
+
+    removalRequestedRef.current = false;
 
     const hasAcceptedExtension = ACCEPTED_VIDEO_EXTENSIONS.some((extension) =>
       file.name.toLowerCase().endsWith(extension),
@@ -259,6 +288,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
         duration,
         previewUrl,
         assetUrl: strategy.videoConfig.uploadedVideoUrl,
+        assetId: typeof strategy.videoConfig.uploadedVideoId === "string" && strategy.videoConfig.uploadedVideoId.trim() ? strategy.videoConfig.uploadedVideoId : undefined,
       });
     } catch (uploadError) {
       URL.revokeObjectURL(previewUrl);
@@ -303,7 +333,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
                   <p>{selectedVideo.name}</p>
                   <span>{[selectedVideo.duration, selectedVideo.name.includes(".") ? selectedVideo.name.split(".").pop()?.toUpperCase() : undefined, selectedVideo.size === undefined ? undefined : formatBytes(selectedVideo.size)].filter(Boolean).join(" · ") || "Saved campaign asset"}</span>
                 </div>
-                <Button type="button" variant="secondary" className="upload-your-video-remove" disabled={approved} onClick={clearSelection}>
+                <Button type="button" variant="secondary" className="upload-your-video-remove" disabled={approved || isRemoving} onClick={() => void clearSelection()}>
                   <X className="size-4" aria-hidden />
                   Remove
                 </Button>
@@ -335,7 +365,7 @@ export default function UploadYourVideo({ preview = false, selectedFileFixture =
               </span>
               <p>{isUploading ? "Uploading your video" : "Drag and drop your video here"}</p>
               <span>or</span>
-              <Button type="button" variant="secondary" className="upload-your-video-browse" disabled={isUploading} onClick={() => inputRef.current?.click()}>
+              <Button ref={browseRef} type="button" variant="secondary" className="upload-your-video-browse" disabled={isUploading || isRemoving} onClick={() => inputRef.current?.click()}>
                 Browse files
               </Button>
             </div>

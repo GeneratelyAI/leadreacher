@@ -163,6 +163,36 @@ describe("PATCH /strategy/:orgId/video-decision", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it("clears an uploaded video decision and its approved content", async () => {
+    findFirst.mockResolvedValue({
+      ...strategy,
+      campaignType: "uploaded_video",
+      icpDefinition: { approvedContent: { type: "Your video" }, prospectProfile: { decisionMakers: ["Founder"] } },
+    });
+    const videoConfig = {
+      enabled: false,
+      mode: null,
+      source: null,
+      tone: null,
+      uploadedVideoUrl: null,
+    };
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/strategy/org-1/video-decision",
+      payload: videoConfig,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "strategy-1" },
+      data: {
+        videoConfig,
+        icpDefinition: { prospectProfile: { decisionMakers: ["Founder"] } },
+      },
+    });
+  });
+
   it("requires a tone for personalized outreach", async () => {
     const response = await app.inject({
       method: "PATCH",

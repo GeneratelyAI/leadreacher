@@ -119,6 +119,7 @@ describe("POST /strategy/:orgId/video-upload", () => {
     };
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ videoConfig });
+    expect(response.json().videoConfig.uploadedVideoId).toEqual(expect.any(String));
     expect(uploadBuffer).toHaveBeenCalledWith(
       expect.stringMatching(/^strategy-uploads\/org-1\/.+\.mp4$/),
       expect.any(Buffer),
@@ -126,7 +127,7 @@ describe("POST /strategy/:orgId/video-upload", () => {
     );
     expect(update).toHaveBeenCalledWith({
       where: { id: "strategy-1" },
-      data: { videoConfig },
+      data: { videoConfig: { ...videoConfig, uploadedVideoId: expect.any(String) } },
     });
   });
 

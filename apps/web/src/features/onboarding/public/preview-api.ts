@@ -295,7 +295,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
   const namedRoute = window.location.pathname
     .replace(/^\/onboarding-preview/, "")
     .replace(/^\/demo\/onboarding/, "");
-  const routeNeedsContent = ["/cta", "/channels", "/checkout", "/connect-channels"].includes(namedRoute);
+  const routeNeedsContent = ["/cta", "/channels", "/checkout", "/connect-channels", "/live"].includes(namedRoute);
   if (routeNeedsContent) {
     const definition = strategy.icpDefinition as typeof strategy.icpDefinition & {
       contentChoice?: string;
@@ -307,10 +307,10 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
       onboarding: { introductionSeen: true, prospectsApproved: true },
     });
   }
-  if (["/channels", "/checkout", "/connect-channels"].includes(namedRoute)) {
+  if (["/channels", "/checkout", "/connect-channels", "/live"].includes(namedRoute)) {
     strategy.messagingAngles.outreachMessageApprovedAt ??= new Date(0).toISOString();
   }
-  if (["/checkout", "/connect-channels"].includes(namedRoute) && strategy.channels.selected.length === 0) {
+  if (["/checkout", "/connect-channels", "/live"].includes(namedRoute) && strategy.channels.selected.length === 0) {
     strategy.channels.selected = ["linkedin", "gmail"];
   }
 
@@ -403,7 +403,11 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
     if (method === "PATCH") {
       const videoConfig = parseRequestBody(options);
       Object.assign(strategy.videoConfig, videoConfig);
-      Object.assign(strategy.icpDefinition, { approvedContent: { type: strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone } });
+      if (videoConfig.enabled) {
+        Object.assign(strategy.icpDefinition, { approvedContent: { type: strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone } });
+      } else {
+        delete (strategy.icpDefinition as Record<string, unknown>).approvedContent;
+      }
       rememberDemoTone(videoConfig.tone);
       saveStrategy();
     }
@@ -427,6 +431,7 @@ export async function previewApiFetch<T>(path: string, options: RequestInit = {}
         source: "uploaded",
         tone: null,
         uploadedVideoUrl: `${window.location.origin}/landing/product-story/personalized-video-outreach.mp4`,
+        uploadedVideoId: "preview-uploaded-video",
         uploadedVideoName: "Acme-product-introduction.mp4",
         uploadedVideoSize: 18 * 1024 * 1024,
       });

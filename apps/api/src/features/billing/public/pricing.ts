@@ -11,6 +11,7 @@ export const VideoConfigSchema = z
     source: z.enum(["generated", "uploaded"]).nullable(),
     tone: z.enum(["professional", "casual", "aggressive"]).nullable().default(null),
     uploadedVideoUrl: z.string().url().nullable().default(null),
+    uploadedVideoId: z.string().min(1).nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.enabled && value.source === null) {
@@ -32,7 +33,8 @@ export const VideoConfigSchema = z
       (value.mode !== null ||
         value.source !== null ||
         value.tone !== null ||
-        value.uploadedVideoUrl !== null)
+        value.uploadedVideoUrl !== null ||
+        value.uploadedVideoId)
     ) {
       ctx.addIssue({
         code: "custom",
@@ -44,6 +46,13 @@ export const VideoConfigSchema = z
       ctx.addIssue({
         code: "custom",
         message: "uploadedVideoUrl is only valid when source is uploaded",
+      });
+    }
+
+    if (value.source !== "uploaded" && value.uploadedVideoId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "uploadedVideoId is only valid when source is uploaded",
       });
     }
   });

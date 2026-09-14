@@ -103,12 +103,13 @@ function validateVideoDecisionForCampaign(
   campaignType: string | null,
   videoConfig: z.infer<typeof VideoDecisionBodySchema>,
 ): void {
-  if (!videoConfig.enabled) {
-    throw new ValidationError("Video is required for every campaign type");
-  }
-
   if (!campaignType || !CAMPAIGN_TYPES.includes(campaignType as CampaignType)) {
     throw new ValidationError("Select a campaign type before configuring video");
+  }
+
+  if (!videoConfig.enabled) {
+    if (campaignType === "uploaded_video") return;
+    throw new ValidationError("Video is required for every campaign type");
   }
 
   if (campaignType === "personalized_outreach") {
@@ -339,12 +340,19 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
 
     validateVideoDecisionForCampaign(strategy.campaignType, videoConfig);
 
+    const currentIcpDefinition = asRecord(strategy.icpDefinition);
+    const { approvedContent: _approvedContent, ...icpDefinition } = currentIcpDefinition;
     const updated = await prisma.strategy.update({
       where: { id: strategy.id },
-      data: { videoConfig, icpDefinition: toJson({
-        ...asRecord(strategy.icpDefinition),
-        approvedContent: { type: videoConfig.source === "uploaded" ? "Your video" : strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone },
-      }) },
+      data: {
+        videoConfig,
+        icpDefinition: toJson(videoConfig.enabled
+          ? {
+              ...currentIcpDefinition,
+              approvedContent: { type: videoConfig.source === "uploaded" ? "Your video" : strategy.campaignType === "ai_video_ad" ? "AI video" : "Personalized video", style: videoConfig.tone },
+            }
+          : icpDefinition),
+      },
     });
 
     return reply.send(updated);
@@ -555,10 +563,11 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       throw error;
     }
 
+    const uploadId = randomUUID();
     const key = [
       "strategy-uploads",
       orgId,
-      `${randomUUID()}${extensionForUpload(file.filename, file.mimetype)}`,
+      `${uploadId}${extensionForUpload(file.filename, file.mimetype)}`,
     ].join("/");
     const { url } = await new R2Adapter().uploadBuffer(key, buffer, file.mimetype);
     const videoConfig = {
@@ -567,6 +576,7 @@ export async function strategyRoutes(app: FastifyInstance): Promise<void> {
       source: "uploaded" as const,
       tone: null,
       uploadedVideoUrl: url,
+      uploadedVideoId: uploadId,
       uploadedVideoName: file.filename,
       uploadedVideoSize: buffer.byteLength,
     };
