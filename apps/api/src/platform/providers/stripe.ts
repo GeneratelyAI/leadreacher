@@ -109,10 +109,10 @@ export async function createSubscriptionCheckoutSession(
     ...(input.embedded
       ? {
           ui_mode: "elements" as const,
-          return_url: `${env.APP_URL}/onboarding/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
+          return_url: `${env.APP_URL}/api/billing/checkout-return?session_id={CHECKOUT_SESSION_ID}`,
         }
       : {
-          success_url: `${env.APP_URL}/onboarding/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${env.APP_URL}/api/billing/checkout-return?session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${env.APP_URL}/onboarding/checkout?status=cancelled`,
         }),
   });
