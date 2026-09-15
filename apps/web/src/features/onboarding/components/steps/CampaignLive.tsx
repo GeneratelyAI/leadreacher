@@ -66,6 +66,7 @@ export default function CampaignLive() {
         showReducedMotionFrame();
         return;
       }
+      video.playbackRate = 1.5;
       void video.play()
         .then(() => {
           updateState("playing");

@@ -148,7 +148,7 @@
 }
 
 .screen[data-playback="settled"] .videoPlane {
-  animation: campaign-plane-idle 2.8s ease-in-out infinite;
+  animation: campaign-plane-idle 667ms ease-in-out infinite;
 }
 
 @keyframes campaign-plane-idle {
@@ -214,6 +214,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .confetti {
+    display: none;
+  }
+
   .screen[data-playback="settled"] .videoPlane {
     animation: none;
   }
