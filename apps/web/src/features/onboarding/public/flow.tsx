@@ -119,10 +119,12 @@ function OnboardingBootstrapBridge({ children }: { children: ReactNode }) {
 export default function OnboardingFlow({
   route,
   preview = false,
+  fixture = preview,
   initialPreviewWebsiteUrl,
 }: {
   route: OnboardingRouteId;
   preview?: boolean;
+  fixture?: boolean;
   initialPreviewWebsiteUrl?: string;
 }) {
   const searchParams = useSearchParams();
@@ -171,7 +173,7 @@ export default function OnboardingFlow({
       </StepMotion>
     </OnboardingTransitionController>
   ) : (
-    <CampaignCanvas initialWebsiteUrl={preview ? initialPreviewWebsiteUrl : undefined}>
+    <CampaignCanvas initialWebsiteUrl={fixture ? initialPreviewWebsiteUrl : undefined}>
       <OnboardingTransitionController sceneKey={sceneKey}>
         <StepMotion
           transitionKey={sceneKey}
@@ -183,5 +185,5 @@ export default function OnboardingFlow({
     </CampaignCanvas>
   );
 
-  return preview ? scene : <OnboardingBootstrapBridge>{scene}</OnboardingBootstrapBridge>;
+  return fixture ? scene : <OnboardingBootstrapBridge>{scene}</OnboardingBootstrapBridge>;
 }

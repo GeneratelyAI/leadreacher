@@ -16,20 +16,16 @@ test("completes the demo without production side effects", async ({ page }, test
   });
 
   await page.goto("/demo/onboarding");
-  const signup = page.getByTestId("desktop-auth-view");
-  await expect(signup.getByRole("heading", { name: "Welcome to leadreacher" })).toBeVisible();
-  await signup.getByLabel("Full name").fill("Alex Morgan");
-  await signup.getByLabel("Work email").fill("alex@example.com");
-  await signup.getByLabel("Password", { exact: true }).fill("Demo-password-2026!");
-  await signup.getByRole("button", { name: "Continue", exact: true }).click();
-
   await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
+  await expect(page.getByTestId("desktop-auth-view")).toHaveCount(0);
   await page.getByRole("button", { name: "Continue to prospects", exact: true }).click();
   await expect(page.getByRole("heading", { name: /Your prospects/ })).toBeVisible();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.getByRole("heading", { name: /^Campaign Content\s*\.$/ })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.locator(".personalized-video-style-page")).toBeVisible();
+  await expect(page.locator('[data-preview-kind="sample"]')).toHaveCount(0);
+  await expect(page.locator('[data-preview-kind="placeholder"]')).toHaveCount(3);
   await page.getByRole("button", { name: "Use this", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: /Your message is ready/ })).toBeVisible();
@@ -61,16 +57,11 @@ test("completes the demo without production side effects", async ({ page }, test
 test("restores a demo session after refresh", async ({ page }, testInfo) => {
   test.skip(!testInfo.project.name.startsWith("desktop-"), "One browser covers persistence");
   await page.goto("/demo/onboarding");
-  const signup = page.getByTestId("desktop-auth-view");
-  await signup.getByLabel("Full name").fill("Sam Demo");
-  await signup.getByLabel("Work email").fill("sam@example.com");
-  await signup.getByLabel("Password", { exact: true }).fill("Demo-password-2026!");
-  await signup.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
   const stored = await page.evaluate(() => JSON.parse(sessionStorage.getItem("lr_demo_onboarding_v1") ?? "null"));
-  expect(stored.signup).toEqual({ name: "Sam Demo", email: "sam@example.com", complete: true });
+  expect(stored.website).toBe("https://acme.example");
 });
 
 test("starts the demo from the landing website field", async ({ page }, testInfo) => {
@@ -84,7 +75,8 @@ test("starts the demo from the landing website field", async ({ page }, testInfo
   const website = page.locator("#top").getByLabel("Company website");
   await website.fill("leadreacher.ai/pricing");
   await page.locator("#top").getByRole("button", { name: "Get Started", exact: true }).click();
-  await expect(page).toHaveURL(/\/demo\/onboarding$/);
-  await expect(page.getByText("https://leadreacher.ai", { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/demo\/onboarding\/how-leadreacher-works$/);
+  await expect(page.getByRole("heading", { name: /How LeadReacher works/ })).toBeVisible();
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem("lr_demo_onboarding_v1") ?? "null")?.website)).toBe("https://leadreacher.ai");
   expect(productionRequests).toEqual([]);
 });

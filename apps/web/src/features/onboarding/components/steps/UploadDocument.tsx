@@ -8,7 +8,7 @@ import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreO
 import { continueAfterContent } from "../../public/content-next";
 import { apiFetch, bootstrapCurrentOrganization } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { usesOnboardingFixtures } from "@/features/onboarding/public/preview-api";
+import { isOnboardingDemo, usesOnboardingFixtures } from "@/features/onboarding/public/preview-api";
 import { FilePreviewIllustration } from "./CreativeIllustrations";
 import mobile from "./CreativeMobile.module.css";
 
@@ -34,6 +34,10 @@ function formatBytes(bytes: number): string {
 
 export default function UploadDocument({ preview = false, selectedFileFixture = false }: { preview?: boolean; selectedFileFixture?: boolean }) {
   useLayoutEffect(() => applyStoredTheme(), []);
+  const usesFixtures = usesOnboardingFixtures();
+  const fixtureNotice = isOnboardingDemo()
+    ? "Sample document selected for this demo. No file is stored or sent."
+    : "Sample document selected for this preview. No file is stored or sent.";
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedDocument, setSelectedDocument] = useState<SelectedDocument | null>(() => preview && selectedFileFixture ? {
@@ -125,7 +129,7 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
                 </Button>
               </div>
               <Button type="button" variant="secondary" className={mobile.fileReplace} disabled={approved} onClick={() => inputRef.current?.click()}><Upload className="size-4" aria-hidden />Choose another file</Button>
-              <p className={mobile.documentStorageNotice}>{preview ? "Sample document selected for this preview. No file is stored or sent." : "Document storage is not available yet. This file is selected on your device only and cannot be included in a campaign."}</p>
+              <p className={mobile.documentStorageNotice}>{usesFixtures ? fixtureNotice : "Document storage is not available yet. This file is selected on your device only and cannot be included in a campaign."}</p>
             </div>
           ) : (
             <div
@@ -168,9 +172,9 @@ export default function UploadDocument({ preview = false, selectedFileFixture = 
         <Button
           type="button"
           className="onboarding-campaign-next"
-          disabled={!selectedDocument || approved || !preview}
+          disabled={!selectedDocument || approved || !usesFixtures}
           onClick={async () => {
-            if (!preview || !usesOnboardingFixtures()) return;
+            if (!usesFixtures) return;
             if (!beginOnboardingNavigation(onboardingHref("cta"))) return;
             setApproved(true);
             try {
