@@ -148,23 +148,66 @@ test("shows the compact mobile navigation with the icon-only logo", async ({ pag
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
-test("advances the mobile product story as the page scrolls", async ({ page }, testInfo) => {
+test("updates the mobile product story from its compact progress rail without sticky scrolling", async ({ page }, testInfo) => {
   test.skip(!phoneProjects.has(testInfo.project.name), "Phone product story only");
   await openLanding(page);
 
   const story = page.locator("#mobile-product-story-scroll");
-  const metrics = await story.evaluate((element) => ({
-    top: element.getBoundingClientRect().top + window.scrollY,
+  await expect(page.getByRole("tab", { name: "Strategy, step 1 of 5" })).toHaveAttribute("aria-selected", "true");
+  await expect(story.getByText("Drop your URL.", { exact: true })).toBeVisible();
+  await expect(story.getByText("LeadReacher learns your business.", { exact: true })).toBeVisible();
+  await expect(story.getByText("Your URL is all it needs. LeadReacher does the rest.", { exact: true })).toBeVisible();
+  expect(await story.evaluate((element) => ({
     height: element.getBoundingClientRect().height,
-  }));
-  await page.evaluate((top) => window.scrollTo(0, top + 8), metrics.top);
-  await expect(page.getByRole("tab", { name: "Strategy, step 1" })).toHaveAttribute("aria-selected", "true");
+    position: getComputedStyle(element).position,
+    hasStickyDescendant: [...element.querySelectorAll<HTMLElement>("*")].some((node) => getComputedStyle(node).position === "sticky"),
+  }))).toEqual(expect.objectContaining({ position: "relative", hasStickyDescendant: false }));
+  expect(await story.evaluate((element) => element.getBoundingClientRect().height < window.innerHeight * 2)).toBe(true);
 
-  await page.evaluate(({ top, height }) => {
-    window.scrollTo(0, top + (height - window.innerHeight) * 0.64);
-  }, metrics);
-  await expect(page.getByRole("tab", { name: "Outreach, step 4" })).toHaveAttribute("aria-selected", "true");
+  const strategy = page.getByRole("tab", { name: "Strategy, step 1 of 5" });
+  await strategy.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Prospects, step 2 of 5" })).toBeFocused();
+  await expect(page.getByRole("tab", { name: "Prospects, step 2 of 5" })).toHaveAttribute("aria-selected", "true");
+  await expect(story.getByText("Review and approve", { exact: true })).toBeVisible();
+  await expect(story.getByText("your prospects.", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Outreach, step 4 of 5" }).click();
+  await expect(page.getByRole("tab", { name: "Outreach, step 4 of 5" })).toHaveAttribute("aria-selected", "true");
   await expect(story.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-outreach");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("keeps post-story mobile sections static without cloned or scroll-driven layers", async ({ page }, testInfo) => {
+  test.skip(!phoneProjects.has(testInfo.project.name), "Phone motion behavior only");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openLanding(page);
+
+  const comparison = page.getByTestId("mobile-outreach-model-comparison");
+  await comparison.scrollIntoViewIfNeeded();
+  expect(await comparison.evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    hasStickyDescendant: [...element.querySelectorAll<HTMLElement>("*")].some((node) => getComputedStyle(node).position === "sticky"),
+  }))).toEqual(expect.objectContaining({ hasStickyDescendant: false }));
+  expect(await comparison.evaluate((element) => element.getBoundingClientRect().height < window.innerHeight * 1.5)).toBe(true);
+
+  await comparison.getByRole("tab", { name: "LeadReacher" }).click();
+  await expect(comparison.getByRole("tabpanel", { name: "LeadReacher outreach model" })).toBeVisible();
+  await expect(comparison.getByText("Less busywork. More conversations.")).toBeVisible();
+
+  const reviewStory = page.locator("[data-review-story]");
+  await reviewStory.scrollIntoViewIfNeeded();
+  expect(await reviewStory.evaluate((element) => ({
+    height: element.getBoundingClientRect().height,
+    hasStickyDescendant: [...element.querySelectorAll<HTMLElement>("*")].some((node) => getComputedStyle(node).position === "sticky"),
+  }))).toEqual(expect.objectContaining({ hasStickyDescendant: false }));
+  expect(await reviewStory.evaluate((element) => element.getBoundingClientRect().height < window.innerHeight * 1.5)).toBe(true);
+
+  const testimonials = page.getByLabel("LeadReacher customer testimonials");
+  await testimonials.scrollIntoViewIfNeeded();
+  await expect(testimonials.locator('[class*="mobileMarqueeTrack"] > div')).toHaveCount(1);
+  await expect(page.getByTestId("video-magic-move")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("moves through the product story without layout overflow", async ({ page }, testInfo) => {
@@ -364,8 +407,8 @@ test("uses accessible workflow stages on mobile", async ({ page }, testInfo) => 
   await expect(page.getByRole("heading", { name: workflowHeadingName })).toBeVisible();
   const progress = page.getByRole("navigation", { name: "Workflow progress" });
   await expect(progress.getByRole("tab")).toHaveCount(5);
-  await progress.getByRole("tab", { name: "Prospects, step 2" }).click();
-  await expect(progress.getByRole("tab", { name: "Prospects, step 2" })).toHaveAttribute("aria-selected", "true");
+  await progress.getByRole("tab", { name: "Prospects, step 2 of 5" }).click();
+  await expect(progress.getByRole("tab", { name: "Prospects, step 2 of 5" })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#mobile-story-panel")).toHaveAttribute("aria-labelledby", "mobile-story-tab-strategy");
   await expect(page.locator("#mobile-story-panel")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
