@@ -106,7 +106,7 @@ function WebsiteDemo(props: DemoProps) {
               setReady(false);
             }}
             onBlur={confirmWebsite}
-            className="min-w-0 flex-1 bg-transparent text-[11px] font-semibold tracking-[-0.02em] text-[#18152a] outline-none placeholder:text-[#9893a5] sm:text-[clamp(.75rem,1.7vw,1.35rem)]"
+            className="min-w-0 flex-1 rounded-sm bg-transparent text-[11px] font-semibold tracking-[-0.02em] text-[#18152a] outline-none placeholder:text-[#9893a5] focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:text-[clamp(.75rem,1.7vw,1.35rem)]"
             placeholder="yourwebsite.com"
             inputMode="url"
           />
@@ -114,7 +114,7 @@ function WebsiteDemo(props: DemoProps) {
             type="submit"
             aria-label="Analyze website"
             className={cn(
-              "ml-2 flex size-[clamp(1.4rem,2.7vw,2.2rem)] shrink-0 items-center justify-center rounded-full text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2",
+              "ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:size-[clamp(1.4rem,2.7vw,2.2rem)]",
               ready ? "bg-[#45a852]" : "bg-[#6842f5]",
             )}
           >

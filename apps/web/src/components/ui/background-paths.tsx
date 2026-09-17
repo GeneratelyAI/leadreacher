@@ -49,10 +49,12 @@ export function BackgroundPaths({
   className,
   reducedMotion = false,
   pathCount = 18,
+  colors = ["#8070f5", "#6f94ee"],
 }: {
   className?: string;
   reducedMotion?: boolean;
   pathCount?: number;
+  colors?: readonly [string, string];
 }) {
   const id = useId().replaceAll(":", "");
   const rootRef = useRef<HTMLDivElement>(null);
@@ -83,8 +85,8 @@ export function BackgroundPaths({
     <div ref={rootRef} aria-hidden className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}>
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-x-[-8%] inset-y-0 rotate-[-2deg]">
-          <FloatingPaths position={1} color="#8070f5" pathCount={pathCount} reducedMotion={pauseAnimation} gradientId={`${id}-violet`} />
-          <FloatingPaths position={-1} color="#6f94ee" pathCount={pathCount} reducedMotion={pauseAnimation} gradientId={`${id}-blue`} />
+          <FloatingPaths position={1} color={colors[0]} pathCount={pathCount} reducedMotion={pauseAnimation} gradientId={`${id}-violet`} />
+          <FloatingPaths position={-1} color={colors[1]} pathCount={pathCount} reducedMotion={pauseAnimation} gradientId={`${id}-blue`} />
         </div>
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_28%,#0d1020_94%)] opacity-15" />
       </div>
