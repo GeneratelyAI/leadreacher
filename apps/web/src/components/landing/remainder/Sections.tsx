@@ -155,7 +155,7 @@ function DeferredTestimonials({
 
   return (
     <div ref={reference} className={className}>
-      {shouldRender || isMobileViewport ? (
+      {shouldRender ? (
         <ThreeDimensionalTestimonials testimonials={testimonials} staticOnMobile={isMobileViewport} />
       ) : (
         <div aria-hidden="true" className="h-[28rem] w-full" />
