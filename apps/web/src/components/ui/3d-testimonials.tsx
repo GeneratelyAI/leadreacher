@@ -314,17 +314,19 @@ function TestimonialCard({
 type ThreeDimensionalTestimonialsProps = {
   testimonials: readonly TestimonialPreview[];
   className?: string;
+  staticOnMobile?: boolean;
 };
 
 export function ThreeDimensionalTestimonials({
   testimonials,
   className,
+  staticOnMobile = false,
 }: ThreeDimensionalTestimonialsProps) {
   const sectionRef = useRef<HTMLDivElement>(null);
   const [isNearViewport, setIsNearViewport] = useState(false);
   const reducedMotion = Boolean(useReducedMotion());
   const isPageVisible = usePageVisibility();
-  const isAnimationActive = isNearViewport && isPageVisible;
+  const isAnimationActive = !staticOnMobile && isNearViewport && isPageVisible;
   const velocityRef = useScrollVelocity(isAnimationActive, reducedMotion);
   const firstTestimonial = testimonials[0];
 
@@ -351,6 +353,7 @@ export function ThreeDimensionalTestimonials({
   return (
     <div
       ref={sectionRef}
+      data-static-on-mobile={staticOnMobile || undefined}
       className={cn("relative w-full", className)}
       aria-label="LeadReacher customer testimonials"
     >
@@ -371,7 +374,7 @@ export function ThreeDimensionalTestimonials({
                 />
               ))}
             </div>
-            <div aria-hidden="true" className="flex shrink-0 gap-4 pr-4">
+            {staticOnMobile ? null : <div aria-hidden="true" className="flex shrink-0 gap-4 pr-4">
               {testimonials.map((testimonial) => (
                 <TestimonialCard
                   key={`duplicate-${testimonial.name}`}
@@ -379,7 +382,7 @@ export function ThreeDimensionalTestimonials({
                   className="h-auto min-h-[17rem] w-[min(19rem,calc(100vw-3.5rem))] shrink-0 sm:w-[21rem]"
                 />
               ))}
-            </div>
+            </div>}
           </div>
         </div>
       </div>

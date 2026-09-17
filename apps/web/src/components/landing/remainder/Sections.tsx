@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent } from "react";
-import { m, useInView, useMotionValueEvent, useReducedMotion, useScroll } from "framer-motion";
+import { m, useInView, useReducedMotion, useScroll } from "framer-motion";
 
 import {
   ArrowRight,
@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from "@/lib/constants/brand";
 import { BrowserBar } from "@/components/landing/hero/BrowserBar";
 import Break from "@/components/landing/hero/Break";
+import { useMobileViewport } from "@/hooks/useMobileViewport";
 import { Approval } from "./Approval";
 import { Features } from "./Features";
 import {
@@ -149,12 +150,13 @@ function DeferredTestimonials({
   className?: string;
 }) {
   const reference = useRef<HTMLDivElement>(null);
+  const isMobileViewport = useMobileViewport();
   const shouldRender = useInView(reference, { margin: "400px 0px", once: true });
 
   return (
     <div ref={reference} className={className}>
-      {shouldRender ? (
-        <ThreeDimensionalTestimonials testimonials={testimonials} />
+      {shouldRender || isMobileViewport ? (
+        <ThreeDimensionalTestimonials testimonials={testimonials} staticOnMobile={isMobileViewport} />
       ) : (
         <div aria-hidden="true" className="h-[28rem] w-full" />
       )}
@@ -170,7 +172,7 @@ function scrollToApproval(event: MouseEvent<HTMLAnchorElement>) {
   if (!target) return;
 
   const targetTop = target.getBoundingClientRect().top + window.scrollY - 24;
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  if (window.matchMedia("(max-width: 47.99rem), (prefers-reduced-motion: reduce)").matches) {
     window.scrollTo(0, targetTop);
     return;
   }
@@ -248,37 +250,18 @@ function MobileOutreachModelComparison({
     leadreacher: string;
   }>;
 }) {
-  const trackRef = useRef<HTMLDivElement>(null);
   const [activeModel, setActiveModel] = useState<OutreachModelKey>("diy");
-  const { scrollYProgress } = useScroll({
-    target: trackRef,
-    offset: ["start start", "end end"],
-  });
-
-  useMotionValueEvent(scrollYProgress, "change", (progress) => {
-    const nextModel: OutreachModelKey = progress < 1 / 3 ? "diy" : progress < 2 / 3 ? "agency" : "leadreacher";
-    setActiveModel((current) => (current === nextModel ? current : nextModel));
-  });
 
   const selectedModel = outreachModels.find(({ key }) => key === activeModel) ?? outreachModels[0];
   const featured = activeModel === "leadreacher";
 
   const selectModel = (key: OutreachModelKey) => {
     setActiveModel(key);
-    const track = trackRef.current;
-    if (!track) return;
-
-    const index = outreachModels.findIndex((model) => model.key === key);
-    const availableScroll = Math.max(0, track.offsetHeight - window.innerHeight);
-    window.scrollTo({
-      top: track.getBoundingClientRect().top + window.scrollY + availableScroll * (index / 2),
-      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-    });
   };
 
   return (
-    <div ref={trackRef} className="relative h-[260vh] md:hidden">
-      <div className="sticky top-16 py-3">
+    <div data-testid="mobile-outreach-model-comparison" className="relative py-3 md:hidden">
+      <div>
         <div className="grid min-h-12 grid-cols-3 overflow-hidden rounded-xl border border-[#dedcea] bg-white shadow-[0_10px_30px_rgba(36,25,80,0.08)]" role="tablist" aria-label="Outreach model comparison">
           {outreachModels.map(({ key, title }) => {
             const selected = key === activeModel;
@@ -300,7 +283,7 @@ function MobileOutreachModelComparison({
             );
           })}
         </div>
-        <p className="mt-3 text-center text-xs font-medium text-[#686c7d]">Scroll to compare each approach</p>
+        <p className="mt-3 text-center text-xs font-medium text-[#686c7d]">Choose an approach to compare.</p>
 
         <section
           id="mobile-outreach-model-panel"
@@ -405,7 +388,8 @@ function DataPerformanceSection() {
 }
 
 function DifferentiationSection() {
-  const reducedMotion = useReducedMotion();
+  const isMobileViewport = useMobileViewport();
+  const reducedMotion = Boolean(useReducedMotion()) || isMobileViewport;
   const orbitRef = useRef<HTMLUListElement>(null);
   const orbitItemRefs = useRef<Array<HTMLLIElement | null>>([]);
   const mapSpotlightRef = useRef<SVGCircleElement>(null);
@@ -429,6 +413,7 @@ function DifferentiationSection() {
   const orbitChannelCount = orbitChannels.length;
 
   useEffect(() => {
+    if (isMobileViewport) return;
     const orbit = orbitRef.current;
     if (!orbit) return;
     const updateSize = () => setOrbitSize({ width: orbit.clientWidth, height: orbit.clientHeight });
@@ -436,9 +421,10 @@ function DifferentiationSection() {
     const observer = new ResizeObserver(updateSize);
     observer.observe(orbit);
     return () => observer.disconnect();
-  }, []);
+  }, [isMobileViewport]);
 
   useEffect(() => {
+    if (isMobileViewport) return;
     if (!orbitSize.width || !orbitSize.height) return;
 
     const rings = [
@@ -540,7 +526,7 @@ function DifferentiationSection() {
         if (element) element.style.willChange = "";
       });
     };
-  }, [orbitChannelCount, orbitChannels, orbitSize.height, orbitSize.width, reducedMotion]);
+  }, [isMobileViewport, orbitChannelCount, orbitChannels, orbitSize.height, orbitSize.width, reducedMotion]);
 
   const updateMapSpotlight = (event: MouseEvent<HTMLDivElement>) => {
     const spotlight = mapSpotlightRef.current;
@@ -606,12 +592,12 @@ function DifferentiationSection() {
         </div>
 
         <div
-          className="relative mx-auto mt-4 h-[330px] max-w-[78rem] sm:mt-6 sm:h-[430px] lg:h-[500px]"
+          className="relative mx-auto mt-4 h-auto max-w-[78rem] pb-2 sm:mt-6 sm:h-[430px] lg:h-[500px]"
           onMouseEnter={(event) => { mapBoundsRef.current = event.currentTarget.getBoundingClientRect(); }}
           onMouseMove={updateMapSpotlight}
           onMouseLeave={hideMapSpotlight}
         >
-          <svg aria-hidden viewBox="0 0 1200 500" preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible">
+          <svg aria-hidden viewBox="0 0 1200 500" preserveAspectRatio="none" className="absolute inset-0 hidden size-full overflow-visible md:block">
             <defs>
               <pattern id="api-map-dots" width="7" height="7" patternUnits="userSpaceOnUse">
                 <circle cx="1" cy="1" r="1.15" fill="#6652dd" opacity="0.24" />
@@ -671,21 +657,21 @@ function DifferentiationSection() {
             ))}
           </svg>
 
-          <div className="absolute left-1/2 top-1/2 z-20 flex size-28 -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full bg-white shadow-[0_12px_32px_rgba(68,43,175,0.22),0_0_0_13px_rgba(255,255,255,.78),0_0_0_23px_rgba(111,76,255,.07)] sm:size-40 lg:size-44">
+          <div className="relative z-20 mx-auto flex size-28 flex-col items-center justify-center rounded-full bg-white shadow-[0_12px_32px_rgba(68,43,175,0.22),0_0_0_13px_rgba(255,255,255,.78),0_0_0_23px_rgba(111,76,255,.07)] md:absolute md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:size-40 lg:size-44">
             <Image src="/logo/leadreacher_plane_only.svg" width={92} height={92} alt="" className="size-12 object-contain sm:size-16 lg:size-[4.5rem]" />
             <span className="mt-1 text-sm font-semibold tracking-[-0.03em] text-[#111527] sm:text-lg">leadreacher</span>
           </div>
 
-          <ul ref={orbitRef} aria-label="Supported outreach channels" className="pointer-events-none absolute inset-0 z-30">
+          <ul ref={orbitRef} aria-label="Supported outreach channels" className="relative z-30 mx-auto mt-6 grid max-w-md grid-cols-5 gap-3 md:pointer-events-none md:absolute md:inset-0 md:mt-0 md:max-w-none md:grid-cols-none md:gap-0">
             {orbitChannels.map(({ label, mark, ring }, index) => {
               return (
                 <li
                   key={label}
                   ref={(element) => { orbitItemRefs.current[index] = element; }}
                   data-ring={ring}
-                  className="absolute left-1/2 top-1/2 -ml-6 -mt-6 sm:-ml-9 sm:-mt-9"
+                  className="relative flex size-12 items-center justify-center md:absolute md:left-1/2 md:top-1/2 md:-ml-9 md:-mt-9 md:size-auto"
                 >
-                  <span className="pointer-events-auto relative flex size-12 items-center justify-center transition-[transform,filter] duration-300 hover:scale-[1.15] hover:drop-shadow-[0_8px_12px_rgba(77,51,179,0.32)] motion-reduce:transition-none sm:size-[4.5rem]">
+                  <span className="relative flex size-12 items-center justify-center md:pointer-events-auto md:transition-[transform,filter] md:duration-300 md:hover:scale-[1.15] md:hover:drop-shadow-[0_8px_12px_rgba(77,51,179,0.32)] md:motion-reduce:transition-none md:size-[4.5rem]">
                     {mark}<span className="sr-only">{label}</span>
                   </span>
                 </li>
@@ -719,6 +705,7 @@ function DifferentiationSection() {
 
 function CampaignExpansionSection() {
   const videoTargetRef = useRef<HTMLDivElement>(null);
+  const isMobileViewport = useMobileViewport();
 
   return (
     <ScrollExpandMedia
@@ -730,6 +717,7 @@ function CampaignExpansionSection() {
       title={<>The first to feature one‑of‑a‑kind personalized video outreach for <MarkerHighlight>each prospect.</MarkerHighlight></>}
       description={<AnimatedHighlightText as="p" className="pointer-events-auto !max-w-none !text-inherit !text-base !leading-inherit sm:!text-base lg:!text-lg">Don&apos;t worry, you <a href="#approval-review" onClick={scrollToApproval} className="rounded-sm text-inherit outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#b6a6ff]"><Highlight tabIndex={-1} icon={<SparklesIcon />} color="#b6a6ff"><BubbleText>approve all outgoing content</BubbleText></Highlight></a> before it reaches your customer.</AnimatedHighlightText>}
       magicMoveTargetRef={videoTargetRef}
+      disableMotion={isMobileViewport}
     >
       <div className="mx-auto max-w-7xl large-desktop:max-w-[88rem]">
         <div id="approval-review" className="scroll-mt-24 grid items-center gap-10 lg:grid-cols-[0.72fr_1.1fr] lg:gap-16">
@@ -756,6 +744,7 @@ function CampaignExpansionSection() {
               videoTargetRef={videoTargetRef}
               videoSrc="/landing/product-story/personalized-video-outreach.mp4"
               videoPoster="/landing/product-story/personalized-video-outreach-poster.webp"
+              disableMotion={isMobileViewport}
             />
           </div>
         </div>
@@ -764,8 +753,8 @@ function CampaignExpansionSection() {
   );
 }
 
-function PricingTrustShowcase() {
-  const reducedMotion = Boolean(useReducedMotion());
+function PricingTrustShowcase({ disableMotion = false }: { disableMotion?: boolean }) {
+  const reducedMotion = Boolean(useReducedMotion()) || disableMotion;
   const handlePricingPointerMove = (event: MouseEvent<HTMLElement>) => {
     if (reducedMotion) return;
 
@@ -900,7 +889,8 @@ function PricingTrustShowcase() {
 }
 
 function PricingAndFaqSection() {
-  const reducedMotion = Boolean(useReducedMotion());
+  const isMobileViewport = useMobileViewport();
+  const reducedMotion = Boolean(useReducedMotion()) || isMobileViewport;
   const reviewStoryRef = useRef<HTMLDivElement>(null);
   const lastReviewScrollYRef = useRef<number | null>(null);
   const reviewScrollFrameRef = useRef<number | null>(null);
@@ -912,6 +902,7 @@ function PricingAndFaqSection() {
   const activeCheckoutState = checkoutStates[activeReviewIndex];
 
   useEffect(() => {
+    if (isMobileViewport) return;
     const unsubscribe = reviewScrollProgress.on("change", (progress) => {
       const currentScrollY = window.scrollY;
       const previousScrollY = lastReviewScrollYRef.current;
@@ -932,18 +923,18 @@ function PricingAndFaqSection() {
       unsubscribe();
       if (reviewScrollFrameRef.current !== null) window.cancelAnimationFrame(reviewScrollFrameRef.current);
     };
-  }, [reviewScrollProgress]);
+  }, [isMobileViewport, reviewScrollProgress]);
 
   return (
     <EdgeSurface as="section" id="pricing" data-navbar-theme="light" className="relative z-40 -mt-7 overflow-visible scroll-mt-20 rounded-[28px] py-16 sm:-mt-9 sm:rounded-[40px] sm:py-24 lg:py-28">
       <div className="mx-auto max-w-7xl px-4 min-[360px]:px-5 sm:px-8 lg:px-10 large-desktop:max-w-[88rem] large-desktop:px-12">
-        <div ref={reviewStoryRef} data-review-story className="relative mt-20 min-h-[220svh] sm:mt-24 lg:min-h-[220vh]">
-          <div className="sticky top-20 grid min-h-[calc(100svh-5rem)] items-center gap-10 py-5 lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[.9fr_1.1fr] lg:gap-14 lg:py-10">
+        <div ref={reviewStoryRef} data-review-story className="relative mt-12 min-h-0 sm:mt-24 md:min-h-[220svh] lg:min-h-[220vh]">
+          <div className="static grid min-h-0 items-center gap-10 py-5 md:sticky md:top-20 md:min-h-[calc(100svh-5rem)] lg:min-h-[calc(100vh-5rem)] lg:grid-cols-[.9fr_1.1fr] lg:gap-14 lg:py-10">
             <div className="px-1 py-4 sm:px-6">
               <p className="text-xs font-semibold uppercase text-[#5b39d5] 2xl:text-sm">Built for review, not guesswork</p>
               <h2 className="mt-4 text-3xl font-semibold text-[#111527] 2xl:text-4xl">The work stays visible as it moves.</h2>
               <p className="mt-4 hidden max-w-xl text-base leading-7 text-[#62697e] sm:block 2xl:text-lg 2xl:leading-8">Each stage has an explicit review point, a clear status, and a direct path into the next action.</p>
-              <MorphingCardStack cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-7" />
+              <MorphingCardStack cards={reviewCards} activeIndex={activeReviewIndex} onActiveChange={setActiveReviewIndex} className="mt-7" disableMotion={isMobileViewport} />
             </div>
             <div className="relative hidden min-h-[647px] rounded-lg bg-[#101322] p-9 text-white shadow-[0_30px_80px_rgba(26,19,65,0.2)] lg:block">
               <m.div
@@ -974,7 +965,7 @@ function PricingAndFaqSection() {
             </div>
           </div>
         </div>
-        <PricingTrustShowcase />
+        <PricingTrustShowcase disableMotion={isMobileViewport} />
         <section
           aria-labelledby="testimonials-heading"
           className="mt-20 sm:mt-24 lg:grid lg:grid-cols-[0.72fr_1.28fr] lg:items-center lg:gap-12"
@@ -1057,8 +1048,8 @@ function FooterBrowserBar() {
   );
 }
 
-export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
-  const reducedMotion = useReducedMotion();
+export function FinalCtaAndFooter({ navbarDark, disableMotion = false }: { navbarDark: boolean; disableMotion?: boolean }) {
+  const reducedMotion = Boolean(useReducedMotion()) || disableMotion;
 
   return (
     <footer data-navbar-theme={navbarDark ? "dark" : undefined} className="relative z-30 mt-0 overflow-hidden bg-[linear-gradient(180deg,#0b0d19_0%,#080a14_100%)] px-4 pb-[max(2rem,var(--safe-area-bottom))] pt-20 text-white min-[360px]:px-5 sm:px-8 sm:pb-10 sm:pt-28 md:pt-32">
@@ -1102,13 +1093,15 @@ export function FinalCtaAndFooter({ navbarDark }: { navbarDark: boolean }) {
 }
 
 function FooterReveal() {
+  const isMobileViewport = useMobileViewport();
+
   return (
     <div className="relative z-30 isolate bg-[#111318]">
       <div className="relative z-10 bg-[#111318]">
         <PricingAndFaqSection />
       </div>
-      <div className="sticky bottom-0 z-0">
-        <FinalCtaAndFooter navbarDark />
+      <div className="sticky bottom-[var(--safe-area-bottom)] z-0">
+        <FinalCtaAndFooter navbarDark disableMotion={isMobileViewport} />
       </div>
     </div>
   );

@@ -22,6 +22,7 @@ type MorphingCardStackProps = {
   activeIndex: number;
   onActiveChange: (index: number) => void;
   className?: string;
+  disableMotion?: boolean;
 };
 
 const accents = {
@@ -48,8 +49,8 @@ const accents = {
   },
 } as const;
 
-export function MorphingCardStack({ cards, activeIndex, onActiveChange, className }: MorphingCardStackProps) {
-  const reducedMotion = Boolean(useReducedMotion());
+export function MorphingCardStack({ cards, activeIndex, onActiveChange, className, disableMotion = false }: MorphingCardStackProps) {
+  const reducedMotion = Boolean(useReducedMotion()) || disableMotion;
   const previousActiveIndexRef = useRef(activeIndex);
   const [cardTransition, setCardTransition] = useState<{ from: number; to: number } | null>(null);
 

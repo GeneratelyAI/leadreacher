@@ -20,6 +20,7 @@ type ApprovalProps = {
   videoTargetRef?: RefObject<HTMLDivElement | null>;
   videoSrc: string;
   videoPoster?: string;
+  disableMotion?: boolean;
 };
 
 const DEFAULT_MESSAGE =
@@ -29,10 +30,11 @@ export function Approval({
   videoTargetRef,
   videoSrc,
   videoPoster,
+  disableMotion = false,
 }: ApprovalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const playWhenReadyRef = useRef(false);
-  const reducedMotion = useReducedMotion();
+  const reducedMotion = Boolean(useReducedMotion()) || disableMotion;
   const { sourceEnabled, enableSource } = useDeferredVideoSource(videoRef, {
     defer: true,
   });

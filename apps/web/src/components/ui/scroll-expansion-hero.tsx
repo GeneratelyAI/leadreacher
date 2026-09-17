@@ -26,6 +26,7 @@ type ScrollExpandMediaProps = {
   children?: ReactNode;
   className?: string;
   magicMoveTargetRef?: RefObject<HTMLDivElement | null>;
+  disableMotion?: boolean;
 };
 
 function PersonalizationCallout({
@@ -122,10 +123,11 @@ export function ScrollExpandMedia({
   children,
   className,
   magicMoveTargetRef,
+  disableMotion = false,
 }: ScrollExpandMediaProps) {
   const flowRef = useRef<HTMLDivElement>(null);
   const videoFrameRef = useRef<HTMLDivElement>(null);
-  const reducedMotion = Boolean(useReducedMotion());
+  const reducedMotion = Boolean(useReducedMotion()) || disableMotion;
   const isVideo = mediaType === "video";
 
   const { scrollYProgress } = useScroll({
