@@ -17,6 +17,7 @@ import {
 } from "../../prospects/public/onboarding-prospect-discovery.js";
 import { formatCampaignName } from "../../../lib/campaign-naming.js";
 import { OUTREACH_CHANNELS, type OutreachChannel } from "../../../lib/channels.js";
+import { readApprovedAudience } from "./audience-targeting.js";
 
 const CompleteOnboardingResponseSchema = z.object({
   completed: z.literal(true),
@@ -24,7 +25,7 @@ const CompleteOnboardingResponseSchema = z.object({
   launched: z.boolean(),
   reviewRequired: z.boolean(),
   prospectCount: z.number().int().nonnegative().optional(),
-  discoveryStatus: z.enum(["queued", "running", "completed", "failed"]),
+  discoveryStatus: z.enum(["queued", "running", "completed", "failed", "blocked"]),
 });
 
 const CompleteOnboardingBodySchema = z.object({
@@ -34,6 +35,7 @@ const CompleteOnboardingBodySchema = z.object({
 type OnboardingCampaign = {
   id: string;
   status: string;
+  aiConfig: unknown;
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -167,7 +169,7 @@ async function ensureOnboardingCampaign(input: {
       });
     }
     await syncOnboardingChannelAccounts(existing.id, input.channelAccounts);
-    return { id: existing.id, status: existing.status };
+    return { id: existing.id, status: existing.status, aiConfig: existing.aiConfig };
   }
 
   if (existing) {
@@ -207,7 +209,7 @@ async function ensureOnboardingCampaign(input: {
         },
       }),
     },
-    select: { id: true, status: true },
+    select: { id: true, status: true, aiConfig: true },
   });
 
   await syncOnboardingChannelAccounts(campaign.id, input.channelAccounts);
@@ -304,8 +306,22 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         selectedChannels,
       });
 
-      if (campaign.status !== "active") {
+      const approvedAudience = readApprovedAudience(asRecord(strategy.icpDefinition).approvedAudience);
+      const canSourceAutomatically = approvedAudience?.sourcing.status === "eligible";
+      if (campaign.status !== "active" && canSourceAutomatically) {
         await queueOnboardingProspectDiscovery({ orgId, campaignId: campaign.id });
+      } else if (campaign.status !== "active") {
+        await prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { aiConfig: withOnboardingDiscovery(
+            asRecord(campaign.aiConfig),
+            {
+              status: "blocked",
+              prospectCount: 0,
+              error: approvedAudience?.sourcing.reason ?? "Prospect sourcing is paused until you confirm a business-buyer audience.",
+            },
+          ) },
+        });
       }
 
       if (!organization.onboardedAt) {
@@ -320,7 +336,7 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
         campaignId: campaign.id,
         launched: campaign.status === "active",
         reviewRequired: campaign.status !== "active",
-        discoveryStatus: campaign.status === "active" ? "completed" : "queued",
+        discoveryStatus: campaign.status === "active" ? "completed" : canSourceAutomatically ? "queued" : "blocked",
       });
     },
   );
@@ -343,9 +359,27 @@ export async function onboardingRoutes(app: FastifyInstance): Promise<void> {
           aiConfig: { path: ["source"], equals: "onboarding" },
           status: { not: "active" },
         },
-        select: { id: true, aiConfig: true },
+        select: { id: true, aiConfig: true, strategyId: true },
       });
       if (!campaign) throw new ValidationError("This onboarding campaign can no longer discover prospects.");
+      if (!campaign.strategyId) throw new ValidationError("This onboarding campaign no longer has a strategy to validate.");
+
+      const strategy = await prisma.strategy.findFirst({
+        where: { id: campaign.strategyId, orgId },
+        select: { icpDefinition: true },
+      });
+      const approvedAudience = readApprovedAudience(asRecord(strategy?.icpDefinition).approvedAudience);
+      if (!approvedAudience || approvedAudience.sourcing.status !== "eligible") {
+        await prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { aiConfig: withOnboardingDiscovery(campaign.aiConfig, {
+            status: "blocked",
+            prospectCount: 0,
+            error: approvedAudience?.sourcing.reason ?? "Prospect sourcing is paused until you confirm a business-buyer audience.",
+          }) },
+        });
+        throw new ValidationError(approvedAudience?.sourcing.reason ?? "Confirm a business-buyer audience before retrying prospect sourcing.");
+      }
 
       await prisma.campaign.update({
         where: { id: campaign.id },

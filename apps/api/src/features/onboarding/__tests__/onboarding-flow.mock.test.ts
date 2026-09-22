@@ -24,7 +24,7 @@ const state = {
     campaignType: "personalized_outreach",
     videoConfig: null as unknown,
     positioning: { businessModel: "B2B lead generation software" },
-    icpDefinition: { idealCustomer: "B2B revenue teams" },
+    icpDefinition: { idealCustomer: "B2B revenue teams", approvedAudience: { version: 1, classification: "b2b", objective: "business_buyers", approvalStatus: "approved", targeting: { decisionMakers: ["VP Sales"], companyTypes: [], industries: [], locations: [], additionalContext: "" }, sourcing: { status: "eligible" }, approvedAt: "2026-09-18T00:00:00.000Z" } },
     messagingAngles: {
       outreachMessage:
         "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",
@@ -249,7 +249,7 @@ beforeEach(async () => {
   });
   state.strategy.videoConfig = null;
   state.strategy.positioning = { businessModel: "B2B lead generation software" };
-  state.strategy.icpDefinition = { idealCustomer: "B2B revenue teams" };
+  state.strategy.icpDefinition = { idealCustomer: "B2B revenue teams", approvedAudience: { version: 1, classification: "b2b", objective: "business_buyers", approvalStatus: "approved", targeting: { decisionMakers: ["VP Sales"], companyTypes: [], industries: [], locations: [], additionalContext: "" }, sourcing: { status: "eligible" }, approvedAt: "2026-09-18T00:00:00.000Z" } };
   state.strategy.messagingAngles = {
     outreachMessage:
       "Hi {{FirstName}}, I noticed {{Company}} is focused on growing its pipeline.\nWe help B2B teams create qualified conversations with less manual work.\nOpen to a quick look this week?",

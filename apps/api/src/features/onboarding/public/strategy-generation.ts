@@ -12,9 +12,12 @@ import { logOperationalInfo } from "../../../platform/observability/operational-
 import { prisma } from "../../../platform/persistence/prisma.js";
 import { redis } from "../../../platform/redis/connection.js";
 import {
-  buildStrategyFilters,
   COMPANY_SEARCH_UNAVAILABLE_REASON,
 } from "../../prospects/public/strategy-filters-routes.js";
+import {
+  approvedAudienceFilters,
+  readApprovedAudience,
+} from "./audience-targeting.js";
 
 type DiscoveryScrapeStatus = {
   status: "idle" | "running" | "completed" | "failed";
@@ -42,9 +45,10 @@ type ChannelRecommendation = {
 
 type StrategyIcpDefinition = {
   idealCustomer?: unknown;
+  approvedAudience?: unknown;
   strategyBrief?: StrategyBrief;
   audienceAnalysis?: {
-    status: "running" | "completed" | "failed";
+    status: "running" | "completed" | "failed" | "blocked";
     startedAt?: string;
     error?: string;
     generatedAt: string;
@@ -207,9 +211,12 @@ function getStoredDiscoveryInputs(strategy: Strategy): {
  */
 export function buildStrategyBrief(strategy: Strategy): StrategyBrief {
   const discovery = getStoredDiscoveryInputs(strategy);
-  const filters = buildStrategyFilters(discovery);
+  const approvedAudience = readApprovedAudience(asRecord(strategy.icpDefinition).approvedAudience);
+  const filters = approvedAudience?.sourcing.status === "eligible"
+    ? approvedAudienceFilters(approvedAudience)
+    : { jobTitles: [] };
   const valueProposition = `${discovery.offer} for ${discovery.audience}, built around ${discovery.competitiveAdvantage}.`;
-  const roles = filters.jobTitles.length > 0 ? filters.jobTitles : ["Founder", "CEO"];
+  const roles = filters.jobTitles;
 
   return {
     status: "ready",
@@ -404,12 +411,36 @@ export async function generateStrategy(
 ): Promise<Strategy> {
   const scrapeStatus = await getScrapeStatus(orgId);
   const discovery = getDiscoveryInputs(strategy, scrapeStatus);
-  const filters = buildStrategyFilters({
-    market: discovery.market,
-    audience: discovery.audience,
-    offer: discovery.offer,
-    competitiveAdvantage: discovery.competitiveAdvantage,
-  });
+  const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
+  const approvedAudience = readApprovedAudience(icpDefinition.approvedAudience);
+  const filters = approvedAudience?.sourcing.status === "eligible"
+    ? approvedAudienceFilters(approvedAudience)
+    : null;
+  if (!filters) {
+    const strategyBrief = buildStrategyBrief(strategy);
+    const persistedPlan = strategyBriefPersistence(strategy, strategyBrief);
+    return prisma.strategy.update({
+      where: { id: strategy.id },
+      data: {
+        ...persistedPlan,
+        icpDefinition: toJson({
+          ...icpDefinition,
+          strategyBrief,
+          audienceAnalysis: {
+            status: "blocked",
+            generatedAt: new Date().toISOString(),
+            error: approvedAudience?.sourcing.reason ?? "Confirm an evidence-backed business-buyer audience before automatic sourcing.",
+            companies: { status: "unavailable", totalFound: 0, sampleSize: 0 },
+            decisionMakers: { totalFound: 0, sampleSize: 0, prospectLeadIds: [] },
+            reachability: { percentage: 0, reachableProfiles: 0, totalProfiles: 0 },
+            topIndustries: [],
+            topBuyerPersonas: [],
+            filters: { jobTitles: [], industries: [], companySizes: [], locations: [], resolvedIndustryIds: [], resolvedCompanyHeadcount: [] },
+          },
+        }),
+      },
+    });
+  }
   const resolvedIndustryIds = resolveIndustryIds(filters.industries);
   const resolvedCompanyHeadcount = resolveCompanyHeadcountCodes(filters.companySizes);
   await writeFilterAuditLog({
@@ -421,7 +452,6 @@ export async function generateStrategy(
     resolvedCompanyHeadcount,
   });
 
-  const icpDefinition = asRecord(strategy.icpDefinition) as StrategyIcpDefinition;
   const channels = asRecord(strategy.channels) as StrategyChannels;
   const strategyBrief = buildStrategyBrief(strategy);
   const persistedPlan = strategyBriefPersistence(strategy, strategyBrief);

@@ -3,12 +3,16 @@ import type { Prisma } from "@prisma/client";
 import { ValidationError } from "../../../platform/http/errors.js";
 import { prisma } from "../../../platform/persistence/prisma.js";
 import { searchAndImportLinkedInProspects } from "./prospect-search.js";
+import {
+  approvedAudienceFilters,
+  readApprovedAudience,
+} from "../../onboarding/public/audience-targeting.js";
 
 const ONBOARDING_PROSPECT_LIMIT = 25;
 
 type JsonRecord = Record<string, unknown>;
 
-export type OnboardingDiscoveryStatus = "queued" | "running" | "completed" | "failed";
+export type OnboardingDiscoveryStatus = "queued" | "running" | "completed" | "failed" | "blocked";
 
 export type OnboardingDiscovery = {
   status: OnboardingDiscoveryStatus;
@@ -28,39 +32,24 @@ function recordString(record: JsonRecord, key: string): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function recordStringArray(record: JsonRecord, key: string): string[] {
-  const value = record[key];
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-    : [];
-}
-
 function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
-function onboardingKeywords(filters: JsonRecord, idealCustomer: string): string[] {
-  const configuredKeywords = recordStringArray(filters, "keywords");
-  if (configuredKeywords.length > 0) return configuredKeywords;
-  if (recordStringArray(filters, "jobTitles").length > 0) return [];
-  return idealCustomer ? [idealCustomer] : [];
-}
-
 function onboardingProspectSearchInput(icpDefinition: unknown) {
   const icp = asRecord(icpDefinition);
-  const analysis = asRecord(icp.audienceAnalysis);
-  const filters = asRecord(analysis.filters);
-  const idealCustomer = recordString(icp, "idealCustomer");
+  const approvedAudience = readApprovedAudience(icp.approvedAudience);
+  if (!approvedAudience || approvedAudience.sourcing.status !== "eligible") {
+    throw new ValidationError(
+      approvedAudience?.sourcing.reason ?? "Prospect sourcing is paused until you confirm a business-buyer audience.",
+    );
+  }
+  const filters = approvedAudienceFilters(approvedAudience);
 
   return {
-    filters: {
-      jobTitles: recordStringArray(filters, "jobTitles"),
-      industries: recordStringArray(filters, "industries"),
-      companySizes: recordStringArray(filters, "companySizes"),
-      locations: recordStringArray(filters, "locations"),
-      keywords: onboardingKeywords(filters, idealCustomer),
-    },
+    filters,
     maxResults: ONBOARDING_PROSPECT_LIMIT,
+    approvedAudience,
   };
 }
 
@@ -93,7 +82,7 @@ export function onboardingStrategyFingerprint(input: {
 export function readOnboardingDiscovery(aiConfig: unknown): OnboardingDiscovery | null {
   const discovery = asRecord(asRecord(aiConfig).onboardingDiscovery);
   const status = discovery.status;
-  if (status !== "queued" && status !== "running" && status !== "completed" && status !== "failed") {
+  if (status !== "queued" && status !== "running" && status !== "completed" && status !== "failed" && status !== "blocked") {
     return null;
   }
   const prospectCount = discovery.prospectCount;
@@ -196,10 +185,11 @@ export async function runOnboardingProspectDiscovery(input: {
     });
     if (!strategy) throw new ValidationError("The strategy for this campaign could not be found.");
 
+    const searchInput = onboardingProspectSearchInput(strategy.icpDefinition);
     const { leadIds: discoveredLeadIds } = await searchAndImportLinkedInProspects(
       input.orgId,
-      onboardingProspectSearchInput(strategy.icpDefinition),
-      { socialAccountId: campaign.socialAccountId },
+      { filters: searchInput.filters, maxResults: searchInput.maxResults },
+      { socialAccountId: campaign.socialAccountId, approvedAudience: searchInput.approvedAudience },
     );
     const prospectCount = await enrollOnboardingAudience({
       orgId: input.orgId,
@@ -220,9 +210,10 @@ export async function runOnboardingProspectDiscovery(input: {
     return { prospectCount };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to find prospects from LinkedIn.";
+    const blocked = /confirm a business-buyer audience|automatic sourcing|evidence-backed business/i.test(message);
     await prisma.campaign.update({
       where: { id: campaign.id },
-      data: { aiConfig: withOnboardingDiscovery(campaign.aiConfig, { status: "failed", prospectCount: 0, error: message }) },
+      data: { aiConfig: withOnboardingDiscovery(campaign.aiConfig, { status: blocked ? "blocked" : "failed", prospectCount: 0, error: message }) },
     });
     throw error;
   }

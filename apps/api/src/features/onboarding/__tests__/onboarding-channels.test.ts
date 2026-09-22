@@ -239,7 +239,7 @@ beforeEach(async () => {
     id: "strategy-1",
     channels: { selected: ["linkedin"] },
     positioning: { businessModel: "B2B lead generation" },
-    icpDefinition: { idealCustomer: "Revenue leaders" },
+    icpDefinition: { idealCustomer: "Revenue leaders", approvedAudience: { version: 1, classification: "b2b", objective: "business_buyers", approvalStatus: "approved", targeting: { decisionMakers: ["VP Sales"], companyTypes: [], industries: [], locations: [], additionalContext: "" }, sourcing: { status: "eligible" }, approvedAt: "2026-09-18T00:00:00.000Z" } },
     messagingAngles: {
       outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
       outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
@@ -566,7 +566,7 @@ describe("channel connection and onboarding completion", () => {
     strategyFindFirst.mockResolvedValueOnce({
       id: "strategy-1",
       positioning: { businessModel: "B2B lead generation" },
-      icpDefinition: { idealCustomer: "Revenue leaders" },
+      icpDefinition: { idealCustomer: "Revenue leaders", approvedAudience: { version: 1, classification: "b2b", objective: "business_buyers", approvalStatus: "approved", targeting: { decisionMakers: ["VP Sales"], companyTypes: [], industries: [], locations: [], additionalContext: "" }, sourcing: { status: "eligible" }, approvedAt: "2026-09-18T00:00:00.000Z" } },
       messagingAngles: {
         outreachMessage: "Hi {{FirstName}}, I help {{Company}} start more qualified conversations.",
         outreachMessageApprovedAt: "2026-07-13T00:00:00.000Z",
@@ -708,6 +708,7 @@ describe("channel connection and onboarding completion", () => {
   it("allows a failed onboarding audience to be queued again from campaign review", async () => {
     campaignFindFirst.mockResolvedValueOnce({
       id: "campaign-onboarding-1",
+      strategyId: "strategy-1",
       aiConfig: {
         source: "onboarding",
         onboardingDiscovery: { status: "failed", prospectCount: 0, updatedAt: "2026-08-11T00:00:00.000Z" },

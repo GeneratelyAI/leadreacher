@@ -25,7 +25,7 @@ import {
 const strategy = {
   id: "strategy-1",
   orgId: "org-1",
-  icpDefinition: { idealCustomer: "Engineering leaders" },
+  icpDefinition: { idealCustomer: "Engineering leaders", approvedAudience: { version: 1, classification: "b2b", objective: "business_buyers", approvalStatus: "approved", targeting: { decisionMakers: ["VP Engineering"], companyTypes: [], industries: ["Software Development"], locations: [], additionalContext: "" }, sourcing: { status: "eligible" }, approvedAt: "2026-09-18T00:00:00.000Z" } },
   positioning: {
     industry: "Software Development",
     businessModel: "Developer data platform",
@@ -68,9 +68,14 @@ describe("Strategy generation without prospect sourcing", () => {
       executionPlan: unknown[];
     };
 
-    expect(brief.decisionMakerRoles).toEqual(["Founder", "CEO"]);
+    expect(brief.decisionMakerRoles).toEqual(["VP Engineering"]);
     expect(persistence.icpDefinition.strategyBrief.audience).toBe("Engineering leaders");
     expect(persistence.executionPlan).toHaveLength(3);
+  });
+
+  it("does not infer buyer roles when an audience is not approved", () => {
+    const unapproved = { ...strategy, icpDefinition: { idealCustomer: "Engineering leaders" } } as Strategy;
+    expect(buildStrategyBrief(unapproved).decisionMakerRoles).toEqual([]);
   });
 
   it("defers prospect sourcing until LinkedIn is connected", async () => {

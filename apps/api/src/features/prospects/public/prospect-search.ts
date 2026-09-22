@@ -8,9 +8,14 @@ import { env } from "../../../platform/config/env.js";
 import { ConflictError, ExternalServiceError } from "../../../platform/http/errors.js";
 import { prisma } from "../../../platform/persistence/prisma.js";
 import { importProspectProfiles } from "./lead-import.js";
+import {
+  validateProspectAgainstApprovedAudience,
+  type ApprovedAudience,
+} from "../../onboarding/public/audience-targeting.js";
 
 type ProspectSearchOptions = {
   socialAccountId?: string;
+  approvedAudience?: ApprovedAudience;
 };
 
 export async function searchAndImportLinkedInProspects(
@@ -25,12 +30,15 @@ export async function searchAndImportLinkedInProspects(
   leadIds: string[];
 }> {
   const result = await searchLinkedInProspects(orgId, input, options);
-  const imported = await importProspectProfiles(orgId, result.profiles, "linkedin");
+  const acceptedProfiles = options?.approvedAudience
+    ? result.profiles.filter((profile) => validateProspectAgainstApprovedAudience(profile, options.approvedAudience!).accepted)
+    : result.profiles;
+  const imported = await importProspectProfiles(orgId, acceptedProfiles, "linkedin");
 
   return {
     imported: imported.imported,
     skipped: imported.skipped,
-    total: result.profiles.length,
+    total: acceptedProfiles.length,
     totalFound: result.totalFound,
     leadIds: imported.leadIds,
   };

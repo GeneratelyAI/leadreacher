@@ -88,6 +88,28 @@ describe("searchAndImportLinkedInProspects", () => {
     }));
   });
 
+  it("imports only profiles that match the approved business-buyer audience", async () => {
+    const buyer = { linkedinUrl: "https://linkedin.com/in/buyer", firstName: "Buyer", lastName: "One", title: "VP Sales", company: "Example", industry: "Software", location: "Canada", enrichmentData: {} };
+    const driver = { linkedinUrl: "https://linkedin.com/in/driver", firstName: "Driver", lastName: "One", title: "Delivery Driver", company: "Example", industry: "Software", location: "Canada", enrichmentData: {} };
+    findMany.mockResolvedValue([{ id: "social-account-1", unipileId: "connected-account" }]);
+    searchPeople.mockResolvedValue({ profiles: [buyer, driver], totalFound: 2 });
+    importProspectProfiles.mockResolvedValue({ imported: 1, skipped: 0, leadIds: ["lead-buyer"] });
+
+    await searchAndImportLinkedInProspects("org-1", input, {
+      approvedAudience: {
+        version: 1,
+        classification: "b2b",
+        objective: "business_buyers",
+        approvalStatus: "approved",
+        targeting: { decisionMakers: ["VP Sales"], companyTypes: [], industries: ["Software"], locations: ["Canada"], additionalContext: "" },
+        sourcing: { status: "eligible" },
+        approvedAt: "2026-09-18T00:00:00.000Z",
+      },
+    });
+
+    expect(importProspectProfiles).toHaveBeenCalledWith("org-1", [buyer], "linkedin");
+  });
+
   it("marks unavailable accounts for reconnection and tries another active sender", async () => {
     findMany.mockResolvedValue([
       { id: "stale-account", unipileId: "stale-unipile-account" },

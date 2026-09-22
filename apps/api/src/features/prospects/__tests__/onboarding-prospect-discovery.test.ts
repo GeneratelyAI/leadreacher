@@ -42,9 +42,16 @@ const campaign = {
 
 const strategy = {
   icpDefinition: {
-    idealCustomer: "Revenue leaders",
-    audienceAnalysis: {
-      filters: { jobTitles: ["VP Sales"], locations: ["Canada"] },
+    approvedAudience: {
+      version: 1,
+      classification: "b2b",
+      objective: "business_buyers",
+      approvalStatus: "approved",
+      targeting: {
+        decisionMakers: ["VP Sales"], companyTypes: [], industries: [], locations: ["Canada"], additionalContext: "",
+      },
+      sourcing: { status: "eligible" },
+      approvedAt: "2026-09-18T00:00:00.000Z",
     },
   },
 };
@@ -82,11 +89,11 @@ describe("runOnboardingProspectDiscovery", () => {
           industries: [],
           companySizes: [],
           locations: ["Canada"],
-          keywords: [],
+          keywords: undefined,
         },
         maxResults: 25,
       },
-      { socialAccountId: "linkedin-sender-1" },
+      expect.objectContaining({ socialAccountId: "linkedin-sender-1", approvedAudience: expect.objectContaining({ objective: "business_buyers" }) }),
     );
     expect(campaignLeadCreateMany).toHaveBeenCalledWith({
       data: [
@@ -125,6 +132,16 @@ describe("runOnboardingProspectDiscovery", () => {
       data: expect.objectContaining({ aiConfig: expect.objectContaining({
         onboardingDiscovery: expect.objectContaining({ status: "failed", prospectCount: 0 }),
       }) }),
+    }));
+  });
+
+  it("blocks automatic sourcing before the provider call without an approved business-buyer audience", async () => {
+    strategyFindFirst.mockResolvedValueOnce({ icpDefinition: { approvedAudience: { version: 1, classification: "marketplace", objective: "clarification_required", approvalStatus: "approved", targeting: { decisionMakers: [], companyTypes: [], industries: [], locations: [], additionalContext: "" } } } });
+
+    await expect(runOnboardingProspectDiscovery({ orgId: "org-1", campaignId: "campaign-1" })).rejects.toThrow("Confirm");
+    expect(searchAndImportLinkedInProspects).not.toHaveBeenCalled();
+    expect(campaignUpdate).toHaveBeenLastCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ aiConfig: expect.objectContaining({ onboardingDiscovery: expect.objectContaining({ status: "blocked" }) }) }),
     }));
   });
 });
