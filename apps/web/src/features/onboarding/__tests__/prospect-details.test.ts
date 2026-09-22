@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appendProspectDetail, classifyProspectDetail, splitProspectDetails, type ProspectDetails } from "../public/prospect-details";
+import { appendProspectDetail, classifyProspectDetail, normalizeProspectDetails, splitProspectDetails, type ProspectDetails } from "../public/prospect-details";
 
 describe("prospect details", () => {
   it.each([
@@ -18,6 +18,19 @@ describe("prospect details", () => {
   });
   it("splits lists and removes case-insensitive duplicates", () => {
     expect(splitProspectDetails(" Brazil,Canada; brazil\nCEO\r\nTechnology; ")).toEqual(["Brazil", "Canada", "CEO", "Technology"]);
+  });
+  it("separates comma-delimited saved suggestions into individual values", () => {
+    expect(normalizeProspectDetails({
+      decisionMakers: ["Founder, VP of Sales", "vp of sales"],
+      companyTypes: ["B2B SaaS, Agencies"],
+      industries: ["Technology, Consulting"],
+      locations: [],
+    })).toEqual({
+      decisionMakers: ["Founder", "VP of Sales"],
+      companyTypes: ["B2B SaaS", "Agencies"],
+      industries: ["Technology", "Consulting"],
+      locations: [],
+    });
   });
   it("deduplicates existing values across all categories without mutation", () => {
     const profile: ProspectDetails = { decisionMakers: [], companyTypes: [], industries: [], locations: ["Brazil"] };

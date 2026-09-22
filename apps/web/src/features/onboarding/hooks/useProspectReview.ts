@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type SetStateAction } from "react";
 import type { WebsiteScrapeStatus } from "../public/website-status";
 import { getDiscoveryOrgScope } from "../public/discovery-cache";
+import { normalizeProspectDetails } from "../public/prospect-details";
 import { EMPTY_PROFILE, PROFILE_ROWS, type ProspectProfile } from "../state/prospect-profile";
 
 export function useProspectReview(status: WebsiteScrapeStatus, reduceMotion: boolean | null, setAdditionalContext: (value: string) => void) {
@@ -27,12 +28,12 @@ export function useProspectReview(status: WebsiteScrapeStatus, reduceMotion: boo
 
   useEffect(() => {
     if (status.status !== "completed" || !sourceKey || review.sourceKey === sourceKey) return;
-    let restored = status.prospectProfile ?? EMPTY_PROFILE;
+    let restored = normalizeProspectDetails(status.prospectProfile ?? EMPTY_PROFILE);
     try {
       const saved = JSON.parse(window.sessionStorage.getItem(sourceKey) ?? "null");
       const savedProfile = saved?.profile ?? saved;
       if (savedProfile && PROFILE_ROWS.every(({ key }) => Array.isArray(savedProfile[key]) && savedProfile[key].every((value: unknown) => typeof value === "string"))) {
-        restored = savedProfile;
+        restored = normalizeProspectDetails(savedProfile);
       }
     } catch { /* Saved review state is optional when storage is unavailable. */ }
     setReview({ sourceKey, profile: restored });

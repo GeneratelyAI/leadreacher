@@ -33,6 +33,21 @@ export function splitProspectDetails(input: string): string[] {
   });
 }
 
+export function normalizeProspectDetails(profile: ProspectDetails): ProspectDetails {
+  return Object.fromEntries(
+    PROSPECT_CATEGORIES.map(({ key }) => {
+      const seen = new Set<string>();
+      const values = profile[key].flatMap((value) => splitProspectDetails(value)).filter((value) => {
+        const normalized = normalize(value);
+        if (seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      });
+      return [key, values];
+    }),
+  ) as ProspectDetails;
+}
+
 export function classifyProspectDetail(raw: string): { value: string; category: ProspectCategory | null } {
   const value = raw.trim().replace(/\s+/g, " ");
   const geographic = value.replace(/^(?:based\s+in|located\s+in|in|across|throughout)\s+/i, "");
