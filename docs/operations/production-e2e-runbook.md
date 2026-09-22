@@ -114,11 +114,11 @@ comma-separated family (`campaign`, `reconcile`, `video`, `analytics`, or
 without deleting campaigns, messages, or existing provider output. `/health`
 should remain available; `/ready` can return `503` while a required worker lease
 is intentionally paused. Record the affected queues, pause time, Sentry
-incident, and Better Stack heartbeat. After the rollback or investigation,
-remove only the needed pause values, redeploy the worker, wait for fresh leases
-and heartbeats, then verify API `/ready` returns `200` before reopening traffic.
+incident. After the rollback or investigation, remove only the needed pause
+values, redeploy the worker, wait for fresh leases, then verify API `/ready`
+returns `200` before reopening traffic.
 Do not roll back by deleting Redis queues or campaign state.
 
-Configure Better Stack/Sentry alerts for API readiness failures, missing worker
-heartbeats, worker restarts, queue failures, stale queued jobs, failed delivery
-reconciliation, and webhook failure spikes.
+Configure an external uptime check for API readiness. Configure Sentry alerts
+for captured queue, delivery reconciliation, and webhook errors. Review worker
+restarts and stale queued jobs through Railway and operational checks.

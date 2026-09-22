@@ -12,9 +12,6 @@ const completeConfiguration = {
   ENABLE_ANALYTICS_INSIGHTS_WORKER: true,
   ENABLE_LIFECYCLE_WORKER: true,
   SENTRY_DSN: "https://examplePublicKey@o0.ingest.sentry.io/0",
-  BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL: "https://uptime.example.test/campaign",
-  BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL: "https://uptime.example.test/video",
-  BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL: "https://uptime.example.test/reconcile",
 };
 
 describe("production worker configuration", () => {
@@ -28,12 +25,10 @@ describe("production worker configuration", () => {
         ...completeConfiguration,
         ENABLE_VIDEO_WORKER: false,
         SENTRY_DSN: "",
-        BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL: undefined,
       }),
     ).toEqual([
       "ENABLE_VIDEO_WORKER",
       "SENTRY_DSN",
-      "BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL",
     ]);
   });
 });

@@ -36,6 +36,6 @@ Website URL -> Discovery -> Strategy -> campaign and video decisions
 
 ## Observability
 
-Sentry captures application errors. Better Stack receives structured operational
-events. Health and readiness endpoints support deployment checks. See the
-operational and video documentation for concrete procedures.
+Sentry captures application errors. Health and readiness endpoints support
+deployment checks. See the operational and video documentation for concrete
+procedures.

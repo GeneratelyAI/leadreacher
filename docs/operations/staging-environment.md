@@ -56,7 +56,7 @@ services. Never copy a production connection string into staging.
    `apps/api` omits the workspace lockfile from the Railpack build context.
 2. Set `RUNTIME_ROLE=api` and every `ENABLE_*_WORKER=false` on the staging API.
 3. Set `RUNTIME_ROLE=worker` and all five `ENABLE_*_WORKER=true` flags on the
-   staging worker. Configure distinct staging Sentry and Better Stack projects.
+   staging worker. Configure a distinct staging Sentry project.
 4. Configure a separate staging Supabase project, Redis/Postgres references,
    a controlled Unipile sender and recipient, a staging R2 bucket/public URL,
    and staging Groq/video credentials.
@@ -68,8 +68,8 @@ services. Never copy a production connection string into staging.
    as the normal staging configuration.
 7. Set `R2_PREFLIGHT_VIDEO_URL` to a staging MP4 that supports byte-range
    playback. The canary reads only bytes `0-1` from this object.
-8. Deploy `develop`, then verify `GET /health`, `GET /ready`, each enabled
-   worker lease, and the three staging Better Stack heartbeats.
+8. Deploy `develop`, then verify `GET /health`, `GET /ready`, and each enabled
+   worker lease.
 
 ## First staging deploy cutover
 
@@ -86,8 +86,8 @@ immediately after the first `develop` revision containing the committed
    overrides. Keep the `RAILPACK_*` planning variables from the bootstrap table
    until a later Railpack simplification is deliberately tested.
 4. Redeploy the worker, then the API, and confirm API `/health` returns `200`.
-5. Record `/ready`, fresh worker leases, and Better Stack heartbeat evidence in
-   the release ticket before enabling the staging workflow gates.
+5. Record `/ready` and fresh worker leases in the release ticket before
+   enabling the staging workflow gates.
 
 Required GitHub environment secrets are held only in the `staging`
 environment. Their names are deliberately target-specific:
@@ -145,8 +145,8 @@ Run this once after staging is fully configured, then after material worker
 changes. The pause is intentionally state-preserving: do not delete queues,
 messages, campaigns, or provider output.
 
-1. Record the current `/ready` response, worker lease timestamps, Better Stack
-   heartbeat status, and queue depths.
+1. Record the current `/ready` response, worker lease timestamps, and queue
+   depths.
 2. Set `PAUSED_WORKER_FAMILIES=campaign,reconcile,video,analytics,lifecycle`
    on **both** staging API and staging worker services.
 3. Redeploy the worker first, then the API. Confirm `/health` remains healthy.
@@ -154,8 +154,8 @@ messages, campaigns, or provider output.
    expected signal that the strict readiness dependency is active.
 4. Confirm worker logs report the pause and no new delivery work begins. Keep
    the pause brief, then remove `PAUSED_WORKER_FAMILIES` from both services.
-5. Redeploy the worker, wait for fresh leases and heartbeats, redeploy the API
-   if needed, and verify `/ready` returns `200` before resuming release gates.
+5. Redeploy the worker, wait for fresh leases, redeploy the API if needed, and
+   verify `/ready` returns `200` before resuming release gates.
 
 For a production incident, use the same sequence against only the affected
 family where possible, record the incident evidence, and resume only after the

@@ -28,7 +28,7 @@ them.
 
 The active application uses environment-configured credentials for its own
 services, including Unipile, Supabase, Railway Redis, Apify, Firecrawl, Groq,
-Google AI/TTS, Cloudflare R2, Stripe, Sentry, and Better Stack. These values must
+Google AI/TTS, Cloudflare R2, Stripe, and Sentry. These values must
 remain in deployment secret stores and outside source control.
 
 The Prisma `Integration` model has an `encryptedCredentials` field explicitly

@@ -7,10 +7,8 @@ Deploy web, API, and worker as separate required Railway services.
 - API: `RUNTIME_ROLE=api`, command from `railway.toml`.
 - Worker: `RUNTIME_ROLE=worker`, command from `railway.worker.toml`.
 - Set all worker flags to `true` in production on the worker and `false` on API.
-- Configure the three Better Stack heartbeat URLs and Sentry DSN on the worker.
-  Campaign, video, and reconciliation are externally heartbeated. Lifecycle is
-  owned by reconciliation maintenance; analytics is monitored through its Redis
-  lease and the API readiness check rather than a separate heartbeat.
+- Configure Sentry DSN on the worker. Worker leases and API readiness monitor
+  the enabled worker families.
 - API readiness returns `503` when Redis, Postgres, or a required worker lease
   is unavailable. Worker leases renew every 30 seconds and expire after 90.
 
@@ -35,9 +33,8 @@ The GitHub Actions workflow validates Prisma, runs API/web lint and tests, build
 
 Before production launch, also verify:
 
-1. API health, the three worker heartbeats, and all five worker leases alert
-   correctly. Lifecycle is covered by reconciliation maintenance; analytics is
-   covered by its readiness lease.
+1. An external uptime check alerts on API readiness failure. Verify all five
+   worker leases are represented in readiness and Sentry reports worker errors.
 2. Stripe and Unipile staging smoke tests pass.
 3. A staging campaign reaches a real inbound reply and an operator reply.
 4. Billing interruption pauses delivery and recovery resumes only billing-suspended campaigns.

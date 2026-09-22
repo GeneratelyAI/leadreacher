@@ -121,17 +121,12 @@ ENABLE_VIDEO_WORKER=true
 ENABLE_ANALYTICS_INSIGHTS_WORKER=true
 ENABLE_LIFECYCLE_WORKER=true
 SENTRY_DSN=<required>
-BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL=<required>
-BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL=<required>
-BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL=<required>
 ```
 
 Set every `ENABLE_*_WORKER` flag to `false` on the API service. Migrations run
 only through the API service pre-deploy command. The worker exits on startup in
-production when a required worker flag, Sentry DSN, or heartbeat URL is absent.
-The three external heartbeats cover campaign, video, and reconciliation work;
-lifecycle is part of reconciliation maintenance. Analytics has no separate
-heartbeat because its Redis lease is required by the API readiness check.
+production when a required worker flag or Sentry DSN is absent. Worker leases
+are required by the API readiness check.
 
 ## Redis service source
 

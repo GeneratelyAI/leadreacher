@@ -80,9 +80,6 @@ const envSchema = z.object({
   PERSONALIZED_VIDEO_TTS_VOICE: z.string().min(1).default("Kore"),
   SENTRY_DSN: z.string().optional().default(""),
   SENTRY_ENVIRONMENT: z.string().min(1).default(process.env.NODE_ENV ?? "development"),
-  BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL: optionalUrl,
-  BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL: optionalUrl,
-  BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL: optionalUrl,
   R2_ACCOUNT_ID: z.string().optional().default(""),
   R2_ACCESS_KEY_ID: z.string().optional().default(""),
   R2_SECRET_ACCESS_KEY: z.string().optional().default(""),
@@ -273,9 +270,6 @@ type ProductionWorkerConfiguration = Pick<
   | "ENABLE_ANALYTICS_INSIGHTS_WORKER"
   | "ENABLE_LIFECYCLE_WORKER"
   | "SENTRY_DSN"
-  | "BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL"
-  | "BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL"
-  | "BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL"
 >;
 
 export function getMissingProductionWorkerConfiguration(
@@ -285,15 +279,6 @@ export function getMissingProductionWorkerConfiguration(
     (key) => value[key] !== true,
   );
   if (!value.SENTRY_DSN) missing.push("SENTRY_DSN");
-  if (!value.BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL) {
-    missing.push("BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL");
-  }
-  if (!value.BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL) {
-    missing.push("BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL");
-  }
-  if (!value.BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL) {
-    missing.push("BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL");
-  }
   return missing;
 }
 

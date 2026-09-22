@@ -6,7 +6,6 @@ import fastifyRawBody from "fastify-raw-body";
 import "./platform/config/env.js";
 import { env, isWorkerEnabled, isWorkerFamilyPaused } from "./platform/config/env.js";
 import { apiErrorResponse } from "./platform/http/errors.js";
-import { startBetterStackHeartbeat } from "./platform/observability/better-stack.js";
 import { installHttpErrorHandling } from "./platform/http/error-handler.js";
 import { configureOperationalLogger } from "./platform/observability/operational-logger.js";
 import { closeQueues } from "./lib/queue.js";
@@ -52,7 +51,7 @@ export async function buildServer() {
   });
   configureOperationalLogger(app.log);
   const workers: Array<{ close: () => Promise<void> }> = [];
-  const stopHeartbeats: Array<() => void> = [];
+  const cleanupCallbacks: Array<() => void> = [];
   const activeLeaseNames: WorkerLeaseName[] = [];
 
   const registerWorker = <T extends {
@@ -141,12 +140,6 @@ export async function buildServer() {
   if (campaignWorkerEnabled) {
     registerWorker(startCampaignSequenceWorker(), "campaign-sequence", ["campaign"]);
     registerWorker(startOnboardingProspectDiscoveryWorker(), "onboarding-prospect-discovery", ["campaign"]);
-    stopHeartbeats.push(
-      startBetterStackHeartbeat({
-        name: "campaign-worker",
-        url: env.BETTERSTACK_CAMPAIGN_WORKER_HEARTBEAT_URL,
-      }),
-    );
   }
 
   if (reconcileWorkerEnabled || videoWorkerEnabled || lifecycleWorkerEnabled) {
@@ -164,23 +157,8 @@ export async function buildServer() {
     );
   }
 
-  if (reconcileWorkerEnabled) {
-    stopHeartbeats.push(
-      startBetterStackHeartbeat({
-        name: "reconcile-workers",
-        url: env.BETTERSTACK_RECONCILE_WORKER_HEARTBEAT_URL,
-      }),
-    );
-  }
-
   if (videoWorkerEnabled) {
     registerWorker(startVideoGenerationWorker(), "video-generation", ["video"]);
-    stopHeartbeats.push(
-      startBetterStackHeartbeat({
-        name: "video-workers",
-        url: env.BETTERSTACK_VIDEO_WORKER_HEARTBEAT_URL,
-      }),
-    );
   }
 
   if (analyticsInsightsWorkerEnabled) {
@@ -188,7 +166,7 @@ export async function buildServer() {
   }
 
   if (env.RUNTIME_ROLE === "worker" && activeLeaseNames.length > 0) {
-    stopHeartbeats.push(
+    cleanupCallbacks.push(
       startWorkerLeaseRenewal({
         names: [...new Set(activeLeaseNames)],
         logger: app.log,
@@ -197,7 +175,7 @@ export async function buildServer() {
   }
 
   app.addHook("onClose", async () => {
-    stopHeartbeats.forEach((stop) => stop());
+    cleanupCallbacks.forEach((cleanup) => cleanup());
     await Promise.all(workers.map((worker) => worker.close()));
     await closeQueues();
     await closeRedisConnections();
