@@ -92,6 +92,7 @@ jobs:
           name: lighthouse-${{ github.run_id }}
           path: apps/web/.lighthouseci
           if-no-files-found: warn
+          include-hidden-files: true
       - name: Check migration drift
         if: ${{ env.CI_DIRECT_URL != '' }}
         env:
