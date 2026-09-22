@@ -4,6 +4,7 @@ import { fetchWebsitePreviewImage } from "./website-text.js";
 
 const SCRAPE_TIMEOUT_MS = 8_000;
 const SCRAPE_MAX_ATTEMPTS = 2;
+const AUDIENCE_CONTEXT_PAGE_LIMIT = 5;
 const scrapedContentByUrl = new Map<
   string,
   { markdown: string; previewImageUrl: string | null }
@@ -16,6 +17,11 @@ const DOMAIN_ONLY_REGEX =
 export type WebsiteScrapeResult = {
   markdown: string;
   previewImageUrl: string | null;
+};
+
+export type WebsiteAudienceContext = {
+  markdown: string;
+  sourceUrls: string[];
 };
 
 export function normalizeWebsiteUrl(url: string): string {
@@ -131,4 +137,63 @@ export async function scrapeWebsiteContent(
 export async function scrapeWebsiteMarkdown(url: string): Promise<string> {
   const result = await scrapeWebsiteContent(url);
   return result.markdown;
+}
+
+function isUsefulAudiencePage(url: string, root: URL): boolean {
+  try {
+    const candidate = new URL(url);
+    if (candidate.origin !== root.origin) return false;
+    const path = candidate.pathname.toLowerCase();
+    return !/\/(?:careers?|jobs?|privacy|terms|login|sign-?in|cookie)(?:\/|$)/.test(path);
+  } catch {
+    return false;
+  }
+}
+
+function audiencePageScore(url: string): number {
+  const path = new URL(url).pathname.toLowerCase();
+  if (path === "/" || !path) return 100;
+  if (/\/(?:solutions?|products?|services?|business|enterprise|partners?|pricing|about|customers?)(?:\/|$)/.test(path)) return 50;
+  return 5;
+}
+
+async function mapWebsiteUrls(url: string): Promise<string[]> {
+  if (!env.FIRECRAWL_API_KEY) return [];
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/map", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${env.FIRECRAWL_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url, limit: 40, includeSubdomains: false }),
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+    });
+    if (!response.ok) return [];
+    const payload = await response.json() as { links?: unknown; data?: { links?: unknown } };
+    const links = Array.isArray(payload.links) ? payload.links : Array.isArray(payload.data?.links) ? payload.data.links : [];
+    return links.filter((link): link is string => typeof link === "string");
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Produces bounded, labelled same-origin context for audience classification.
+ * It deliberately favors offer and business pages, avoiding a full unbounded crawl.
+ */
+export async function scrapeWebsiteAudienceContext(url: string): Promise<WebsiteAudienceContext> {
+  const normalized = normalizeWebsiteUrl(url);
+  await resolvePublicUrl(normalized);
+  const root = new URL(normalized);
+  const mapped = await mapWebsiteUrls(normalized);
+  const pageUrls = [...new Set([normalized, ...mapped.filter((link) => isUsefulAudiencePage(link, root))])]
+    .sort((left, right) => audiencePageScore(right) - audiencePageScore(left))
+    .slice(0, AUDIENCE_CONTEXT_PAGE_LIMIT);
+  const pages = await Promise.all(pageUrls.map(async (pageUrl) => ({ pageUrl, result: await scrapeWebsiteContent(pageUrl) })));
+  const sourceUrls = pages.filter(({ result }) => result.markdown.trim()).map(({ pageUrl }) => pageUrl);
+  return {
+    sourceUrls,
+    markdown: pages
+      .filter(({ result }) => result.markdown.trim())
+      .map(({ pageUrl, result }) => `SOURCE: ${pageUrl}\n${result.markdown}`)
+      .join("\n\n"),
+  };
 }

@@ -10,7 +10,7 @@ vi.mock("../website-text.js", () => ({
   fetchWebsitePreviewImage: vi.fn().mockResolvedValue(null),
 }));
 
-import { scrapeWebsiteContent } from "../firecrawl.js";
+import { scrapeWebsiteAudienceContext, scrapeWebsiteContent } from "../firecrawl.js";
 
 describe("scrapeWebsiteContent", () => {
   beforeEach(() => {
@@ -45,5 +45,35 @@ describe("scrapeWebsiteContent", () => {
       previewImageUrl: "https://mrsub.ca/share.jpg",
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("scrapeWebsiteAudienceContext", () => {
+  it("collects at most five useful same-origin pages", async () => {
+    const fetchMock = vi.fn(async (_input: unknown, init: RequestInit) => {
+      const body = JSON.parse(String(init.body)) as { url: string };
+      if (String(_input).endsWith("/map")) {
+        return new Response(JSON.stringify({ links: [
+          "https://audience.example/careers",
+          "https://other.example/business",
+          "https://audience.example/products",
+          "https://audience.example/business",
+          "https://audience.example/pricing",
+          "https://audience.example/about",
+          "https://audience.example/customers",
+          "https://audience.example/privacy",
+        ] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ data: { markdown: `Content for ${body.url}` } }), { status: 200 });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await scrapeWebsiteAudienceContext("https://audience.example");
+    expect(result.sourceUrls).toHaveLength(5);
+    expect(result.sourceUrls).toContain("https://audience.example");
+    expect(result.sourceUrls).toContain("https://audience.example/business");
+    expect(result.markdown).not.toContain("other.example");
+    expect(result.markdown).not.toContain("/careers");
+    expect(fetchMock).toHaveBeenCalledTimes(6);
   });
 });
