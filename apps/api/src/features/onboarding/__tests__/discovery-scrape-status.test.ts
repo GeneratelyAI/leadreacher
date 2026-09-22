@@ -126,6 +126,26 @@ describe("recoverScrapeStatusFromOnboardingData", () => {
       prospectProfile: { companyTypes: ["B2B SaaS"] },
     });
   });
+
+  it("separates comma-delimited prospect suggestions from older saved analysis", () => {
+    expect(recoverScrapeStatusFromOnboardingData({
+      discovery: {
+        status: "completed",
+        url: "https://example.com",
+        prospectProfile: {
+          decisionMakers: ["Founder, VP of Sales"],
+          companyTypes: ["B2B SaaS, Agencies"],
+          industries: ["Technology, Consulting"],
+          locations: [],
+        },
+      },
+    }, new Date("2026-09-07T12:00:00.000Z"))?.prospectProfile).toEqual({
+      decisionMakers: ["Founder", "VP of Sales"],
+      companyTypes: ["B2B SaaS", "Agencies"],
+      industries: ["Technology", "Consulting"],
+      locations: [],
+    });
+  });
 });
 
 describe("boundGroqWebsiteContext", () => {

@@ -11,7 +11,7 @@ import {
 import { callGroq } from "../../../platform/providers/groq.js";
 import {
   extractWebsiteUrlFromText,
-  scrapeWebsiteMarkdown,
+  scrapeWebsiteAudienceContext,
 } from "../../../platform/providers/firecrawl.js";
 import { enrichFromUrl } from "../../../lib/link-enricher.js";
 import { fetchWebsitePreviewImage } from "../../../platform/providers/website-text.js";
@@ -24,6 +24,13 @@ import {
 } from "../../../platform/http/openapi.js";
 import { prisma } from "../../../platform/persistence/prisma.js";
 import { redis } from "../../../platform/redis/connection.js";
+import {
+  createApprovedAudience,
+  normalizeAudienceBrief,
+  profileFromAudienceBrief,
+  type AudienceBrief,
+  type AudienceObjective,
+} from "./audience-targeting.js";
 
 type ChatRole = "user" | "assistant";
 
@@ -53,6 +60,7 @@ export type DiscoveryScrapeFields = {
   value: string;
   strategyStatus: string;
   prospectProfile?: DiscoveryProspectProfile;
+  audienceBrief?: AudienceBrief;
 };
 
 export type DiscoveryProspectProfile = {
@@ -155,10 +163,11 @@ const DiscoveryCompleteBodySchema = z.object({
     locations: z.array(z.string().trim().min(1)).max(6),
     additionalContext: z.string().trim().max(500),
   }).optional(),
+  audienceObjective: z.enum(["business_buyers", "consumer_users", "supply_side_providers", "clarification_required"]).optional(),
   websiteUrl: z.string().trim().min(1).optional(),
 });
 
-const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onboarding. Return ONLY valid JSON with no markdown:
+const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for audience-aware outreach onboarding. Return ONLY valid JSON with no markdown:
 {
   "market": string,
   "offer": string,
@@ -170,6 +179,12 @@ const SCRAPE_SYSTEM_PROMPT = `You analyze a company website for B2B outreach onb
     "companyTypes": string[],
     "industries": string[],
     "locations": string[]
+  },
+  "audienceBrief": {
+    "classification": "b2b" | "b2c" | "marketplace" | "mixed" | "unclear",
+    "audienceSides": [{ "kind": "business_buyer" | "consumer_user" | "supply_side_provider", "label": string, "confidence": number, "evidence": [{ "excerpt": string, "url": string }] }],
+    "suggestedObjective": "business_buyers" | "consumer_users" | "supply_side_providers" | "clarification_required",
+    "suggestions": { "decisionMakers": [{ "value": string, "confidence": number, "evidence": [{ "excerpt": string, "url": string }] }], "companyTypes": [], "industries": [], "locations": [] }
   }
 }
 
@@ -179,7 +194,10 @@ Field guidance:
 - audience: exactly four customer segments when evidence supports them. Each segment must be one or two words, comma separated, with no prose.
 - value: one natural, specific outcome paragraph of 9-12 words. It must fit two campaign-summary lines without a forced line break.
 - strategyStatus: one natural, specific outreach-goal paragraph of 13-18 words. It must fit three campaign-summary lines without a forced line break.
-- prospectProfile: conservative, editable suggestions for outreach targeting. Include 2-4 decisionMakers, companyTypes, and industries when supported by the website. Include locations only when the site clearly identifies a market. Use short labels, not sentences.
+- First classify the website. B2B sells to organizations. B2C sells to consumers. A marketplace connects demand and supply. Mixed has material business and consumer offers. Unclear lacks sufficient evidence.
+- Separate business buyers, consumer users, and supply-side providers. A provider, driver, courier, contractor, applicant, merchant, or seller is never a business buyer unless the evidence explicitly says that organization buys the product.
+- audienceBrief evidence must quote the supplied website context. Confidence is 0 to 1. If evidence is weak, classify unclear and use clarification_required. Never invent a B2B ICP.
+- prospectProfile is a conservative editable mirror of evidence-backed business buyer suggestions only. For B2C, supply-side, mixed, marketplace, or unclear sites, leave business buyer fields empty unless the website directly supports a business-buyer segment.
 
 Use polished business language. If context is weak, infer conservatively from the website URL/domain.`;
 
@@ -202,8 +220,19 @@ const SCRAPE_RESPONSE_JSON_SCHEMA = {
       required: ["decisionMakers", "companyTypes", "industries", "locations"],
       additionalProperties: false,
     },
+    audienceBrief: {
+      type: "object",
+      properties: {
+        classification: { type: "string", enum: ["b2b", "b2c", "marketplace", "mixed", "unclear"] },
+        audienceSides: { type: "array", items: { type: "object", properties: { kind: { type: "string" }, label: { type: "string" }, confidence: { type: "number" }, evidence: { type: "array", items: { type: "object", properties: { excerpt: { type: "string" }, url: { type: "string" } }, required: ["excerpt"], additionalProperties: false } } }, required: ["kind", "label", "confidence", "evidence"], additionalProperties: false } },
+        suggestedObjective: { type: "string", enum: ["business_buyers", "consumer_users", "supply_side_providers", "clarification_required"] },
+        suggestions: { type: "object", properties: { decisionMakers: { type: "array", items: { type: "object", properties: { value: { type: "string" }, confidence: { type: "number" }, evidence: { type: "array", items: { type: "object", properties: { excerpt: { type: "string" }, url: { type: "string" } }, required: ["excerpt"], additionalProperties: false } } }, required: ["value", "confidence", "evidence"], additionalProperties: false } }, companyTypes: { type: "array", items: { type: "object", properties: { value: { type: "string" }, confidence: { type: "number" }, evidence: { type: "array", items: { type: "object", properties: { excerpt: { type: "string" }, url: { type: "string" } }, required: ["excerpt"], additionalProperties: false } } }, required: ["value", "confidence", "evidence"], additionalProperties: false } }, industries: { type: "array", items: { type: "object", properties: { value: { type: "string" }, confidence: { type: "number" }, evidence: { type: "array", items: { type: "object", properties: { excerpt: { type: "string" }, url: { type: "string" } }, required: ["excerpt"], additionalProperties: false } } }, required: ["value", "confidence", "evidence"], additionalProperties: false } }, locations: { type: "array", items: { type: "object", properties: { value: { type: "string" }, confidence: { type: "number" }, evidence: { type: "array", items: { type: "object", properties: { excerpt: { type: "string" }, url: { type: "string" } }, required: ["excerpt"], additionalProperties: false } } }, required: ["value", "confidence", "evidence"], additionalProperties: false } } }, required: ["decisionMakers", "companyTypes", "industries", "locations"], additionalProperties: false },
+      },
+      required: ["classification", "audienceSides", "suggestedObjective", "suggestions"],
+      additionalProperties: false,
+    },
   },
-  required: ["market", "offer", "audience", "value", "strategyStatus", "prospectProfile"],
+  required: ["market", "offer", "audience", "value", "strategyStatus", "prospectProfile", "audienceBrief"],
   additionalProperties: false,
 } as const;
 
@@ -345,9 +374,7 @@ function readString(value: unknown): string {
 }
 
 function readStringList(value: unknown): string[] {
-  return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
-    : [];
+  return cleanProspectList(value);
 }
 
 /**
@@ -366,6 +393,7 @@ export function recoverScrapeStatusFromStrategy(strategy: {
   if (!url) return null;
 
   const savedProfile = asRecord(icpDefinition.prospectProfile);
+  const savedAudienceBrief = asRecord(icpDefinition.audienceBrief);
   return {
     status: "completed",
     url,
@@ -380,6 +408,9 @@ export function recoverScrapeStatusFromStrategy(strategy: {
       industries: readStringList(savedProfile.industries),
       locations: readStringList(savedProfile.locations),
     },
+    audienceBrief: Object.keys(savedAudienceBrief).length > 0
+      ? normalizeAudienceBrief(savedAudienceBrief)
+      : undefined,
     error: null,
     updatedAt: strategy.updatedAt.toISOString(),
   };
@@ -397,6 +428,7 @@ export function recoverScrapeStatusFromOnboardingData(
   }
 
   const profile = asRecord(discovery.prospectProfile);
+  const audienceBrief = asRecord(discovery.audienceBrief);
   return {
     status: status as DiscoveryScrapeStatus["status"],
     url,
@@ -411,6 +443,9 @@ export function recoverScrapeStatusFromOnboardingData(
       industries: readStringList(profile.industries),
       locations: readStringList(profile.locations),
     },
+    audienceBrief: Object.keys(audienceBrief).length > 0
+      ? normalizeAudienceBrief(audienceBrief)
+      : undefined,
     error: readString(discovery.error) || null,
     updatedAt: readString(discovery.updatedAt) || updatedAt.toISOString(),
   };
@@ -535,19 +570,18 @@ function emptyProspectProfile(): DiscoveryProspectProfile {
 
 function cleanProspectList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value
+  const seen = new Set<string>();
+  return value
+    .flatMap((item) => typeof item === "string" ? item.split(/[,;\r\n]+/) : [])
     .map((item) => cleanScrapeField(item))
-    .filter((item) => item.length > 0 && item.length <= 80))].slice(0, 6);
-}
-
-function parseProspectProfile(value: unknown): DiscoveryProspectProfile {
-  const record = value && typeof value === "object" ? value as Record<string, unknown> : {};
-  return {
-    decisionMakers: cleanProspectList(record.decisionMakers),
-    companyTypes: cleanProspectList(record.companyTypes),
-    industries: cleanProspectList(record.industries),
-    locations: cleanProspectList(record.locations),
-  };
+    .filter((item) => item.length > 0 && item.length <= 80)
+    .filter((item) => {
+      const normalized = item.toLocaleLowerCase("en");
+      if (seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, 6);
 }
 
 function tokenizeIndustryShortlistText(value: string): string[] {
@@ -663,17 +697,29 @@ export async function repairUnresolvedDiscoveryMarket(
   }
 }
 
-function parseScrapeResponse(raw: string): DiscoveryScrapeFields {
+function parseScrapeResponse(raw: string, sourceUrls: string[]): DiscoveryScrapeFields {
   const jsonText = extractJsonObject(raw);
   const parsed = JSON.parse(jsonText) as Partial<DiscoveryScrapeFields>;
 
+  const audienceBrief = normalizeAudienceBrief(parsed.audienceBrief, sourceUrls);
+  const profile = profileFromAudienceBrief(audienceBrief);
   return {
     market: cleanScrapeField(parsed.market),
     offer: cleanScrapeField(parsed.offer),
     audience: cleanScrapeField(parsed.audience),
     value: cleanScrapeField(parsed.value),
     strategyStatus: cleanScrapeField(parsed.strategyStatus),
-    prospectProfile: parseProspectProfile(parsed.prospectProfile),
+    // Marketplace and mixed sites may have evidence-backed business buyers, but
+    // still require an explicit audience decision before they can source anyone.
+    prospectProfile: audienceBrief.classification !== "b2c" && audienceBrief.classification !== "unclear"
+      ? {
+          decisionMakers: profile.decisionMakers,
+          companyTypes: profile.companyTypes,
+          industries: profile.industries,
+          locations: profile.locations,
+        }
+      : emptyProspectProfile(),
+    audienceBrief,
   };
 }
 
@@ -729,7 +775,8 @@ async function runDiscoveryScrape(
   }
 
   try {
-    const markdown = await scrapeWebsiteMarkdown(url);
+    const websiteContext = await scrapeWebsiteAudienceContext(url);
+    const markdown = websiteContext.markdown;
     if (markdown.trim().length === 0) {
       await persist(
         emptyScrapeStatus(
@@ -750,7 +797,7 @@ async function runDiscoveryScrape(
           content: `Analyze this website context for outreach onboarding:\n\n${context}`,
         },
       ],
-      500,
+      1_800,
       {
         jsonSchema: {
           name: "website_discovery",
@@ -759,7 +806,7 @@ async function runDiscoveryScrape(
       },
     );
     const fields = await repairUnresolvedDiscoveryMarket(
-      parseScrapeResponse(raw),
+      parseScrapeResponse(raw, websiteContext.sourceUrls),
     );
     const terminalStatus = resolveScrapeTerminalStatus(fields);
 
@@ -1019,12 +1066,13 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     },
   }, async (request, reply) => {
     const orgId = requireOrgId(request);
-    const { summary, messages, prospectProfile, websiteUrl, mode } = request.body as {
+    const { summary, messages, prospectProfile, websiteUrl, mode, audienceObjective } = request.body as {
       mode?: "introduction" | "approval";
       summary: DiscoverySummary;
       messages: IncomingMessage[];
       prospectProfile?: DiscoveryProspectProfile & { additionalContext: string };
       websiteUrl?: string;
+      audienceObjective?: AudienceObjective;
     };
 
     parseMessages({ messages });
@@ -1040,9 +1088,30 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const cachedScrape = await getScrapeStatus(orgScrapeStatusKey(orgId));
+    const recoveredScrape = cachedScrape ?? (
+      await prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { onboardingData: true, updatedAt: true },
+      })
+    );
+    const durableScrape = cachedScrape ?? (
+      recoveredScrape && "onboardingData" in recoveredScrape
+        ? recoverScrapeStatusFromOnboardingData(recoveredScrape.onboardingData, recoveredScrape.updatedAt)
+        : null
+    );
+    const approvedAudience = mode === "introduction"
+      ? previousIcp.approvedAudience
+      : createApprovedAudience({
+          brief: durableScrape?.audienceBrief,
+          objective: audienceObjective,
+          profile: (prospectProfile ?? {
+            ...emptyProspectProfile(),
+            additionalContext: "",
+          }),
+        });
     const savedWebsiteUrl = websiteUrl
       ? normalizeScrapeUrl(websiteUrl)
-      : cachedScrape?.url ?? asRecord(previousIcp.discovery).websiteUrl ?? null;
+      : durableScrape?.url ?? asRecord(previousIcp.discovery).websiteUrl ?? null;
     const strategyData = {
       icpDefinition: {
         ...previousIcp,
@@ -1052,13 +1121,17 @@ export async function discoveryRoutes(app: FastifyInstance): Promise<void> {
           ...emptyProspectProfile(),
           additionalContext: "",
         },
+        audienceBrief: durableScrape?.audienceBrief ?? previousIcp.audienceBrief,
+        approvedAudience,
         discovery: {
           websiteUrl: savedWebsiteUrl,
-          market: cachedScrape?.market || summary.industry || "",
-          offer: cachedScrape?.offer || summary.businessModel || "",
-          audience: cachedScrape?.audience || summary.idealCustomer || "",
-          value: cachedScrape?.value || summary.strengths || "",
-          strategyStatus: cachedScrape?.strategyStatus || summary.nextStep || "",
+          market: durableScrape?.market || summary.industry || "",
+          offer: durableScrape?.offer || summary.businessModel || "",
+          audience: durableScrape?.audience || summary.idealCustomer || "",
+          value: durableScrape?.value || summary.strengths || "",
+          strategyStatus: durableScrape?.strategyStatus || summary.nextStep || "",
+          prospectProfile: (mode === "introduction" ? previousIcp.prospectProfile : null) ?? prospectProfile ?? emptyProspectProfile(),
+          audienceBrief: durableScrape?.audienceBrief ?? previousIcp.audienceBrief,
         },
       } as Prisma.InputJsonValue,
       positioning: {
