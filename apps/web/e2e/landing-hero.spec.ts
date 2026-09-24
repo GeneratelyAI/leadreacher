@@ -178,6 +178,92 @@ test("updates the mobile product story from its compact progress rail without st
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
+test("shows the Strategy board as one stacked brief with readable mobile pillars", async ({ page }, testInfo) => {
+  const phone = phoneProjects.has(testInfo.project.name);
+  await page.setViewportSize(phone ? { width: 390, height: 844 } : { width: 1280, height: 800 });
+  await openLanding(page);
+
+  const story = phone ? page.locator("#mobile-product-story-scroll") : page.locator("#product-story-scroll");
+  const board = story.getByTestId("strategy-board");
+  await board.scrollIntoViewIfNeeded();
+  await expect(board.getByLabel("Company website")).toHaveValue("yourwebsite.com");
+  await expect(board.getByTestId("strategy-url-icon")).toHaveAttribute("data-phase", "sparkle");
+  await expect(board.getByTestId("strategy-insight-row")).toHaveCount(2);
+  expect(await board.getByTestId("strategy-insight-row").evaluateAll((rows) => rows.every((row) =>
+    [...row.querySelectorAll(":scope > div:last-child > span")].every((item) => item.querySelector("span.rounded-full")),
+  ))).toBe(true);
+  await expect(board.getByTestId("strategy-panel")).toBeVisible();
+  await expect(board.getByRole("status", { name: "Strategy ready" })).toBeVisible();
+
+  const layout = await board.evaluate((element) => {
+    const rect = (node: Element) => node.getBoundingClientRect();
+    const rows = [...element.querySelectorAll('[data-testid="strategy-insight-row"]')].map(rect);
+    const panel = rect(element.querySelector('[data-testid="strategy-panel"]')!);
+    const pillars = [...element.querySelector('[data-testid="strategy-pillars"]')!.children].map(rect);
+    const boardBounds = rect(element);
+    return {
+      rows: rows.map(({ top, bottom, width }) => ({ top, bottom, width })),
+      panel: { top: panel.top, bottom: panel.bottom },
+      pillars: pillars.map(({ left, right, top, bottom }) => ({ left, right, top, bottom })),
+      board: { left: boardBounds.left, right: boardBounds.right, bottom: boardBounds.bottom },
+      documentWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+    };
+  });
+
+  expect(layout.rows[0].bottom).toBeLessThanOrEqual(layout.rows[1].top + 1);
+  expect(layout.rows[1].bottom).toBeLessThanOrEqual(layout.panel.top);
+  expect(layout.rows[0].width).toBeGreaterThan((layout.board.right - layout.board.left) * 0.9);
+  expect(layout.pillars).toHaveLength(3);
+  expect(layout.pillars[0].right).toBeLessThanOrEqual(layout.pillars[1].left + 1);
+  expect(layout.pillars[1].right).toBeLessThanOrEqual(layout.pillars[2].left + 1);
+  for (const pillar of layout.pillars) {
+    expect(pillar.left).toBeGreaterThanOrEqual(layout.board.left);
+    expect(pillar.right).toBeLessThanOrEqual(layout.board.right);
+    expect(pillar.bottom).toBeLessThan(layout.board.bottom);
+  }
+  expect(layout.documentWidth).toBeLessThanOrEqual(layout.viewportWidth);
+});
+
+test("types the Strategy URL and changes its icon without replacing user input", async ({ page }, testInfo) => {
+  test.skip(phoneProjects.has(testInfo.project.name), "Desktop interaction coverage");
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.route("https://www.google.com/s2/favicons**", (route) => route.fulfill({
+    status: 200,
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="15" fill="#6842f5"/></svg>',
+  }));
+  await openLanding(page);
+
+  const board = page.locator("#product-story-scroll").getByTestId("strategy-board");
+  const input = board.getByLabel("Company website");
+  const icon = board.getByTestId("strategy-url-icon");
+  await board.scrollIntoViewIfNeeded();
+  await expect(icon).toHaveAttribute("data-phase", "logo");
+  await expect(icon).toHaveAttribute("data-phase", "sparkle");
+  const bounds = await board.boundingBox();
+  expect(bounds).not.toBeNull();
+  await page.mouse.move(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await expect.poll(() => board.evaluate((element) => element.style.getPropertyValue("--spotlight-x"))).not.toBe("");
+  await expect.poll(() => board.getByTestId("strategy-pointer-glow").evaluate((element) => getComputedStyle(element).opacity)).toBe("1");
+  expect(await board.evaluate((element) => {
+    const glow = element.querySelector('[data-testid="strategy-pointer-glow"]')!;
+    const rows = element.querySelector('[data-testid="strategy-insight-row"]')!.parentElement!;
+    return Number(getComputedStyle(glow).zIndex) < Number(getComputedStyle(rows).zIndex);
+  })).toBe(true);
+  await input.fill("example.org");
+  await expect(input).toHaveValue("example.org");
+  await expect(icon).toHaveAttribute("data-phase", "logo");
+  const favicon = icon.locator("img");
+  await expect(favicon).toHaveAttribute("src", /domain=example\.org/);
+  await expect(favicon).toHaveCSS("opacity", "1");
+  await input.press("Tab");
+  await expect(icon).toHaveAttribute("data-phase", "logo");
+  await input.press("Enter");
+  await expect(icon).toHaveAttribute("data-phase", "sparkle");
+  await expect(input).toHaveValue("example.org");
+});
+
 test("keeps post-story mobile sections static without cloned or scroll-driven layers", async ({ page }, testInfo) => {
   test.skip(!phoneProjects.has(testInfo.project.name), "Phone motion behavior only");
   await page.setViewportSize({ width: 390, height: 844 });

@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { m } from "framer-motion";
+import { AnimatePresence, m } from "framer-motion";
+import { SparklesIcon } from "@/components/ui/animated-highlight-text";
 import { ChannelLogo } from "@/platform/branding/ChannelLogo";
 import {
   Check,
@@ -18,12 +19,15 @@ import {
   Send,
   Sparkles,
   Target,
+  User,
   UserRound,
   Video,
 } from "@/components/ui/icons";
-import { useState, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { ProductStoryStageId } from "@/lib/product-story";
 import { cn } from "@/lib/utils";
+import { getWebsiteFaviconUrl } from "@/features/onboarding/public/website";
+import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 
 type DemoProps = {
   stageId: ProductStoryStageId;
@@ -33,17 +37,15 @@ type DemoProps = {
 
 type ShellProps = Pick<DemoProps, "stageId"> & { children: ReactNode };
 
-function DemoShell({ stageId, children }: ShellProps) {
-  const updateSpotlight = (event: MouseEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
-    event.currentTarget.style.setProperty("--spotlight-y", `${event.clientY - bounds.top}px`);
-  };
+function updateSpotlight(event: MouseEvent<HTMLDivElement>) {
+  const bounds = event.currentTarget.getBoundingClientRect();
+  event.currentTarget.style.setProperty("--spotlight-x", `${event.clientX - bounds.left}px`);
+  event.currentTarget.style.setProperty("--spotlight-y", `${event.clientY - bounds.top}px`);
+}
 
+function DemoShell({ stageId, children }: ShellProps) {
   return (
-    <div data-testid="interactive-dashboard-demo" data-demo-stage={stageId} onMouseMove={updateSpotlight} className="group relative isolate size-full min-h-0 overflow-hidden bg-[#f8f8fc] text-[#171b2c]">
-      <span aria-hidden className="pointer-events-none absolute inset-0 opacity-55 [background-image:linear-gradient(rgba(93,73,161,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(93,73,161,.035)_1px,transparent_1px)] [background-size:28px_28px]" />
-      <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 size-48 rounded-full bg-[#7c58ed]/[0.07] blur-3xl" />
+    <div data-testid="interactive-dashboard-demo" data-demo-stage={stageId} onMouseMove={updateSpotlight} className="group relative isolate size-full min-h-0 overflow-hidden bg-white text-[#171b2c]">
       <span
         data-testid="dashboard-pointer-spotlight"
         aria-hidden
@@ -68,23 +70,84 @@ const WEBSITE_INSIGHTS = [
 ] as const;
 
 const WEBSITE_STRATEGY_PILLARS = [
-  { icon: UserRound, label: "Who", detail: "Ideal prospects" },
+  { icon: User, label: "Who", detail: "Ideal prospects" },
   { icon: Target, label: "Where", detail: "Best channels" },
-  { icon: MessageSquare, label: "Content", detail: "Sales-focused" },
+  { icon: MessageSquare, label: "Content", detail: "Sales-focused content" },
 ] as const;
 
 function WebsiteDemo(props: DemoProps) {
-  const [website, setWebsite] = useState("yourwebsite.com");
+  const boardRef = useRef<HTMLDivElement>(null);
+  const websiteInputId = useId();
+  const [website, setWebsite] = useState("");
   const [ready, setReady] = useState(true);
+  const [visible, setVisible] = useState(false);
+  const [userEdited, setUserEdited] = useState(false);
+  const [iconPhase, setIconPhase] = useState<"link" | "logo" | "sparkle">("link");
+  const [faviconHost, setFaviconHost] = useState<string | null>(null);
+  const [faviconLoaded, setFaviconLoaded] = useState(false);
+  const [faviconFailed, setFaviconFailed] = useState(false);
+  const normalizedUrl = normalizeLandingWebsiteUrl(website);
+  const showFavicon = iconPhase === "logo" && faviconHost === normalizedUrl && faviconLoaded && !faviconFailed;
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFaviconHost(normalizedUrl);
+      setFaviconLoaded(normalizedUrl === "yourwebsite.com");
+      setFaviconFailed(false);
+    }, normalizedUrl ? 220 : 0);
+    return () => window.clearTimeout(timer);
+  }, [normalizedUrl]);
+
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setVisible(true);
+        observer.disconnect();
+      }
+    }, { threshold: 0.35 });
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible || userEdited) return;
+    if (props.reducedMotion) {
+      setWebsite("yourwebsite.com");
+      setIconPhase("sparkle");
+      return;
+    }
+
+    const url = "yourwebsite.com";
+    let index = 0;
+    let sparkleTimer: number | undefined;
+    const typingTimer = window.setInterval(() => {
+      index += 1;
+      setWebsite(url.slice(0, index));
+      if (index === url.length) {
+        window.clearInterval(typingTimer);
+        setIconPhase("logo");
+        sparkleTimer = window.setTimeout(() => setIconPhase("sparkle"), 950);
+      }
+    }, 70);
+
+    return () => {
+      window.clearInterval(typingTimer);
+      if (sparkleTimer) window.clearTimeout(sparkleTimer);
+    };
+  }, [visible, userEdited, props.reducedMotion]);
 
   const confirmWebsite = () => {
     if (!website.trim()) return;
     setReady(true);
+    setIconPhase("sparkle");
   };
 
   return (
     <DemoShell {...props}>
-      <div className="flex h-full min-h-0 flex-col gap-2.5 px-[4%] py-[3.5%] text-[#18152a] sm:gap-3">
+      <div ref={boardRef} data-testid="strategy-board" onMouseMove={updateSpotlight} className="group/board relative flex h-full min-h-0 flex-col overflow-hidden rounded-[18px] border border-transparent bg-white px-[4%] pb-[.5%] pt-[1%] text-[#18152a]">
+        <span data-testid="strategy-pointer-glow" aria-hidden className="pointer-events-none absolute inset-0 z-0 opacity-0 transition-opacity duration-300 group-hover/board:opacity-100 group-focus-within/board:opacity-100 motion-reduce:transition-none [background:radial-gradient(280px_circle_at_var(--spotlight-x,_50%)_var(--spotlight-y,_50%),rgba(139,92,246,.14),transparent_68%)] mix-blend-multiply" />
         <m.form
           initial={props.reducedMotion ? false : { opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -93,20 +156,42 @@ function WebsiteDemo(props: DemoProps) {
             event.preventDefault();
             confirmWebsite();
           }}
-          className="mx-auto flex h-11 w-full min-w-0 max-w-[440px] shrink-0 items-center rounded-2xl border border-[#ddd9e7] bg-white px-[3%] shadow-[0_7px_22px_rgba(40,27,85,.09)] sm:h-12 sm:w-[58%] sm:min-w-48"
+          className="relative z-10 mx-auto flex h-10 w-[70%] min-w-0 max-w-[284px] shrink-0 items-center rounded-2xl border border-[#ddd9e7] bg-white px-3 shadow-[0_4px_14px_rgba(40,27,85,.08)] sm:h-12"
         >
-          <label htmlFor="story-website" className="sr-only">Company website</label>
-          <Link2 className="size-[clamp(1rem,2vw,1.75rem)] shrink-0 text-[#6237e8]" aria-hidden />
-          <span aria-hidden className="mx-[4%] h-[54%] w-px bg-[#e4e0eb]" />
+          <label htmlFor={websiteInputId} className="sr-only">Company website</label>
+          <span data-testid="strategy-url-icon" data-phase={iconPhase} className="relative size-[clamp(1rem,2vw,1.75rem)] shrink-0" aria-hidden>
+            <AnimatePresence initial={false} mode="sync">
+              {iconPhase === "sparkle" ? (
+                <m.span key="submission-sparkles" className="absolute inset-0 grid place-items-center text-[#5b3ff0]" initial={props.reducedMotion ? false : { opacity: 0, scale: 0.72 }} animate={{ opacity: 1, scale: 1 }} exit={props.reducedMotion ? undefined : { opacity: 0, scale: 0.72 }} transition={{ duration: props.reducedMotion ? 0 : 0.18, ease: "easeOut" }}>
+                  <SparklesIcon draw className="size-full align-baseline" />
+                </m.span>
+              ) : (
+                <m.span key="website-identity" className="absolute inset-0" exit={props.reducedMotion ? undefined : { opacity: 0, scale: 0.72 }} transition={{ duration: props.reducedMotion ? 0 : 0.18, ease: "easeOut" }}>
+                  <Link2 className={cn("absolute inset-0 size-full text-[#6b7280] transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none", showFavicon ? "-rotate-12 scale-50 opacity-0" : "rotate-0 scale-100 opacity-100")} />
+                  {faviconHost && !faviconFailed ? (
+                    faviconHost === "yourwebsite.com" ? (
+                      <span className={cn("absolute inset-0 grid size-full place-items-center rounded-md bg-[#6842f5] text-[.65em] font-bold text-white transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none", showFavicon ? "rotate-0 scale-100 opacity-100" : "rotate-12 scale-50 opacity-0")}>Y</span>
+                    ) : (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={faviconHost} src={getWebsiteFaviconUrl(faviconHost)} alt="" onLoad={() => setFaviconLoaded(true)} onError={() => { setFaviconFailed(true); setFaviconLoaded(false); }} className={cn("absolute inset-0 size-full rounded-md object-contain transition-[opacity,transform] duration-300 ease-out motion-reduce:transition-none", showFavicon ? "rotate-0 scale-100 opacity-100" : "rotate-12 scale-50 opacity-0")} />
+                    )
+                  ) : null}
+                </m.span>
+              )}
+            </AnimatePresence>
+          </span>
           <input
-            id="story-website"
+            id={websiteInputId}
             value={website}
             onChange={(event) => {
+              setUserEdited(true);
               setWebsite(event.target.value);
               setReady(false);
+              setIconPhase("logo");
             }}
-            onBlur={confirmWebsite}
-            className="min-w-0 flex-1 rounded-sm bg-transparent text-[11px] font-semibold tracking-[-0.02em] text-[#18152a] outline-none placeholder:text-[#9893a5] focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:text-[clamp(.75rem,1.7vw,1.35rem)]"
+            onFocus={() => setUserEdited(true)}
+            onBlur={() => { if (website.trim()) setReady(true); }}
+            className="ml-3 min-w-0 flex-1 rounded-sm bg-transparent text-[11px] font-semibold tracking-[-0.02em] text-[#18152a] outline-none placeholder:text-[#9893a5] focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:text-[clamp(.75rem,1.4vw,1.1rem)]"
             placeholder="yourwebsite.com"
             inputMode="url"
           />
@@ -114,7 +199,7 @@ function WebsiteDemo(props: DemoProps) {
             type="submit"
             aria-label="Analyze website"
             className={cn(
-              "ml-2 flex size-11 shrink-0 items-center justify-center rounded-full text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:size-[clamp(1.4rem,2.7vw,2.2rem)]",
+              "ml-2 flex size-5 shrink-0 items-center justify-center rounded-full text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6b55df] focus-visible:ring-offset-2 sm:size-6",
               ready ? "bg-[#45a852]" : "bg-[#6842f5]",
             )}
           >
@@ -122,25 +207,23 @@ function WebsiteDemo(props: DemoProps) {
           </button>
         </m.form>
 
-        <div className="grid min-h-0 flex-[.82] grid-cols-2 gap-2.5">
+        <div className="relative z-10 mt-[2%] flex min-h-0 basis-[44%] flex-none flex-col border-t border-[#dedce6]">
           {WEBSITE_INSIGHTS.map((insight, index) => (
             <m.section
               key={insight.title}
               initial={props.reducedMotion ? false : { opacity: 0, x: index === 0 ? -8 : 8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: props.reducedMotion ? 0 : 0.3, delay: props.reducedMotion ? 0 : 0.1 + index * 0.08, ease: "easeOut" }}
-              className="relative min-w-0 overflow-hidden rounded-2xl border border-[#e7e3ef] bg-white/82 px-[5%] py-[4%] shadow-[0_7px_20px_rgba(50,38,95,.045)]"
+              data-testid="strategy-insight-row"
+              className="flex min-h-0 flex-1 flex-col justify-center border-b border-[#dedce6] px-[3%] py-2"
             >
-              <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#7649f4] to-[#b864dd]" />
-              <div className="flex items-start gap-2.5">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-[#eee9ff] text-[10px] font-bold text-[#6539dc] sm:size-7 sm:text-xs">0{index + 1}</span>
-                <div className="min-w-0">
-                  <h3 className="text-[clamp(.62rem,1.05vw,.88rem)] font-bold uppercase leading-[1.12] tracking-[-0.015em]">{insight.title}</h3>
-                </div>
+              <div className="flex items-center gap-[5%] sm:gap-[7%]">
+                <span className="size-1.5 shrink-0 rounded-full bg-[#693ce8] sm:size-2" aria-hidden />
+                <h3 className="text-[clamp(.65rem,1.25vw,1.05rem)] font-bold uppercase leading-[1.15] tracking-[-0.015em]">{insight.title}</h3>
               </div>
-              <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[clamp(.5rem,.72vw,.65rem)] font-medium leading-tight text-[#3e394f] sm:mt-2.5">
+              <div className="ml-[6%] mt-2 flex flex-wrap items-center gap-x-[2%] gap-y-1 text-[.5625rem] leading-tight text-[#343043] sm:ml-[8%] sm:gap-x-[5%] sm:text-[clamp(.65rem,1.04vw,.92rem)]">
                 {insight.items.map((item) => (
-                  <span key={item} className="flex items-center gap-1.5"><span className="size-1 rounded-full bg-[#7042ed]" aria-hidden />{item}</span>
+                  <span key={item} className="inline-flex items-center gap-1 sm:gap-2"><span className="size-1 shrink-0 rounded-full bg-[#7042ed]" aria-hidden />{item}</span>
                 ))}
               </div>
             </m.section>
@@ -151,42 +234,35 @@ function WebsiteDemo(props: DemoProps) {
           initial={props.reducedMotion ? false : { opacity: 0, y: 9 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: props.reducedMotion ? 0 : 0.34, delay: props.reducedMotion ? 0 : 0.24, ease: "easeOut" }}
-          className="relative flex min-h-0 flex-[1.18] flex-col overflow-hidden rounded-2xl border border-[#ded7f4] bg-[linear-gradient(135deg,#f5f2ff_0%,#ece7ff_58%,#f3efff_100%)] p-[3.5%] shadow-[0_9px_26px_rgba(80,53,165,.09)]"
+          data-testid="strategy-panel"
+          className="relative z-10 -mx-[2%] flex min-h-0 flex-1 flex-col rounded-xl bg-[linear-gradient(115deg,#f7f4ff_0%,#f1edff_100%)] px-[4%] pb-[1%] pt-[3%]"
         >
-          <span aria-hidden className="pointer-events-none absolute -right-10 -top-20 size-48 rounded-full bg-[#7955ef]/10 blur-3xl" />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="size-2 shrink-0 rounded-full bg-[#6738ed] shadow-[0_0_0_4px_rgba(103,56,237,.1)]" aria-hidden />
-              <div className="min-w-0">
-                <p className="text-[clamp(.52rem,.72vw,.65rem)] font-semibold uppercase tracking-[.12em] text-[#7553cd]">Acquisition plan</p>
-                <h3 className="truncate text-[clamp(.7rem,1.35vw,1.12rem)] font-bold uppercase leading-tight tracking-[-0.015em]">Your custom strategy</h3>
-              </div>
-            </div>
-            <m.div key={String(ready)} initial={props.reducedMotion ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} role="status" aria-live="polite" aria-label={ready ? "Strategy ready" : "Update URL"} className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/80 bg-white/85 p-1 text-[clamp(.52rem,.8vw,.68rem)] font-semibold uppercase tracking-[.02em] text-[#6842d8] shadow-[0_5px_14px_rgba(50,38,95,.07)] sm:px-2.5">
-              <span className="flex size-4 items-center justify-center rounded-full bg-[#45a852] text-white"><Check className="size-2.5" weight="bold" aria-hidden /></span>
-              <span className="hidden sm:inline">{ready ? "Strategy ready" : "Update URL"}</span>
-            </m.div>
+          <div className="flex items-center gap-[5%] sm:gap-[6%]">
+            <span className="size-1.5 shrink-0 rounded-full bg-[#693ce8] sm:size-2" aria-hidden />
+            <h3 className="text-[clamp(.65rem,1.25vw,1.05rem)] font-bold uppercase leading-[1.15] tracking-[-0.015em]">Builds your custom strategy</h3>
           </div>
 
-          <div className="relative mt-[3%] grid min-h-0 flex-1 grid-cols-3 gap-2">
+          <div data-testid="strategy-pillars" className="mt-2 grid min-h-0 flex-1 grid-cols-3 items-center">
             {WEBSITE_STRATEGY_PILLARS.map(({ icon: Icon, label, detail }, index) => (
               <m.div
                 key={label}
                 initial={props.reducedMotion ? false : { opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: props.reducedMotion ? 0 : 0.24, delay: props.reducedMotion ? 0 : 0.34 + index * 0.06 }}
-                className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-white/85 bg-white/55 px-[5%] py-[5%] text-center shadow-[inset_0_1px_0_rgba(255,255,255,.9)] sm:flex-row sm:justify-start sm:gap-[7%] sm:px-[7%] sm:text-left"
+                className={cn("flex min-w-0 items-center justify-center gap-[5%] px-[3%] text-left", index > 0 && "border-l border-[#dcd5ed]")}
               >
-                <span className="flex size-[clamp(1.55rem,3vw,2.4rem)] shrink-0 items-center justify-center rounded-xl bg-white text-[#5124bd] shadow-[0_4px_12px_rgba(80,48,160,.09)]">
-                  <Icon className="size-[55%]" weight="regular" aria-hidden />
-                </span>
+                <Icon className="size-[clamp(1.1rem,2.5vw,2rem)] shrink-0 text-[#5124bd]" weight="regular" aria-hidden />
                 <span className="min-w-0">
-                  <span className="block text-[clamp(.6rem,1vw,.86rem)] font-bold uppercase leading-none">{label}</span>
-                  <span className="mt-1 block text-[clamp(.5rem,.78vw,.68rem)] leading-tight text-[#5d566e]">{detail}</span>
+                  <span className="block text-[.62rem] font-bold uppercase leading-none sm:text-[clamp(.62rem,1.1vw,.9rem)]">{label}</span>
+                  <span className="mt-1 block text-[.56rem] leading-tight text-[#5d566e] sm:text-[clamp(.55rem,.85vw,.7rem)]">{detail}</span>
                 </span>
               </m.div>
             ))}
           </div>
+          <m.div key={String(ready)} initial={props.reducedMotion ? false : { opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} role="status" aria-live="polite" aria-label={ready ? "Strategy ready" : "Update URL"} className="mx-auto mt-2 flex shrink-0 items-center gap-2 rounded-full border border-[#ded9e9] bg-white/85 px-3 py-1 text-[clamp(.55rem,1vw,.82rem)] font-semibold uppercase tracking-[.02em] text-[#6842d8] shadow-[0_3px_10px_rgba(50,38,95,.05)]">
+            <span className="flex size-4 items-center justify-center rounded-full bg-[#45a852] text-white"><Check className="size-2.5" weight="bold" aria-hidden /></span>
+            <span>{ready ? "Strategy ready" : "Update URL"}</span>
+          </m.div>
         </m.section>
       </div>
     </DemoShell>
