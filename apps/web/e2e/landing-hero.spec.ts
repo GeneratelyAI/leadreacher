@@ -289,6 +289,7 @@ test("keeps post-story mobile sections static without cloned or scroll-driven la
   }))).toEqual(expect.objectContaining({ hasStickyDescendant: false }));
   expect(await reviewStory.evaluate((element) => element.getBoundingClientRect().height < window.innerHeight * 1.5)).toBe(true);
 
+  await page.locator('[aria-labelledby="testimonials-heading"]').scrollIntoViewIfNeeded();
   const testimonials = page.getByLabel("LeadReacher customer testimonials");
   await testimonials.scrollIntoViewIfNeeded();
   await expect(testimonials.locator('[class*="mobileMarqueeTrack"] > div')).toHaveCount(1);
@@ -332,6 +333,22 @@ test("moves through the product story without layout overflow", async ({ page },
   expect((frameBox?.y ?? 0) + (frameBox?.height ?? 0)).toBeLessThanOrEqual(1025);
   expect(Math.abs((frameBox?.y ?? 0) + (frameBox?.height ?? 0) / 2 - 512)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("keeps subsequent story boards on the same white surface as Strategy", async ({ page }, testInfo) => {
+  test.skip(!testInfo.project.name.startsWith("desktop-"), "Desktop board styling only");
+  await openLanding(page);
+  const story = page.locator("#product-story-scroll");
+  await story.scrollIntoViewIfNeeded();
+  const surface = story.locator(".product-story-tablet-column > div");
+  const tabs = story.getByRole("tablist", { name: "LeadReacher workflow stages" }).getByRole("tab");
+
+  for (const tab of await tabs.all()) {
+    await tab.click();
+    await expect(surface).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(surface.locator(":scope > span")).toHaveCount(0);
+    await expect(story.getByTestId("interactive-dashboard-demo")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  }
 });
 
 for (const viewport of [

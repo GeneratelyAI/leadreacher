@@ -180,10 +180,8 @@ function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStory
 
       <div className="product-story-tablet-column relative min-h-0 self-stretch py-1 lg:py-2">
         <m.div
-          className="relative mx-auto flex h-full w-full max-w-[920px] shrink-0 overflow-hidden rounded-[26px] border border-white/20 bg-[#070812] p-2 shadow-[0_28px_90px_rgba(0,0,0,.48),0_0_70px_rgba(102,72,233,.16)] [backface-visibility:hidden] [transform:translateZ(0)] lg:rounded-[34px] lg:p-3"
+          className="relative mx-auto flex h-full w-full max-w-[920px] shrink-0 overflow-hidden rounded-[18px] border border-transparent bg-white p-2 shadow-[0_20px_55px_rgba(20,14,54,.18)] [backface-visibility:hidden] [transform:translateZ(0)] lg:p-3"
         >
-          <span aria-hidden className="absolute left-1/2 top-1.5 z-30 h-1 w-10 -translate-x-1/2 rounded-full bg-white/20 lg:top-2 lg:h-1.5 lg:w-14" />
-          <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/10" />
           <div id="product-story-panel" role="tabpanel" aria-labelledby={`product-story-tab-${stage.id}`} className="relative h-full min-h-0 w-full flex-1 overflow-hidden rounded-[19px] bg-[#f7f7fb] lg:rounded-[24px]">
             <m.div
               key={stage.id}
@@ -202,7 +200,6 @@ function WorkflowScene({ stage, reducedMotion, onSelect }: { stage: ProductStory
               />
             </m.div>
           </div>
-          <span aria-hidden className="absolute bottom-1.5 left-1/2 z-30 h-1 w-14 -translate-x-1/2 rounded-full bg-white/20 lg:bottom-2 lg:h-1.5 lg:w-20" />
         </m.div>
         {stage.id !== "website" && stage.id !== "strategy" && stage.id !== "prospects" && stage.id !== "outreach" && stage.id !== "conversations" ? (
           <AnimatePresence mode="wait" initial={false}>
