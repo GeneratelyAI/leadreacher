@@ -8,7 +8,6 @@ import { ArrowLeft, ArrowRight } from "@/components/ui/icons";
 import { useWebsiteScrapeStatus } from "@/features/onboarding/public/website-status";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
 import { apiFetch } from "@/lib/api";
-import { cleanWebsiteDomain } from "@/lib/website-url";
 import { normalizeLandingWebsiteUrl } from "@/lib/landing-url-analyzer";
 import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 import { cn } from "@/lib/utils";
@@ -45,7 +44,7 @@ export default function Discovery() {
   const [websiteInput, setWebsiteInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const { status, websiteUrl, loading, ready, message, start, retry } = useWebsiteScrapeStatus({
+  const { status, websiteUrl, loading, ready, message, retry } = useWebsiteScrapeStatus({
     context: "authenticated",
   });
 
@@ -72,24 +71,16 @@ export default function Discovery() {
       return;
     }
 
-    if (status.status === "completed" && normalized === cleanWebsiteDomain(websiteUrl ?? status.url ?? "")) {
-      submittedWebsite.current = false;
-      navigateOnboarding(onboardingHref("discovery"), true);
-      return;
-    }
-
     setError(null);
     setSubmittingWebsite(true);
     submittedWebsite.current = true;
     setMaterializeWebsiteIcon(true);
     resetReview();
-    window.localStorage.setItem("lr_website_url", normalized);
     try {
       if (!reduceMotion) {
         await new Promise<void>((resolve) => window.setTimeout(resolve, 460));
       }
-      if (status.status === "failed") await retry();
-      else await start();
+      await retry(normalized);
     } finally {
       setSubmittingWebsite(false);
     }

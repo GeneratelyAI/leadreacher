@@ -10,7 +10,7 @@ import { HowItWorksIllustration, useHowItWorksStory } from "./HowItWorksIllustra
 import styles from "./HowItWorks.module.css";
 import { useWebsiteScrapeStatus } from "@/features/onboarding/public/website-status";
 import { applyStoredTheme } from "@/hooks/useThemeMode";
-import { apiFetch } from "@/lib/api";
+import { ApiError, apiFetch } from "@/lib/api";
 import { beginOnboardingNavigation, navigateOnboarding, onboardingHref, restoreOnboardingNavigation } from "../../public/navigation";
 
 const EXPLANATION = [
@@ -22,7 +22,7 @@ const EXPLANATION = [
 
 export default function HowItWorks() {
   useLayoutEffect(() => applyStoredTheme(), []);
-  const { status, websiteUrl } = useWebsiteScrapeStatus({ context: "authenticated" });
+  const { status, websiteUrl, loading, ready, retry } = useWebsiteScrapeStatus({ context: "authenticated" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reduceMotion = useStableReducedMotion();
@@ -33,8 +33,24 @@ export default function HowItWorks() {
   const storyRef = useRef<HTMLOListElement>(null);
   useHowItWorksStory(storyRef, websiteUrl);
 
+  const summary = {
+    businessModel: status.offer.trim() || status.market.trim(),
+    industry: status.market.trim() || status.offer.trim(),
+    strengths: status.value.trim() || status.offer.trim(),
+    idealCustomer: status.audience.trim() || status.market.trim(),
+    nextStep: status.strategyStatus,
+  };
+  const hasSummary = Boolean(summary.businessModel && summary.industry && summary.strengths && summary.idealCustomer);
+  const canContinue = ready && !loading && status.status === "completed" && hasSummary;
+  const analyzing = !ready || loading || status.status === "running";
+
+  async function retryAnalysis() {
+    setError(null);
+    await retry();
+  }
+
   async function continueToProspects() {
-    if (saving) return;
+    if (saving || !canContinue) return;
     if (!beginOnboardingNavigation(onboardingHref("discovery"))) return;
     setSaving(true);
     setError(null);
@@ -44,13 +60,7 @@ export default function HowItWorks() {
         body: JSON.stringify({
           mode: "introduction",
           websiteUrl: websiteUrl ?? status.url,
-          summary: {
-            businessModel: status.offer || status.market,
-            industry: status.market || status.offer,
-            strengths: status.value || status.offer,
-            idealCustomer: status.audience || status.market,
-            nextStep: status.strategyStatus,
-          },
+          summary,
           messages: [{ role: "user", content: "Continue to review audience criteria." }],
           prospectProfile: status.prospectProfile ? { ...status.prospectProfile, additionalContext: "" } : undefined,
         }),
@@ -58,7 +68,9 @@ export default function HowItWorks() {
       navigateOnboarding(onboardingHref("discovery"));
     } catch (caught) {
       restoreOnboardingNavigation();
-      setError(caught instanceof Error ? caught.message : "Unable to restore your campaign. Please try again.");
+      setError(caught instanceof ApiError && caught.code === "VALIDATION_ERROR"
+        ? "We couldn't save your business details. Please retry the website analysis."
+        : caught instanceof Error ? caught.message : "Unable to restore your campaign. Please try again.");
       setSaving(false);
     }
   }
@@ -81,13 +93,28 @@ export default function HowItWorks() {
           {index < EXPLANATION.length - 1 ? <ArrowRight className="how-it-works-connector" aria-hidden /> : null}
         </li>)}
       </ol>
+      {!canContinue ? (
+        analyzing ? <p role="status" className="mt-4 text-sm">Analyzing your website. You can continue once your business details are ready.</p> : (
+          <p role="alert" className="mt-4 text-sm text-red-700">
+            {websiteUrl || status.url
+              ? "We couldn't find all the business details needed to continue. Retry the analysis or check your website address."
+              : "Enter your website address so we can prepare your business details."}
+          </p>
+        )
+      ) : null}
+      {!analyzing && (!canContinue || error) ? <div className="mt-3 flex flex-wrap gap-3">
+        {websiteUrl || status.url ? <Button type="button" variant="secondary" disabled={saving} onClick={retryAnalysis}>Retry analysis</Button> : null}
+        <Button type="button" variant="secondary" disabled={saving} onClick={() => navigateOnboarding(`${onboardingHref("discovery")}?view=website`)}>
+          {websiteUrl || status.url ? "Check website address" : "Enter website address"}
+        </Button>
+      </div> : null}
       {error ? <p role="alert" className="text-sm text-red-700">{error}</p> : null}
     </main>
     <div className="how-it-works-campaign-actions">
       <Button type="button" variant="secondary" className="campaign-content-back" onClick={() => window.location.assign("/")}>
         <ArrowLeft className="size-5" aria-hidden />Back
       </Button>
-      <Button type="button" className="onboarding-campaign-next" disabled={saving} onClick={continueToProspects}>
+      <Button type="button" className="onboarding-campaign-next" disabled={saving || !canContinue} onClick={continueToProspects}>
         {saving ? "Saving..." : "Continue to prospects"}<ArrowRight className="size-5" aria-hidden />
       </Button>
     </div>
