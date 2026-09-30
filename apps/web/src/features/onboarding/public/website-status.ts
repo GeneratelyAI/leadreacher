@@ -48,6 +48,8 @@ type UseWebsiteScrapeStatusOptions = {
 
 type EnsureScrapeOptions = {
   force?: boolean;
+  restartCompleted?: boolean;
+  websiteUrl?: string;
 };
 
 type PublicApiError = {
@@ -171,7 +173,7 @@ async function anonymousFetch<T>(
   return payload as T;
 }
 
-function createScrapeController(context: ScrapeContext) {
+export function createScrapeController(context: ScrapeContext) {
   let store: WebsiteScrapeStore = {
     status: EMPTY_STATUS,
     loading: false,
@@ -187,6 +189,8 @@ function createScrapeController(context: ScrapeContext) {
   let pollTimer: number | undefined;
   let statusRequest: Promise<WebsiteScrapeStatus> | null = null;
   let statusRequestUrl: string | null = null;
+  let statusRequestScope: string | null = null;
+  let requestVersion = 0;
 
   function notify(nextStore: WebsiteScrapeStore): void {
     store = nextStore;
@@ -199,18 +203,29 @@ function createScrapeController(context: ScrapeContext) {
     return nextStore;
   }
 
+  function currentScope(): string | null {
+    if (context === "authenticated") {
+      const orgId = getDiscoveryOrgScope();
+      return orgId ? `org:${orgId}` : null;
+    }
+    const anonId = window.localStorage.getItem("lr_anon_scrape_id")?.trim();
+    return anonId ? `anon:${anonId}` : null;
+  }
+
+  function selectWebsiteUrl(websiteUrl: string): void {
+    if (websiteUrl === readStoredWebsiteUrl(context)) return;
+    const scope = currentScope();
+    if (context === "authenticated" && scope) {
+      writeDiscoveryScrapeCache({ ...EMPTY_STATUS, url: websiteUrl }, scope);
+      window.localStorage.removeItem("lr_website_url");
+    } else {
+      window.localStorage.setItem("lr_website_url", websiteUrl);
+    }
+  }
+
   function syncStoredWebsiteUrl(): string | null {
     const websiteUrl = readStoredWebsiteUrl(context);
-    const scope =
-      context === "authenticated"
-        ? (() => {
-            const orgId = getDiscoveryOrgScope();
-            return orgId ? `org:${orgId}` : null;
-          })()
-        : (() => {
-            const anonId = window.localStorage.getItem("lr_anon_scrape_id")?.trim();
-            return anonId ? `anon:${anonId}` : null;
-          })();
+    const scope = currentScope();
 
     if (!websiteUrl) {
       activeWebsiteUrl = null;
@@ -327,61 +342,60 @@ function createScrapeController(context: ScrapeContext) {
   }
 
   async function fetchAndMaybeStartStatus(
-    forceStart = false,
+    forceStart: boolean,
+    restartCompleted: boolean,
+    version: number,
   ): Promise<WebsiteScrapeStatus> {
-    const websiteUrl = syncStoredWebsiteUrl();
+    let websiteUrl = syncStoredWebsiteUrl();
     if (!websiteUrl && context === "anonymous") {
       updateStore({ ready: true });
       return store.status;
     }
 
     const anonId = context === "anonymous" ? readOrCreateAnonymousScrapeId() : null;
+    const scope = currentScope();
+    const isCurrentRequest = () => version === requestVersion && scope === currentScope();
     updateStore({ loading: true, message: null });
 
     try {
       let nextStatus = await getStatus(anonId);
+      if (!isCurrentRequest()) return store.status;
 
       if (!websiteUrl) {
-        if (nextStatus.url) {
-          const orgId = getDiscoveryOrgScope();
-          activeWebsiteUrl = nextStatus.url;
-          activeScope = orgId ? `org:${orgId}` : null;
+        if (!nextStatus.url) {
           updateStore({
             status: nextStatus,
             loading: false,
             ready: true,
-            message: nextStatus.status === "failed" ? nextStatus.error : null,
-            websiteUrl: nextStatus.url,
-            hasStoredUrl: true,
+            message: nextStatus.status === "failed" ? nextStatus.error : NO_WEBSITE_MESSAGE,
+            websiteUrl: null,
+            hasStoredUrl: false,
           });
-          persistScrapeStatus(nextStatus, anonId);
-          if (nextStatus.status === "running") schedulePoll();
           return nextStatus;
         }
-
-        updateStore({
-          status: nextStatus,
-          loading: false,
-          ready: true,
-          message: nextStatus.status === "failed" ? nextStatus.error : NO_WEBSITE_MESSAGE,
-          websiteUrl: null,
-          hasStoredUrl: false,
-        });
-        return nextStatus;
+        websiteUrl = nextStatus.url;
+        activeWebsiteUrl = websiteUrl;
+        activeScope = scope;
       }
 
-      if (
-        forceStart &&
+      const requestedStart =
         nextStatus.status !== "running" &&
-        nextStatus.status !== "completed"
-      ) {
-        startAttemptedForUrl = websiteUrl;
+        ((forceStart && (nextStatus.status !== "completed" || restartCompleted)) ||
+          shouldStartFreshScrape(nextStatus, websiteUrl, startAttemptedForUrl));
+      if (requestedStart) {
         nextStatus = await startScrape(websiteUrl, anonId);
-      } else if (
-        shouldStartFreshScrape(nextStatus, websiteUrl, startAttemptedForUrl)
-      ) {
+      }
+
+      if (!isCurrentRequest()) return store.status;
+      const matchesSelectedWebsite = nextStatus.url &&
+        cleanWebsiteDomain(nextStatus.url).toLowerCase() === cleanWebsiteDomain(websiteUrl).toLowerCase();
+      if (!matchesSelectedWebsite) {
+        // A held scrape lock can return the previous website's result. Keep
+        // polling until the selected website's analysis can actually start.
+        startAttemptedForUrl = null;
+        nextStatus = { ...EMPTY_STATUS, status: "running", url: websiteUrl };
+      } else if (requestedStart) {
         startAttemptedForUrl = websiteUrl;
-        nextStatus = await startScrape(websiteUrl, anonId);
       }
 
       updateStore({
@@ -404,6 +418,7 @@ function createScrapeController(context: ScrapeContext) {
 
       return nextStatus;
     } catch (error) {
+      if (!isCurrentRequest()) return store.status;
       const isAuthError = error instanceof ApiError && error.status === 401;
       const message =
         isAuthError && context === "authenticated"
@@ -433,26 +448,33 @@ function createScrapeController(context: ScrapeContext) {
 
   async function ensureWebsiteScrapeStarted({
     force = false,
+    restartCompleted = false,
+    websiteUrl: selectedWebsiteUrl,
   }: EnsureScrapeOptions = {}): Promise<WebsiteScrapeStatus> {
+    if (selectedWebsiteUrl) selectWebsiteUrl(selectedWebsiteUrl);
     const websiteUrl = syncStoredWebsiteUrl();
-    if (statusRequest && !force && statusRequestUrl === websiteUrl) {
+    const scope = currentScope();
+    if (statusRequest && statusRequestUrl === websiteUrl && statusRequestScope === scope) {
       return statusRequest;
     }
 
-    const request = fetchAndMaybeStartStatus(force);
+    const request = fetchAndMaybeStartStatus(force, restartCompleted, ++requestVersion);
     statusRequest = request;
     statusRequestUrl = websiteUrl;
+    statusRequestScope = currentScope();
     request.then(
       () => {
         if (statusRequest === request) {
           statusRequest = null;
           statusRequestUrl = null;
+          statusRequestScope = null;
         }
       },
       () => {
         if (statusRequest === request) {
           statusRequest = null;
           statusRequestUrl = null;
+          statusRequestScope = null;
         }
       },
     );
@@ -519,6 +541,7 @@ function createScrapeController(context: ScrapeContext) {
 
   return {
     ensureWebsiteScrapeStarted,
+    retry: (websiteUrl?: string) => ensureWebsiteScrapeStarted({ force: true, restartCompleted: true, websiteUrl }),
     getSnapshot: () => store,
     subscribe,
     waitForReadyToNavigate,
@@ -551,12 +574,12 @@ export function useWebsiteScrapeStatus({
   }, [autoStart, controller]);
 
   const start = useCallback(
-    () => controller.ensureWebsiteScrapeStarted(),
+    (websiteUrl?: string) => controller.ensureWebsiteScrapeStarted({ websiteUrl }),
     [controller],
   );
 
   const retry = useCallback(
-    () => controller.ensureWebsiteScrapeStarted({ force: true }),
+    (websiteUrl?: string) => controller.retry(websiteUrl),
     [controller],
   );
 
