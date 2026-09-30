@@ -2,10 +2,45 @@ import { describe, expect, it } from "vitest";
 import {
   AnonScrapeIdSchema,
   boundGroqWebsiteContext,
+  recoverExpiredScrape,
   recoverScrapeStatusFromOnboardingData,
   recoverScrapeStatusFromStrategy,
   resolveScrapeTerminalStatus,
 } from "../public/discovery-routes.js";
+
+describe("interrupted scrape recovery", () => {
+  const startedAt = new Date("2026-09-29T12:00:00Z");
+  const running = {
+    status: "running" as const, url: "https://example.com", error: null,
+    updatedAt: startedAt.toISOString(), market: "", offer: "", audience: "",
+    value: "", strategyStatus: "",
+  };
+
+  it("preserves active jobs, including claimed anonymous jobs", () => {
+    expect(recoverExpiredScrape(running, startedAt.getTime() + 299_999)).toBe(running);
+  });
+
+  it("makes expired jobs retryable at the lock deadline without mutating storage", () => {
+    expect(recoverExpiredScrape(running, startedAt.getTime() + 300_000)).toMatchObject({
+      status: "failed", url: running.url, error: expect.stringContaining("retry"),
+    });
+    expect(running.status).toBe("running");
+  });
+
+  it("recovers invalid timestamps instead of polling forever", () => {
+    expect(recoverExpiredScrape({ ...running, updatedAt: "invalid" }).status).toBe("failed");
+  });
+
+  it("does not expire completed results", () => {
+    const completed = { ...running, status: "completed" as const };
+    expect(recoverExpiredScrape(completed, startedAt.getTime() + 3_600_000)).toBe(completed);
+  });
+
+  it("recovers durable running status after the Redis cache expires", () => {
+    expect(recoverScrapeStatusFromOnboardingData({ discovery: running }, startedAt))
+      .toMatchObject({ status: "failed", url: running.url });
+  });
+});
 
 describe("resolveScrapeTerminalStatus", () => {
   it("returns failed when all fields are empty", () => {

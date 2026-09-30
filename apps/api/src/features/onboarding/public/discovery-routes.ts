@@ -429,7 +429,7 @@ export function recoverScrapeStatusFromOnboardingData(
 
   const profile = asRecord(discovery.prospectProfile);
   const audienceBrief = asRecord(discovery.audienceBrief);
-  return {
+  return recoverExpiredScrape({
     status: status as DiscoveryScrapeStatus["status"],
     url,
     market: readString(discovery.market),
@@ -448,7 +448,7 @@ export function recoverScrapeStatusFromOnboardingData(
       : undefined,
     error: readString(discovery.error) || null,
     updatedAt: readString(discovery.updatedAt) || updatedAt.toISOString(),
-  };
+  });
 }
 
 async function persistOrganizationDiscoveryStatus(
@@ -549,10 +549,27 @@ export async function getScrapeStatus(
   }
 
   try {
-    return JSON.parse(raw) as DiscoveryScrapeStatus;
+    return recoverExpiredScrape(JSON.parse(raw) as DiscoveryScrapeStatus);
   } catch {
     return null;
   }
+}
+
+export function recoverExpiredScrape(
+  status: DiscoveryScrapeStatus,
+  now = Date.now(),
+): DiscoveryScrapeStatus {
+  if (status.status !== "running") return status;
+  const startedAt = Date.parse(status.updatedAt);
+  if (Number.isFinite(startedAt) && now - startedAt < SCRAPE_LOCK_TTL_SECONDS * 1000) {
+    return status;
+  }
+  // Normalize on read without overwriting a newer job's persisted status.
+  return {
+    ...status,
+    status: "failed",
+    error: "Website analysis was interrupted or took too long. Please retry the analysis.",
+  };
 }
 
 function cleanScrapeField(value: unknown): string {
@@ -751,6 +768,8 @@ async function runDiscoveryScrape(
   organizationId?: string,
 ): Promise<void> {
   async function persist(status: DiscoveryScrapeStatus): Promise<void> {
+    // An expired worker must not overwrite the result of a newer retry.
+    if (lock && await redis.get(lock.key) !== lock.token) return;
     await setScrapeStatus(statusKey, status, ttlSeconds);
     if (organizationId) {
       await persistOrganizationDiscoveryStatusSafely(organizationId, status);
