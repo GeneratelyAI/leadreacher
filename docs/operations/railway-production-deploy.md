@@ -19,9 +19,9 @@ This avoids two systems issuing competing deployment commands.
   `.github/workflows/deployment-smoke.yml` waits for the deployed API and web
   application, then verifies API readiness, API liveness, and the web root.
 
-Deployment smoke runs automatically after a successful CI deployment whenever
-both environment URLs below are configured. It records a skipped check until
-then, rather than producing a false failure for an unconfigured target.
+Deployment smoke runs automatically after a successful CI deployment. It
+requires both environment URLs below and fails with an actionable error when
+either is missing, so a deployment cannot appear healthy without live checks.
 
 Create GitHub environments named `staging` and `production`. Add these
 environment secrets, pointing at the matching environment's public services:

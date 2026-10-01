@@ -35,8 +35,7 @@ jobs:
       PRODUCTION_API_URL: ${{ secrets.PRODUCTION_API_URL }}
       PRODUCTION_WEB_URL: ${{ secrets.PRODUCTION_WEB_URL }}
     steps:
-      - name: Detect configured deployment target
-        id: target
+      - name: Require configured deployment URLs
         shell: bash
         run: |
           if [ "$TARGET_ENVIRONMENT" = "production" ]; then
@@ -48,19 +47,18 @@ jobs:
           fi
 
           if [ -z "$api_url" ] || [ -z "$web_url" ]; then
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Deployment smoke skipped: API and web URLs are not configured for $TARGET_ENVIRONMENT."
-            exit 0
+            echo "::error::Deployment smoke requires both API and web URL secrets for $TARGET_ENVIRONMENT."
+            exit 1
+          fi
+          if [[ "$api_url" != https://* ]] || [[ "$web_url" != https://* ]]; then
+            echo "::error::Deployment smoke URLs must use HTTPS."
+            exit 1
           fi
 
-          echo "configured=true" >> "$GITHUB_OUTPUT"
-          echo "api_url=${api_url%/}" >> "$GITHUB_OUTPUT"
-          echo "web_url=${web_url%/}" >> "$GITHUB_OUTPUT"
+          echo "API_URL=${api_url%/}" >> "$GITHUB_ENV"
+          echo "WEB_URL=${web_url%/}" >> "$GITHUB_ENV"
 
       - name: Wait for API readiness
-        if: steps.target.outputs.configured == 'true'
-        env:
-          API_URL: ${{ steps.target.outputs.api_url }}
         shell: bash
         run: |
           for attempt in $(seq 1 30); do
@@ -74,13 +72,7 @@ jobs:
           exit 1
 
       - name: Verify API liveness
-        if: steps.target.outputs.configured == 'true'
-        env:
-          API_URL: ${{ steps.target.outputs.api_url }}
         run: curl --fail --silent --show-error --max-time 10 "$API_URL/health" >/dev/null
 
       - name: Verify web application
-        if: steps.target.outputs.configured == 'true'
-        env:
-          WEB_URL: ${{ steps.target.outputs.web_url }}
         run: curl --fail --silent --show-error --max-time 10 "$WEB_URL/" >/dev/null
